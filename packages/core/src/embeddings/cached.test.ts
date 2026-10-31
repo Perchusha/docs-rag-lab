@@ -132,22 +132,102 @@ describe('embedWithCache', () => {
     ).rejects.toThrow('bad key')
   })
 
-  it('keeps batches that were embedded before a failure', async () => {
-    const provider = new RecordingProvider({ maxInputs: 1 })
-    const failing = new FlakyProvider(0, () => new EmbeddingRequestError('down', { status: 401 }))
-    await embedWithCache(['a'], { provider, cache, inputType: 'document', meter: new UsageMeter() })
+  it('retries server and network errors with exponential backoff, then gives up', async () => {
+    const provider = new FlakyProvider(
+      Number.POSITIVE_INFINITY,
+      () => new EmbeddingRequestError('unavailable', { status: 503 }),
+    )
+    const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
+    let attempts = 0
+    const counting: EmbeddingProvider = {
+      id: provider.id,
+      model: provider.model,
+      dimensions: provider.dimensions,
+      limits: provider.limits,
+      embed: (texts, inputType) => {
+        attempts++
+        return provider.embed(texts, inputType)
+      },
+    }
 
-    // A second run that fails still finds 'a' in the cache.
-    failing.embed = () => Promise.reject(new EmbeddingRequestError('down', { status: 401 }))
+    await expect(
+      embedWithCache(['x'], {
+        provider: counting,
+        cache,
+        inputType: 'document',
+        meter: new UsageMeter(),
+        limiter,
+      }),
+    ).rejects.toThrow('unavailable')
+
+    // 1 attempt + 6 retries; backoff 2s, 4s, ..., 64s between them.
+    expect(attempts).toBe(7)
+    expect(limiter.waitedMs).toBe(2_000 + 4_000 + 8_000 + 16_000 + 32_000 + 64_000)
+  })
+
+  it('retries a network error, which has no status', async () => {
+    const provider = new FlakyProvider(1, () => new EmbeddingRequestError('socket hang up', {}))
+    const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
+    const vectors = await embedWithCache(['x'], {
+      provider,
+      cache,
+      inputType: 'document',
+      meter: new UsageMeter(),
+      limiter,
+    })
+    expect(vectors).toHaveLength(1)
+    expect(limiter.waitedMs).toBe(2_000)
+  })
+
+  it('caps a long Retry-After at 5 minutes', async () => {
+    const provider = new FlakyProvider(
+      1,
+      () => new EmbeddingRequestError('busy', { status: 429, retryAfterMs: 3_600_000 }),
+    )
+    const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
+    await embedWithCache(['x'], {
+      provider,
+      cache,
+      inputType: 'document',
+      meter: new UsageMeter(),
+      limiter,
+    })
+    expect(limiter.waitedMs).toBe(300_000)
+  })
+
+  it('writes each batch to the cache as soon as it returns, before a later batch fails', async () => {
+    const inner = new RecordingProvider({ maxInputs: 1 })
+    let calls = 0
+    const secondFails: EmbeddingProvider = {
+      id: inner.id,
+      model: inner.model,
+      dimensions: inner.dimensions,
+      limits: inner.limits,
+      embed: (texts, inputType) => {
+        calls++
+        if (calls === 2) return Promise.reject(new EmbeddingRequestError('denied', { status: 403 }))
+        return inner.embed(texts, inputType)
+      },
+    }
+
     await expect(
       embedWithCache(['a', 'b'], {
-        provider: failing,
+        provider: secondFails,
         cache,
         inputType: 'document',
         meter: new UsageMeter(),
       }),
-    ).rejects.toThrow('down')
+    ).rejects.toThrow('denied')
+
     expect(cache.count()).toBe(1)
+    const again = await embedWithCache(['a', 'b'], {
+      provider: inner,
+      cache,
+      inputType: 'document',
+      meter: new UsageMeter(),
+    })
+    expect(again).toHaveLength(2)
+    expect(inner.embedded).toEqual(['a', 'b'])
   })
 
   it('rejects vectors with the wrong dimensions', async () => {

@@ -37,6 +37,8 @@ export interface EmbedWithCacheOptions {
 const DEFAULT_MAX_RETRIES = 6
 const RATE_LIMITED_BACKOFF_MS = 60_000
 const ERROR_BACKOFF_MS = 2_000
+// A Retry-After beyond this is treated as this; the retry count bounds the rest.
+const MAX_BACKOFF_MS = 5 * 60_000
 
 /** Groups texts into requests within the provider's input and estimated-token limits. */
 export function batchForProvider(
@@ -78,12 +80,16 @@ async function embedBatch(
       meter.recordEmbedding(provider.model, result.tokens)
       return result.vectors
     } catch (error) {
+      // The failed attempt still counts as a request, but carried no billed tokens.
+      slot?.settle(0)
       if (!(error instanceof EmbeddingRequestError) || !error.retryable || attempt >= maxRetries) {
         throw error
       }
-      const backoff =
+      const backoff = Math.min(
+        MAX_BACKOFF_MS,
         error.retryAfterMs ??
-        (error.status === 429 ? RATE_LIMITED_BACKOFF_MS : ERROR_BACKOFF_MS * 2 ** attempt)
+          (error.status === 429 ? RATE_LIMITED_BACKOFF_MS : ERROR_BACKOFF_MS * 2 ** attempt),
+      )
       if (limiter !== undefined) await limiter.wait(backoff)
       else await new Promise((resolve) => setTimeout(resolve, backoff))
     }

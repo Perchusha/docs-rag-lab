@@ -42,11 +42,11 @@ export {
   citationSource,
   citationTitle,
   CitationNumbering,
-  collectCitations,
   createClaudeClient,
   streamAnswer,
   toSearchResult,
   type AnswerRequestOptions,
+  type AnswerStream,
   type NumberedCitation,
   type StreamHandlers,
 } from './generate.ts'

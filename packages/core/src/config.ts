@@ -6,8 +6,8 @@ import type { Source } from '@docs-rag-lab/source-kit'
 export interface ModelPrice {
   input: number
   output?: number
+  /** Cache writes are priced at the 5-minute rate; nothing uses 1-hour caching yet. */
   cacheWrite5m?: number
-  cacheWrite1h?: number
   cacheRead?: number
 }
 

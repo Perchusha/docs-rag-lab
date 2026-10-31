@@ -44,6 +44,8 @@ function toRequestError(error: unknown): unknown {
   if (error instanceof VoyageAITimeoutError) {
     return new EmbeddingRequestError(`Voyage request timed out: ${error.message}`, { cause: error })
   }
+  // The client wraps network failures in a VoyageAIError without a status code,
+  // which makes them retryable. Anything else (a bug) passes through unchanged.
   if (error instanceof VoyageAIError) {
     const options: { status?: number; retryAfterMs?: number; cause: unknown } = { cause: error }
     if (error.statusCode !== undefined) options.status = error.statusCode
@@ -53,10 +55,6 @@ function toRequestError(error: unknown): unknown {
       `Voyage request failed${error.statusCode === undefined ? '' : ` (${String(error.statusCode)})`}: ${error.message}`,
       options,
     )
-  }
-  if (error instanceof TypeError) {
-    // fetch reports network failures as TypeError.
-    return new EmbeddingRequestError(`Voyage request failed: ${error.message}`, { cause: error })
   }
   return error
 }

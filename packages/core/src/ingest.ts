@@ -55,8 +55,10 @@ export interface SyncReport {
   stats: IndexStats
 }
 
-function sameList(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((value, i) => value === b[i])
+/** Same entries in any order: reordering include paths changes nothing. */
+function sameSet(a: readonly string[], b: readonly string[]): boolean {
+  const sorted = (list: readonly string[]) => JSON.stringify([...list].sort())
+  return sorted(a) === sorted(b)
 }
 
 /** Why the index must be rebuilt from scratch, or undefined if an incremental sync is fine. */
@@ -74,7 +76,7 @@ function fullRebuildReason(options: SyncSourceOptions): string | undefined {
   if (manifest.repo !== source.repo || manifest.branch !== source.branch) {
     return 'repository or branch changed'
   }
-  if (!sameList(manifest.includePaths, source.include)) return 'include paths changed'
+  if (!sameSet(manifest.includePaths, source.include)) return 'include paths changed'
   return undefined
 }
 

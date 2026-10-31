@@ -9,8 +9,9 @@ import {
   buildAnswerRequest,
   citationSource,
   CitationNumbering,
-  collectCitations,
+  streamAnswer,
   toSearchResult,
+  type AnswerStream,
 } from './generate.ts'
 
 // Hand-built in the shape of the search results docs: two cited search
@@ -98,9 +99,87 @@ describe('buildAnswerRequest', () => {
   })
 })
 
+const textBlocks = message.content.filter(
+  (block): block is Anthropic.TextBlock => block.type === 'text',
+)
+
+/** A fake stream that replays the fixture, or fails after the first text block. */
+function fakeClient(options: { failAfterFirstBlock?: boolean } = {}) {
+  const listeners: {
+    text: ((d: string) => void)[]
+    block: ((b: Anthropic.ContentBlock) => void)[]
+  } = {
+    text: [],
+    block: [],
+  }
+  let current: Anthropic.Message | undefined
+  const stream: AnswerStream = {
+    on(event: 'text' | 'contentBlock', listener: never) {
+      if (event === 'text') listeners.text.push(listener)
+      else listeners.block.push(listener)
+      return stream
+    },
+    get currentMessage() {
+      return current
+    },
+    finalMessage() {
+      for (const [i, block] of textBlocks.entries()) {
+        current = { ...message, usage: { ...message.usage, output_tokens: 10 * (i + 1) } }
+        for (const listener of listeners.text) listener(block.text)
+        for (const listener of listeners.block) listener(block)
+        if (options.failAfterFirstBlock === true) {
+          return Promise.reject(new Error('connection reset'))
+        }
+      }
+      current = message
+      return Promise.resolve(message)
+    },
+  }
+  return { messages: { stream: () => stream } }
+}
+
+describe('streamAnswer', () => {
+  const request = buildAnswerRequest({
+    question: 'q',
+    hits: [hit],
+    model: 'claude-test',
+    effort: 'low',
+    maxTokens: 100,
+  })
+
+  it('streams text, hands over each finished text block and reports usage once', async () => {
+    let text = ''
+    const blocks: Anthropic.TextBlock[] = []
+    const usages: Anthropic.Usage[] = []
+
+    const final = await streamAnswer(fakeClient(), request, {
+      onText: (delta) => (text += delta),
+      onTextBlock: (block) => blocks.push(block),
+      onUsage: (usage) => usages.push(usage),
+    })
+
+    expect(final).toBe(message)
+    expect(text).toBe(textBlocks.map((block) => block.text).join(''))
+    expect(blocks).toHaveLength(4)
+    expect(usages).toEqual([message.usage])
+  })
+
+  it('still reports the usage so far when the stream fails part-way', async () => {
+    const usages: Anthropic.Usage[] = []
+    await expect(
+      streamAnswer(fakeClient({ failAfterFirstBlock: true }), request, {
+        onUsage: (usage) => usages.push(usage),
+      }),
+    ).rejects.toThrow('connection reset')
+    expect(usages.map((usage) => usage.output_tokens)).toEqual([10])
+  })
+})
+
 describe('citations', () => {
   it('numbers search results in order of first use and lists each once', () => {
-    expect(collectCitations(message)).toEqual([
+    const numbering = new CitationNumbering()
+    for (const block of textBlocks) numbering.add(block)
+    expect(numbering.list()).toEqual([
       {
         number: 1,
         source: 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types',
@@ -118,9 +197,6 @@ describe('citations', () => {
 
   it('returns the markers for each text block as it completes', () => {
     const numbering = new CitationNumbering()
-    const markers = message.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-      .map((block) => numbering.add(block))
-    expect(markers).toEqual([[1], [], [2, 1], []])
+    expect(textBlocks.map((block) => numbering.add(block))).toEqual([[1], [], [2, 1], []])
   })
 })

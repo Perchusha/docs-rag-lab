@@ -91,11 +91,26 @@ export interface StreamHandlers {
   onText?: (delta: string) => void
   /** Called when a text block is complete, with its citations (possibly none). */
   onTextBlock?: (block: Anthropic.TextBlock) => void
+  /**
+   * Called once with the usage so far, also when the stream fails part-way,
+   * so the tokens of a broken answer are still reported.
+   */
+  onUsage?: (usage: Anthropic.Usage) => void
+}
+
+/** The part of a message stream that streamAnswer uses; tests pass a fake. */
+export interface AnswerStream {
+  on(event: 'text', listener: (delta: string) => void): unknown
+  on(event: 'contentBlock', listener: (block: Anthropic.ContentBlock) => void): unknown
+  finalMessage(): Promise<Anthropic.Message>
+  readonly currentMessage: Anthropic.Message | undefined
 }
 
 /** Streams the answer and resolves with the final message. */
 export async function streamAnswer(
-  client: Anthropic,
+  client: {
+    messages: { stream(request: Anthropic.MessageCreateParamsNonStreaming): AnswerStream }
+  },
   request: Anthropic.MessageCreateParamsNonStreaming,
   handlers: StreamHandlers = {},
 ): Promise<Anthropic.Message> {
@@ -104,7 +119,14 @@ export async function streamAnswer(
   stream.on('contentBlock', (block) => {
     if (block.type === 'text') handlers.onTextBlock?.(block)
   })
-  return stream.finalMessage()
+  let message: Anthropic.Message | undefined
+  try {
+    message = await stream.finalMessage()
+    return message
+  } finally {
+    const usage = (message ?? stream.currentMessage)?.usage
+    if (usage !== undefined) handlers.onUsage?.(usage)
+  }
 }
 
 export interface NumberedCitation {
@@ -144,13 +166,4 @@ export class CitationNumbering {
   list(): NumberedCitation[] {
     return [...this.#byIndex.values()].sort((a, b) => a.number - b.number)
   }
-}
-
-/** Numbers every citation in a finished message. */
-export function collectCitations(message: Anthropic.Message): NumberedCitation[] {
-  const numbering = new CitationNumbering()
-  for (const block of message.content) {
-    if (block.type === 'text') numbering.add(block)
-  }
-  return numbering.list()
 }
