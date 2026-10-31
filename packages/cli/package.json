@@ -3,13 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "drl": "./src/bin.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:network": "vitest run --config vitest.network.config.js"
+  },
+  "dependencies": {
+    "@docs-rag-lab/core": "workspace:*",
+    "@docs-rag-lab/source-typescript": "workspace:*"
   },
   "devDependencies": {
     "@docs-rag-lab/config": "workspace:*",

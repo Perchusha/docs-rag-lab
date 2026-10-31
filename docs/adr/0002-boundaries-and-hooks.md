@@ -4,6 +4,7 @@
 - Date: 2026-10-31
 - Milestone: M0
 - Amended: 2026-10-31, section 5 (permission deny rules), before M1
+- Amended: 2026-10-31, M1: `source-kit-is-leaf` replaces `source-kit-only-db` (ADR-0003); post-edit hook re-measured on real code
 
 ## Context
 
@@ -29,7 +30,7 @@ The rules live in `packages/config/dependency-cruiser.cjs`. The root `.dependenc
 | `ui-no-node-builtins` | SPEC "client-safe" |
 | `no-deep-imports` (only `src/index.ts`; `packages/config` is exempt, because it serves presets through subpaths) | SPEC |
 | `apps-not-to-apps` | added: apps are leaves; shared code belongs in a package |
-| `source-kit-only-db`, `db-is-leaf` | added: foundation packages stay at the bottom of the graph. Revisit in M1, when it is decided where the embedding cache lives |
+| `source-kit-is-leaf`, `db-is-leaf` | added: foundation packages stay at the bottom of the graph. Until M1 the source-kit rule was `source-kit-only-db`; M1 put the embedding cache in core, so source-kit imports nothing internal (ADR-0003) |
 | `no-relative-cross-package` | added: `../../core/src/x.ts` bypasses both `exports` and the package.json dependency list |
 | `config-is-leaf` | added after the M0 review: every rule exempts `packages/config` (presets), so without this a re-export through config would launder any import. The reviewer proved it with `ui -> config -> core` |
 | `tooling-not-imported` | added: repo checks and hooks are not product code |
@@ -96,6 +97,17 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
   | config | 3.0s | 1.1s |
 
 - The cold median is 2.6s and the max is 3.0s, well under the budget, so lint stays in PostToolUse. Re-measure when packages carry real code (M1, M3).
+- Re-measured in M1 with real code, two rounds per package. "Miss" forces the cache with `--force`; "hit" is the next run:
+
+  | Package | Miss | Hit |
+  |---|---|---|
+  | core | 3.0-3.1s | 1.0-1.1s |
+  | source-kit | 2.6-2.7s | 1.0-1.1s |
+  | source-typescript | 2.5-2.6s | 1.0-1.1s |
+  | db | 2.5s | 1.0-1.1s |
+  | cli | 3.5-3.6s | 1.0s |
+
+  The miss median is about 2.7s and the max 3.6s. One run took 15.6s: the first check of core right after its dependencies were installed. Still well under the budget, so lint stays in PostToolUse. Re-measure in M3.
 - With pnpm 12's default `verifyDepsBeforeRun: install`, the hook's own `pnpm turbo` call installs dependencies after a `package.json` edit, so the next check sees the new links.
 
 **Failure modes, shared by post-edit and stop-tests:**

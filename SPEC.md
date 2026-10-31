@@ -57,8 +57,8 @@ apps/
   react-docs/       docs assistant for React (created in M6)
   interview-prep/   multi-source interview trainer (created in M8)
 packages/
-  core/             chunking, contextualization, embeddings, hybrid search, rerank, generation, eval runner
-  source-kit/       Source interface, git sync, hashing, embedding cache, conformance test suite
+  core/             ingest, contextualization, embeddings and the embedding cache, hybrid search, rerank, generation, eval runner
+  source-kit/       Source interface, git sync, hashing, chunker, conformance test suite (ADR-0003)
   sources/
     typescript/     TypeScript-Website parser (twoslash)
     react/          react.dev parser (MDX components; created in M6 with turbo gen)
@@ -86,7 +86,7 @@ docs/journal.md     short notes per milestone with before/after metrics
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
 
-**One config file per app:**
+**One config file per app.** Packages may not import apps, so the `drl` CLI keeps its own config with the same kind of values in `packages/cli/src/drl.config.ts` (ADR-0004).
 ```ts
 // apps/ts-docs/rag.config.ts
 export default defineDocsApp({
@@ -122,7 +122,7 @@ export default defineDocsApp({
 - **Embeddings and reranking:** Voyage AI. Default embedding model `voyage-4`, reranker `rerank-3`.
   - The API key is created in MongoDB Atlas (AI Model APIs). The endpoint is `https://ai.mongodb.com/v1`.
   - The official TS client is `voyageai`. Set its `environment` option to the Atlas endpoint.
-  - Verify these details against current docs before implementing.
+  - Verified against the MongoDB Atlas docs in M1. Without a payment method the key is on the free trial: 3 requests and 10K tokens per minute (ADR-0004).
 - **Doc parsing:** unified / remark (`remark-mdx`, mdast) for markdown and MDX. The `twoslash` npm package compiles TS examples at ingest.
 - **Spaced repetition:** an FSRS implementation, for example `ts-fsrs`.
 
@@ -132,20 +132,23 @@ export default defineDocsApp({
 
 | Table | Contents |
 |---|---|
-| `manifest` | source_id, repo, branch, commit_sha, synced_at, embed_model, context_model, chunker_version |
-| `documents` | id, path, url, title, content_hash, last_changed_sha |
-| `chunks` | id, doc_id, ordinal, heading_path, block_types (json), text, context, metadata (json), token_count, text_hash |
+| `manifest` | source_id, repo, branch, include_paths (json), commit_sha, synced_at, embed_model, embed_dimensions, context_model, chunker_version |
+| `documents` | id, path, url, title, doc_type, content_hash, last_changed_sha |
+| `chunks` | pk, id, doc_id, ordinal, heading_path, anchor, block_types (json), text, context, metadata (json), token_count, text_hash |
 | `chunks_fts` | FTS5 virtual table over heading_path, context, text |
-| `chunks_vec` | sqlite-vec `vec0` virtual table: chunk_id, embedding |
+| `chunks_vec` | sqlite-vec `vec0` virtual table with cosine distance: rowid = chunks.pk, embedding |
 | `eval_runs` | id, commit_sha, strategy (json), models (json), created_at, metrics (json) |
 | `eval_results` | run_id, question_id, retrieved_ids (json), answer, scores (json), trace (json) |
 | `questions` | id, chunk_id, type, prompt, answer, verified_by (compiler, judge or human), commit_sha, status (active or stale) |
 
 Notes on the chunk columns:
+- `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
 - `context` is the contextual retrieval prefix.
-- `metadata` holds things like version_introduced, error_codes and option names.
+- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`.
 
-**Shared embedding cache:** key = sha256(model + input_type + text), value = vector.
+`manifest.include_paths`, `embed_model` (provider, model and dimensions) and `chunker_version` decide when a sync must rebuild everything (ADR-0004).
+
+**Shared embedding cache:** key = sha256(provider id + input_type + text), where the provider id names the model and dimensions, for example `voyage:voyage-4:1024`; value = vector. It lives in `data/cache.sqlite` and is used by core (ADR-0003).
 
 **App database (interview-prep):** progress (question_id, FSRS state, due), sessions, answers.
 
@@ -164,9 +167,12 @@ export interface Source {
   parse(file: SourceFile, ctx: ParseContext): Promise<ParsedDoc>
 }
 
+export type DocType = 'handbook' | 'reference' | 'option' | 'release-notes' | 'other'
+
 export interface ParsedDoc {
   title: string
   url: string                // canonical public URL used in citations
+  docType: DocType           // shared across sources, for filters and eval breakdowns
   sections: Section[]
   metadata: Record<string, unknown>
 }
@@ -183,11 +189,11 @@ export type Block =
   | { kind: 'callout'; variant: string; blocks: Block[] } // Pitfall, DeepDive, Note...
 ```
 
-Sync, diffing, hashing and caching live in `source-kit`, not in individual sources. A source only knows how to parse its own format.
+Sync, diffing, hashing and chunking live in `source-kit`, and the embedding cache in `core` (ADR-0003), never in individual sources. A source only knows how to parse its own format. The `compiled` field of code blocks arrives with the twoslash compile in M7.
 
-**Conformance suite.** Every source must pass `runSourceConformance(source, fixtures)`:
+**Conformance suite.** Every source must pass `runSourceConformance(source, fixtures)`. It returns a list of failures (empty when the source passes):
 - parses every fixture without throwing;
-- produces absolute URLs that match the expected pattern;
+- produces absolute URLs that match the expected pattern, and a known `docType`;
 - produces the same chunk IDs on two parses;
 - produces no empty chunks;
 - preserves code blocks byte-for-byte.
@@ -196,19 +202,31 @@ Sync, diffing, hashing and caching live in `source-kit`, not in individual sourc
 
 Measured on 2026-10-31:
 - React learn + reference: about 183 files, about 3.2 MB of markdown.
-- TypeScript English docs: about 300 files, about 2.1 MB.
+- TypeScript, the indexed set below: 248 files, 1.85 MB (from the GitHub tree at `205122bb`).
 
-That is roughly 0.8M and 0.5M tokens, well above the ~200k-token size where Anthropic suggests putting a whole knowledge base in the prompt instead of using RAG.
+That is roughly 0.8M and 0.5M tokens (TypeScript: about 506K estimated tokens in 994 chunks), well above the ~200k-token size where Anthropic suggests putting a whole knowledge base in the prompt instead of using RAG.
 
 Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 
 ### TypeScript
 - **Repo and license:** `microsoft/TypeScript-Website`, branch `v2`. Docs content is CC BY 4.0, code is MIT (see the repo README).
-- **Paths:**
-  - `packages/documentation/copy/en/handbook-v2/`: the handbook;
-  - `packages/tsconfig-reference/copy/en/options/`: one file per compiler option;
-  - `packages/documentation/copy/en/release-notes/`: one file per version, for example `TypeScript 4.9.md`.
-- **URLs:** frontmatter has `title`, `permalink` and `oneline`. Build typescriptlang.org URLs from `permalink`. Derive tsconfig option URLs too, and verify the pattern on the live site.
+- **Paths** (markdown files and bytes at `205122bb`; `docType` in the last column):
+
+  | Path (`packages/documentation/copy/en/` unless noted) | Files | Bytes | docType |
+  |---|---|---|---|
+  | `handbook-v2/` | 18 | 255,575 | handbook |
+  | `reference/` | 15 | 198,362 | reference |
+  | `modules-reference/` (without `diagrams/`, which holds mermaid sources) | 5 | 153,803 | reference |
+  | `declaration-files/` | 15 | 74,944 | other |
+  | `project-config/` | 6 | 106,483 | other |
+  | `javascript/` | 4 | 36,316 | other |
+  | `release-notes/`, one file per version from 1.1 to 6.0 | 48 | 888,106 | release-notes |
+  | `packages/tsconfig-reference/copy/en/options/`, one file per compiler option | 137 | 134,065 | option |
+  | **Total** | **248** | **1,847,654** | |
+
+  Release notes are 48% of the bytes. Not indexed: `handbook-v1/`, `tutorials/`, `get-started/` and `Nightly Builds.md`.
+- **URLs:** documentation frontmatter has `title`, `permalink` and `oneline`; URLs are `https://www.typescriptlang.org` + `permalink` (file names do not match URLs). Option files have only `display` and `oneline`. Each option has its own case-sensitive page, `https://www.typescriptlang.org/tsconfig/<name>.html`, except the `typeAcquisition/` options, which live at `https://www.typescriptlang.org/tsconfig/#type-<name>`. Heading anchors follow github-slugger. All verified on the live site.
+- **Markup:** about 10 upstream files use CRLF line endings. Raw HTML appears (background-reading boxes, `<details>`, the 282-row tsc options table); HTML comments hide whole sections in `TypeScript 5.0.md`, which the site does not render.
 - **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. In M7, compile them at ingest with twoslash and inline the real compiler errors and inferred types into the chunk text. Keep the structured compiler output in metadata for interview questions.
 - **Metadata:**
   - the release-notes version becomes `version_introduced`;
@@ -226,19 +244,21 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 ## 9. Pipeline
 
 ### Sync (`drl sync <source>`)
-1. Shallow sparse clone, or fetch, into `.cache/sources/<id>`.
+1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings.
 2. Find changes:
-   - if the manifest has a previous SHA, run `git diff --name-status <old>..<new> -- <include paths>`;
-   - otherwise do a full build.
+   - if the manifest has a previous SHA, run `git diff --name-status -z --no-renames <old> <new> -- <include paths>`, fetching the old commit by SHA if the shallow clone lacks it;
+   - otherwise, or if the old commit is unreachable, or the chunker version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
 3. Apply changes:
    - deleted files: remove their documents and chunks;
    - added or modified files: parse, chunk, and compare chunk hashes.
-4. Only new or changed chunks go through contextualization and embedding. Everything else comes from the cache.
+4. Only new or changed chunks go through contextualization and embedding. Everything else comes from the cache. Embedding requests are batched and kept under the provider's rate limits (ADR-0004).
 5. Update FTS and vector tables in one transaction, then write the manifest.
-6. Mark eval questions and question-bank items whose anchor chunks changed or disappeared as `stale`.
+6. Mark eval questions and question-bank items whose anchor chunks changed or disappeared as `stale` (from M4, when those tables exist).
+
+Every `drl` command that calls an API ends with the tokens it used and their estimated cost at list prices.
 
 ### Chunking
-- Split by the heading tree, targeting 300-800 tokens per chunk.
+- Split by the heading tree, up to 800 estimated tokens of blocks per chunk; the heading-path prefix line comes on top. A subtree that fits is one chunk; one that does not is packed into balanced chunks, section by section (ADR-0004).
 - Never split a code block.
 - Keep the heading path as a prefix.
 - `chunker_version` is stored in the manifest. Bumping it forces a rebuild.
@@ -262,7 +282,7 @@ Every retrieval returns a **trace object**: all candidate lists with scores, plu
 - Sonnet receives the retrieved chunks as `search_result` content blocks with citations enabled:
   - `source` = canonical doc URL with anchor;
   - `title` = doc title + heading path;
-  - `content` = text blocks.
+  - `content` = text blocks, one per rendered block of the chunk, so citations point at precise passages.
 - The response is streamed, and citations are rendered inline in the UI.
 - The system prompt says: answer only from the provided results, and say so when they are not enough.
 

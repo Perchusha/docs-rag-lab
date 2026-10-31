@@ -13,14 +13,15 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M0 (scaffold) is done.** That covers:
+**M1 (TypeScript ingest and CLI) is done.** On top of the M0 scaffold (monorepo, CI, boundaries, Claude Code hooks), it adds:
 
-- the monorepo and its tooling;
-- CI;
-- architecture boundaries enforced by dependency-cruiser;
-- Claude Code hooks.
+- incremental sync of the TypeScript docs: 248 files from TypeScript-Website, chunked by heading;
+- Voyage embeddings through a shared cache, so unchanged text is never paid for twice;
+- vector search with sqlite-vec;
+- `drl ask`, which answers with native citations to typescriptlang.org sections;
+- tokens and estimated cost after every command.
 
-There is no RAG code yet. M1 adds TypeScript ingest and the `drl` CLI. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone are in [docs/journal.md](docs/journal.md).
+M2 adds keyword search, hybrid ranking and the retrieval trace. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
 Every claim about retrieval quality will be backed by a measured row in a results table here. No measurements exist yet; the first rows arrive with the eval harness in M4.
 
@@ -28,6 +29,8 @@ Every claim about retrieval quality will be backed by a measured row in a result
 
 - Node 26.13.0, the current LTS. It is pinned in `.nvmrc`, and `pnpm install` refuses anything outside `^26.13.0`.
 - pnpm 12.16.1 (`npm i -g pnpm@12.16.1`). Node 26 does not bundle corepack.
+- git on the PATH, for syncing doc sources.
+- For `drl` only: an Anthropic API key and a Voyage key created in MongoDB Atlas (AI Model APIs). Copy `.env.example` to `.env` and fill it in; the CLI loads it itself. Without a payment method on the Atlas org, Voyage allows 3 requests and 10K tokens per minute, so the first full index takes about an hour; the limits are in `packages/cli/src/drl.config.ts`.
 
 ## Quickstart
 
@@ -37,7 +40,13 @@ pnpm format:check
 pnpm turbo run lint typecheck test
 ```
 
-These are the same checks CI runs. API keys are needed from M1 on: copy `.env.example` to `.env` and fill it in.
+These are the same checks CI runs, and they need no API keys. Then, with keys:
+
+```sh
+pnpm test:network                 # one tiny Voyage call and one tiny Claude call
+pnpm drl sync typescript          # clone, parse, chunk and embed (incremental after the first run)
+pnpm drl ask "What is the difference between unknown and any?"
+```
 
 ## Commands
 
@@ -50,14 +59,20 @@ These are the same checks CI runs. API keys are needed from M1 on: copy `.env.ex
 | `pnpm depcruise` | Boundary check only |
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
+| `pnpm drl sync typescript [--full]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`. Re-embeds only new or changed chunks |
+| `pnpm drl ask "<question>" [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` shows the retrieved chunks and distances |
+| `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |
+| `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
+
+Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices.
 
 ## Repository layout
 
 | Path | Package | Purpose |
 |---|---|---|
 | `apps/ts-docs` | `@docs-rag-lab/ts-docs` | TypeScript docs assistant (Next.js from M3) |
-| `packages/core` | `@docs-rag-lab/core` | Chunking, embeddings, hybrid search, rerank, generation, eval runner |
-| `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, conformance suite |
+| `packages/core` | `@docs-rag-lab/core` | Ingest, embeddings and the embedding cache, retrieval, generation, eval runner |
+| `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, chunker, conformance suite |
 | `packages/sources/typescript` | `@docs-rag-lab/source-typescript` | TypeScript-Website parser |
 | `packages/db` | `@docs-rag-lab/db` | SQLite schema, migrations, typed queries |
 | `packages/ui` | `@docs-rag-lab/ui` | Client components: chat, citations, inspector |
@@ -76,10 +91,11 @@ Enforced by dependency-cruiser on every `lint` run, locally, in CI and in the Cl
 - Apps import packages. Packages never import apps, and apps never import other apps.
 - `sources/*` import only `source-kit`.
 - `core` imports only `source-kit` and `db`.
+- `source-kit` and `db` import no internal package.
 - `ui` is client-safe: it imports no internal package, not even types, and no Node.js built-ins.
 - A package is imported only through its public `src/index.ts`.
 
-Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md).
+Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md). Why the chunker lives in source-kit and the embedding cache in core is in [ADR-0003](docs/adr/0003-source-kit-and-core-split.md). The ingest design (chunk IDs, incremental sync, rate limits, cost reporting) is in [ADR-0004](docs/adr/0004-ingest-design.md).
 
 ## How this repo is built with Claude Code
 
@@ -94,7 +110,7 @@ The Claude Code setup is part of the project, and it is kept small and real.
   - **PreToolUse** blocks tool calls that name a dotenv file (case-insensitive; the committed example is allowed). It also blocks file-tool writes under `data/` and `.cache/`.
     - It matches text, so it cannot see through shell globs such as `cat .e*`.
     - The permission deny rules in the same file are a second layer.
-  - **PostToolUse** runs lint, typecheck and the boundary check for the package Claude just edited. Errors go straight back to Claude. It takes about 2.6s per edit on the scaffold.
+  - **PostToolUse** runs lint, typecheck and the boundary check for the package Claude just edited. Errors go straight back to Claude. It takes about 2.7s per edit with the M1 code (1.0s when cached).
   - **Stop** runs the tests and the boundary check for changed packages before Claude finishes. This also covers edits made through the shell, which skip PostToolUse. It blocks once, then only warns, so it cannot loop.
 - **Proof:** each hook catching a deliberate mistake, and CI failing on a boundary violation, are recorded with links in [docs/journal.md](docs/journal.md).
 

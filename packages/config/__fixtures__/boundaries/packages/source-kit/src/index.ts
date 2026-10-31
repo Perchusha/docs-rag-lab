@@ -1,2 +1,2 @@
-// allowed: source-kit imports db
-import '../../db/src/index.ts'
+// allowed: source-kit imports nothing internal
+export {}

@@ -4,3 +4,6 @@
 *.jpg binary
 *.ico binary
 *.sqlite binary
+
+# Upstream doc fixtures stay byte-for-byte, CRLF included (ADR-0004).
+packages/sources/*/__fixtures__/** -text
