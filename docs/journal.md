@@ -2,6 +2,130 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M1 - TypeScript ingest and CLI (2026-10-31)
+
+**What exists now:** the first end-to-end RAG path, over the TypeScript docs.
+- `drl sync typescript`:
+  1. a shallow, sparse git clone of TypeScript-Website;
+  2. a markdown parser;
+  3. a heading-tree chunker;
+  4. Voyage embeddings through a shared cache;
+  5. a sqlite-vec index.
+
+  Later syncs re-embed only chunks whose text changed.
+- `drl ask`: vector search, then Claude Sonnet 5.5 answers from `search_result` blocks with native citations to typescriptlang.org sections.
+- Every command that calls an API ends with the tokens it used and their cost at list prices.
+
+Before M1 there was no RAG code. After it, the index looks like this.
+
+**The index.** TypeScript-Website `v2` at `205122bb`:
+
+| docType | Documents | Chunks | Estimated tokens |
+|---|---|---|---|
+| handbook | 18 | 131 | 69,711 |
+| reference | 20 | 180 | 98,797 |
+| option (tsconfig) | 137 | 144 | 37,252 |
+| release-notes | 48 | 454 | 252,933 |
+| other (declaration files, project config, JS) | 25 | 85 | 47,342 |
+| **Total** | **248** | **994** | **506,035** |
+
+Release notes are 46% of the chunks and half of the tokens.
+
+**Chunk sizes, in estimated tokens:**
+- percentiles: p10 218, median 532, p90 736, max 1,046;
+- 827 of 994 chunks (83%) fall in SPEC's 300-800 target;
+- 28 chunks are under 100, mostly one-paragraph tsconfig options;
+- 12 are over 800, each a single code block that may not be split.
+
+**Numbers.** Windows 11, Node 26.13.0, Voyage `voyage-4` on the MongoDB Atlas free trial (3 requests and 10K tokens per minute):
+
+| What | Result |
+|---|---|
+| Full index | **1h 09m 35s**, of which **1h 07m 51s (97.5%) was waiting on the rate limiter**. 186 requests, no restarts |
+| Tokens | 426,167 billed by Voyage, against 506,035 estimated locally (billed/estimated 0.84) |
+| Full index cost | **$0.0256** at list price ($0.06 per MTok); **$0 actual**, because Atlas includes free tokens |
+| Second sync, nothing changed | **0.9s, 0 tokens, $0** |
+| Index on disk | `typescript.sqlite` 7.5 MB, `cache.sqlite` 4.7 MB |
+| One `drl ask` | $0.017-0.020: about 7-8K input tokens (8 search results), 121-616 output tokens, at `low` effort. The query embedding costs 8-10 tokens |
+| Live URL check | All 248 documents (247 distinct pages) return 200. All 675 chunk anchors exist as ids on their pages |
+| Tests | 141 new, all offline: db 12, source-kit 37, source-typescript 36, core 39, cli 17 |
+| Conformance | Passes over 8 byte-for-byte fixtures, and over all 248 files in a dry run |
+| PostToolUse hook per edit | Median about 2.7s and max 3.6s on a cache miss, 1.0s cached. It was 2.6s and 3.0s on the scaffold; the budget is 8s |
+
+**Three answers, as `drl ask` printed them.** Each runs with `--verbose`, which also lists the 8 retrieved chunks.
+
+> **What does error TS2345 mean?**
+>
+> The search results don't define error TS2345 directly, so I can't give you an official explanation of it.
+>
+> The only related detail is in the `checkJs` documentation. Its example, which calls `parseFloat(3.142)` even though parseFloat only takes a string[1], is annotated with `// @errors: 2345`. With `checkJs` turned on, you get error messages from the JavaScript file.[1] This suggests TS2345 is tied to passing an argument of the wrong type to a function, but the results never say so.
+>
+> The "Understanding Errors" page also describes the general rule that when calling a function, each argument's type must be _assignable to_ parameter's declared type.[2] ...
+>
+> [1] TSConfig Option: checkJs, https://www.typescriptlang.org/tsconfig/checkJs.html
+> [2] Understanding Errors, https://www.typescriptlang.org/docs/handbook/2/understanding-errors.html
+
+- The best match had cosine distance 0.62, and none of the 8 retrieved chunks names TS2345 in its prose. Vector search alone cannot match an exact token like an error code.
+- Claude said so, as the system prompt asks, and labeled its inference as an inference.
+- This is the baseline for BM25 in M2 and for compiler-verified error codes in M7.
+- Cost: $0.0172.
+
+> **In which version did `satisfies` appear?**
+>
+> The `satisfies` operator was introduced in TypeScript 4.9.[1] TypeScript 5.0 later added a JSDoc `@satisfies` tag that does exactly the same thing[1] for JavaScript code type-checked with JSDoc annotations.
+>
+> [1] TypeScript 5.0 > @satisfies Support in JSDoc, https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#satisfies-support-in-jsdoc
+
+- The top 4 hits were the 4.9 and 5.0 release-note sections.
+- Claude cited the 5.0 page, whose first sentence says "TypeScript 4.9 introduced the `satisfies` operator."
+- Cost: $0.0174.
+
+> **What does the `strict` flag enable?**
+>
+> The `strict` flag enables all strict type-checking options[1]. ... The TypeScript 2.3 release notes list these: `strictNullChecks`, `noImplicitAny`, `noImplicitThis`, and `alwaysStrict`[2]. ... The compiler options reference shows that these options also default to `true` when `strict` is on: `strictBindCallApply`, `strictBuiltinIteratorReturn`, `strictFunctionTypes`, `strictNullChecks`, `strictPropertyInitialization`, `useUnknownInCatchVariables`[3]. ...
+>
+> [1] TSConfig Option: strict, https://www.typescriptlang.org/tsconfig/strict.html
+> [2] TypeScript 2.3 > New --strict master option, https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-3.html#new---strict-master-option
+> [3] tsc CLI Options > Compiler Options, https://www.typescriptlang.org/docs/handbook/compiler-options.html#compiler-options
+
+- Citation [3] quotes a row of the 282-row HTML options table, which the parser turns into one line per row with cells joined by ` | `. It printed as "`--strictBindCallApply` | `boolean` | `true` if `strict` ; `false` otherwise". The stray space before the semicolon was a closing `</a>` turned into a space. That was fixed, which made the real-data test below possible.
+- Best distance 0.46.
+- Cost: $0.0199.
+
+**Incremental sync on real data.** The `</a>` fix changed the parser but not the upstream docs, so `drl sync typescript --full` re-parsed all 248 files:
+
+| | Result |
+|---|---|
+| Documents | 1 modified, 247 unchanged |
+| Chunks | **6 changed, 988 unchanged** |
+| Re-embedded | **6 chunks, 3,892 tokens, $0.0002, 2.6s** |
+
+The other 988 kept their vectors. The acceptance test proves the same property on a fixture repository; this is the same property on the real corpus.
+
+**What was surprising:**
+- **The free trial, not the docs, sets the pace.** 97.5% of the first index was spent waiting. The sync was bound by the 3-requests-per-minute limit more than by the token limit:
+  - the local estimate runs 16% high, so a batch of 3K estimated tokens carried about 2.3K billed tokens;
+  - that used only about 6.1K of the 10K tokens allowed per minute;
+  - batches of about 3.6K estimated tokens would fill the token budget and take about 50 minutes instead of 70.
+  - A payment method on the Atlas org (Tier 1) would cut the index to about a minute, and the free tokens would still apply.
+- **Atlas reported 0 tokens for the one-word query "hello",** so the first smoke test failed on an assertion that tokens are above 0. A one-sentence input reports 24. The keys were fine; the test now embeds a sentence.
+- **The free-trial limits come in an `x-api-warning` header,** not in standard rate-limit headers. `drl limits` prints it.
+- **Upstream line endings vary.** About 10 files are stored with CRLF, including `Everyday Types.md`. This machine also has `core.autocrlf=true`, which would have rewritten the checkout and every hash. The fix has three parts:
+  - text is normalized at read time;
+  - the clone stores `core.autocrlf=false`;
+  - fixtures are marked `-text`.
+- **Markdown hides things.** `TypeScript 5.0.md` wraps two whole sections in an HTML comment that the site does not render, and the parser drops them the same way. The tsc options page is one 282-row HTML table, now one text line per row.
+- **The chunker had to move.** SPEC put chunking in core, but the conformance suite runs inside each source and must chunk, and sources may import only source-kit. The chunker moved to source-kit. The embedding cache went to core, so source-kit is now a leaf (ADR-0003).
+- **Packages may not import apps,** so `drl` cannot read an app's `rag.config.ts`. Model IDs and prices live in `packages/cli/src/drl.config.ts` until M3 (ADR-0004).
+- **The new Anthropic SDK** (1.3.0) sends API version `2026-10-21`, which rejects `temperature`. The answer request sets effort instead.
+
+### Open items for M2
+- Keyword search (FTS5 with BM25) for exact tokens like `TS2345` and option names. The TS2345 question above is the first test case.
+- A `doc_type` filter: release notes dominate the corpus, and 6 of the 8 hits for `satisfies` came from them. sqlite-vec metadata columns can pre-filter, and rebuilding the vector table costs no tokens, because the vectors come from the cache.
+- The retrieval trace object.
+- Free-trial batch size: try about 3.6K estimated tokens on the next full rebuild, or add a payment method.
+- Parser changes need `--full` today: the manifest records the chunker version, but not a version of each source's parser. Add a source version to the manifest so a parser change forces the re-parse by itself.
+
 ## Before M1 - Permission deny rules (2026-10-31)
 
 **What changed:** `.claude/settings.json` now denies reads of dotenv files at any depth. Every path rule, for dotenv files, `data/` and `.cache/`, is anchored to the project root with a leading `/` (ADR-0002, section 5).

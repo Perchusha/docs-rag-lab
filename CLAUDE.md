@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M1 - TS ingest + CLI (see SPEC.md section 13). M0 is done. Update this line when a milestone is done.
+M2 - Hybrid + trace (see SPEC.md section 13). M0 and M1 are done. Update this line when a milestone is done.
 
 ## Commands
 
@@ -22,8 +22,12 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Changed packages and their dependents: `pnpm turbo run test "--filter=...[HEAD]"`
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
+- Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded)
+- Ask: `pnpm drl ask "<question>"` (add `--verbose` to see retrieved chunks)
+- Embedding rate limits: `pnpm drl limits`
+- Network smoke test, spends real tokens: `pnpm test:network`
 
-There is no app dev server until M3.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. There is no app dev server until M3.
 
 ## Hooks
 
