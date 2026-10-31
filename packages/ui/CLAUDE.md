@@ -6,7 +6,7 @@ Client components: chat, citations, inspector, eval dashboard and topic map, wit
 
 - Client-safe: imports no internal package at all, not even `import type` from core or db (rule `ui-no-internal-packages`).
 - No Node.js built-ins (rule `ui-no-node-builtins`).
-- Data arrives through props and app route handlers. ui defines the view types it renders.
+- Data arrives through props and app route handlers. Where shared types such as the retrieval trace live is still open (ADR-0002); until an ADR settles it, ui defines the view types it renders.
 
 ## Conventions
 

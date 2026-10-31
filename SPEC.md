@@ -54,25 +54,28 @@ Monorepo with pnpm workspaces and Turborepo. TypeScript strict everywhere.
 ```
 apps/
   ts-docs/          docs assistant for TypeScript (thin: config, theme, example questions)
-  react-docs/       docs assistant for React
-  interview-prep/   multi-source interview trainer
+  react-docs/       docs assistant for React (created in M6)
+  interview-prep/   multi-source interview trainer (created in M8)
 packages/
   core/             chunking, contextualization, embeddings, hybrid search, rerank, generation, eval runner
   source-kit/       Source interface, git sync, hashing, embedding cache, conformance test suite
   sources/
     typescript/     TypeScript-Website parser (twoslash)
-    react/          react.dev parser (MDX components)
+    react/          react.dev parser (MDX components; created in M6 with turbo gen)
   db/               SQLite schema, migrations, typed queries
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   cli/              drl sync | ask | eval | questions
-  mcp/              MCP server over core (later milestone)
-  config/           shared tsconfig, eslint, vitest presets
-tooling/generators/ turbo gen templates: new source, new app
+  mcp/              MCP server over core (created in M10)
+  config/           shared tsconfig, eslint, vitest presets, dependency-cruiser rules
+tooling/
+  claude-hooks/     Claude Code hooks: PreToolUse guard, PostToolUse checks, Stop tests (ADR-0002)
+  repo-checks/      repository checks run by format:check (no em dashes)
+  generators/       turbo gen templates: new source, new app (added before M6)
 docs/adr/           architecture decision records
 docs/journal.md     short notes per milestone with before/after metrics
 ```
 
-**Package scope.** Every package is published in the workspace as `@docs-rag-lab/<name>`, for example `@docs-rag-lab/core` and `@docs-rag-lab/source-kit`.
+**Package scope.** Every package is published in the workspace as `@docs-rag-lab/<name>`, for example `@docs-rag-lab/core` and `@docs-rag-lab/source-kit`. Sources are named `@docs-rag-lab/source-<id>`, for example `@docs-rag-lab/source-typescript`. Internal packages have no build step: each one exports its `src/index.ts`, and Next.js, Vitest and Node consume the TypeScript source directly (ADR-0001).
 
 **Dependency rules.** These are enforced by dependency-cruiser in CI and in Claude Code hooks.
 - Apps import packages. Packages never import apps.
@@ -80,6 +83,8 @@ docs/journal.md     short notes per milestone with before/after metrics
 - `core` imports `source-kit` and `db`, never `ui`.
 - `ui` is client-safe: no imports from `core` or `db`. It talks to app route handlers.
 - A package is imported only through its public `index.ts`, never through internals.
+
+The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
 
 **One config file per app:**
 ```ts
@@ -107,7 +112,7 @@ export default defineDocsApp({
 
 ## 5. Tech stack
 
-- **Runtime and tooling:** current Node LTS, pnpm, Turborepo, TypeScript strict, ESM, Vitest, ESLint, Prettier, dependency-cruiser, Storybook.
+- **Runtime and tooling:** current Node LTS, pnpm, Turborepo, TypeScript strict, ESM, Vitest, ESLint, Prettier, dependency-cruiser, Storybook. Exact versions and the reasons for them (for example TypeScript 6.0 rather than 7) are in ADR-0001.
 - **Apps:** Next.js App Router with streaming route handlers.
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
