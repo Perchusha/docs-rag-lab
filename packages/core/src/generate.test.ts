@@ -24,7 +24,6 @@ const text =
   'Everyday Types > Union Types\n\nA union type is...\n\n```ts\nlet id: number | string\n```'
 const hit: SearchHit = {
   chunkId: 'c1',
-  distance: 0.1,
   text,
   headingPath: ['Union Types'],
   anchor: 'union-types',

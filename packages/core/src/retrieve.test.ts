@@ -1,36 +1,66 @@
-import { openEmbeddingCache, openSourceIndex } from '@docs-rag-lab/db'
+import { openEmbeddingCache, openSourceIndex, type ChunkWrite } from '@docs-rag-lab/db'
 import { describe, expect, it } from 'vitest'
 
-import { vectorSearch } from './retrieve.ts'
+import type { RetrievalConfig } from './config.ts'
+import { retrieve, type RetrieveOptions } from './retrieve.ts'
+import { fuseRrf } from './rrf.ts'
 import { fakeVector, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
+
+const QUESTION = 'What does error TS2345 mean?'
+
+// TS-style source hook: TS2345 is written 2345 in the docs.
+const source = {
+  id: 'demo',
+  exactTokens: (q: string) => [...q.matchAll(/\bTS(\d+)\b/g)].flatMap((m) => [m[0], m[1] ?? '']),
+}
+
+const settings = (overrides: Partial<RetrievalConfig> = {}): RetrievalConfig => ({
+  strategy: 'hybrid',
+  topK: 2,
+  candidates: 10,
+  rrfK: 60,
+  ...overrides,
+})
 
 function seeded(provider: RecordingProvider) {
   const index = openSourceIndex(':memory:')
   const cache = openEmbeddingCache(':memory:')
-  const chunk = (id: string) => ({
+  const chunk = (id: string, text: string, vectorOf = text): ChunkWrite => ({
     id,
     ordinal: 0,
     headingPath: [id],
     anchor: id,
     blockTypes: ['prose'],
-    text: `text ${id}`,
+    text,
     metadata: {},
     tokenCount: 2,
     textHash: id,
-    vector: fakeVector(`text ${id}`, provider.dimensions),
+    vector: fakeVector(vectorOf, provider.dimensions),
+  })
+  const doc = (path: string, docType: string, chunks: ChunkWrite[]) => ({
+    path,
+    url: `https://x.dev/${path}`,
+    title: path.toUpperCase(),
+    docType,
+    contentHash: path,
+    lastChangedSha: 's',
+    chunks,
   })
   index.applyChanges({
     documents: [
-      {
-        path: 'a.md',
-        url: 'https://x.dev/a',
-        title: 'A',
-        docType: 'handbook',
-        contentHash: 'h',
-        lastChangedSha: 's',
-        chunks: [chunk('one'), chunk('two')],
-      },
+      doc('a.md', 'handbook', [
+        // Nearest to the question's vector, but shares no word with it.
+        chunk('near', 'Prose about assignability of arguments.', QUESTION),
+        // The only chunk with the error code, far from the question in vector space.
+        chunk('code', 'Example:\n// @errors: 2345\nfn("x")'),
+        chunk('filler1', 'Interfaces and classes.'),
+        chunk('filler2', 'Generics with constraints.'),
+      ]),
+      doc('o.md', 'option', [
+        chunk('opt1', 'An option that reports an error for unused labels.'),
+        chunk('opt2', 'An option about module resolution.'),
+      ]),
     ],
     deletePaths: [],
     manifest: {
@@ -44,54 +74,172 @@ function seeded(provider: RecordingProvider) {
       embedDimensions: provider.dimensions,
       contextModel: null,
       chunkerVersion: 1,
+      parserVersion: 1,
     },
   })
   return { index, cache }
 }
 
-describe('vectorSearch', () => {
-  it('embeds the question as a query, through the cache, and returns the nearest chunks', async () => {
+function options(
+  provider: RecordingProvider,
+  overrides: Partial<RetrieveOptions> = {},
+): RetrieveOptions {
+  return {
+    question: QUESTION,
+    source,
+    settings: settings(),
+    provider,
+    meter: new UsageMeter(),
+    ...seeded(provider),
+    ...overrides,
+  }
+}
+
+describe('retrieve', () => {
+  it('vector: returns the nearest chunks and a trace with one list and no fusion', async () => {
     const provider = new RecordingProvider()
-    const { index, cache } = seeded(provider)
-    const meter = new UsageMeter()
+    const { hits, trace } = await retrieve(
+      options(provider, { settings: settings({ strategy: 'vector' }) }),
+    )
 
-    const hits = await vectorSearch({
-      question: 'text two',
-      provider,
-      index,
-      cache,
-      topK: 1,
-      meter,
+    expect(hits[0]?.chunkId).toBe('near')
+    expect(hits).toHaveLength(2)
+    expect(trace.lists.map((list) => list.name)).toEqual(['vector'])
+    expect(trace.lists[0]?.scoring).toBe('cosine-distance')
+    expect(trace.lists[0]?.candidates).toHaveLength(6)
+    expect(trace.lists[0]?.candidates[0]).toMatchObject({ chunkId: 'near', rank: 1 })
+    expect(trace.lists[0]?.candidates[0]?.score).toBeCloseTo(0, 5)
+    expect(trace.fusion).toEqual({ method: 'none' })
+    expect(trace.context.map((c) => c.chunkId)).toEqual(hits.map((hit) => hit.chunkId))
+  })
+
+  it('hybrid: the exact-token list lifts the chunk with the error code above vector neighbours', async () => {
+    const provider = new RecordingProvider()
+    const { hits, trace } = await retrieve(options(provider))
+
+    expect(trace.query.exactTokens).toEqual([
+      { token: 'TS2345', from: 'source' },
+      { token: '2345', from: 'source' },
+    ])
+    const [vector, keyword, exact] = trace.lists
+    expect(trace.lists.map((list) => list.name)).toEqual(['vector', 'keyword', 'exact'])
+    expect(keyword).toMatchObject({
+      scoring: 'bm25',
+      query: '"error" OR "ts2345" OR "mean" OR "2345"',
     })
-    await vectorSearch({ question: 'text two', provider, index, cache, topK: 1, meter })
+    expect(exact).toMatchObject({ query: '"TS2345" OR "2345"' })
+    expect(exact?.candidates.map((c) => c.chunkId)).toEqual(['code'])
+    expect(keyword?.candidates.map((c) => c.chunkId)).toContain('code')
+    expect(vector?.candidates[0]?.chunkId).toBe('near')
 
-    expect(hits.map((hit) => hit.chunkId)).toEqual(['two'])
-    expect(provider.calls).toEqual([{ texts: ['text two'], inputType: 'query' }])
+    expect(hits.map((hit) => hit.chunkId)[0]).toBe('code')
+    expect(hits).toHaveLength(2)
+    if (trace.fusion.method !== 'rrf') throw new Error('expected RRF')
+    expect(trace.fusion.k).toBe(60)
+    expect(trace.fusion.ranked[0]).toMatchObject({
+      chunkId: 'code',
+      ranks: { keyword: 1, exact: 1 },
+    })
+    // Every candidate of every list is described, and the context carries the text.
+    const all = new Set(trace.lists.flatMap((list) => list.candidates.map((c) => c.chunkId)))
+    expect(Object.keys(trace.chunks).sort()).toEqual([...all].sort())
+    expect(trace.chunks.code).toMatchObject({
+      docPath: 'a.md',
+      docType: 'handbook',
+      anchor: 'code',
+    })
+    expect(trace.context[0]).toMatchObject({
+      rank: 1,
+      chunkId: 'code',
+      source: 'https://x.dev/a.md#code',
+      title: 'A.MD > code',
+    })
+    expect(trace.context[0]?.text).toContain('@errors: 2345')
+  })
+
+  it('hybrid without exact tokens: the ranking is exactly the two-list RRF', async () => {
+    const provider = new RecordingProvider()
+    const { trace } = await retrieve(
+      options(provider, { question: 'Which option reports unused labels?' }),
+    )
+
+    const exact = trace.lists.find((list) => list.name === 'exact')
+    expect(exact).toMatchObject({ skipped: 'no exact tokens in the question', candidates: [] })
+    if (trace.fusion.method !== 'rrf') throw new Error('expected RRF')
+    const twoLists = trace.lists
+      .filter((list) => list.name !== 'exact')
+      .map((list) => ({ name: list.name, chunkIds: list.candidates.map((c) => c.chunkId) }))
+    expect(trace.fusion.ranked).toEqual(fuseRrf(twoLists, 60))
+  })
+
+  it('skips the keyword lists when the question has no search terms', async () => {
+    const provider = new RecordingProvider()
+    const { hits, trace } = await retrieve(options(provider, { question: 'What is it?' }))
+    expect(
+      trace.lists.filter((list) => list.skipped !== undefined).map((list) => list.name),
+    ).toEqual(['keyword', 'exact'])
+    expect(hits[0]?.chunkId).toBe(trace.lists[0]?.candidates[0]?.chunkId)
+  })
+
+  it('applies the doc type filter to every list', async () => {
+    const provider = new RecordingProvider()
+    const { hits, trace } = await retrieve(options(provider, { docTypes: ['option'] }))
+
+    expect(trace.filters).toEqual({ docTypes: ['option'] })
+    expect(hits.map((hit) => hit.docType)).toEqual(['option', 'option'])
+    expect(Object.values(trace.chunks).every((chunk) => chunk.docType === 'option')).toBe(true)
+    expect(trace.lists.find((list) => list.name === 'exact')?.candidates).toEqual([])
+  })
+
+  it('embeds the question once, as a query, through the cache, and says where the vector came from', async () => {
+    const provider = new RecordingProvider()
+    const base = options(provider)
+    const first = await retrieve(base)
+    const second = await retrieve(base)
+
+    expect(provider.calls).toEqual([{ texts: [QUESTION], inputType: 'query' }])
+    expect(first.trace.embedding).toMatchObject({ provider: provider.id, from: 'api' })
+    expect(second.trace.embedding.from).toBe('cache')
+  })
+
+  it('returns a versioned trace that survives JSON, with timings from the clock', async () => {
+    const provider = new RecordingProvider()
+    let tick = 0
+    const { trace } = await retrieve(options(provider, { now: () => (tick += 5) }))
+
+    expect(JSON.parse(JSON.stringify(trace))).toEqual(trace)
+    expect(trace).toMatchObject({
+      version: 1,
+      question: QUESTION,
+      sourceId: 'demo',
+      strategy: 'hybrid',
+      params: { topK: 2, candidates: 10, rrfK: 60 },
+    })
+    expect(trace.embedding.ms).toBe(5)
+    expect(trace.lists.map((list) => list.ms)).toEqual([5, 5, 5])
+    expect(trace.totalMs).toBeGreaterThan(trace.embedding.ms)
+  })
+
+  it('makes every list at least topK deep', async () => {
+    const provider = new RecordingProvider()
+    const { hits } = await retrieve(
+      options(provider, { settings: settings({ strategy: 'vector', topK: 5, candidates: 1 }) }),
+    )
+    expect(hits).toHaveLength(5)
   })
 
   it('refuses an index built with another embedding model', async () => {
-    const { index, cache } = seeded(new RecordingProvider({ dimensions: 8 }))
+    const built = new RecordingProvider({ dimensions: 8 })
     await expect(
-      vectorSearch({
-        question: 'q',
-        provider: new RecordingProvider({ dimensions: 4 }),
-        index,
-        cache,
-        topK: 1,
-        meter: new UsageMeter(),
-      }),
+      retrieve({ ...options(built), provider: new RecordingProvider({ dimensions: 4 }) }),
     ).rejects.toThrow('built with fake:hash:8')
   })
 
   it('refuses an empty index', async () => {
     await expect(
-      vectorSearch({
-        question: 'q',
-        provider: new RecordingProvider(),
+      retrieve({
+        ...options(new RecordingProvider()),
         index: openSourceIndex(':memory:'),
-        cache: openEmbeddingCache(':memory:'),
-        topK: 1,
-        meter: new UsageMeter(),
       }),
     ).rejects.toThrow('run drl sync first')
   })

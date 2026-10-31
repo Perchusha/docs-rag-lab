@@ -131,14 +131,17 @@ describe('syncSource', { timeout: 60_000 }, () => {
     // B is gone from chunks and chunks_vec; the manifest points at the new head.
     expect(index.documentPaths()).toEqual(['docs/a.md', 'docs/c.md'])
     const nearB = index.searchVectors(fakeVector(provider.embedded[1] ?? '', 8), 10)
-    expect(nearB.map((hit) => hit.docPath)).not.toContain('docs/b.md')
+    const nearPaths = [...index.chunksById(nearB.map((hit) => hit.chunkId)).values()].map(
+      (hit) => hit.docPath,
+    )
+    expect(nearPaths).not.toContain('docs/b.md')
     expect(nearB).toHaveLength(3)
     expect(index.getManifest()?.commitSha).toBe(head)
 
     // The changed chunk is searchable by its new vector.
     const echo = index.searchVectors(fakeVector(provider.embedded[0] ?? '', 8), 1)[0]
     expect(echo?.chunkId).toBe(secondId)
-    expect(echo?.distance).toBeCloseTo(0, 5)
+    expect(echo?.score).toBeCloseTo(0, 5)
   })
 
   it('embeds nothing when nothing changed', async () => {
@@ -196,6 +199,72 @@ describe('syncSource', { timeout: 60_000 }, () => {
     expect(report.mode).toBe('full')
     expect(report.reason).toMatch(/^chunker version changed from 0 to \d+$/)
     expect(report.chunks).toMatchObject({ unchanged: 3, added: 0, changed: 0 })
+    expect(provider.calls).toEqual([])
+  })
+
+  it('re-parses everything after a parser version change, and embeds nothing for unchanged text', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    provider.calls.length = 0
+    source = { ...source, parserVersion: 2 }
+
+    const report = await sync(provider)
+
+    expect(report).toMatchObject({
+      mode: 'full',
+      reason: 'parser version changed from 1 to 2',
+      documents: { added: 0, modified: 0, unchanged: 2, deleted: 0 },
+      chunks: { added: 0, changed: 0, unchanged: 3, deleted: 0 },
+      vectors: { needed: 0, embedded: 0, cached: 0 },
+    })
+    expect(provider.calls).toEqual([])
+    expect(indexes().index.getManifest()?.parserVersion).toBe(2)
+
+    // The next sync is incremental again.
+    expect((await sync(provider)).mode).toBe('incremental')
+  })
+
+  it('re-embeds only the chunks a new parser version changes', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    provider.calls.length = 0
+    // The new parser renders doc B differently and leaves doc A alone.
+    const parse = source.parse.bind(source)
+    source = {
+      ...source,
+      parserVersion: 2,
+      parse: async (file, ctx) => {
+        const doc = await parse(file, ctx)
+        return file.path.endsWith('b.md') ? { ...doc, title: 'Doc B, renamed' } : doc
+      },
+    }
+
+    const report = await sync(provider)
+
+    expect(report.chunks).toMatchObject({ changed: 1, unchanged: 2 })
+    expect(provider.embedded).toHaveLength(1)
+    expect(provider.embedded[0]).toContain('Doc B, renamed')
+  })
+
+  it('treats an index from before parser versions as a parser change', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    const { index } = indexes()
+    const manifest = index.getManifest()
+    if (manifest === undefined) throw new Error('expected a manifest')
+    index.applyChanges({
+      documents: [],
+      deletePaths: [],
+      manifest: { ...manifest, parserVersion: null },
+    })
+    provider.calls.length = 0
+
+    const report = await sync(provider)
+
+    expect(report.reason).toBe('parser version changed from none to 1')
     expect(provider.calls).toEqual([])
   })
 

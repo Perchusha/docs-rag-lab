@@ -2,6 +2,8 @@
 // one config file only, never in code (CLAUDE.md, SPEC section 14).
 import type { Source } from '@docs-rag-lab/source-kit'
 
+import type { Strategy } from './trace.ts'
+
 /** USD per million tokens. */
 export interface ModelPrice {
   input: number
@@ -34,6 +36,16 @@ export type EmbeddingsConfig = VoyageEmbeddingsConfig
 
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
+export interface RetrievalConfig {
+  strategy: Strategy
+  /** Chunks that go to generation. */
+  topK: number
+  /** Depth of each candidate list (vector, keyword, exact) before fusion. */
+  candidates: number
+  /** The k of Reciprocal Rank Fusion. */
+  rrfK: number
+}
+
 export interface DrlConfig {
   /** Generated data, relative to the repository root (gitignored). */
   dataDir: string
@@ -46,7 +58,7 @@ export interface DrlConfig {
     contextualize: string
   }
   answer: { effort: Effort; maxTokens: number }
-  retrieval: { topK: number }
+  retrieval: RetrievalConfig
   pricing: PricingConfig
 }
 

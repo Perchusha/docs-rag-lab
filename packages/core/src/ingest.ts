@@ -1,6 +1,8 @@
 // `drl sync <source>` (SPEC section 9, ADR-0004): git sync, parse and chunk the
 // changed files, diff chunk hashes against the index, embed only new or
 // changed chunks (through the cache), then write everything in one transaction.
+// A new chunker or parser version re-parses every file; unchanged chunk text
+// keeps its vector, so that costs no tokens.
 import type { DocumentWrite, EmbeddingCache, IndexStats, SourceIndex } from '@docs-rag-lab/db'
 import {
   CHUNKER_VERSION,
@@ -72,6 +74,9 @@ function fullRebuildReason(options: SyncSourceOptions): string | undefined {
   }
   if (manifest.chunkerVersion !== CHUNKER_VERSION) {
     return `chunker version changed from ${String(manifest.chunkerVersion)} to ${String(CHUNKER_VERSION)}`
+  }
+  if (manifest.parserVersion !== source.parserVersion) {
+    return `parser version changed from ${String(manifest.parserVersion ?? 'none')} to ${String(source.parserVersion)}`
   }
   if (manifest.repo !== source.repo || manifest.branch !== source.branch) {
     return 'repository or branch changed'
@@ -218,6 +223,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
       embedDimensions: provider.dimensions,
       contextModel: null,
       chunkerVersion: CHUNKER_VERSION,
+      parserVersion: source.parserVersion,
     },
     resetVectors: resetVectors ? provider.dimensions : undefined,
   })

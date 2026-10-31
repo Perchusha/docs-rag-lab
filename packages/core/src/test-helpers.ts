@@ -80,6 +80,7 @@ export function demoSource(repo: string, include = ['docs']): Source {
     branch: 'main',
     include,
     license: { name: 'MIT', url: 'https://example.com', attribution: 'Demo' },
+    parserVersion: 1,
     match: (path) => path.endsWith('.md'),
     parse: (file) => Promise.resolve(parseDemoMarkdown(file)),
   }
