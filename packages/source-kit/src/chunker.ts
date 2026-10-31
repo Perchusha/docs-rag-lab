@@ -134,16 +134,44 @@ export function packBalanced<T>(
 
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/
 
-/** Splits an oversized prose block at line boundaries. */
+const FENCE = /^\s*(`{3,}|~{3,})/
+
+/**
+ * Groups lines into units that may not be split: a fenced code block nested in
+ * prose (inside a list item, say) is one unit, every other line is its own.
+ */
+function lineUnits(lines: readonly string[]): string[] {
+  const units: string[] = []
+  let fence: { marker: string; lines: string[] } | undefined
+  for (const line of lines) {
+    if (fence !== undefined) {
+      fence.lines.push(line)
+      const close = FENCE.exec(line)?.[1]
+      const sameKind = close?.startsWith(fence.marker.charAt(0)) === true
+      if (close !== undefined && sameKind && close.length >= fence.marker.length) {
+        units.push(fence.lines.join('\n'))
+        fence = undefined
+      }
+      continue
+    }
+    const open = FENCE.exec(line)?.[1]
+    if (open === undefined) units.push(line)
+    else fence = { marker: open, lines: [line] }
+  }
+  if (fence !== undefined) units.push(fence.lines.join('\n'))
+  return units
+}
+
+/** Splits an oversized prose block at line boundaries, never inside a nested code fence. */
 function splitProse(text: string, max: number): string[] {
   if (estimateTokens(text) <= max) return [text]
   const lines = text.split('\n')
   const isTable =
     lines.length > 2 && lines[0]?.includes('|') === true && TABLE_SEPARATOR.test(lines[1] ?? '')
   const header = isTable ? lines.slice(0, 2) : []
-  const body = isTable ? lines.slice(2) : lines
+  const body = lineUnits(isTable ? lines.slice(2) : lines)
   const headerTokens = estimateTokens(header.join('\n'))
-  return packBalanced(body, (line) => estimateTokens(line) + 1, Math.max(1, max - headerTokens))
+  return packBalanced(body, (unit) => estimateTokens(unit) + 1, Math.max(1, max - headerTokens))
     .map((group) => [...header, ...group].join('\n').trim())
     .filter((part) => part !== '')
 }

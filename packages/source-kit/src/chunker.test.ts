@@ -126,6 +126,25 @@ describe('chunkDocument', () => {
     expect(allRows).toEqual(rows)
   })
 
+  it('never splits a code fence nested in an oversized prose block', () => {
+    const fenced = [
+      '  ```ts',
+      ...Array.from({ length: 40 }, (_, i) => `  call${String(i)}()`),
+      '  ```',
+    ]
+    const list = [
+      ...Array.from({ length: 30 }, (_, i) => `- item ${String(i)} with a few words`),
+      '- an item with code:',
+      '',
+      ...fenced,
+      ...Array.from({ length: 30 }, (_, i) => `- later ${String(i)} with a few words`),
+    ].join('\n')
+    const chunks = chunkDocument('a.md', doc(section(['List'], prose(list))), { maxTokens: 150 })
+
+    expect(chunks.length).toBeGreaterThan(2)
+    expect(chunks.filter((chunk) => chunk.text.includes(fenced.join('\n')))).toHaveLength(1)
+  })
+
   it('gives sections with the same heading path different, stable IDs', () => {
     const parsed = doc(
       section(['Examples'], words(90)),
