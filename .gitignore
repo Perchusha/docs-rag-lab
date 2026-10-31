@@ -2,8 +2,8 @@
 node_modules/
 
 # Generated data (never edit by hand)
-data/
-.cache/
+/data/
+/.cache/
 
 # Tool and build output
 .turbo/
@@ -16,6 +16,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.envrc
 
 # Local Claude Code settings
 .claude/settings.local.json

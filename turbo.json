@@ -15,7 +15,7 @@
       "dependsOn": ["transit"]
     },
     "test": {
-      "dependsOn": ["transit"]
+      "dependsOn": ["transit", "//#depcruise"]
     }
   }
 }

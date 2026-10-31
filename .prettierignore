@@ -3,8 +3,8 @@
 
 pnpm-lock.yaml
 **/__fixtures__/**
-data/
-.cache/
+/data/
+/.cache/
 .turbo/
 .next/
 dist/
