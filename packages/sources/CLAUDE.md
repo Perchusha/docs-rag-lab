@@ -5,7 +5,7 @@ One package per documentation source, named `@docs-rag-lab/source-<id>`. A sourc
 ## Boundaries
 
 - Import only `@docs-rag-lab/source-kit` (rule `sources-only-source-kit`): no core, no db, no ui, no other source.
-- Sync, diffing, hashing and caching live in source-kit, never here.
+- Sync, diffing, hashing and chunking live in source-kit, and the embedding cache in core (ADR-0003), never here.
 
 ## Conventions
 

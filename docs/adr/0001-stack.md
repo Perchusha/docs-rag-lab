@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-31
 - Milestone: M0
+- Amended: 2026-10-31, M1 (runtime dependencies, type stripping verified)
 
 ## Context
 
@@ -30,8 +31,8 @@ All versions below were checked with `npm view` on 2026-10-31. The resolved vers
 Deferred until the milestone that uses them, so that M0 installs nothing unused:
 - Next.js 16.4 and React 19.3 (M3);
 - Storybook 10 (M3);
-- better-sqlite3 13 and sqlite-vec 0.1.9 (M1). better-sqlite3 13 is an N-API addon, so Node 26 is not a problem;
-- `@anthropic-ai/sdk` and `voyageai` (M1);
+- better-sqlite3 13 and sqlite-vec 0.1.9 (M1, added; see "M1 additions" below);
+- `@anthropic-ai/sdk` and `voyageai` (M1, added);
 - `@turbo/gen` (before M6).
 
 ### TypeScript 6, not 7
@@ -56,7 +57,23 @@ The shared tsconfig presets (`packages/config/tsconfig/`) make this safe:
 
 Result: Node runs tooling directly with no loader, for example `node tooling/claude-hooks/src/guard-paths.ts`.
 
-Risk: in M1 the CLI will import workspace packages through pnpm's `node_modules` symlinks, and Node does not strip types inside `node_modules`. Node resolves symlinks to real paths by default, so this should work. M1 verifies it; if it fails, the CLI falls back to `tsx`.
+Risk, resolved in M1: the CLI imports workspace packages through pnpm's `node_modules` links, and Node does not strip types inside `node_modules`. Node resolves links to real paths by default, so the files are stripped. Verified on Windows with a probe through an NTFS junction (no warning; `import.meta.resolve` returns the real path), and in CI by a CLI test that spawns `node packages/cli/src/bin.ts --help`. No `tsx`.
+
+### M1 additions
+
+Checked with `npm view` on 2026-10-31. Each is a dependency of the one package that uses it, so none is in the catalog.
+
+| Package | Version | Where | Notes |
+|---|---|---|---|
+| better-sqlite3 | 13.0.3 | db | First N-API release; prebuilds for win32-x64 and linux-x64 ship inside the package and there is no install script, so pnpm 12 needs no `allowBuilds` entry |
+| @types/better-sqlite3 | 9.6.0 | db (dev) | better-sqlite3 bundles no types |
+| sqlite-vec | 0.1.9 | db | Platform binaries as optional dependencies, no install script |
+| @anthropic-ai/sdk | 1.3.0 | core | Sends API version `2026-10-21`: no sampling parameters on Messages requests |
+| voyageai | 0.4.0 | core | Official client; its only dependency is node-fetch 2 |
+| unified, remark-parse, remark-frontmatter, remark-gfm | 11.0.5, 11.0.0, 5.0.0, 4.0.1 | source-typescript | mdast with source offsets |
+| @types/mdast | 4.0.4 | source-typescript (dev) | |
+| yaml | 2.9.1 | source-typescript | Frontmatter |
+| github-slugger | 2.0.0 | source-typescript | Heading anchors as on typescriptlang.org |
 
 ### Turborepo task graph: transit nodes
 
