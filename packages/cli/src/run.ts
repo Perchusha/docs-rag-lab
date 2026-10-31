@@ -29,7 +29,7 @@ Commands:
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
-      [--json]                Print the whole trace as JSON
+      [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the embedding API's rate-limit headers (one tiny request)
 
 Retrieval options (ask and search):
@@ -167,7 +167,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     }
     return 1
   } finally {
-    out.write(`\n${formatUsage(meter, config.pricing)}\n`)
-    out.write(`elapsed: ${formatDuration(now() - start)}\n`)
+    // With --json, stdout carries only the JSON; the usage lines go to stderr.
+    const report = values.json ? err : out
+    report.write(`\n${formatUsage(meter, config.pricing)}\n`)
+    report.write(`elapsed: ${formatDuration(now() - start)}\n`)
   }
 }

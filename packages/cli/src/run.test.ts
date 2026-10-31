@@ -138,6 +138,17 @@ describe('run', () => {
     expect(err.text()).toContain('drl search failed: the index is empty: run drl sync first')
   })
 
+  it('keeps stdout for the JSON alone with --json, and reports usage on stderr', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    const out = capture()
+    const err = capture()
+
+    await run(['search', 'q', '--json'], { out: out.writer, err: err.writer, root })
+
+    expect(out.text()).toBe('')
+    expect(err.text()).toContain('usage: no API calls')
+  })
+
   it('asks for a question for search too', async () => {
     const err = capture()
     expect(await run(['search'], { out: capture().writer, err: err.writer, root })).toBe(1)
