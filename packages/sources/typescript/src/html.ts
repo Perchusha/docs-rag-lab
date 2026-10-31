@@ -30,7 +30,10 @@ export function isHtmlComment(html: string): boolean {
 const ROW = /<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi
 const CELL = /<(t[dh])\b[^>]*>([\s\S]*?)<\/\1\s*>/gi
 
-const stripTags = (html: string): string => html.replace(/<[^>]*>/g, ' ')
+// Inline tags vanish without a trace, so "<a>strict</a>;" stays "strict;"; any
+// other tag becomes a space, so words in separate paragraphs of a cell stay apart.
+const INLINE_TAG = /<\/?(?:a|abbr|b|code|em|i|kbd|small|span|strong|sub|sup)\b[^>]*>/gi
+const stripTags = (html: string): string => html.replace(INLINE_TAG, '').replace(/<[^>]*>/g, ' ')
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim()
 
 /** Inline text with code marked by backticks, on one line. Entities stay encoded. */

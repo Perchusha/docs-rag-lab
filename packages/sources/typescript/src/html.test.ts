@@ -42,6 +42,14 @@ describe('htmlToText', () => {
     )
   })
 
+  it('adds no space where an inline tag closes before punctuation', () => {
+    expect(
+      htmlToText(
+        "<tr><td><code>true</code> if <a href='#strict'><code>strict</code></a>; <code>false</code> otherwise.</td></tr>",
+      ),
+    ).toBe('`true` if `strict`; `false` otherwise.')
+  })
+
   it('leaves cells of a table that markdown split apart as plain text', () => {
     expect(htmlToText('</td>\n<td>')).toBe('')
   })
