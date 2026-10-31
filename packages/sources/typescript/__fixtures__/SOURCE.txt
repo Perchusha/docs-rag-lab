@@ -6,5 +6,5 @@ Branch:     v2
 Commit:     205122bb73dcbf6f3b373de5bdb0d9fa5434d015 (2026-10-28)
 License:    documentation content CC BY 4.0, see NOTICE
 
-repo/ mirrors the upstream paths. Everyday Types.md is stored upstream with
+repo/ mirrors the upstream paths (8 files). Everyday Types.md is stored upstream with
 CRLF line endings and is kept that way.

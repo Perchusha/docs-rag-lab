@@ -12,7 +12,7 @@ describe('typescript source', () => {
     const source = typescriptSource()
     const files = listSourceFiles(fixtureRoot, source)
 
-    expect(files).toHaveLength(7)
+    expect(files).toHaveLength(8)
     const report = await runSourceConformance(source, {
       files,
       urlPattern:

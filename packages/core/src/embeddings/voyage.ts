@@ -80,7 +80,8 @@ function vectorsOf(response: EmbedResponse, count: number, dimensions: number): 
   return vectors
 }
 
-const RATE_LIMIT_HEADER = /ratelimit|rate-limit|retry-after/i
+// Atlas states the free-trial limits in x-api-warning instead of rate-limit headers.
+const RATE_LIMIT_HEADER = /ratelimit|rate-limit|retry-after|^x-api-warning$/i
 
 export function createVoyageProvider(
   config: VoyageEmbeddingsConfig,

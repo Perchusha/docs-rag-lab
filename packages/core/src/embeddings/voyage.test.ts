@@ -137,6 +137,7 @@ describe('createVoyageProvider', () => {
         ok([[1, 0, 0]], 1, {
           'x-ratelimit-limit-requests': '3',
           'X-RateLimit-Limit-Tokens': '10000',
+          'x-api-warning': 'reduced rate limits of 3 RPM and 10K TPM',
           'content-type': 'application/json',
         }),
       ),
@@ -145,7 +146,11 @@ describe('createVoyageProvider', () => {
 
     expect(requests[0]?.input).toEqual(['ok'])
     expect(probe).toEqual({
-      headers: { 'x-ratelimit-limit-requests': '3', 'x-ratelimit-limit-tokens': '10000' },
+      headers: {
+        'x-api-warning': 'reduced rate limits of 3 RPM and 10K TPM',
+        'x-ratelimit-limit-requests': '3',
+        'x-ratelimit-limit-tokens': '10000',
+      },
       tokens: 1,
     })
   })

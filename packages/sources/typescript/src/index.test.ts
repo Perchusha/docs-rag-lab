@@ -65,6 +65,12 @@ describe('typescriptSource', () => {
       'reference',
     ],
     [
+      `${DOCS}/project-config/Compiler Options.md`,
+      'tsc CLI Options',
+      'https://www.typescriptlang.org/docs/handbook/compiler-options.html',
+      'other',
+    ],
+    [
       `${DOCS}/release-notes/TypeScript 5.0.md`,
       'TypeScript 5.0',
       'https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html',
@@ -145,6 +151,15 @@ describe('typescriptSource', () => {
     const prose = blocks.flatMap((block) => (block.kind === 'prose' ? [block.text] : []))
     expect(prose.some((text) => text.includes('Extending an interface'))).toBe(true)
     expect(prose.some((text) => /<\/?(table|tr|td|div)\b/.test(text))).toBe(false)
+  })
+
+  it('keeps HTML table rows readable: one row per line, cells joined by " | "', async () => {
+    const blocks = allBlocks(await parse(`${DOCS}/project-config/Compiler Options.md`))
+    const prose = blocks.flatMap((block) => (block.kind === 'prose' ? [block.text] : []))
+
+    expect(prose).toContain('Flag | Type\n`--all` | `boolean`\nShow all compiler options.')
+    expect(prose).toContain('`--help` | `boolean`\nGives local information for help on the CLI.')
+    expect(prose.some((text) => /<\/?(table|tr|td|th|p)\b/.test(text))).toBe(false)
   })
 
   it('records metadata: release version, error codes, option name and summary', async () => {

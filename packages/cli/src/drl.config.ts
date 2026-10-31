@@ -14,7 +14,9 @@ export default defineConfig({
     model: 'voyage-4',
     dimensions: 1024,
     // Atlas free trial (no payment method on the org): 3 requests and 10K tokens per minute.
-    batch: { maxInputs: 1000, maxTokens: 7_500 },
+    // About 3K estimated tokens per batch lets all 3 requests of a minute through,
+    // about 10% under the token limit.
+    batch: { maxInputs: 1000, maxTokens: 3_000 },
     rateLimit: { rpm: 3, tpm: 10_000 },
     // Tier 1 (payment method added): 2,000 requests and 8M tokens per minute.
     // batch: { maxInputs: 1000, maxTokens: 100_000 },

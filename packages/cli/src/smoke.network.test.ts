@@ -20,12 +20,16 @@ afterAll(() => {
 })
 
 describe('network smoke test', () => {
-  it('embeds one word with Voyage through the configured endpoint', async () => {
+  it('embeds one sentence with Voyage through the configured endpoint', async () => {
     const provider = createEmbeddingProvider(config.embeddings, {
       voyage: requireKey('VOYAGE_API_KEY'),
     })
 
-    const result = await provider.embed(['hello'], 'query')
+    // A full sentence: Atlas reports total_tokens 0 for a one-word query.
+    const result = await provider.embed(
+      ['A union type is a type formed from two or more other types.'],
+      'document',
+    )
     meter.recordEmbedding(provider.model, result.tokens)
 
     expect(result.vectors).toHaveLength(1)
@@ -39,7 +43,7 @@ describe('network smoke test', () => {
 
     const message = await client.messages.create({
       model,
-      max_tokens: 64,
+      max_tokens: 200,
       thinking: { type: 'disabled' },
       messages: [
         {
@@ -52,7 +56,10 @@ describe('network smoke test', () => {
               content: [{ type: 'text', text: 'On a clear day the sky is blue.' }],
               citations: { enabled: true },
             },
-            { type: 'text', text: 'What color is the sky on a clear day? Answer in five words.' },
+            {
+              type: 'text',
+              text: 'What color is the sky on a clear day? Answer in one short sentence.',
+            },
           ],
         },
       ],

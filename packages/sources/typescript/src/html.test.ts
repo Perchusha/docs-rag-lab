@@ -13,12 +13,37 @@ describe('htmlToText', () => {
     expect(htmlToText(html)).toBe('Background Reading:\nClasses (MDN)\n\nUse `a < b` & more!')
   })
 
-  it('turns table rows into lines', () => {
+  it('puts each table row on its own line, cells joined by " | "', () => {
     expect(
       htmlToText(
         '<table><tr><td><code>--all</code></td><td>boolean</td></tr><tr><td>Show all.</td></tr></table>',
       ),
-    ).toBe('`--all` boolean\nShow all.')
+    ).toBe('`--all` | boolean\nShow all.')
+  })
+
+  it('flattens block content inside cells and keeps rows adjacent across blank lines', () => {
+    const html = [
+      '<table>',
+      '  <thead><tr><th>Flag</th><th>Type</th></tr></thead>',
+      "<tr class='odd' name='all'>",
+      '  <td><code>--all</code></td>',
+      '  <td><p><code>boolean</code></p>',
+      '</td>',
+      '</tr>',
+      '<tr class="option-description odd"><td colspan="3">',
+      '<p>Show all &lt;compiler&gt; options.</p>',
+      '</td></tr>',
+      '',
+      '<tr><td><code>--a</code><br/><code>--b</code></td><td></td></tr>',
+      '</table>',
+    ].join('\n')
+    expect(htmlToText(html)).toBe(
+      'Flag | Type\n`--all` | `boolean`\nShow all <compiler> options.\n`--a` `--b` |',
+    )
+  })
+
+  it('leaves cells of a table that markdown split apart as plain text', () => {
+    expect(htmlToText('</td>\n<td>')).toBe('')
   })
 
   it('returns nothing for media and comments', () => {
