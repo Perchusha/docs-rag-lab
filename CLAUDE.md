@@ -10,16 +10,29 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M0 - Scaffold (see SPEC.md section 13). Update this line when a milestone is done.
+M1 - TS ingest + CLI (see SPEC.md section 13). M0 is done. Update this line when a milestone is done.
 
 ## Commands
 
-Fill this in during M0 with the real, working commands. Never list a command that has not been run successfully.
+Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not been run successfully.
 
 - Install: `pnpm install`
-- All checks: `pnpm turbo run lint typecheck test`
-- One package: `pnpm turbo run test --filter=<package>`
-- App dev server: `pnpm --filter <app> dev`
+- All checks, as CI runs them: `pnpm format:check` and `pnpm turbo run lint typecheck test`
+- One package: `pnpm turbo run test --filter=@docs-rag-lab/core` (also works with `lint` and `typecheck`)
+- Changed packages and their dependents: `pnpm turbo run test "--filter=...[HEAD]"`
+- Boundary check only: `pnpm depcruise` (`lint` already runs it)
+- Format: `pnpm format`
+
+There is no app dev server until M3.
+
+## Hooks
+
+`.claude/settings.json` runs the hooks in `tooling/claude-hooks` (ADR-0002):
+- before a tool call, block anything that names a `.env*` file, and file-tool writes to `data/` or `.cache/`;
+- after an edit, run lint, typecheck and depcruise for that package;
+- before stopping, run tests and depcruise for packages changed since HEAD. This also covers edits made through the shell.
+
+When a hook reports an error, fix the cause. Never weaken the hook or the rule. The guard matches text, so do not name `.env*` files in commands or commit messages at all.
 
 ## Architecture boundaries
 

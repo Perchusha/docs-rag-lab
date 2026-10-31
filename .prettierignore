@@ -1,0 +1,11 @@
+# Hand-written docs are not reformatted (the em-dash check still covers them)
+*.md
+
+pnpm-lock.yaml
+**/__fixtures__/**
+/data/
+/.cache/
+.turbo/
+.next/
+dist/
+coverage/

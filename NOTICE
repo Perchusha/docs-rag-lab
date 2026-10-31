@@ -1,0 +1,30 @@
+Docs RAG Lab
+Copyright (c) 2026 Anton Perch
+
+The source code in this repository is licensed under the MIT License (see
+LICENSE).
+
+Docs RAG Lab indexes, quotes and links to third-party documentation. That
+content is not covered by the MIT License and remains under its own license.
+Synced docs live in .cache/ and data/ and are not committed; test fixtures
+and eval questions may quote short excerpts.
+
+TypeScript documentation
+  Source:      https://github.com/microsoft/TypeScript-Website (branch v2)
+  Site:        https://www.typescriptlang.org
+  License:     documentation content CC BY 4.0
+               (https://creativecommons.org/licenses/by/4.0/);
+               code in that repository is MIT
+  Attribution: TypeScript documentation, Copyright (c) Microsoft Corporation.
+
+React documentation (planned, from milestone M6)
+  Source:      https://github.com/reactjs/react.dev (branch main)
+  Site:        https://react.dev
+  License:     documentation content CC BY 4.0, see LICENSE-DOCS.md in that
+               repository (https://creativecommons.org/licenses/by/4.0/)
+  Attribution: React documentation, Copyright (c) Meta Platforms, Inc. and
+               affiliates.
+
+Answers and citations link back to the original pages. Excerpts may be split
+into chunks and prefixed with generated context; such changes are made by this
+project and are not endorsed by the original authors.
