@@ -76,9 +76,10 @@ describe('boundary rules (SPEC section 4)', () => {
     expect(edges('ui-no-node-builtins')).toEqual(['packages/ui/src/imports-node.ts -> fs'])
   })
 
-  it('source-kit imports only db', () => {
-    expect(edges('source-kit-only-db')).toEqual([
+  it('source-kit imports no internal package', () => {
+    expect(edges('source-kit-is-leaf')).toEqual([
       'packages/source-kit/src/imports-core.ts -> packages/core/src/index.ts',
+      'packages/source-kit/src/imports-db.ts -> packages/db/src/index.ts',
     ])
   })
 
@@ -125,7 +126,6 @@ describe('boundary rules (SPEC section 4)', () => {
       'packages/core/src/index.ts -> packages/db/src/index.ts',
       'packages/core/src/same-package.ts -> packages/core/src/internal.ts',
       'packages/sources/typescript/src/same-package.ts -> packages/sources/typescript/src/internal.ts',
-      'packages/source-kit/src/index.ts -> packages/db/src/index.ts',
       'packages/sources/typescript/src/index.ts -> packages/source-kit/src/index.ts',
       'packages/cli/src/index.ts -> packages/core/src/index.ts',
       'packages/cli/src/index.ts -> packages/sources/typescript/src/index.ts',

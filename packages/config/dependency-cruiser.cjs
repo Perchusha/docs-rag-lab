@@ -65,12 +65,12 @@ module.exports = {
       to: { dependencyTypes: ['core'] },
     },
     {
-      name: 'source-kit-only-db',
+      name: 'source-kit-is-leaf',
       comment:
-        'source-kit is a foundation package: it may import only db (ADR-0002, revisit in M1).',
+        'source-kit is a leaf package: it imports no other internal package, so every source stays a pure parser. The embedding cache lives in core (ADR-0003).',
       severity: 'error',
       from: { path: '^packages/source-kit/' },
-      to: { path: INTERNAL, pathNot: ['^packages/(source-kit|db)/', CONFIG] },
+      to: { path: INTERNAL, pathNot: ['^packages/source-kit/', CONFIG] },
     },
     {
       name: 'db-is-leaf',
