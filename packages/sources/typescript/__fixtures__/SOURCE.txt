@@ -1,0 +1,10 @@
+Byte-for-byte copies of upstream files, kept for the parser tests and the
+conformance suite. Never reformat them.
+
+Repository: https://github.com/microsoft/TypeScript-Website
+Branch:     v2
+Commit:     205122bb73dcbf6f3b373de5bdb0d9fa5434d015 (2026-10-28)
+License:    documentation content CC BY 4.0, see NOTICE
+
+repo/ mirrors the upstream paths. Everyday Types.md is stored upstream with
+CRLF line endings and is kept that way.

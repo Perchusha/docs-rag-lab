@@ -13,10 +13,20 @@
   },
   "devDependencies": {
     "@docs-rag-lab/config": "workspace:*",
+    "@types/mdast": "^4.0.4",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@docs-rag-lab/source-kit": "workspace:*",
+    "github-slugger": "^2.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.9.1"
   }
 }
