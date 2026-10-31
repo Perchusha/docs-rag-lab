@@ -1,0 +1,4 @@
+{
+  "extends": "@docs-rag-lab/config/tsconfig/react.json",
+  "include": ["src"]
+}
