@@ -10,6 +10,7 @@ const MIGRATIONS = [
     source_id text not null,
     repo text not null,
     branch text not null,
+    include_paths text not null,
     commit_sha text not null,
     synced_at text not null,
     embed_model text not null,
@@ -51,6 +52,8 @@ export interface Manifest {
   sourceId: string
   repo: string
   branch: string
+  /** The source include list at sync time; a different list forces a full rebuild. */
+  includePaths: string[]
   commitSha: string
   syncedAt: string
   embedModel: string
@@ -125,6 +128,7 @@ interface ManifestRow {
   source_id: string
   repo: string
   branch: string
+  include_paths: string
   commit_sha: string
   synced_at: string
   embed_model: string
@@ -189,6 +193,7 @@ export class SourceIndex {
       sourceId: row.source_id,
       repo: row.repo,
       branch: row.branch,
+      includePaths: parseStringArray(row.include_paths),
       commitSha: row.commit_sha,
       syncedAt: row.synced_at,
       embedModel: row.embed_model,
@@ -399,17 +404,18 @@ export class SourceIndex {
   #writeManifest(manifest: Manifest): void {
     this.#db
       .prepare(
-        `insert into manifest (id, source_id, repo, branch, commit_sha, synced_at, embed_model,
+        `insert into manifest (id, source_id, repo, branch, include_paths, commit_sha, synced_at, embed_model,
                                embed_dimensions, context_model, chunker_version)
-         values (1, @sourceId, @repo, @branch, @commitSha, @syncedAt, @embedModel,
+         values (1, @sourceId, @repo, @branch, @includePaths, @commitSha, @syncedAt, @embedModel,
                  @embedDimensions, @contextModel, @chunkerVersion)
          on conflict (id) do update set
            source_id = excluded.source_id, repo = excluded.repo, branch = excluded.branch,
+           include_paths = excluded.include_paths,
            commit_sha = excluded.commit_sha, synced_at = excluded.synced_at,
            embed_model = excluded.embed_model, embed_dimensions = excluded.embed_dimensions,
            context_model = excluded.context_model, chunker_version = excluded.chunker_version`,
       )
-      .run({ ...manifest })
+      .run({ ...manifest, includePaths: JSON.stringify(manifest.includePaths) })
   }
 }
 

@@ -18,6 +18,7 @@ const manifest = (overrides: Partial<Manifest> = {}): Manifest => ({
   sourceId: 'demo',
   repo: 'file:///demo',
   branch: 'main',
+  includePaths: ['docs'],
   commitSha: 'a'.repeat(40),
   syncedAt: '2026-10-31T00:00:00.000Z',
   embedModel: 'fake:model:4',
@@ -78,7 +79,7 @@ describe('SourceIndex', () => {
     first.close()
 
     index = openSourceIndex(path)
-    expect(index.getManifest()?.commitSha).toBe('a'.repeat(40))
+    expect(index.getManifest()).toMatchObject({ commitSha: 'a'.repeat(40), includePaths: ['docs'] })
     expect(index.stats().chunks).toBe(1)
   })
 
