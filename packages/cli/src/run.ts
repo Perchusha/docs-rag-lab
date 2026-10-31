@@ -1,8 +1,23 @@
 import { parseArgs } from 'node:util'
 
-import { formatUsage, UsageMeter, type DrlConfig } from '@docs-rag-lab/core'
+import {
+  DOC_TYPES,
+  formatUsage,
+  STRATEGIES,
+  UsageMeter,
+  type DocType,
+  type DrlConfig,
+  type Strategy,
+} from '@docs-rag-lab/core'
 
-import { askCommand, limitsCommand, syncCommand, type Writer } from './commands.ts'
+import {
+  askCommand,
+  limitsCommand,
+  searchCommand,
+  syncCommand,
+  type RetrievalArgs,
+  type Writer,
+} from './commands.ts'
 import defaultConfig from './drl.config.ts'
 import { CliError, findRepoRoot, loadEnv } from './env.ts'
 import { formatDuration } from './format.ts'
@@ -12,8 +27,18 @@ export const USAGE = `Usage: drl <command> [options]
 Commands:
   sync <source> [--full]      Sync, parse, chunk and embed a source (incremental by default)
   ask "<question>"            Answer from the docs with cited sources
-      [--source <id>] [--top-k <n>] [--verbose]
+      [--verbose]             Print the retrieval trace before the answer
+  search "<question>"         Retrieval only, no answer: print the retrieval trace
+      [--json]                Print the whole trace as JSON
   limits                      Show the embedding API's rate-limit headers (one tiny request)
+
+Retrieval options (ask and search):
+  --source <id>               The source to search (default: the first in drl.config.ts)
+  --strategy vector|hybrid    Vector search only, or vector + keyword search fused by RRF
+                              (default: retrieval.strategy in drl.config.ts)
+  --doc-type <type>           Only chunks of this doc type; repeat it or separate with commas:
+                              ${DOC_TYPES.join(', ')}
+  --top-k <n>                 Chunks that go to the answer (default: retrieval.topK)
 
 Options:
   -h, --help                  Show this help
@@ -40,6 +65,28 @@ function positiveInteger(value: string | undefined, fallback: number, name: stri
   return n
 }
 
+function strategyOf(value: string | undefined, fallback: Strategy): Strategy {
+  if (value === undefined) return fallback
+  const strategy = STRATEGIES.find((s) => s === value)
+  if (strategy === undefined) {
+    throw new CliError(`--strategy must be one of ${STRATEGIES.join(', ')}, got "${value}"`)
+  }
+  return strategy
+}
+
+function docTypesOf(values: readonly string[] | undefined): DocType[] {
+  const docTypes: DocType[] = []
+  for (const value of (values ?? []).flatMap((v) => v.split(','))) {
+    const name = value.trim()
+    const docType = DOC_TYPES.find((d) => d === name)
+    if (docType === undefined) {
+      throw new CliError(`--doc-type must be one of ${DOC_TYPES.join(', ')}, got "${name}"`)
+    }
+    if (!docTypes.includes(docType)) docTypes.push(docType)
+  }
+  return docTypes
+}
+
 /** Runs one drl command and returns the process exit code. */
 export async function run(argv: readonly string[], options: RunOptions = {}): Promise<number> {
   const out = options.out ?? process.stdout
@@ -57,6 +104,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         full: { type: 'boolean', default: false },
         source: { type: 'string', default: config.sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
+        strategy: { type: 'string' },
+        'doc-type': { type: 'string', multiple: true },
+        json: { type: 'boolean', default: false },
         verbose: { type: 'boolean', short: 'v', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
@@ -71,7 +121,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     out.write(USAGE)
     return command === undefined && !values.help ? 2 : 0
   }
-  if (!['sync', 'ask', 'limits'].includes(command)) {
+  if (!['sync', 'ask', 'search', 'limits'].includes(command)) {
     err.write(`drl: unknown command "${command}"\n\n${USAGE}`)
     return 2
   }
@@ -87,12 +137,22 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       if (source === undefined)
         throw new CliError('sync needs a source id, for example: drl sync typescript')
       await syncCommand(ctx, { source, full: values.full })
-    } else if (command === 'ask') {
+    } else if (command === 'ask' || command === 'search') {
       const question = rest.join(' ').trim()
-      if (question === '')
-        throw new CliError('ask needs a question, for example: drl ask "What is a union type?"')
-      const topK = positiveInteger(values['top-k'], config.retrieval.topK, '--top-k')
-      await askCommand(ctx, { question, source: values.source, topK, verbose: values.verbose })
+      if (question === '') {
+        throw new CliError(
+          `${command} needs a question, for example: drl ${command} "What is a union type?"`,
+        )
+      }
+      const retrieval: RetrievalArgs = {
+        question,
+        source: values.source,
+        topK: positiveInteger(values['top-k'], config.retrieval.topK, '--top-k'),
+        strategy: strategyOf(values.strategy, config.retrieval.strategy),
+        docTypes: docTypesOf(values['doc-type']),
+      }
+      if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
+      else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else {
       await limitsCommand(ctx)
     }

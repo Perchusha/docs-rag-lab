@@ -100,6 +100,50 @@ describe('run', () => {
     expect(err.text()).toContain('unknown source "react" (configured: typescript)')
   })
 
+  it('validates --strategy and --doc-type before calling any API', async () => {
+    const err = capture()
+    expect(
+      await run(['search', 'q', '--strategy', 'bm25'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).toContain('--strategy must be one of vector, hybrid, got "bm25"')
+
+    expect(
+      await run(['ask', 'q', '--doc-type', 'option,manual'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).toContain(
+      '--doc-type must be one of handbook, reference, option, release-notes, other, got "manual"',
+    )
+  })
+
+  it('searches without an Anthropic key, since search never calls Claude', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    const err = capture()
+
+    const code = await run(['search', 'What is a union type?', '--doc-type', 'option', '--json'], {
+      out: capture().writer,
+      err: err.writer,
+      root,
+    })
+
+    // It gets as far as the (empty) index, past every key and flag check.
+    expect(code).toBe(1)
+    expect(err.text()).toContain('drl search failed: the index is empty: run drl sync first')
+  })
+
+  it('asks for a question for search too', async () => {
+    const err = capture()
+    expect(await run(['search'], { out: capture().writer, err: err.writer, root })).toBe(1)
+    expect(err.text()).toContain('search needs a question')
+  })
+
   it('validates --top-k', async () => {
     const err = capture()
     expect(
