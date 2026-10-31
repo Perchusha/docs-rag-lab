@@ -407,6 +407,23 @@ Every milestone ends with:
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
 | M10 | MCP + more sources | Docs RAG Lab MCP server, dogfooding via `.mcp.json`. Optional: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD) | Claude Code uses Docs RAG Lab while working on Docs RAG Lab |
 
+### M4 retrieval targets from M2
+
+Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer.
+
+| Question | M1 (vector) | M2 (hybrid) | M4 target |
+|---|---|---|---|
+| "In which version did `satisfies` appear?" | 1 | 3 | 1 |
+| "What does the `strict` flag enable?", the `Compiler Options.md#compiler-options` anchor | 6 | 9 | 6 or better |
+| ts-0004, "В чём разница между `unknown` и `any`?" | 2 | 7 | 2 or better |
+| ts-0040, "What does error TS2345 mean?" (vector: not in top 50) | - | 6 (handbook), 3 (release notes) | stays in the top 8 |
+
+Hypotheses to check first, on the full golden set and not tuned to these four questions:
+1. **Backticked plain words are counted twice.** A word like `satisfies`, `strict`, `unknown` or `any` is both a search term and an exact token, so BM25 enters the fusion twice. Check: limit exact tokens to code-shaped ones (identifiers, flags, source tokens, code with punctuation).
+2. **Trigram matches 3-character terms inside other words.** `any` matches "many" and "company", so 488 of 994 chunks match it. Check: match 3-character terms as whole words, for example through a second unicode61 column or table.
+
+If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the fused top 20) is the next lever.
+
 ## 14. Conventions
 
 - TypeScript strict and ESM. No `any` without an explaining comment.

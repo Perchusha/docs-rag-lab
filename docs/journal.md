@@ -60,7 +60,7 @@ Trigram costs 6.2 MB of index instead of 1.0 MB, and 0.8 ms per query instead of
 | First sync after it | `parser version changed from none to 1`: 248 files re-parsed, 994 chunks unchanged, **0 tokens, 2.2s** |
 | Second sync | incremental, 0.9s, 0 tokens |
 | Index on disk | about 14 MB compacted (7.5 MB in M1). The file here is 21 MB, 7 MB of it free pages left by the migrations, which later writes reuse |
-| Tests | 203, all offline (153 in M1): db 26, source-kit 39, source-typescript 41, core 70, cli 27 |
+| Tests | 204, all offline (153 in M1): db 26, source-kit 39, source-typescript 41, core 71, cli 27 |
 | PostToolUse hook per edit | 2.3-3.4s (the budget is 8s) |
 | M2's own API spend | 88 Voyage tokens (7 new query embeddings) and $0.0627 for the three `drl ask` answers |
 
@@ -102,7 +102,7 @@ Trigram costs 6.2 MB of index instead of 1.0 MB, and 0.8 ms per query instead of
 - A chunk that packs several sections can get an empty heading path but a section anchor. The TS 5.9 chunk is cited as just "TypeScript 5.9", anchored at `#notable-behavioral-changes`. The inspector shows chunk boundaries, which makes this the time to look at it.
 
 ### Open items for M4
-- Exact tokens from backticked plain words double the BM25 signal (see "What hybrid made worse"). Measure code-shaped-only exact tokens, RRF k and list weights on the full golden set.
+- Win back the three hybrid regressions while TS2345 stays in the top 8: the targets and the two hypotheses to check (backticked plain words counted twice, trigram matches of 3-character terms) are in SPEC section 13. Measure on the full golden set, together with RRF k and list weights; the M5 reranker is the next lever.
 - Graded relevance: the TS 5.7 and 5.9 sections show the TS2345 message but not its cause, which the handbook anchors explain.
 - Review and approve the draft golden set, then rename it to `questions.jsonl`.
 - Version and block type filters (SPEC section 9) are not built yet.
