@@ -8,12 +8,19 @@
 //
 // Code blocks are never split. A prose block that alone exceeds the budget is
 // split at line boundaries (a table repeats its header rows in every part).
+//
+// The budget counts the rendered blocks. The heading-path prefix line and the
+// blank lines between blocks come on top, a few tokens per chunk; a single
+// code block or a single line longer than the budget is never split.
 import { sha256Hex } from './hash.ts'
 import { estimateTokens } from './tokens.ts'
 import type { Block, ParsedDoc, Section } from './types.ts'
 
-/** Bump when chunk boundaries or chunk text change: it forces a full rebuild. */
-export const CHUNKER_VERSION = 1
+/**
+ * Bump when chunk boundaries or chunk text change: it forces a full rebuild.
+ * 2: a fence line with an info string no longer closes a nested fence.
+ */
+export const CHUNKER_VERSION = 2
 
 export const DEFAULT_MAX_TOKENS = 800
 
@@ -135,6 +142,8 @@ export function packBalanced<T>(
 const TABLE_SEPARATOR = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/
 
 const FENCE = /^\s*(`{3,}|~{3,})/
+// A closing fence carries no info string (CommonMark).
+const CLOSING_FENCE = /^\s*(`{3,}|~{3,})\s*$/
 
 /**
  * Groups lines into units that may not be split: a fenced code block nested in
@@ -146,7 +155,7 @@ function lineUnits(lines: readonly string[]): string[] {
   for (const line of lines) {
     if (fence !== undefined) {
       fence.lines.push(line)
-      const close = FENCE.exec(line)?.[1]
+      const close = CLOSING_FENCE.exec(line)?.[1]
       const sameKind = close?.startsWith(fence.marker.charAt(0)) === true
       if (close !== undefined && sameKind && close.length >= fence.marker.length) {
         units.push(fence.lines.join('\n'))

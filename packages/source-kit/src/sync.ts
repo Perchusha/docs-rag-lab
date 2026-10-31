@@ -1,6 +1,6 @@
 // Git sync for a source (SPEC section 9, ADR-0004): a shallow, sparse,
 // blob-less clone into the cache directory, then fetch + diff on later runs.
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { git, GitError } from './git.ts'
@@ -55,8 +55,22 @@ export function parseNameStatus(output: string): { changed: string[]; deleted: s
   return { changed, deleted }
 }
 
+/** The checkout's origin URL, or undefined when there is no usable checkout. */
+async function originOf(checkoutDir: string): Promise<string | undefined> {
+  if (!existsSync(join(checkoutDir, '.git'))) return undefined
+  try {
+    return (await git(['remote', 'get-url', 'origin'], { cwd: checkoutDir })).trim()
+  } catch (error) {
+    if (error instanceof GitError) return undefined
+    throw error
+  }
+}
+
 async function cloneOrUpdate(source: Source, checkoutDir: string): Promise<void> {
-  if (!existsSync(join(checkoutDir, '.git'))) {
+  const origin = await originOf(checkoutDir)
+  if (origin !== source.repo) {
+    // No checkout yet, or one of another repository: start from a fresh clone.
+    rmSync(checkoutDir, { recursive: true, force: true })
     mkdirSync(dirname(checkoutDir), { recursive: true })
     // core.autocrlf=false is stored in the new repo's config: a global
     // autocrlf=true (common on Windows) would otherwise rewrite the checkout.

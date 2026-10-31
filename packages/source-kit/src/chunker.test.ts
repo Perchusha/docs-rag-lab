@@ -127,9 +127,12 @@ describe('chunkDocument', () => {
   })
 
   it('never splits a code fence nested in an oversized prose block', () => {
+    // The fence holds a line that looks like an opening fence, which must not close it.
     const fenced = [
+      '  ```md',
+      ...Array.from({ length: 20 }, (_, i) => `  call${String(i)}()`),
       '  ```ts',
-      ...Array.from({ length: 40 }, (_, i) => `  call${String(i)}()`),
+      ...Array.from({ length: 20 }, (_, i) => `  more${String(i)}()`),
       '  ```',
     ]
     const list = [

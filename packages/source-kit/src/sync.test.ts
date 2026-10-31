@@ -153,6 +153,30 @@ describe('syncRepo', { timeout: 30_000 }, () => {
     ).toEqual({ headSha: head, mode: 'full', reason: 'requested' })
   })
 
+  it('re-clones when the source points at another repository', async () => {
+    await commit('initial')
+    await syncRepo(source(), { checkoutDir: checkout })
+
+    // A second repository with different content at the same paths.
+    const other = join(root, 'other')
+    mkdirSync(join(other, 'docs/guide'), { recursive: true })
+    writeFileSync(join(other, 'docs/guide/intro.md'), '# From the other repo\n')
+    await git(['init', '--quiet', '-b', 'main'], { cwd: other })
+    await git(['config', 'uploadpack.allowFilter', 'true'], { cwd: other })
+    await git(['add', '-A'], { cwd: other })
+    await git(['commit', '--quiet', '-m', 'other'], { cwd: other })
+    const otherHead = (await git(['rev-parse', 'HEAD'], { cwd: other })).trim()
+    const moved: Source = { ...source(), repo: pathToFileURL(other).href }
+
+    const result = await syncRepo(moved, { checkoutDir: checkout, full: true })
+
+    expect(result.headSha).toBe(otherHead)
+    expect(readFileSync(join(checkout, 'docs/guide/intro.md'), 'utf8')).toBe(
+      '# From the other repo\n',
+    )
+    expect((await git(['remote', 'get-url', 'origin'], { cwd: checkout })).trim()).toBe(moved.repo)
+  })
+
   it('keeps LF line endings even when the user config sets core.autocrlf=true', async () => {
     writeFileSync(
       join(root, 'gitconfig'),
