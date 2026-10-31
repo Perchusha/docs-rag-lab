@@ -38,7 +38,7 @@ Retrieval options (ask and search):
                               (default: retrieval.strategy in drl.config.ts)
   --doc-type <type>           Only chunks of this doc type; repeat it or separate with commas:
                               ${DOC_TYPES.join(', ')}
-  --top-k <n>                 Chunks that go to the answer (default: retrieval.topK)
+  --top-k <n>                 Chunks that go to the answer, 1 to 100 (default: retrieval.topK)
 
 Options:
   -h, --help                  Show this help
@@ -58,10 +58,20 @@ export interface RunOptions {
   debug?: boolean
 }
 
-function positiveInteger(value: string | undefined, fallback: number, name: string): number {
+// More chunks than this would not make a useful answer request; sqlite-vec also caps k at 4096.
+const MAX_TOP_K = 100
+
+function positiveInteger(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+  max: number,
+): number {
   if (value === undefined) return fallback
   const n = Number(value)
-  if (!Number.isInteger(n) || n <= 0) throw new CliError(`${name} must be a positive integer`)
+  if (!Number.isInteger(n) || n <= 0 || n > max) {
+    throw new CliError(`${name} must be a whole number from 1 to ${String(max)}`)
+  }
   return n
 }
 
@@ -125,6 +135,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: unknown command "${command}"\n\n${USAGE}`)
     return 2
   }
+  if (values.json && command !== 'search') {
+    err.write(`drl: --json works only with search\n\n${USAGE}`)
+    return 2
+  }
 
   const meter = new UsageMeter()
   const start = now()
@@ -147,7 +161,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const retrieval: RetrievalArgs = {
         question,
         source: values.source,
-        topK: positiveInteger(values['top-k'], config.retrieval.topK, '--top-k'),
+        topK: positiveInteger(values['top-k'], config.retrieval.topK, '--top-k', MAX_TOP_K),
         strategy: strategyOf(values.strategy, config.retrieval.strategy),
         docTypes: docTypesOf(values['doc-type']),
       }
