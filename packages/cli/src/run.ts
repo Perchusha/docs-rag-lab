@@ -20,6 +20,7 @@ Options:
 
 API keys come from the environment or from .env at the repository root.
 Every command that calls an API ends with its token usage and estimated cost.
+Set DRL_DEBUG=1 to print stack traces of failures.
 `
 
 export interface RunOptions {
@@ -28,6 +29,8 @@ export interface RunOptions {
   err?: Writer
   root?: string
   now?: () => number
+  /** Print stack traces of failures (default: DRL_DEBUG=1). */
+  debug?: boolean
 }
 
 function positiveInteger(value: string | undefined, fallback: number, name: string): number {
@@ -73,12 +76,12 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     return 2
   }
 
-  const root = options.root ?? findRepoRoot(import.meta.dirname)
-  loadEnv(root)
   const meter = new UsageMeter()
-  const ctx = { config, root, meter, out, now }
   const start = now()
   try {
+    const root = options.root ?? findRepoRoot(import.meta.dirname)
+    loadEnv(root)
+    const ctx = { config, root, meter, out, now }
     if (command === 'sync') {
       const source = rest[0]
       if (source === undefined)
@@ -97,8 +100,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     err.write(`\ndrl ${command} failed: ${message}\n`)
-    if (!(error instanceof CliError) && error instanceof Error && error.stack !== undefined) {
-      err.write(`${error.stack}\n`)
+    if (options.debug ?? process.env.DRL_DEBUG === '1') {
+      if (error instanceof Error && error.stack !== undefined) err.write(`${error.stack}\n`)
+    } else if (!(error instanceof CliError)) {
+      err.write('Set DRL_DEBUG=1 to see the stack trace.\n')
     }
     return 1
   } finally {

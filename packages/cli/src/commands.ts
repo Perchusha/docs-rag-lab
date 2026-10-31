@@ -146,8 +146,11 @@ export async function askCommand(
         const numbers = numbering.add(block)
         if (numbers.length > 0) out.write(numbers.map((n) => `[${String(n)}]`).join(''))
       },
+      // Also called when the stream fails part-way, so those tokens are reported.
+      onUsage: (usage) => {
+        ctx.meter.recordMessage(model, usage)
+      },
     })
-    ctx.meter.recordMessage(model, message.usage)
     if (message.stop_reason === 'max_tokens')
       out.write('\n\n(The answer hit max_tokens and is cut off.)')
     if (message.stop_reason === 'refusal') out.write('\n\n(Claude declined to answer.)')

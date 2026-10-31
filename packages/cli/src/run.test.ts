@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -59,6 +59,38 @@ describe('run', () => {
     expect(code).toBe(1)
     expect(err.text()).toContain('drl sync failed: VOYAGE_API_KEY is not set')
     expect(out.text()).toContain('usage: no API calls, 0 tokens, $0.0000')
+  })
+
+  it('reports a dotenv file it cannot read as a failed command, with the usage line', async () => {
+    mkdirSync(join(root, '.env'))
+    const out = capture()
+    const err = capture()
+
+    expect(await run(['limits'], { out: out.writer, err: err.writer, root })).toBe(1)
+    expect(err.text()).toContain('drl limits failed:')
+    expect(out.text()).toContain('usage: no API calls')
+  })
+
+  it('explains an empty index without a stack trace unless DRL_DEBUG is set', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test')
+    const err = capture()
+
+    const code = await run(['ask', 'What is a union type?'], {
+      out: capture().writer,
+      err: err.writer,
+      root,
+      debug: false,
+    })
+
+    expect(code).toBe(1)
+    expect(err.text()).toContain('the index is empty: run drl sync first')
+    expect(err.text()).toContain('Set DRL_DEBUG=1')
+    expect(err.text()).not.toMatch(/\n\s+at /)
+
+    const debug = capture()
+    await run(['ask', 'q'], { out: capture().writer, err: debug.writer, root, debug: true })
+    expect(debug.text()).toMatch(/\n\s+at /)
   })
 
   it('names the configured sources when the source is unknown', async () => {
