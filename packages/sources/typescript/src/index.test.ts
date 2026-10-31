@@ -215,4 +215,8 @@ describe('errorCodesOf', () => {
       errorCodesOf(['// @errors: 2345 2322\nfoo()', '  // @errors: 2322, 7006', '// no']),
     ).toEqual([2322, 2345, 7006])
   })
+
+  it('reads codes from the directive line only, not from a number on the next line', () => {
+    expect(errorCodesOf(['// @errors: 2345\n42\nfoo()'])).toEqual([2345])
+  })
 })

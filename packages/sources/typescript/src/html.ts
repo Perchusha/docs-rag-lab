@@ -23,8 +23,9 @@ function decodeEntities(text: string): string {
 const BLOCK_END =
   /<\/(?:p|div|tr|li|h[1-6]|blockquote|details|summary|table|thead|tbody|ul|ol|aside|dd|dt)\s*>/gi
 
+/** Whether the block is one comment and nothing else (a second comment after visible HTML is not). */
 export function isHtmlComment(html: string): boolean {
-  return /^\s*<!--[\s\S]*-->\s*$/.test(html)
+  return /^\s*<!--(?:(?!-->)[\s\S])*-->\s*$/.test(html)
 }
 
 const ROW = /<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi

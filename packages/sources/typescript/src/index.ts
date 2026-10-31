@@ -15,7 +15,8 @@ export interface TypescriptSourceOptions {
 export function errorCodesOf(code: readonly string[]): number[] {
   const codes = new Set<number>()
   for (const block of code) {
-    for (const match of block.matchAll(/^\s*\/\/\s*@errors:\s*([\d\s,]+)$/gm)) {
+    // Codes on the directive's own line only: [\d \t,], not \s, which would run into the next line.
+    for (const match of block.matchAll(/^[ \t]*\/\/[ \t]*@errors:[ \t]*([\d \t,]+)$/gm)) {
       for (const value of (match[1] ?? '').split(/[\s,]+/)) {
         if (value !== '') codes.add(Number(value))
       }

@@ -64,5 +64,6 @@ describe('isHtmlComment', () => {
   it('recognizes a block that is only a comment', () => {
     expect(isHtmlComment('<!--\n## Hidden\n-->')).toBe(true)
     expect(isHtmlComment('<!-- note --><p>shown</p>')).toBe(false)
+    expect(isHtmlComment('<!-- a --> <p>Visible</p> <!-- b -->')).toBe(false)
   })
 })
