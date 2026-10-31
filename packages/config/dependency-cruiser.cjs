@@ -80,6 +80,14 @@ module.exports = {
       to: { path: INTERNAL, pathNot: ['^packages/db/', CONFIG] },
     },
     {
+      name: 'config-is-leaf',
+      comment:
+        'config imports no other internal package. Every rule exempts config, so a re-export through it would launder any import (ADR-0002).',
+      severity: 'error',
+      from: { path: '^packages/config/' },
+      to: { path: INTERNAL, pathNot: '^packages/config/' },
+    },
+    {
       name: 'tooling-not-imported',
       comment: 'Apps and packages never import tooling/ (repo checks and Claude Code hooks).',
       severity: 'error',

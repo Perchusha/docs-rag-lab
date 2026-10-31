@@ -88,6 +88,12 @@ describe('boundary rules (SPEC section 4)', () => {
     ])
   })
 
+  it('config imports no internal package, so it cannot launder an import', () => {
+    expect(edges('config-is-leaf')).toEqual([
+      'packages/config/launder.ts -> packages/core/src/index.ts',
+    ])
+  })
+
   it('nothing imports tooling', () => {
     expect(edges('tooling-not-imported')).toEqual([
       'packages/cli/src/imports-tooling.ts -> tooling/hooks/src/index.ts',
@@ -118,6 +124,7 @@ describe('boundary rules (SPEC section 4)', () => {
       'packages/core/src/index.ts -> packages/source-kit/src/index.ts',
       'packages/core/src/index.ts -> packages/db/src/index.ts',
       'packages/core/src/same-package.ts -> packages/core/src/internal.ts',
+      'packages/sources/typescript/src/same-package.ts -> packages/sources/typescript/src/internal.ts',
       'packages/source-kit/src/index.ts -> packages/db/src/index.ts',
       'packages/sources/typescript/src/index.ts -> packages/source-kit/src/index.ts',
       'packages/cli/src/index.ts -> packages/core/src/index.ts',
