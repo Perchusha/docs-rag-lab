@@ -2,6 +2,28 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## Before M1 - Permission deny rules (2026-10-31)
+
+**What changed:** `.claude/settings.json` now denies reads of dotenv files at any depth. Every path rule, for dotenv files, `data/` and `.cache/`, is anchored to the project root with a leading `/` (ADR-0002, section 5).
+
+**Probes (Claude Code 2.1.287, each one a real tool call):**
+
+| Probe | Before | After |
+|---|---|---|
+| Write `packages/core/src/data/x.ts` | denied by `Edit(./data/**)` | allowed |
+| Write `packages/core/src/.cache/x.ts` | denied by `Edit(./.cache/**)` | allowed |
+| Write `data/probe.txt`, `.cache/probe.txt` | denied (M0) | denied |
+| Read 5 dotenv names at the root, all except `.env` (not on disk) | not probed | denied |
+| Read all 6 dotenv names in `packages/core/` (not on disk) | not probed | denied |
+| Read `.env.test` at the root and `apps/.env.local`, after a shell `cd` into `packages/core` (not on disk) | not probed | denied |
+| Read `.env.example` | readable | readable |
+
+**What was surprising:**
+- **`./data/**` is not anchored.** Per the docs, a deny rule with one directory segment matches that directory at any depth, so the M0 rule blocked any source folder named `data`. A leading `/` anchors it.
+- **Settings reload live.** The new rules applied to the next tool call in the same session.
+- **A shell `cd` does not move the `/` anchor.** After `cd packages/core`, the root dotenv probes were still denied.
+- **This time, auto mode allowed narrowing a deny rule.** The user asked for that exact change, unlike the refused M0 demo.
+
 ## M0 - Scaffold (2026-10-31)
 
 **What exists now:**
