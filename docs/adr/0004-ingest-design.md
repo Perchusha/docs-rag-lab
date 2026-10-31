@@ -46,7 +46,7 @@ A full rebuild re-parses every file but still diffs against the index, and the e
 
 - **Repository change.** When the checkout's `origin` is not the source's repository, the checkout is deleted and cloned again. Without that, a fetch would follow the old origin.
 - **Last change per document.** `documents.last_changed_sha` keeps the commit where the content last changed. A full rebuild at a new head does not move it for documents whose content hash is the same.
-- **Parser changes.** A change to a source's parser is not detected yet: run `drl sync <source> --full`. Recording a source version in the manifest is an open item.
+- **Parser changes.** Since M2, each source has a `parserVersion` that the manifest stores, and a change forces the full rebuild (ADR-0005, section 6). Before M2 a parser change needed `drl sync <source> --full`.
 
 ### 5. Line endings
 

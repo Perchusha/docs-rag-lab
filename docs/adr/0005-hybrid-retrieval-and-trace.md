@@ -47,7 +47,7 @@ The choice was measured, not guessed. The probe ran BM25 only (top 50, stopwords
 - extracts words, drops a short list of English stopwords (TypeScript keywords such as `any`, `new` and `type` stay in) and terms shorter than 3 characters;
 - quotes every term and joins the terms with OR. FTS5 syntax in a question (`OR`, `NOT`, `NEAR`, `*`, `^`, `:`, quotes) is matched as text and never parsed as an operator.
 
-Unit tests cover `--strict`, `TS2345:`, a term with a double quote, `*`, and bare `OR` and `NOT`; every generated query is run against a real FTS5 table. On the real questions, frequent words do not flood the keyword list:
+Unit tests cover `--strict`, `TS2345:`, a term with a double quote, `*`, `NEAR`, and `OR`, `AND` and `NOT`, both bare (stopwords, dropped) and in backticks (quoted and searched as text); every generated query is run against a real FTS5 table. On the real questions, frequent words do not flood the keyword list:
 - "error" matches 488 chunks and "mean" 227, yet the top two hits for the TS2345 question are the only two chunks that contain `TS2345`;
 - for the 7 `exact-token` questions, the keyword list puts the anchor at rank 1 to 5.
 
@@ -58,11 +58,13 @@ Hybrid fuses three lists:
 - `keyword`: BM25 over the question's terms;
 - `exact`: BM25 over the question's exact tokens alone. These are:
   - code in backticks;
-  - camelCase identifiers;
+  - camelCase identifiers outside backticks. PascalCase words are left out: outside code they are mostly product names, and `TypeScript` alone matches 831 of 994 chunks, which made an exact list of noise for 9 of the 40 draft questions. Types are usually written in backticks;
   - `--flags`;
   - source tokens.
 
 Source tokens come from a new optional hook, `Source.exactTokens(question)`, so core stays source-agnostic. The TypeScript source turns `TS2345` into `TS2345` and `2345`, because the docs write compiler errors as `// @errors: 2345`.
+
+How anchors are counted in this ADR: an anchor matches a chunk whose own anchor is the fragment, or that contains the section (SPEC section 10).
 
 Why a third list: in the planning probe, BM25 put a TS2345 handbook anchor 5th, but vector search did not have it in its top 50. RRF over two lists then ranked it 12th, outside the top 8. Chunks that both lists found at middling ranks beat a chunk that one list found near the top. With the exact list it ranks 6th, and so it does in the measured run below.
 
@@ -75,7 +77,7 @@ Why a third list: in the planning probe, BM25 put a TS2345 handbook anchor 5th, 
 - **docType:**
   - `chunks_vec` has a `doc_type` metadata column (sqlite-vec 0.1.9), so `doc_type = ?`, `IN (...)` and `!=` run inside the KNN query. A filtered query still returns k results; measured on the real index, it takes 0.7 ms.
   - Keyword search filters through a join on `documents` before its LIMIT.
-  - When a document changes doc type, its kept vectors are updated, and `applyChanges` checks that no vector carries a stale type.
+  - Every write of a document sets its doc type on its kept vectors, so a changed type follows and any drift heals on the next `--full`. `applyChanges` checks that no vector carries a stale type. On the real index this makes a full re-parse 1.9s instead of 1.7s.
 - **Source:** there is one index file per source (SPEC section 6), so the source filter is the choice of file (`--source`). A `source` column would hold the same value in every row. Searching several sources at once arrives with the second source in M6.
 
 ### 5. The trace is plain data in core

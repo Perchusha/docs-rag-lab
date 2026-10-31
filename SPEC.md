@@ -250,7 +250,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings.
 2. Find changes:
    - if the manifest has a previous SHA, run `git diff --name-status -z --no-renames <old> <new> -- <include paths>`, fetching the old commit by SHA if the shallow clone lacks it;
-   - otherwise, or if the old commit is unreachable, or the chunker version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
+   - otherwise, or if the old commit is unreachable, or the chunker version, parser version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
 3. Apply changes:
    - deleted files: remove their documents and chunks;
    - added or modified files: parse, chunk, and compare chunk hashes.
@@ -300,9 +300,10 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
-{"id":"ts-0001","question":"...","answer":"...","anchors":["handbook-v2/Everyday Types.md#union-types"],"tags":["basic"]}
+{"id":"ts-0001","question":"...","answer":"...","anchors":["packages/documentation/copy/en/handbook-v2/Everyday Types.md#union-types"],"tags":["basic"]}
 ```
-- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`.
+- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`, `cross-lingual` (a question in another language than the docs).
+- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document when the chunk's own anchor is the fragment, or when the chunk contains that section (a heading inside the chunk text slugs to the fragment). Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches.
 - Start with 40 questions per source, written or reviewed by a human. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
 
 **Metrics:**
