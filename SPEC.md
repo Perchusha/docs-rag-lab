@@ -258,7 +258,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 Every `drl` command that calls an API ends with the tokens it used and their estimated cost at list prices.
 
 ### Chunking
-- Split by the heading tree, up to 800 estimated tokens per chunk. A subtree that fits is one chunk; one that does not is packed into balanced chunks, section by section (ADR-0004).
+- Split by the heading tree, up to 800 estimated tokens of blocks per chunk; the heading-path prefix line comes on top. A subtree that fits is one chunk; one that does not is packed into balanced chunks, section by section (ADR-0004).
 - Never split a code block.
 - Keep the heading path as a prefix.
 - `chunker_version` is stored in the manifest. Bumping it forces a rebuild.

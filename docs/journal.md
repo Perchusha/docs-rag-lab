@@ -33,9 +33,11 @@ Release notes are 46% of the chunks and half of the tokens.
 
 **Chunk sizes, in estimated tokens:**
 - percentiles: p10 218, median 532, p90 736, max 1,046;
-- 827 of 994 chunks (83%) fall in SPEC's 300-800 target;
+- 827 of 994 chunks (83%) fall between 300 and 800;
 - 28 chunks are under 100, mostly one-paragraph tsconfig options;
-- 12 are over 800, each a single code block that may not be split.
+- 12 are over 800:
+  - 2 are single code blocks, which may not be split (1,046 and 824);
+  - 10 are 802-810, because the 800 budget counts the blocks, and the heading-path prefix line comes on top.
 
 **Numbers.** Windows 11, Node 26.13.0, Voyage `voyage-4` on the MongoDB Atlas free trial (3 requests and 10K tokens per minute):
 
@@ -48,7 +50,7 @@ Release notes are 46% of the chunks and half of the tokens.
 | Index on disk | `typescript.sqlite` 7.5 MB, `cache.sqlite` 4.7 MB |
 | One `drl ask` | $0.017-0.020: about 7-8K input tokens (8 search results), 121-616 output tokens, at `low` effort. The query embedding costs 8-10 tokens |
 | Live URL check | All 248 documents (247 distinct pages) return 200. All 675 chunk anchors exist as ids on their pages |
-| Tests | 141 new, all offline: db 12, source-kit 37, source-typescript 36, core 39, cli 17 |
+| Tests | 153 new, all offline: db 14, source-kit 38, source-typescript 38, core 44, cli 19 |
 | Conformance | Passes over 8 byte-for-byte fixtures, and over all 248 files in a dry run |
 | PostToolUse hook per edit | Median about 2.7s and max 3.6s on a cache miss, 1.0s cached. It was 2.6s and 3.0s on the scaffold; the budget is 8s |
 
@@ -104,9 +106,9 @@ The other 988 kept their vectors. The acceptance test proves the same property o
 
 **What was surprising:**
 - **The free trial, not the docs, sets the pace.** 97.5% of the first index was spent waiting. The sync was bound by the 3-requests-per-minute limit more than by the token limit:
-  - the local estimate runs 16% high, so a batch of 3K estimated tokens carried about 2.3K billed tokens;
+  - the local estimate is 19% above the billed count (billed/estimated 0.84), so batches averaged 2.7K estimated but only 2.3K billed tokens;
   - that used only about 6.1K of the 10K tokens allowed per minute;
-  - batches of about 3.6K estimated tokens would fill the token budget and take about 50 minutes instead of 70.
+  - batches of about 3.6K estimated tokens (about 3K billed) would fill the token budget and take about 50 minutes instead of 70.
   - A payment method on the Atlas org (Tier 1) would cut the index to about a minute, and the free tokens would still apply.
 - **Atlas reported 0 tokens for the one-word query "hello",** so the first smoke test failed on an assertion that tokens are above 0. A one-sentence input reports 24. The keys were fine; the test now embeds a sentence.
 - **The free-trial limits come in an `x-api-warning` header,** not in standard rate-limit headers. `drl limits` prints it.
@@ -118,6 +120,25 @@ The other 988 kept their vectors. The acceptance test proves the same property o
 - **The chunker had to move.** SPEC put chunking in core, but the conformance suite runs inside each source and must chunk, and sources may import only source-kit. The chunker moved to source-kit. The embedding cache went to core, so source-kit is now a leaf (ADR-0003).
 - **Packages may not import apps,** so `drl` cannot read an app's `rag.config.ts`. Model IDs and prices live in `packages/cli/src/drl.config.ts` until M3 (ADR-0004).
 - **The new Anthropic SDK** (1.3.0) sends API version `2026-10-21`, which rejects `temperature`. The answer request sets effort instead.
+
+**What the code-reviewer subagent caught.** It ran in a fresh context before the M1 PR, with no blocking findings. It verified its claims with probes on local `file://` repositories and a 3,000-document chunker fuzz, which found no ID collisions, empty chunks or split code blocks. It found these:
+- **A changed repository URL indexed the old repository under the new URL.** The checkout fetched its original `origin`. It now re-clones when `origin` differs, with a two-repository test.
+- **Two doc claims did not match the data.** "Every chunk over 800 is a code block": 10 of the 12 are prefix overshoot. "Checks every chunk has exactly one vector": the code only compared totals; it now also counts chunks without a vector.
+- **A full rebuild stamped every document with the new head** as its `last_changed_sha`. That would have broken staleness in M4. The column now moves only when content changes.
+- **The retry tests did not cover what their names said:**
+  - no test for 5xx backoff or for giving up;
+  - the cache-persistence test would pass even if the cache were written at the end.
+  
+  Both are now real tests, plus a 5-minute cap on Retry-After, and a failed attempt now counts 0 tokens in the limiter.
+- **Smaller fixes:**
+  - a fence line with an info string closed a nested fence (CHUNKER_VERSION 2);
+  - a greedy comment regex could drop visible HTML between two comments;
+  - `@errors` codes could run into the next line;
+  - env errors skipped the usage line;
+  - a failed answer stream lost its usage;
+  - stack traces now need `DRL_DEBUG=1`;
+  - dead code was removed.
+- **After the fixes,** the CHUNKER_VERSION bump forced a full rebuild: 248 files re-parsed, 994 chunks unchanged, 0 tokens, 1.6s. None of the fixes changed a chunk of the real corpus.
 
 ### Open items for M2
 - Keyword search (FTS5 with BM25) for exact tokens like `TS2345` and option names. The TS2345 question above is the first test case.
