@@ -48,6 +48,7 @@ const demo = (overrides: Partial<Source> = {}): Source => ({
   branch: 'main',
   include: ['docs'],
   license: { name: 'MIT', url: 'https://example.com', attribution: 'Demo' },
+  parserVersion: 1,
   match: (path) => path.startsWith('docs/') && path.endsWith('.md'),
   parse: (file) => Promise.resolve(parseDemo(file)),
   ...overrides,
@@ -80,6 +81,13 @@ describe('runSourceConformance', () => {
 
   it('fails when there are no fixtures', async () => {
     expect(await failuresOf(demo(), [])).toEqual(['no fixtures'])
+  })
+
+  it('fails a parser version that is not a positive integer', async () => {
+    expect(await failuresOf(demo({ parserVersion: 0 }))).toEqual([
+      'parserVersion must be a positive integer, got 0',
+    ])
+    expect(await failuresOf(demo({ parserVersion: 1.5 }))).toHaveLength(1)
   })
 
   it('fails a fixture that match() rejects', async () => {

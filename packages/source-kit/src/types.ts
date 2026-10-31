@@ -36,8 +36,21 @@ export interface Source {
   /** Sparse-checkout directories, relative to the repository root. */
   include: string[]
   license: License
+  /**
+   * Bump when `parse` gives different output for the same file. It is stored
+   * in the manifest, and a change forces a full re-parse (no re-embedding of
+   * unchanged chunk text).
+   */
+  parserVersion: number
   match(path: string): boolean
   parse(file: SourceFile, ctx: ParseContext): Promise<ParsedDoc>
+  /**
+   * Tokens in a question that keyword search should match exactly, in the
+   * form this source's docs use them. TypeScript: `TS2345` is written `2345`
+   * in `// @errors:` directives. Generic tokens (backticks, camelCase) are
+   * found by core.
+   */
+  exactTokens?(question: string): string[]
 }
 
 export interface ParsedDoc {

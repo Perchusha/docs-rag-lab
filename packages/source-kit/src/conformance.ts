@@ -99,6 +99,7 @@ function checkDocument(
 
 /**
  * Checks a source against its fixtures:
+ * - the parser version is a positive integer;
  * - every fixture matches and parses without throwing;
  * - URLs are absolute https and match the expected pattern; docType is known;
  * - two parses give the same chunk IDs and hashes, and IDs are unique;
@@ -110,6 +111,9 @@ export async function runSourceConformance(
   fixtures: ConformanceFixtures,
 ): Promise<ConformanceReport> {
   const failures: string[] = []
+  if (!Number.isInteger(source.parserVersion) || source.parserVersion <= 0) {
+    failures.push(`parserVersion must be a positive integer, got ${String(source.parserVersion)}`)
+  }
   if (fixtures.files.length === 0) failures.push('no fixtures')
 
   for (const file of fixtures.files) {
