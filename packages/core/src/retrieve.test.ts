@@ -157,19 +157,34 @@ describe('retrieve', () => {
     expect(trace.context[0]?.text).toContain('@errors: 2345')
   })
 
-  it('hybrid without exact tokens: the ranking is exactly the two-list RRF', async () => {
+  it('hybrid with an empty exact list ranks exactly as without one', async () => {
+    const question = 'Which option reports unused labels?'
     const provider = new RecordingProvider()
-    const { trace } = await retrieve(
-      options(provider, { question: 'Which option reports unused labels?' }),
+    // No exact tokens: the exact list is skipped.
+    const without = await retrieve(options(provider, { question }))
+    // An exact token that matches no chunk: the exact list runs and comes back empty.
+    const empty = await retrieve(
+      options(provider, { question, source: { id: 'demo', exactTokens: () => ['zzqqzz'] } }),
     )
 
-    const exact = trace.lists.find((list) => list.name === 'exact')
-    expect(exact).toMatchObject({ skipped: 'no exact tokens in the question', candidates: [] })
-    if (trace.fusion.method !== 'rrf') throw new Error('expected RRF')
-    const twoLists = trace.lists
-      .filter((list) => list.name !== 'exact')
+    expect(without.trace.lists.find((list) => list.name === 'exact')).toMatchObject({
+      skipped: 'no exact tokens in the question',
+      candidates: [],
+    })
+    const exact = empty.trace.lists.find((list) => list.name === 'exact')
+    expect(exact).toMatchObject({ query: '"zzqqzz"', candidates: [] })
+    expect(exact?.skipped).toBeUndefined()
+    if (without.trace.fusion.method !== 'rrf' || empty.trace.fusion.method !== 'rrf') {
+      throw new Error('expected RRF')
+    }
+    expect(empty.trace.fusion.ranked).toEqual(without.trace.fusion.ranked)
+    expect(empty.hits.map((hit) => hit.chunkId)).toEqual(without.hits.map((hit) => hit.chunkId))
+    // And both are the two-list fusion of vector and keyword.
+    const twoLists = without.trace.lists
+      .filter((list) => list.skipped === undefined)
       .map((list) => ({ name: list.name, chunkIds: list.candidates.map((c) => c.chunkId) }))
-    expect(trace.fusion.ranked).toEqual(fuseRrf(twoLists, 60))
+    expect(twoLists.map((list) => list.name)).toEqual(['vector', 'keyword'])
+    expect(without.trace.fusion.ranked).toEqual(fuseRrf(twoLists, 60))
   })
 
   it('skips the keyword lists when the question has no search terms', async () => {

@@ -49,9 +49,11 @@ function longEnough(text: string): boolean {
   return (text.trim().match(/./gsu)?.length ?? 0) >= MIN_TERM_LENGTH
 }
 
-// camelCase or PascalCase with an inner capital: noUncheckedIndexedAccess, NoInfer.
+// camelCase outside backticks: noUncheckedIndexedAccess, erasableSyntaxOnly.
+// PascalCase is left out: outside code it is mostly product names (TypeScript,
+// JavaScript matches 831 of 994 chunks), and types are usually in backticks.
 const IDENTIFIER = /[A-Za-z_$][\w$]*/g
-const INNER_CAPITAL = /[a-z0-9][A-Z]/
+const CAMEL_CASE = /^[a-z_$][\w$]*[a-z0-9][A-Z]/
 // A command-line flag outside backticks: --strict, --erasableSyntaxOnly.
 const FLAG = /(?:^|\s)--([A-Za-z][\w-]*)/g
 
@@ -65,7 +67,7 @@ function exactTokensOf(question: string, sourceTokens: readonly string[]): Exact
   for (const match of outsideCode.matchAll(FLAG))
     found.push({ token: match[1] ?? '', from: 'flag' })
   for (const [token] of outsideCode.matchAll(IDENTIFIER)) {
-    if (INNER_CAPITAL.test(token)) found.push({ token, from: 'identifier' })
+    if (CAMEL_CASE.test(token)) found.push({ token, from: 'identifier' })
   }
   for (const token of sourceTokens) found.push({ token, from: 'source' })
 
