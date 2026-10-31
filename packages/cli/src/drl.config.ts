@@ -14,9 +14,10 @@ export default defineConfig({
     model: 'voyage-4',
     dimensions: 1024,
     // Atlas free trial (no payment method on the org): 3 requests and 10K tokens per minute.
-    // About 3K estimated tokens per batch lets all 3 requests of a minute through,
-    // about 10% under the token limit.
-    batch: { maxInputs: 1000, maxTokens: 3_000 },
+    // The local estimate runs high: billed/estimated was 0.84 on the full TypeScript index.
+    // 3,600 estimated tokens is about 3,000 billed, so 3 requests a minute stay about 10%
+    // under the token limit (3K estimated left the sync bound by requests, at ~6K TPM).
+    batch: { maxInputs: 1000, maxTokens: 3_600 },
     rateLimit: { rpm: 3, tpm: 10_000 },
     // Tier 1 (payment method added): 2,000 requests and 8M tokens per minute.
     // batch: { maxInputs: 1000, maxTokens: 100_000 },

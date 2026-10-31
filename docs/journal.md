@@ -108,7 +108,7 @@ The other 988 kept their vectors. The acceptance test proves the same property o
 - **The free trial, not the docs, sets the pace.** 97.5% of the first index was spent waiting. The sync was bound by the 3-requests-per-minute limit more than by the token limit:
   - the local estimate is 19% above the billed count (billed/estimated 0.84), so batches averaged 2.7K estimated but only 2.3K billed tokens;
   - that used only about 6.1K of the 10K tokens allowed per minute;
-  - batches of about 3.6K estimated tokens (about 3K billed) would fill the token budget and take about 50 minutes instead of 70.
+  - batches of about 3.6K estimated tokens (about 3K billed) fill the token budget, so the next full index should take about 50 minutes instead of 70. **The free-trial cap is now 3,600 estimated tokens**, chosen from this measured ratio of 0.84 (ADR-0004, section 7).
   - A payment method on the Atlas org (Tier 1) would cut the index to about a minute, and the free tokens would still apply.
 - **Atlas reported 0 tokens for the one-word query "hello",** so the first smoke test failed on an assertion that tokens are above 0. A one-sentence input reports 24. The keys were fine; the test now embeds a sentence.
 - **The free-trial limits come in an `x-api-warning` header,** not in standard rate-limit headers. `drl limits` prints it.
@@ -144,7 +144,7 @@ The other 988 kept their vectors. The acceptance test proves the same property o
 - Keyword search (FTS5 with BM25) for exact tokens like `TS2345` and option names. The TS2345 question above is the first test case.
 - A `doc_type` filter: release notes dominate the corpus, and 6 of the 8 hits for `satisfies` came from them. sqlite-vec metadata columns can pre-filter, and rebuilding the vector table costs no tokens, because the vectors come from the cache.
 - The retrieval trace object.
-- Free-trial batch size: try about 3.6K estimated tokens on the next full rebuild, or add a payment method.
+- Free-trial batch size: the cap is now 3,600 estimated tokens. Measure the next full index against the estimated 50 minutes, or add a payment method.
 - Parser changes need `--full` today: the manifest records the chunker version, but not a version of each source's parser. Add a source version to the manifest so a parser change forces the re-parse by itself.
 
 ## Before M1 - Permission deny rules (2026-10-31)

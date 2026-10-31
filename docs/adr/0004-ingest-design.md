@@ -63,7 +63,13 @@ Files are normalized to LF (and lose a BOM) when they are read, so hashes and co
 
 The key has no payment method, so Atlas allows 3 requests and 10K tokens per minute (it says so in an `x-api-warning` response header, which `drl limits` prints).
 - A sliding one-minute window admits a request only if it fits both limits, using the batch's estimated tokens, then replaces the estimate with the billed count.
-- Batches hold about 3K estimated tokens, so all 3 requests of a minute fit about 10% under the token limit. The Tier 1 values (2,000 RPM, 8M TPM, about 100K-token batches) sit next to them in config as a comment.
+- Batches hold up to 3,600 estimated tokens. The cap is sized in billed tokens:
+  - the first full index measured billed/estimated at 0.84 (426,167 billed for 506,035 estimated), so 3,600 estimated is about 3,000 billed;
+  - three requests a minute then use about 9K of the 10K tokens, about 10% under the limit.
+  
+  The first index used 3K-estimated batches, which averaged only 2.3K billed tokens. It was bound by the request limit at about 6.1K tokens per minute and took 70 minutes. At 3,600 the same index should take about 50 minutes.
+  
+  The Tier 1 values (2,000 RPM, 8M TPM, about 100K-token batches) sit next to the free-trial values in config as a comment. Re-check the ratio if the estimator or the corpus changes: it is printed after every sync.
 - 429, 5xx and network errors are retried, at most 6 times: Retry-After when present (capped at 5 minutes), otherwise 60s for a 429 and exponential backoff from 2s for the rest. A failed attempt still counts as a request in the window, with 0 tokens.
 - The limiter adds up the time it waits, including backoff. Sync prints it in its progress lines and summary.
 - Every batch is written to the cache as soon as it returns, so an interrupted sync resumes for free.
