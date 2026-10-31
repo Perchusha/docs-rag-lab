@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { openDatabase } from '@docs-rag-lab/db'
 import { git, type Source } from '@docs-rag-lab/source-kit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -41,6 +42,23 @@ function indexes(): OpenIndexes {
 function closeIndexes(): void {
   open?.close()
   open = undefined
+}
+
+/**
+ * Every row of the keyword index's FTS5 shadow tables, read through a second
+ * connection. Equal snapshots mean FTS5 wrote nothing in between: re-indexing
+ * a chunk, even with the same text, adds segments and rewrites the averages.
+ */
+function keywordIndexSnapshot(): string {
+  const db = openDatabase(sourceIndexPath(dataDir, source.id))
+  try {
+    const tables = ['chunks_fts_data', 'chunks_fts_idx', 'chunks_fts_docsize', 'chunks_fts_config']
+    return JSON.stringify(
+      tables.map((table) => db.prepare(`select * from ${table} order by 1, 2`).all()),
+    )
+  } finally {
+    db.close()
+  }
 }
 
 async function sync(provider: RecordingProvider, full = false): Promise<SyncReport> {
@@ -159,6 +177,25 @@ describe('syncSource', { timeout: 60_000 }, () => {
       vectors: { needed: 0, embedded: 0, cached: 0 },
     })
     expect(provider.calls).toEqual([])
+  })
+
+  it('makes zero writes to the keyword index when the corpus is unchanged, even on a full re-parse', async () => {
+    // Regression test for migration 3: the version 2 trigger re-indexed every
+    // chunk a sync upserted, so each full rebuild grew the index (6.2 to 9.0 MB
+    // on the real TypeScript index).
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    const before = keywordIndexSnapshot()
+    expect((JSON.parse(before) as unknown[][])[2]).toHaveLength(3) // one docsize row per chunk
+
+    const incremental = await sync(provider)
+    const full = await sync(provider, true)
+
+    expect(incremental.mode).toBe('incremental')
+    expect(full).toMatchObject({ mode: 'full', chunks: { unchanged: 3, changed: 0, added: 0 } })
+    expect(keywordIndexSnapshot()).toBe(before)
+    expect(provider.calls).toHaveLength(1) // only the first sync embedded anything
   })
 
   it('rebuilds a deleted index entirely from the embedding cache', async () => {
