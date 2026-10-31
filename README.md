@@ -13,15 +13,15 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M1 (TypeScript ingest and CLI) is done.** On top of the M0 scaffold (monorepo, CI, boundaries, Claude Code hooks), it adds:
+**M2 (hybrid search and the retrieval trace) is done.** On top of M1 (incremental sync of the TypeScript docs, Voyage embeddings through a shared cache, vector search, `drl ask` with native citations, tokens and cost after every command), it adds:
 
-- incremental sync of the TypeScript docs: 248 files from TypeScript-Website, chunked by heading;
-- Voyage embeddings through a shared cache, so unchanged text is never paid for twice;
-- vector search with sqlite-vec;
-- `drl ask`, which answers with native citations to typescriptlang.org sections;
-- tokens and estimated cost after every command.
+- keyword search: SQLite FTS5 with the trigram tokenizer, so `TS2345`-style tokens and parts of option names match;
+- hybrid ranking: vector, keyword and exact-token lists fused with Reciprocal Rank Fusion;
+- doc type filters inside the vector and keyword queries;
+- a retrieval trace with every candidate list, the fused ranking, the final context and timings: `drl ask --verbose` and `drl search`;
+- a parser version in the index, so a parser change re-parses without `--full`.
 
-M2 adds keyword search, hybrid ranking and the retrieval trace. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
+M3 adds the ts-docs app with the inspector. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
 Every claim about retrieval quality will be backed by a measured row in a results table here. No measurements exist yet; the first rows arrive with the eval harness in M4.
 
@@ -60,7 +60,8 @@ pnpm drl ask "What is the difference between unknown and any?"
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
 | `pnpm drl sync typescript [--full]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`. Re-embeds only new or changed chunks |
-| `pnpm drl ask "<question>" [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` shows the retrieved chunks and distances |
+| `pnpm drl ask "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
+| `pnpm drl search "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 

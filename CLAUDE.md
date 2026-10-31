@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M2 - Hybrid + trace (see SPEC.md section 13). M0 and M1 are done. Update this line when a milestone is done.
+M3 - ts-docs app (see SPEC.md section 13). M0, M1 and M2 are done. Update this line when a milestone is done.
 
 ## Commands
 
@@ -23,7 +23,8 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded)
-- Ask: `pnpm drl ask "<question>"` (add `--verbose` to see retrieved chunks)
+- Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
+- Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
 
