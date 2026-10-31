@@ -1,0 +1,64 @@
+{
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-test",
+  "content": [
+    { "type": "thinking", "thinking": "", "signature": "sig" },
+    {
+      "type": "text",
+      "text": "A union type describes a value that can be one of several types.",
+      "citations": [
+        {
+          "type": "search_result_location",
+          "cited_text": "A union type is a type formed from two or more other types.",
+          "source": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types",
+          "title": "Everyday Types > Union Types",
+          "search_result_index": 1,
+          "start_block_index": 0,
+          "end_block_index": 1
+        }
+      ]
+    },
+    { "type": "text", "text": " You narrow it with checks such as ", "citations": null },
+    {
+      "type": "text",
+      "text": "typeof",
+      "citations": [
+        {
+          "type": "search_result_location",
+          "cited_text": "Narrowing occurs when TypeScript can deduce a more specific type.",
+          "source": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+          "title": "Narrowing",
+          "search_result_index": 0,
+          "start_block_index": 2,
+          "end_block_index": 3
+        },
+        {
+          "type": "search_result_location",
+          "cited_text": "A union type is a type formed from two or more other types.",
+          "source": "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types",
+          "title": "Everyday Types > Union Types",
+          "search_result_index": 1,
+          "start_block_index": 0,
+          "end_block_index": 1
+        }
+      ]
+    },
+    { "type": "text", "text": ".", "citations": null }
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 5120,
+    "output_tokens": 160,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": null,
+    "inference_geo": null,
+    "output_tokens_details": null,
+    "server_tool_use": null,
+    "service_tier": "standard"
+  }
+}
