@@ -1,0 +1,21 @@
+{
+  "name": "docs-rag-lab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": "^26.13.0"
+  },
+  "scripts": {
+    "depcruise": "depcruise apps packages tooling --config .dependency-cruiser.cjs --output-type err-long",
+    "format": "prettier --write .",
+    "format:check": "prettier --check . && node tooling/repo-checks/src/no-em-dash.ts"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "catalog:",
+    "prettier": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  }
+}

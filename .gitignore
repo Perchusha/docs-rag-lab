@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Generated data (never edit by hand)
+data/
+.cache/
+
+# Tool and build output
+.turbo/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# OS and logs
+.DS_Store
+Thumbs.db
+*.log
