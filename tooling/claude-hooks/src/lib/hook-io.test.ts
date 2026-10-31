@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatSeconds, parseHookInput, stringField, truncate } from './hook-io.ts'
+import {
+  commandProblem,
+  formatSeconds,
+  isOnPath,
+  parseHookInput,
+  runCommand,
+  stringField,
+  truncate,
+} from './hook-io.ts'
 import { stopOutcome } from './stop.ts'
 
 describe('parseHookInput', () => {
@@ -41,6 +49,45 @@ describe('truncate', () => {
     expect(result.startsWith('a'.repeat(50))).toBe(true)
     expect(result.endsWith('c'.repeat(40))).toBe(true)
     expect(result).toContain('[100 characters truncated]')
+  })
+})
+
+describe('commandProblem', () => {
+  it('treats a normal exit, failing or not, as no problem', () => {
+    expect(commandProblem(0, undefined, 'pnpm turbo run test')).toBeUndefined()
+    expect(commandProblem(1, undefined, 'pnpm turbo run test')).toBeUndefined()
+  })
+
+  it.each([
+    ['sh', 127],
+    ['cmd.exe', 9009],
+  ])('reports a missing command in %s', (_shell, status) => {
+    expect(commandProblem(status, undefined, 'pnpm turbo run test')).toMatch(/was not found/)
+  })
+
+  it('reports a killed or unstartable command', () => {
+    expect(commandProblem(null, undefined, 'pnpm')).toMatch(/killed/)
+    expect(commandProblem(null, new Error('spawnSync ETIMEDOUT'), 'pnpm')).toMatch(/ETIMEDOUT/)
+  })
+})
+
+describe('isOnPath', () => {
+  it('finds node, which is running this test', () => {
+    expect(isOnPath('node')).toBe(true)
+  })
+
+  it('does not find a command that does not exist, or anything with an empty PATH', () => {
+    expect(isOnPath('definitely-not-a-command-docs-rag-lab')).toBe(false)
+    expect(isOnPath('node', { PATH: '' })).toBe(false)
+  })
+})
+
+describe('runCommand', () => {
+  it('reports a timeout as a hook problem', () => {
+    const result = runCommand('node -e "setTimeout(() => {}, 5000)"', process.cwd(), 200)
+
+    expect(result.ok).toBe(false)
+    expect(result.problem).toBeDefined()
   })
 })
 

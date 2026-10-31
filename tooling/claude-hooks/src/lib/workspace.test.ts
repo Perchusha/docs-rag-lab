@@ -57,6 +57,13 @@ describe('findWorkspacePackage', () => {
     expect(findWorkspacePackage(file('docs/adr/0001-stack.md'), root)).toBeNull()
   })
 
+  it('names the manifest when an edit left it as invalid JSON', () => {
+    const path = file('packages/broken/src/index.ts')
+    file('packages/broken/package.json', '{ "name": "@docs-rag-lab/broken", ')
+
+    expect(() => findWorkspacePackage(path, root)).toThrow(/package\.json is not valid JSON/)
+  })
+
   it('returns null outside the project and for a package without a name', () => {
     expect(findWorkspacePackage(join(tmpdir(), 'elsewhere.ts'), root)).toBeNull()
     expect(findWorkspacePackage(file('packages/nameless/src/index.ts'), root)).toBeNull()

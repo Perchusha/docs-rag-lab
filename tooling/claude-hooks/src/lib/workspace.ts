@@ -15,7 +15,13 @@ export interface WorkspacePackage {
 }
 
 function packageName(manifestPath: string): string | undefined {
-  const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  let manifest: unknown
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(`${manifestPath} is not valid JSON: ${reason}`, { cause: error })
+  }
   if (typeof manifest !== 'object' || manifest === null || !('name' in manifest)) return undefined
   return typeof manifest.name === 'string' ? manifest.name : undefined
 }

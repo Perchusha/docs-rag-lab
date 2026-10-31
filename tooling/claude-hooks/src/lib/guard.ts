@@ -15,21 +15,27 @@ const GENERATED_DIRS = ['data', '.cache']
 // The one .env* file that documents variables and holds no secrets.
 const ALLOWED_ENV_FILES = new Set(['.env.example'])
 
-// `.env` as a file name, not a substring: it must start the text or follow a
-// path separator, whitespace, a quote or `=`. The name runs to the next
-// separator, so `.env.local` and `.envrc` match too (the `.env*` glob), while
-// `process.env` and `import.meta.env` do not.
-const ENV_FILE = /(?<=^|[\\/\s'"=])\.env[^\\/\s'"=:;,|&<>()`]*/g
+// `.env` as a file name, not a substring. It counts unless it directly follows
+// a word character, `$` or `.`: so `.env`, `./.env.local`, `cat .env`,
+// `--env-file=.env`, `cat<.env` and `-Path:.env` match, while `process.env`,
+// `import.meta.env` and `production.env` do not. The name runs to the next
+// separator, so `.envrc` matches too (the `.env*` glob). Case-insensitive,
+// because NTFS opens `.ENV` as `.env`.
+const ENV_FILE = /(?<![\w$.])\.env[^\\/\s'"=:;,|&<>(){}[\]`]*/gi
 
 /** The `.env*` file names that `text` refers to, except `.env.example`. */
 export function referencedEnvFiles(text: string): string[] {
   return [...text.matchAll(ENV_FILE)]
     .map((match) => match[0])
-    .filter((name) => !ALLOWED_ENV_FILES.has(name))
+    .filter((name) => !ALLOWED_ENV_FILES.has(name.toLowerCase()))
 }
 
 function normalize(path: string): string {
   let normalized = path.replaceAll('\\', '/')
+  // Win32 namespace prefix: //?/D:/x and //./D:/x mean D:/x.
+  normalized = normalized.replace(/^\/\/[?.]\/(?=[a-zA-Z]:\/)/, '')
+  // MSYS (Git Bash) form: /d/Projects means d:/Projects.
+  normalized = normalized.replace(/^\/([a-zA-Z])(?=\/|$)/, '$1:')
   if (/^[a-zA-Z]:\//.test(normalized)) {
     normalized = normalized.charAt(0).toLowerCase() + normalized.slice(1)
   }

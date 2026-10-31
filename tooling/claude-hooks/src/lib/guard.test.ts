@@ -34,8 +34,20 @@ describe('referencedEnvFiles: .env is matched as a file name, not a substring', 
     ['a Windows path', 'C:\\repo\\.env', ['.env']],
     ['.envrc (covered by the .env* glob)', 'source .envrc', ['.envrc']],
     ['a copy of the example', 'cat .env.example.bak', ['.env.example.bak']],
+    // Found in the M0 review: NTFS is case-insensitive, and shells have more separators.
+    ['upper case (NTFS opens it as .env)', 'C:\\repo\\.ENV', ['.ENV']],
+    ['mixed case', 'Get-Content .Env', ['.Env']],
+    ['a comma-separated list', 'Get-Content README.md,.env', ['.env']],
+    ['a PowerShell parameter with a colon', 'Get-Content -Path:.env', ['.env']],
+    ['input redirection', 'cat<.env', ['.env']],
+    ['command substitution', 'echo "$(<.env)"', ['.env']],
+    ['brace expansion', 'cat {README.md,.env}', ['.env']],
   ])('denies %s', (_label, text, expected) => {
     expect(referencedEnvFiles(text)).toEqual(expected)
+  })
+
+  it('allows the example file in any case', () => {
+    expect(referencedEnvFiles('Get-Content .ENV.EXAMPLE')).toEqual([])
   })
 })
 
@@ -96,6 +108,8 @@ describe('checkToolUse: generated directories', () => {
     ],
     ['Write with different case on Windows', write(`${WIN_ROOT}\\Data\\x.txt`), WIN_ROOT],
     ['Write through ..', write(`${WIN_ROOT}\\packages\\..\\data\\x.txt`), WIN_ROOT],
+    ['Write with an MSYS path', write('/d/Projects/docs-rag-lab/data/x.txt'), WIN_ROOT],
+    ['Write with a Win32 namespace prefix', write(`\\\\?\\${WIN_ROOT}\\.cache\\x.txt`), WIN_ROOT],
     [
       'Edit in .cache/',
       { tool_name: 'Edit', tool_input: { file_path: `${POSIX_ROOT}/.cache/x` } },

@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 
 /** The subset of the Claude Code hook input that these hooks read. */
 export interface HookInput {
@@ -42,25 +44,69 @@ export interface CommandResult {
   ok: boolean
   output: string
   ms: number
+  /** Set when the hook itself could not do its job, as opposed to a failing check. */
+  problem?: string
+}
+
+/**
+ * Why a command could not run at all, if it could not. Exit code 127 is
+ * "command not found" in sh and 9009 is the same in cmd.exe.
+ */
+export function commandProblem(
+  status: number | null,
+  error: Error | undefined,
+  commandLine: string,
+): string | undefined {
+  if (error !== undefined) return `could not run "${commandLine}": ${error.message}`
+  if (status === null) return `"${commandLine}" was killed before it finished`
+  if (status === 127 || status === 9009) return `"${commandLine}" was not found (is pnpm on PATH?)`
+  return undefined
 }
 
 /**
  * Runs a command line through the shell. A shell is needed on Windows, where
  * pnpm is a .cmd shim; callers only pass fixed strings and package names.
+ * `timeoutMs` stays below the hook timeout in .claude/settings.json, so the
+ * hook can still report what happened.
  */
-export function runCommand(commandLine: string, cwd: string): CommandResult {
+export function runCommand(commandLine: string, cwd: string, timeoutMs = 240_000): CommandResult {
   const started = performance.now()
   const result = spawnSync(commandLine, {
     cwd,
     shell: true,
     encoding: 'utf8',
+    timeout: timeoutMs,
     env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
   })
+  const problem = commandProblem(result.status, result.error, commandLine)
   return {
     ok: result.status === 0,
     output: `${result.stdout}${result.stderr}`.trim(),
     ms: performance.now() - started,
+    ...(problem === undefined ? {} : { problem }),
   }
+}
+
+/**
+ * Whether `command` is on PATH. Checked up front because cmd.exe reports an
+ * unknown command with exit code 1 and a localized message, which is
+ * indistinguishable from a failing check.
+ */
+export function isOnPath(command: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  const extensions =
+    process.platform === 'win32' ? (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';') : ['']
+  return (env.PATH ?? env.Path ?? '')
+    .split(delimiter)
+    .filter((dir) => dir !== '')
+    .some((dir) =>
+      extensions.some((extension) => existsSync(join(dir, `${command}${extension.toLowerCase()}`))),
+    )
+}
+
+/** Reports a hook that could not do its job. Exit code 1 is non-blocking. */
+export function exitWithHookProblem(hook: string, problem: string): never {
+  process.stderr.write(`${hook}: ${problem}. The check did not run.\n`)
+  process.exit(1)
 }
 
 export function formatSeconds(ms: number): string {
