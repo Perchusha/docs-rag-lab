@@ -218,6 +218,16 @@ export class SourceIndex {
     return rows.map((row) => row.path)
   }
 
+  /** The stored content hash of a document, and the commit where its content last changed. */
+  documentVersion(path: string): { contentHash: string; lastChangedSha: string } | undefined {
+    const row = this.#db
+      .prepare('select content_hash, last_changed_sha from documents where path = ?')
+      .get(path) as { content_hash: string; last_changed_sha: string } | undefined
+    return row === undefined
+      ? undefined
+      : { contentHash: row.content_hash, lastChangedSha: row.last_changed_sha }
+  }
+
   /** The stored chunk IDs of one document and their text hashes. */
   chunkHashes(path: string): Map<string, string> {
     const rows = this.#db
@@ -244,14 +254,19 @@ export class SourceIndex {
       for (const path of changes.deletePaths) this.#deleteDocument(path)
       for (const doc of changes.documents) this.#writeDocument(doc)
 
+      // Every chunk has exactly one vector: none is missing (vec0 rowids are
+      // unique), and the totals match, so there is no orphan vector either.
       const counts = db
         .prepare(
-          'select (select count(*) from chunks) as chunks, (select count(*) from chunks_vec) as vectors',
+          `select (select count(*) from chunks) as chunks,
+                  (select count(*) from chunks_vec) as vectors,
+                  (select count(*) from chunks c
+                   where not exists (select 1 from chunks_vec v where v.rowid = c.pk)) as missing`,
         )
-        .get() as { chunks: number; vectors: number }
-      if (counts.chunks !== counts.vectors) {
+        .get() as { chunks: number; vectors: number; missing: number }
+      if (counts.missing > 0 || counts.chunks !== counts.vectors) {
         throw new Error(
-          `index would hold ${String(counts.chunks)} chunks but ${String(counts.vectors)} vectors`,
+          `index would hold ${String(counts.chunks)} chunks but ${String(counts.vectors)} vectors (${String(counts.missing)} chunks without one)`,
         )
       }
 
@@ -338,7 +353,12 @@ export class SourceIndex {
          values (@path, @url, @title, @docType, @contentHash, @lastChangedSha)
          on conflict (path) do update set
            url = excluded.url, title = excluded.title, doc_type = excluded.doc_type,
-           content_hash = excluded.content_hash, last_changed_sha = excluded.last_changed_sha
+           content_hash = excluded.content_hash,
+           -- Keep the commit where the content last changed; a full rebuild
+           -- rewrites unchanged documents with the new head.
+           last_changed_sha = case when documents.content_hash = excluded.content_hash
+                                   then documents.last_changed_sha
+                                   else excluded.last_changed_sha end
          returning id`,
       )
       .get({

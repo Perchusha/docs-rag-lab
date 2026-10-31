@@ -204,6 +204,48 @@ describe('SourceIndex', () => {
     expect(idx.stats().chunks).toBe(0)
   })
 
+  it('keeps the commit where a document last changed when its content is the same', () => {
+    const idx = memoryIndex()
+    idx.applyChanges({
+      documents: [doc('a', [chunk('a1', [1, 0, 0, 0])])],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+
+    // A full rebuild at a new head rewrites the unchanged document.
+    const same = { ...doc('a', [chunk('a1')]), lastChangedSha: 'b'.repeat(40) }
+    idx.applyChanges({ documents: [same], deletePaths: [], manifest: manifest() })
+    expect(idx.documentVersion('a')?.lastChangedSha).toBe('a'.repeat(40))
+
+    const edited = { ...same, contentHash: 'content-a-edited', lastChangedSha: 'c'.repeat(40) }
+    idx.applyChanges({ documents: [edited], deletePaths: [], manifest: manifest() })
+    expect(idx.documentVersion('a')).toEqual({
+      contentHash: 'content-a-edited',
+      lastChangedSha: 'c'.repeat(40),
+    })
+    expect(idx.documentVersion('missing')).toBeUndefined()
+  })
+
+  it('refuses a sync that leaves a chunk without a vector, and says how many', () => {
+    const idx = memoryIndex()
+    idx.applyChanges({
+      documents: [doc('a', [chunk('a1', [1, 0, 0, 0])]), doc('b', [chunk('b1', [0, 1, 0, 0])])],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+
+    // b2 is new but comes without a vector. The check counts chunks without a
+    // vector directly, not only the totals.
+    expect(() => {
+      idx.applyChanges({
+        documents: [doc('b', [chunk('b2')])],
+        deletePaths: [],
+        manifest: manifest({ commitSha: 'd'.repeat(40) }),
+      })
+    }).toThrow(/chunks without one/)
+    expect([...idx.chunkHashes('b').keys()]).toEqual(['b1'])
+  })
+
   it('reports totals per doc type', () => {
     const idx = memoryIndex()
     idx.applyChanges({
