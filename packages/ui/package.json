@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@docs-rag-lab/core": "workspace:*"
+  },
   "devDependencies": {
     "@docs-rag-lab/config": "workspace:*",
     "eslint": "catalog:",

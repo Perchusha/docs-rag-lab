@@ -382,6 +382,10 @@ importers:
         version: 5.0.5(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6))
 
   packages/ui:
+    dependencies:
+      '@docs-rag-lab/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@docs-rag-lab/config':
         specifier: workspace:*
