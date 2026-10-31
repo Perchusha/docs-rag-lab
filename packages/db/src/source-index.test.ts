@@ -348,6 +348,35 @@ describe('SourceIndex keyword search', () => {
     expect(ids(idx, '"section"').sort()).toEqual(['a1', 'a2'])
   })
 
+  it('leaves the keyword index alone when a sync rewrites unchanged chunks', () => {
+    const db = openDatabase(':memory:')
+    index = new SourceIndex(db)
+    const write = () => {
+      index?.applyChanges({
+        documents: [doc('a', [chunk('a1', [1, 0, 0, 0], 'same text'), chunk('a2', [0, 1, 0, 0])])],
+        deletePaths: [],
+        manifest: manifest(),
+      })
+    }
+    const segments = () =>
+      (db.prepare('select count(*) as n from chunks_fts_data').get() as { n: number }).n
+    write()
+    const before = segments()
+
+    // A full rebuild upserts every chunk again with the same text.
+    write()
+    write()
+    expect(segments()).toBe(before)
+
+    index.applyChanges({
+      documents: [doc('a', [chunk('a1', [1, 0, 0, 0], 'new text')])],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+    expect(index.searchKeywords('"new text"', 5).map((hit) => hit.chunkId)).toEqual(['a1'])
+    expect(index.searchKeywords('"same"', 5)).toEqual([])
+  })
+
   it('throws on an invalid FTS5 query instead of guessing', () => {
     const idx = memoryIndex()
     idx.applyChanges({
@@ -466,7 +495,7 @@ describe('SourceIndex migration 2', () => {
 
     const db = openDatabase(path)
     index = new SourceIndex(db)
-    expect(db.pragma('user_version', { simple: true })).toBe(2)
+    expect(db.pragma('user_version', { simple: true })).toBe(SOURCE_INDEX_MIGRATIONS.length)
     expect(index.getManifest()).toMatchObject({ chunkerVersion: 2, parserVersion: null })
 
     // The same bytes, now with the doc type next to them.

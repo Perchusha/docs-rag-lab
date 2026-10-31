@@ -120,6 +120,24 @@ const MIGRATIONS: readonly Migration[] = [
   create index chunks_doc_id on chunks (doc_id);
   `,
   addKeywordIndexAndDocTypes,
+  // Version 3: a sync upserts every chunk of a parsed document, so the version 2
+  // trigger re-indexed unchanged text too, and a full rebuild doubled the
+  // keyword index on disk. Re-index only text that changed, then merge the
+  // index segments.
+  `
+  drop trigger chunks_fts_update;
+  create trigger chunks_fts_update after update of heading_path, context, text on chunks
+  when old.heading_path is not new.heading_path
+    or old.context is not new.context
+    or old.text is not new.text
+  begin
+    insert into chunks_fts (chunks_fts, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+    insert into chunks_fts (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  insert into chunks_fts (chunks_fts) values ('optimize');
+  `,
 ]
 
 /** Exported for the migration tests; not part of the package entry. */
