@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-31
 - Milestone: M0
+- Amended: 2026-10-31, section 5 (permission deny rules), before M1
 
 ## Context
 
@@ -77,7 +78,7 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
 - Paths are normalized before the `data/` and `.cache/` check: backslashes, drive-letter case, `..`, Win32 `\\?\` prefixes and MSYS `/d/...` paths.
 - Writes to `data/` and `.cache/` are denied for file tools only, because the CLI legitimately writes there through Bash.
 - The guard fails closed: an unexpected error blocks the call.
-- Text matching cannot see through shell globs (`cat .e*`) or tools that read everything (`rg --no-ignore`). `permissions.deny` in `.claude/settings.json` is a second layer. In practice those rules catch `data/` and `.cache/` writes before the hook even runs.
+- Text matching cannot see through shell globs (`cat .e*`) or tools that read everything (`rg --no-ignore`). `permissions.deny` in `.claude/settings.json` is a second layer (section 5). In practice those rules catch `data/` and `.cache/` writes before the hook even runs.
 - Known false positive: any command whose text names a dotenv file is blocked, even a commit message. M0 hit this once; the fix is to rephrase.
 
 **post-edit (PostToolUse):**
@@ -108,6 +109,37 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
 - Runs `pnpm turbo run test "--filter=...[HEAD]"`, which includes the boundary check. Turbo's comparison includes uncommitted and untracked files (checked with `--dry=json`).
 - Before the first commit there is no HEAD, so it runs everything.
 - A failure exits 2 once. If `stop_hook_active` is set, meaning Claude already had a retry, it lets Claude stop and shows the user a warning. It can never loop.
+
+### 5. Permission deny rules
+
+`permissions.deny` in `.claude/settings.json` is the second layer behind guard-paths:
+
+```json
+"Read(./.env)", "Read(./.env.local)",
+"Read(./**/.env)", "Read(./**/.env.local)", "Read(./**/.env.*.local)",
+"Read(./**/.env.development)", "Read(./**/.env.production)", "Read(./**/.env.test)",
+"Edit(/data/**)", "Edit(/.cache/**)"
+```
+
+How Claude Code anchors these paths ([permissions docs](https://code.claude.com/docs/en/permissions#how-path-patterns-match), checked on Claude Code 2.1.287):
+- `/path` anchors at the primary working directory when the rule is in project settings. `path` and `./path` are relative to the current directory. `//path` is absolute.
+- In a deny or ask rule, a pattern with one directory segment, such as `data/**`, matches a directory with that name at any depth. `/data/**` matches only the top-level one.
+- A bare file name follows gitignore and matches at any depth, so `**/.env` also covers the root `.env`.
+- A `Read` deny rule also blocks Edit and Write on the same path.
+
+**Test.** Before the change, under `Edit(./data/**)` and `Edit(./.cache/**)`, Write was denied for `packages/core/src/data/x.ts` and `packages/core/src/.cache/x.ts`. The permission layer denied them, not the hook: guard-paths only checks the first path segment. So the rules also blocked source folders that happen to be named `data`, which the `.gitignore` fix in the M0 review had already allowed. They are now anchored as `/data/**` and `/.cache/**`. The results after the change:
+- the two nested writes go through;
+- `data/probe.txt` and `.cache/probe.txt` are still denied by the permission layer;
+- reads of `packages/core/.env.test` and `packages/core/.env.staging.local` are denied by the permission layer (neither file exists, so nothing could leak);
+- `.env.example` is still readable at the root. A read of `packages/core/.env.example` returned "file does not exist", not a denial.
+
+The settings change applied to the next tool call, without a restart.
+
+Known limits:
+- `/` anchors at the session's primary working directory, not the repository root. A session started in a subdirectory anchors there. guard-paths resolves paths against `CLAUDE_PROJECT_DIR`, so it still covers the top-level `data/` and `.cache/` in that case.
+- The dotenv rules use `./`, so they cover only the current directory and what is below it. guard-paths blocks dotenv names anywhere in a path, whatever the current directory.
+- `Read(./.env)` and `Read(./.env.local)` are redundant with their `./**/` forms. They are kept, so that the dotenv part of this change only adds rules.
+- The deny rules do not apply to programs that open files themselves, such as a Node script. Only the sandbox would cover those.
 
 ## Consequences
 
