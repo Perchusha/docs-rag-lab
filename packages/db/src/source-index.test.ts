@@ -441,6 +441,13 @@ describe('SourceIndex filters', () => {
       idx.searchVectors(query, 3, { docTypes: ['option', 'handbook'] }).map((hit) => hit.chunkId),
     ).toEqual(['h1', 'o1', 'o2'])
     expect(idx.searchVectors(query, 5, { docTypes: [] })).toHaveLength(4)
+    // 'release-notes' is longer than the 12 bytes vec0 stores inline for text metadata.
+    expect(
+      idx.searchVectors(query, 5, { docTypes: ['release-notes'] }).map((hit) => hit.chunkId),
+    ).toEqual(['r1'])
+    expect(
+      idx.searchVectors(query, 5, { docTypes: ['release-notes', 'option'] }).map((h) => h.chunkId),
+    ).toEqual(['r1', 'o1', 'o2'])
   })
 
   it('filters keyword search by doc type', () => {
@@ -468,6 +475,27 @@ describe('SourceIndex filters', () => {
     expect(
       idx.searchVectors(query, 5, { docTypes: ['reference'] }).map((hit) => hit.chunkId),
     ).toEqual(['o1', 'o2'])
+  })
+
+  it('refuses a stale vector doc type, and rewriting the document repairs it', () => {
+    const db = openDatabase(':memory:')
+    index = new SourceIndex(db)
+    const write = (docs: DocumentWrite[]) => {
+      index?.applyChanges({ documents: docs, deletePaths: [], manifest: manifest() })
+    }
+    write([doc('a', [chunk('a1', [1, 0, 0, 0])]), doc('b', [chunk('b1', [0, 1, 0, 0])])])
+    db.prepare("update chunks_vec set doc_type = 'other' where rowid = 1").run()
+
+    // A sync that does not touch a still finds the drift and rolls back.
+    expect(() => {
+      write([doc('b', [chunk('b1')])])
+    }).toThrow(/1 vectors carry a stale doc type/)
+    // A sync that rewrites a (a full re-parse does) puts its type back.
+    write([doc('a', [chunk('a1')])])
+    expect(
+      index.searchVectors(new Float32Array([1, 0, 0, 0]), 1, { docTypes: ['handbook'] })[0]
+        ?.chunkId,
+    ).toBe('a1')
   })
 })
 

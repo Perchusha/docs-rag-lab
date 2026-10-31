@@ -518,8 +518,6 @@ export class SourceIndex {
 
   #writeDocument(doc: DocumentWrite): void {
     const db = this.#db
-    const previous = db.prepare('select doc_type from documents where path = ?').get(doc.path) as
-      { doc_type: string } | undefined
     const { id: docId } = db
       .prepare(
         `insert into documents (path, url, title, doc_type, content_hash, last_changed_sha)
@@ -557,9 +555,9 @@ export class SourceIndex {
     const insertVector = db.prepare(
       'insert into chunks_vec (rowid, doc_type, embedding) values (?, ?, ?)',
     )
-    // Kept vectors carry the document's doc type too, so a changed type is copied to them.
+    // Kept vectors carry the document's doc type too. Writing it on every sync
+    // follows a changed type and repairs any drift, so --full always heals.
     const retypeVector = db.prepare('update chunks_vec set doc_type = ? where rowid = ?')
-    const retype = previous !== undefined && previous.doc_type !== doc.docType
     const deleteChunk = db.prepare('delete from chunks where pk = ?')
     for (const [id, pk] of stored) {
       if (wanted.has(id)) continue
@@ -595,7 +593,7 @@ export class SourceIndex {
       if (chunk.vector !== undefined) {
         deleteVector.run(vecRowid(pk))
         insertVector.run(vecRowid(pk), doc.docType, chunk.vector)
-      } else if (retype) {
+      } else {
         retypeVector.run(doc.docType, vecRowid(pk))
       }
     }
