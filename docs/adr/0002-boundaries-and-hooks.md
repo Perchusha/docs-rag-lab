@@ -112,33 +112,37 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
 
 ### 5. Permission deny rules
 
-`permissions.deny` in `.claude/settings.json` is the second layer behind guard-paths:
+`permissions.deny` in `.claude/settings.json` is the second layer behind guard-paths. Every path rule starts with `/`, so it is anchored at the project root:
 
 ```json
-"Read(./.env)", "Read(./.env.local)",
-"Read(./**/.env)", "Read(./**/.env.local)", "Read(./**/.env.*.local)",
-"Read(./**/.env.development)", "Read(./**/.env.production)", "Read(./**/.env.test)",
+"Read(/**/.env)", "Read(/**/.env.local)", "Read(/**/.env.*.local)",
+"Read(/**/.env.development)", "Read(/**/.env.production)", "Read(/**/.env.test)",
 "Edit(/data/**)", "Edit(/.cache/**)"
 ```
 
 How Claude Code anchors these paths ([permissions docs](https://code.claude.com/docs/en/permissions#how-path-patterns-match), checked on Claude Code 2.1.287):
 - `/path` anchors at the primary working directory when the rule is in project settings. `path` and `./path` are relative to the current directory. `//path` is absolute.
 - In a deny or ask rule, a pattern with one directory segment, such as `data/**`, matches a directory with that name at any depth. `/data/**` matches only the top-level one.
-- A bare file name follows gitignore and matches at any depth, so `**/.env` also covers the root `.env`.
+- `**/` also matches zero directories, so `/**/.env` covers the root `.env` as well as nested ones. For that reason the M0 rules `Read(./.env)` and `Read(./.env.local)` were dropped.
 - A `Read` deny rule also blocks Edit and Write on the same path.
 
-**Test.** Before the change, under `Edit(./data/**)` and `Edit(./.cache/**)`, Write was denied for `packages/core/src/data/x.ts` and `packages/core/src/.cache/x.ts`. The permission layer denied them, not the hook: guard-paths only checks the first path segment. So the rules also blocked source folders that happen to be named `data`, which the `.gitignore` fix in the M0 review had already allowed. They are now anchored as `/data/**` and `/.cache/**`. The results after the change:
+**Test: `data/` and `.cache/`.** Before the change, under `Edit(./data/**)` and `Edit(./.cache/**)`, Write was denied for `packages/core/src/data/x.ts` and `packages/core/src/.cache/x.ts`. The permission layer denied them, not the hook: guard-paths only checks the first path segment. So the rules also blocked source folders that happen to be named `data`, which the `.gitignore` fix in the M0 review had already allowed. They are now anchored as `/data/**` and `/.cache/**`. The results after the change:
 - the two nested writes go through;
-- `data/probe.txt` and `.cache/probe.txt` are still denied by the permission layer;
-- reads of `packages/core/.env.test` and `packages/core/.env.staging.local` are denied by the permission layer (neither file exists, so nothing could leak);
+- `data/probe.txt` and `.cache/probe.txt` are still denied by the permission layer.
+
+**Test: dotenv rules.** No probed file exists on disk (checked first), so nothing could leak. The real root `.env` was not probed. Results:
+- Root reads of `.env.local`, `.env.staging.local`, `.env.development`, `.env.production` and `.env.test` are denied by the permission layer. The `./` root rules are gone, so this shows that `/**/` matches the root.
+- All six names in `packages/core/`, `.env` included, are denied.
+- After a shell `cd` into `packages/core`, reads of `.env.test` at the root and of `apps/.env.local` are still denied. The session reported `packages/core` as its primary working directory after the `cd`, yet the root stayed covered.
 - `.env.example` is still readable at the root. A read of `packages/core/.env.example` returned "file does not exist", not a denial.
+
+A first version used `./**/` for the dotenv rules. That form is relative to the current directory, so a root `.env` could fall outside it. `/**/` does not depend on the current directory.
 
 The settings change applied to the next tool call, without a restart.
 
 Known limits:
-- `/` anchors at the session's primary working directory, not the repository root. A session started in a subdirectory anchors there. guard-paths resolves paths against `CLAUDE_PROJECT_DIR`, so it still covers the top-level `data/` and `.cache/` in that case.
-- The dotenv rules use `./`, so they cover only the current directory and what is below it. guard-paths blocks dotenv names anywhere in a path, whatever the current directory.
-- `Read(./.env)` and `Read(./.env.local)` are redundant with their `./**/` forms. They are kept, so that the dotenv part of this change only adds rules.
+- `/` anchors at the directory the session started in, not the repository root. A session started in a subdirectory anchors there. guard-paths still covers that case: it resolves paths against `CLAUDE_PROJECT_DIR` for `data/` and `.cache/`, and it blocks dotenv names anywhere in a path.
+- The rules list specific names. A variant such as `.env.staging`, without `.local`, matches no deny rule. guard-paths still blocks it by name.
 - The deny rules do not apply to programs that open files themselves, such as a Node script. Only the sandbox would cover those.
 
 ## Consequences
