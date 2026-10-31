@@ -9,6 +9,7 @@
     "./tsconfig/react.json": "./tsconfig/react.json",
     "./eslint": "./eslint.js",
     "./vitest": "./vitest.js",
+    "./vitest-network": "./vitest-network.js",
     "./dependency-cruiser": "./dependency-cruiser.cjs"
   },
   "scripts": {
