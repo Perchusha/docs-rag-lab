@@ -16,6 +16,11 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
+    // Numbered like the markers in the answer: a list item keeps its marker.
+    const [item] = canvas.getAllByRole('listitem')
+    await expect(item && getComputedStyle(item).display).toBe('list-item')
+    await expect(item).toHaveAttribute('value', '1')
+
     const link = canvas.getByRole('link', { name: /@satisfies Support in JSDoc/ })
     await expect(link).toHaveAttribute(
       'href',
