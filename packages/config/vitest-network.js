@@ -10,5 +10,8 @@ export default defineConfig({
     exclude: ['**/node_modules/**'],
     environment: 'node',
     testTimeout: 60_000,
+    // Show console output of passing tests too: the smoke test prints the
+    // tokens and cost it spent, which Vitest would otherwise hide.
+    silent: false,
   },
 })
