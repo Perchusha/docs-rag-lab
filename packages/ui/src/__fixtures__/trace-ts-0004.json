@@ -1,0 +1,2690 @@
+{
+  "version": 2,
+  "question": "В чём разница между `unknown` и `any`?",
+  "sourceId": "typescript",
+  "strategy": "hybrid",
+  "params": {
+    "topK": 8,
+    "candidates": 50,
+    "rrfK": 60
+  },
+  "filters": {
+    "docTypes": []
+  },
+  "query": {
+    "terms": [
+      "чём",
+      "разница",
+      "между",
+      "unknown",
+      "any"
+    ],
+    "exactTokens": [
+      {
+        "token": "unknown",
+        "from": "backticks"
+      },
+      {
+        "token": "any",
+        "from": "backticks"
+      }
+    ]
+  },
+  "embedding": {
+    "provider": "voyage:voyage-4:1024",
+    "from": "cache",
+    "ms": 0.549699999999973
+  },
+  "lists": [
+    {
+      "name": "vector",
+      "scoring": "cosine-distance",
+      "ms": 3.0674999999999955,
+      "candidates": [
+        {
+          "chunkId": "cbe74b1aa7bd352dbed39acd",
+          "rank": 1,
+          "score": 0.3462880551815033
+        },
+        {
+          "chunkId": "02912d43e35e5916061a8f64",
+          "rank": 2,
+          "score": 0.38061580061912537
+        },
+        {
+          "chunkId": "b364cef04a521d7131da761a",
+          "rank": 3,
+          "score": 0.4156777262687683
+        },
+        {
+          "chunkId": "4c1aa60200aa5ea7a49e3308",
+          "rank": 4,
+          "score": 0.4208466708660126
+        },
+        {
+          "chunkId": "a049bb8c4f5f307c1a3015d8",
+          "rank": 5,
+          "score": 0.4481186866760254
+        },
+        {
+          "chunkId": "e00db1895e7ae73c24a72354",
+          "rank": 6,
+          "score": 0.4504784345626831
+        },
+        {
+          "chunkId": "29e39107bb8f58e0355d156e",
+          "rank": 7,
+          "score": 0.4581588804721832
+        },
+        {
+          "chunkId": "1df6d35ab960eaf2be0c33a0",
+          "rank": 8,
+          "score": 0.4632534980773926
+        },
+        {
+          "chunkId": "2c9764f05d9cffaa9ab871ee",
+          "rank": 9,
+          "score": 0.47201311588287354
+        },
+        {
+          "chunkId": "fdee7c9194b7b1de1f1b1901",
+          "rank": 10,
+          "score": 0.47468170523643494
+        },
+        {
+          "chunkId": "ad25fce5ef6699e1fe249506",
+          "rank": 11,
+          "score": 0.4783743619918823
+        },
+        {
+          "chunkId": "3374d288154bdeef6b11c2fc",
+          "rank": 12,
+          "score": 0.48418256640434265
+        },
+        {
+          "chunkId": "5d4f51fe6aa841e91d3b3974",
+          "rank": 13,
+          "score": 0.4872592091560364
+        },
+        {
+          "chunkId": "c512827b64fce5c12c44a41f",
+          "rank": 14,
+          "score": 0.5040388107299805
+        },
+        {
+          "chunkId": "08309b6893aab0217c0f6c0e",
+          "rank": 15,
+          "score": 0.5125673413276672
+        },
+        {
+          "chunkId": "3b8cbcd163026ecb0ec48f1a",
+          "rank": 16,
+          "score": 0.5127208828926086
+        },
+        {
+          "chunkId": "b7b4bd32a12672c2b977ae8d",
+          "rank": 17,
+          "score": 0.5139829516410828
+        },
+        {
+          "chunkId": "a152a7c6a36d1ab4033045ad",
+          "rank": 18,
+          "score": 0.5271895527839661
+        },
+        {
+          "chunkId": "63af28d6c097d98565538a7e",
+          "rank": 19,
+          "score": 0.5276584029197693
+        },
+        {
+          "chunkId": "435b40317d8c4a0239ac4e86",
+          "rank": 20,
+          "score": 0.5287022590637207
+        },
+        {
+          "chunkId": "7579d9776f5011381f49a8e5",
+          "rank": 21,
+          "score": 0.5343040823936462
+        },
+        {
+          "chunkId": "c7836e6005bb2e6ca7434b69",
+          "rank": 22,
+          "score": 0.5380309224128723
+        },
+        {
+          "chunkId": "b7110e64690f016c66411d92",
+          "rank": 23,
+          "score": 0.5465929508209229
+        },
+        {
+          "chunkId": "63c0108f837001f61462021c",
+          "rank": 24,
+          "score": 0.5466594696044922
+        },
+        {
+          "chunkId": "0f6281667020b14db512b7f5",
+          "rank": 25,
+          "score": 0.5471885800361633
+        },
+        {
+          "chunkId": "fc9bb1ad996f6d3a1236ae2e",
+          "rank": 26,
+          "score": 0.548255205154419
+        },
+        {
+          "chunkId": "8f23fa5d7f3f91ce35ac921d",
+          "rank": 27,
+          "score": 0.5495188236236572
+        },
+        {
+          "chunkId": "7146e61bf458cd6c09c2563a",
+          "rank": 28,
+          "score": 0.5514290928840637
+        },
+        {
+          "chunkId": "00254cda057b639709d16c7a",
+          "rank": 29,
+          "score": 0.5518156290054321
+        },
+        {
+          "chunkId": "632868e8fa6a8f549b75bd94",
+          "rank": 30,
+          "score": 0.5524828433990479
+        },
+        {
+          "chunkId": "c7c29c121a8c5aff5a33c4fb",
+          "rank": 31,
+          "score": 0.5525183081626892
+        },
+        {
+          "chunkId": "de9b0c9a500cb8667a0cc13c",
+          "rank": 32,
+          "score": 0.5526326894760132
+        },
+        {
+          "chunkId": "b6cddfb5d9d8f79e2da9d2c9",
+          "rank": 33,
+          "score": 0.5537159442901611
+        },
+        {
+          "chunkId": "68e3dc1ec02dddd2a9aa3212",
+          "rank": 34,
+          "score": 0.5557161569595337
+        },
+        {
+          "chunkId": "53dafab57a5b3c1f0ee4183b",
+          "rank": 35,
+          "score": 0.5561176538467407
+        },
+        {
+          "chunkId": "5f8a13e3e9f00605fbe0cb4b",
+          "rank": 36,
+          "score": 0.5564619302749634
+        },
+        {
+          "chunkId": "b91ad67fe48c967a6a3f8115",
+          "rank": 37,
+          "score": 0.5594540238380432
+        },
+        {
+          "chunkId": "3925023dfdda03807f1ec948",
+          "rank": 38,
+          "score": 0.5631093382835388
+        },
+        {
+          "chunkId": "a119e24bfd7bedf45979fac6",
+          "rank": 39,
+          "score": 0.5632427334785461
+        },
+        {
+          "chunkId": "8054bc9b6f41bea5ac3d1d3c",
+          "rank": 40,
+          "score": 0.5649999380111694
+        },
+        {
+          "chunkId": "279518f5b44356bdf77781ac",
+          "rank": 41,
+          "score": 0.5657811164855957
+        },
+        {
+          "chunkId": "8e5254953d1b6ef944a4484d",
+          "rank": 42,
+          "score": 0.5662164688110352
+        },
+        {
+          "chunkId": "9f3d5d1baf3e93d8f202967a",
+          "rank": 43,
+          "score": 0.566443681716919
+        },
+        {
+          "chunkId": "c4b145636e2b7bf2d148225d",
+          "rank": 44,
+          "score": 0.5669909715652466
+        },
+        {
+          "chunkId": "36e5fb386a6926207c6c9aaf",
+          "rank": 45,
+          "score": 0.5672264099121094
+        },
+        {
+          "chunkId": "cc5bde56051c106a09c2010e",
+          "rank": 46,
+          "score": 0.5675072073936462
+        },
+        {
+          "chunkId": "9c27c60a88ef5f9de67ffb54",
+          "rank": 47,
+          "score": 0.5676654577255249
+        },
+        {
+          "chunkId": "15532228d21b9a349f683fbc",
+          "rank": 48,
+          "score": 0.567683219909668
+        },
+        {
+          "chunkId": "11f38322cea85ac2792548eb",
+          "rank": 49,
+          "score": 0.5684006810188293
+        },
+        {
+          "chunkId": "f98ff05cfcafe600a9f1408a",
+          "rank": 50,
+          "score": 0.5685304999351501
+        }
+      ]
+    },
+    {
+      "name": "keyword",
+      "scoring": "bm25",
+      "query": "\"чём\" OR \"разница\" OR \"между\" OR \"unknown\" OR \"any\"",
+      "ms": 2.0896000000000186,
+      "candidates": [
+        {
+          "chunkId": "b364cef04a521d7131da761a",
+          "rank": 1,
+          "score": 5.787433462800411
+        },
+        {
+          "chunkId": "cbe74b1aa7bd352dbed39acd",
+          "rank": 2,
+          "score": 5.572253016739824
+        },
+        {
+          "chunkId": "2c9764f05d9cffaa9ab871ee",
+          "rank": 3,
+          "score": 5.4817005886594785
+        },
+        {
+          "chunkId": "fdee7c9194b7b1de1f1b1901",
+          "rank": 4,
+          "score": 5.4330331502340865
+        },
+        {
+          "chunkId": "e00db1895e7ae73c24a72354",
+          "rank": 5,
+          "score": 5.239671884298585
+        },
+        {
+          "chunkId": "4c1aa60200aa5ea7a49e3308",
+          "rank": 6,
+          "score": 5.194117385423331
+        },
+        {
+          "chunkId": "48daa2f6103c45e4488ce859",
+          "rank": 7,
+          "score": 5.137183610718321
+        },
+        {
+          "chunkId": "0f6281667020b14db512b7f5",
+          "rank": 8,
+          "score": 4.996637758182921
+        },
+        {
+          "chunkId": "02912d43e35e5916061a8f64",
+          "rank": 9,
+          "score": 4.951168823123556
+        },
+        {
+          "chunkId": "632868e8fa6a8f549b75bd94",
+          "rank": 10,
+          "score": 4.933214116653564
+        },
+        {
+          "chunkId": "7f77ac65832258a484f0f186",
+          "rank": 11,
+          "score": 4.789537407100616
+        },
+        {
+          "chunkId": "396aa05177df3bb28fdb2245",
+          "rank": 12,
+          "score": 4.730204380341612
+        },
+        {
+          "chunkId": "59d9934f0bf2300dd1401da7",
+          "rank": 13,
+          "score": 4.729231922463441
+        },
+        {
+          "chunkId": "57144147482c49456f725f9d",
+          "rank": 14,
+          "score": 4.648904271519725
+        },
+        {
+          "chunkId": "3b8cbcd163026ecb0ec48f1a",
+          "rank": 15,
+          "score": 4.63768894465339
+        },
+        {
+          "chunkId": "75f76c33f68418051c417048",
+          "rank": 16,
+          "score": 4.608262943734781
+        },
+        {
+          "chunkId": "b766ae85a26051d827cbd3c7",
+          "rank": 17,
+          "score": 4.603241912444592
+        },
+        {
+          "chunkId": "78177a961a5b04891ec1344a",
+          "rank": 18,
+          "score": 4.407436988593852
+        },
+        {
+          "chunkId": "08309b6893aab0217c0f6c0e",
+          "rank": 19,
+          "score": 4.2011392134880365
+        },
+        {
+          "chunkId": "68e3dc1ec02dddd2a9aa3212",
+          "rank": 20,
+          "score": 4.170922091369219
+        },
+        {
+          "chunkId": "1eca9e19137687b60713cd3a",
+          "rank": 21,
+          "score": 4.158421427141846
+        },
+        {
+          "chunkId": "d165025d27b2c20e13b9a008",
+          "rank": 22,
+          "score": 4.109944585499395
+        },
+        {
+          "chunkId": "10044b349c2d9b0082330cb4",
+          "rank": 23,
+          "score": 4.089446073201325
+        },
+        {
+          "chunkId": "fa0d1b2804011d879afe4323",
+          "rank": 24,
+          "score": 3.998249711995764
+        },
+        {
+          "chunkId": "a049bb8c4f5f307c1a3015d8",
+          "rank": 25,
+          "score": 3.8475314419971824
+        },
+        {
+          "chunkId": "ab3de1ec267283113f948635",
+          "rank": 26,
+          "score": 3.767766755204459
+        },
+        {
+          "chunkId": "3a164a80d8ef92b1724fbacd",
+          "rank": 27,
+          "score": 3.5923108712995515
+        },
+        {
+          "chunkId": "8be0f66d85adb013fd698a76",
+          "rank": 28,
+          "score": 3.5774403299329802
+        },
+        {
+          "chunkId": "3de802eec4c18d1177efd6cc",
+          "rank": 29,
+          "score": 3.5743170874011327
+        },
+        {
+          "chunkId": "270b741fec74541e605df123",
+          "rank": 30,
+          "score": 3.5707382320219954
+        },
+        {
+          "chunkId": "98cdd701ede501898cccad60",
+          "rank": 31,
+          "score": 3.552790358961587
+        },
+        {
+          "chunkId": "30ac43f3db9a29c36e1358d0",
+          "rank": 32,
+          "score": 3.481119315586149
+        },
+        {
+          "chunkId": "5fe35133dacaca0c123f8316",
+          "rank": 33,
+          "score": 3.480300997851814
+        },
+        {
+          "chunkId": "459e8f8308859e832d08c201",
+          "rank": 34,
+          "score": 3.4523787425357804
+        },
+        {
+          "chunkId": "893e59044b1c8fb662e04257",
+          "rank": 35,
+          "score": 3.445429441568607
+        },
+        {
+          "chunkId": "253ec942972ce0ec8d51fd21",
+          "rank": 36,
+          "score": 3.4190923985796724
+        },
+        {
+          "chunkId": "f0cb5425e02c4530858a132e",
+          "rank": 37,
+          "score": 3.4137495962365163
+        },
+        {
+          "chunkId": "c512827b64fce5c12c44a41f",
+          "rank": 38,
+          "score": 3.351004559674654
+        },
+        {
+          "chunkId": "bb400e7c31e507f36a107ceb",
+          "rank": 39,
+          "score": 3.3312521857171067
+        },
+        {
+          "chunkId": "70fe80b22df5bf0f29ec8237",
+          "rank": 40,
+          "score": 2.909715701372472
+        },
+        {
+          "chunkId": "279518f5b44356bdf77781ac",
+          "rank": 41,
+          "score": 2.854564453070377
+        },
+        {
+          "chunkId": "ec06d9a8189378a81b7cbd66",
+          "rank": 42,
+          "score": 2.831015892475061
+        },
+        {
+          "chunkId": "5894690a07cec688ffc684b6",
+          "rank": 43,
+          "score": 2.758218200187973
+        },
+        {
+          "chunkId": "1448d0874ca15b22d5877fd3",
+          "rank": 44,
+          "score": 2.7032300151835895
+        },
+        {
+          "chunkId": "6913e589213c1aaaec9872a3",
+          "rank": 45,
+          "score": 2.696854581398839
+        },
+        {
+          "chunkId": "2314c2ef378df898a74afe20",
+          "rank": 46,
+          "score": 2.63403342670026
+        },
+        {
+          "chunkId": "2aaa3b8b4d27cbbb97871b3c",
+          "rank": 47,
+          "score": 2.617718511616578
+        },
+        {
+          "chunkId": "f6078389bb20b37714c1ffe2",
+          "rank": 48,
+          "score": 2.568333535514836
+        },
+        {
+          "chunkId": "654a3f010c4a9a32ef49378a",
+          "rank": 49,
+          "score": 2.5461866605151737
+        },
+        {
+          "chunkId": "34f6652f63e0340838ebab63",
+          "rank": 50,
+          "score": 2.528669141302546
+        }
+      ]
+    },
+    {
+      "name": "exact",
+      "scoring": "bm25",
+      "query": "\"unknown\" OR \"any\"",
+      "ms": 0.42760000000004084,
+      "candidates": [
+        {
+          "chunkId": "b364cef04a521d7131da761a",
+          "rank": 1,
+          "score": 5.787433462800411
+        },
+        {
+          "chunkId": "cbe74b1aa7bd352dbed39acd",
+          "rank": 2,
+          "score": 5.572253016739824
+        },
+        {
+          "chunkId": "2c9764f05d9cffaa9ab871ee",
+          "rank": 3,
+          "score": 5.4817005886594785
+        },
+        {
+          "chunkId": "fdee7c9194b7b1de1f1b1901",
+          "rank": 4,
+          "score": 5.4330331502340865
+        },
+        {
+          "chunkId": "e00db1895e7ae73c24a72354",
+          "rank": 5,
+          "score": 5.239671884298585
+        },
+        {
+          "chunkId": "4c1aa60200aa5ea7a49e3308",
+          "rank": 6,
+          "score": 5.194117385423331
+        },
+        {
+          "chunkId": "48daa2f6103c45e4488ce859",
+          "rank": 7,
+          "score": 5.137183610718321
+        },
+        {
+          "chunkId": "0f6281667020b14db512b7f5",
+          "rank": 8,
+          "score": 4.996637758182921
+        },
+        {
+          "chunkId": "02912d43e35e5916061a8f64",
+          "rank": 9,
+          "score": 4.951168823123556
+        },
+        {
+          "chunkId": "632868e8fa6a8f549b75bd94",
+          "rank": 10,
+          "score": 4.933214116653564
+        },
+        {
+          "chunkId": "7f77ac65832258a484f0f186",
+          "rank": 11,
+          "score": 4.789537407100616
+        },
+        {
+          "chunkId": "396aa05177df3bb28fdb2245",
+          "rank": 12,
+          "score": 4.730204380341612
+        },
+        {
+          "chunkId": "59d9934f0bf2300dd1401da7",
+          "rank": 13,
+          "score": 4.729231922463441
+        },
+        {
+          "chunkId": "57144147482c49456f725f9d",
+          "rank": 14,
+          "score": 4.648904271519725
+        },
+        {
+          "chunkId": "3b8cbcd163026ecb0ec48f1a",
+          "rank": 15,
+          "score": 4.63768894465339
+        },
+        {
+          "chunkId": "75f76c33f68418051c417048",
+          "rank": 16,
+          "score": 4.608262943734781
+        },
+        {
+          "chunkId": "b766ae85a26051d827cbd3c7",
+          "rank": 17,
+          "score": 4.603241912444592
+        },
+        {
+          "chunkId": "78177a961a5b04891ec1344a",
+          "rank": 18,
+          "score": 4.407436988593852
+        },
+        {
+          "chunkId": "08309b6893aab0217c0f6c0e",
+          "rank": 19,
+          "score": 4.2011392134880365
+        },
+        {
+          "chunkId": "68e3dc1ec02dddd2a9aa3212",
+          "rank": 20,
+          "score": 4.170922091369219
+        },
+        {
+          "chunkId": "1eca9e19137687b60713cd3a",
+          "rank": 21,
+          "score": 4.158421427141846
+        },
+        {
+          "chunkId": "d165025d27b2c20e13b9a008",
+          "rank": 22,
+          "score": 4.109944585499395
+        },
+        {
+          "chunkId": "10044b349c2d9b0082330cb4",
+          "rank": 23,
+          "score": 4.089446073201325
+        },
+        {
+          "chunkId": "fa0d1b2804011d879afe4323",
+          "rank": 24,
+          "score": 3.998249711995764
+        },
+        {
+          "chunkId": "a049bb8c4f5f307c1a3015d8",
+          "rank": 25,
+          "score": 3.8475314419971824
+        },
+        {
+          "chunkId": "ab3de1ec267283113f948635",
+          "rank": 26,
+          "score": 3.767766755204459
+        },
+        {
+          "chunkId": "3a164a80d8ef92b1724fbacd",
+          "rank": 27,
+          "score": 3.5923108712995515
+        },
+        {
+          "chunkId": "8be0f66d85adb013fd698a76",
+          "rank": 28,
+          "score": 3.5774403299329802
+        },
+        {
+          "chunkId": "3de802eec4c18d1177efd6cc",
+          "rank": 29,
+          "score": 3.5743170874011327
+        },
+        {
+          "chunkId": "270b741fec74541e605df123",
+          "rank": 30,
+          "score": 3.5707382320219954
+        },
+        {
+          "chunkId": "98cdd701ede501898cccad60",
+          "rank": 31,
+          "score": 3.552790358961587
+        },
+        {
+          "chunkId": "30ac43f3db9a29c36e1358d0",
+          "rank": 32,
+          "score": 3.481119315586149
+        },
+        {
+          "chunkId": "5fe35133dacaca0c123f8316",
+          "rank": 33,
+          "score": 3.480300997851814
+        },
+        {
+          "chunkId": "459e8f8308859e832d08c201",
+          "rank": 34,
+          "score": 3.4523787425357804
+        },
+        {
+          "chunkId": "893e59044b1c8fb662e04257",
+          "rank": 35,
+          "score": 3.445429441568607
+        },
+        {
+          "chunkId": "253ec942972ce0ec8d51fd21",
+          "rank": 36,
+          "score": 3.4190923985796724
+        },
+        {
+          "chunkId": "f0cb5425e02c4530858a132e",
+          "rank": 37,
+          "score": 3.4137495962365163
+        },
+        {
+          "chunkId": "c512827b64fce5c12c44a41f",
+          "rank": 38,
+          "score": 3.351004559674654
+        },
+        {
+          "chunkId": "bb400e7c31e507f36a107ceb",
+          "rank": 39,
+          "score": 3.3312521857171067
+        },
+        {
+          "chunkId": "70fe80b22df5bf0f29ec8237",
+          "rank": 40,
+          "score": 2.909715701372472
+        },
+        {
+          "chunkId": "279518f5b44356bdf77781ac",
+          "rank": 41,
+          "score": 2.854564453070377
+        },
+        {
+          "chunkId": "ec06d9a8189378a81b7cbd66",
+          "rank": 42,
+          "score": 2.831015892475061
+        },
+        {
+          "chunkId": "5894690a07cec688ffc684b6",
+          "rank": 43,
+          "score": 2.758218200187973
+        },
+        {
+          "chunkId": "1448d0874ca15b22d5877fd3",
+          "rank": 44,
+          "score": 2.7032300151835895
+        },
+        {
+          "chunkId": "6913e589213c1aaaec9872a3",
+          "rank": 45,
+          "score": 2.696854581398839
+        },
+        {
+          "chunkId": "2314c2ef378df898a74afe20",
+          "rank": 46,
+          "score": 2.63403342670026
+        },
+        {
+          "chunkId": "2aaa3b8b4d27cbbb97871b3c",
+          "rank": 47,
+          "score": 2.617718511616578
+        },
+        {
+          "chunkId": "f6078389bb20b37714c1ffe2",
+          "rank": 48,
+          "score": 2.568333535514836
+        },
+        {
+          "chunkId": "654a3f010c4a9a32ef49378a",
+          "rank": 49,
+          "score": 2.5461866605151737
+        },
+        {
+          "chunkId": "34f6652f63e0340838ebab63",
+          "rank": 50,
+          "score": 2.528669141302546
+        }
+      ]
+    }
+  ],
+  "fusion": {
+    "method": "rrf",
+    "k": 60,
+    "ms": 0.23959999999999582,
+    "ranked": [
+      {
+        "chunkId": "b364cef04a521d7131da761a",
+        "rank": 1,
+        "score": 0.04865990111891752,
+        "ranks": {
+          "vector": 3,
+          "keyword": 1,
+          "exact": 1
+        }
+      },
+      {
+        "chunkId": "cbe74b1aa7bd352dbed39acd",
+        "rank": 2,
+        "score": 0.048651507139079855,
+        "ranks": {
+          "vector": 1,
+          "keyword": 2,
+          "exact": 2
+        }
+      },
+      {
+        "chunkId": "2c9764f05d9cffaa9ab871ee",
+        "rank": 3,
+        "score": 0.04623878536922015,
+        "ranks": {
+          "vector": 9,
+          "keyword": 3,
+          "exact": 3
+        }
+      },
+      {
+        "chunkId": "4c1aa60200aa5ea7a49e3308",
+        "rank": 4,
+        "score": 0.045928030303030304,
+        "ranks": {
+          "vector": 4,
+          "keyword": 6,
+          "exact": 6
+        }
+      },
+      {
+        "chunkId": "e00db1895e7ae73c24a72354",
+        "rank": 5,
+        "score": 0.04592074592074592,
+        "ranks": {
+          "vector": 6,
+          "keyword": 5,
+          "exact": 5
+        }
+      },
+      {
+        "chunkId": "fdee7c9194b7b1de1f1b1901",
+        "rank": 6,
+        "score": 0.045535714285714284,
+        "ranks": {
+          "vector": 10,
+          "keyword": 4,
+          "exact": 4
+        }
+      },
+      {
+        "chunkId": "02912d43e35e5916061a8f64",
+        "rank": 7,
+        "score": 0.04511453950444133,
+        "ranks": {
+          "vector": 2,
+          "keyword": 9,
+          "exact": 9
+        }
+      },
+      {
+        "chunkId": "0f6281667020b14db512b7f5",
+        "rank": 8,
+        "score": 0.041176470588235294,
+        "ranks": {
+          "vector": 25,
+          "keyword": 8,
+          "exact": 8
+        }
+      },
+      {
+        "chunkId": "3b8cbcd163026ecb0ec48f1a",
+        "rank": 9,
+        "score": 0.039824561403508776,
+        "ranks": {
+          "vector": 16,
+          "keyword": 15,
+          "exact": 15
+        }
+      },
+      {
+        "chunkId": "632868e8fa6a8f549b75bd94",
+        "rank": 10,
+        "score": 0.03968253968253968,
+        "ranks": {
+          "vector": 30,
+          "keyword": 10,
+          "exact": 10
+        }
+      },
+      {
+        "chunkId": "a049bb8c4f5f307c1a3015d8",
+        "rank": 11,
+        "score": 0.03891402714932127,
+        "ranks": {
+          "vector": 5,
+          "keyword": 25,
+          "exact": 25
+        }
+      },
+      {
+        "chunkId": "08309b6893aab0217c0f6c0e",
+        "rank": 12,
+        "score": 0.038649789029535864,
+        "ranks": {
+          "vector": 15,
+          "keyword": 19,
+          "exact": 19
+        }
+      },
+      {
+        "chunkId": "68e3dc1ec02dddd2a9aa3212",
+        "rank": 13,
+        "score": 0.03563829787234042,
+        "ranks": {
+          "vector": 34,
+          "keyword": 20,
+          "exact": 20
+        }
+      },
+      {
+        "chunkId": "c512827b64fce5c12c44a41f",
+        "rank": 14,
+        "score": 0.03392167677881963,
+        "ranks": {
+          "vector": 14,
+          "keyword": 38,
+          "exact": 38
+        }
+      },
+      {
+        "chunkId": "48daa2f6103c45e4488ce859",
+        "rank": 15,
+        "score": 0.029850746268656716,
+        "ranks": {
+          "keyword": 7,
+          "exact": 7
+        }
+      },
+      {
+        "chunkId": "279518f5b44356bdf77781ac",
+        "rank": 16,
+        "score": 0.0297029702970297,
+        "ranks": {
+          "vector": 41,
+          "keyword": 41,
+          "exact": 41
+        }
+      },
+      {
+        "chunkId": "7f77ac65832258a484f0f186",
+        "rank": 17,
+        "score": 0.028169014084507043,
+        "ranks": {
+          "keyword": 11,
+          "exact": 11
+        }
+      },
+      {
+        "chunkId": "396aa05177df3bb28fdb2245",
+        "rank": 18,
+        "score": 0.027777777777777776,
+        "ranks": {
+          "keyword": 12,
+          "exact": 12
+        }
+      },
+      {
+        "chunkId": "59d9934f0bf2300dd1401da7",
+        "rank": 19,
+        "score": 0.0273972602739726,
+        "ranks": {
+          "keyword": 13,
+          "exact": 13
+        }
+      },
+      {
+        "chunkId": "57144147482c49456f725f9d",
+        "rank": 20,
+        "score": 0.02702702702702703,
+        "ranks": {
+          "keyword": 14,
+          "exact": 14
+        }
+      },
+      {
+        "chunkId": "75f76c33f68418051c417048",
+        "rank": 21,
+        "score": 0.02631578947368421,
+        "ranks": {
+          "keyword": 16,
+          "exact": 16
+        }
+      },
+      {
+        "chunkId": "b766ae85a26051d827cbd3c7",
+        "rank": 22,
+        "score": 0.025974025974025976,
+        "ranks": {
+          "keyword": 17,
+          "exact": 17
+        }
+      },
+      {
+        "chunkId": "78177a961a5b04891ec1344a",
+        "rank": 23,
+        "score": 0.02564102564102564,
+        "ranks": {
+          "keyword": 18,
+          "exact": 18
+        }
+      },
+      {
+        "chunkId": "1eca9e19137687b60713cd3a",
+        "rank": 24,
+        "score": 0.024691358024691357,
+        "ranks": {
+          "keyword": 21,
+          "exact": 21
+        }
+      },
+      {
+        "chunkId": "d165025d27b2c20e13b9a008",
+        "rank": 25,
+        "score": 0.024390243902439025,
+        "ranks": {
+          "keyword": 22,
+          "exact": 22
+        }
+      },
+      {
+        "chunkId": "10044b349c2d9b0082330cb4",
+        "rank": 26,
+        "score": 0.024096385542168676,
+        "ranks": {
+          "keyword": 23,
+          "exact": 23
+        }
+      },
+      {
+        "chunkId": "fa0d1b2804011d879afe4323",
+        "rank": 27,
+        "score": 0.023809523809523808,
+        "ranks": {
+          "keyword": 24,
+          "exact": 24
+        }
+      },
+      {
+        "chunkId": "ab3de1ec267283113f948635",
+        "rank": 28,
+        "score": 0.023255813953488372,
+        "ranks": {
+          "keyword": 26,
+          "exact": 26
+        }
+      },
+      {
+        "chunkId": "3a164a80d8ef92b1724fbacd",
+        "rank": 29,
+        "score": 0.022988505747126436,
+        "ranks": {
+          "keyword": 27,
+          "exact": 27
+        }
+      },
+      {
+        "chunkId": "8be0f66d85adb013fd698a76",
+        "rank": 30,
+        "score": 0.022727272727272728,
+        "ranks": {
+          "keyword": 28,
+          "exact": 28
+        }
+      },
+      {
+        "chunkId": "3de802eec4c18d1177efd6cc",
+        "rank": 31,
+        "score": 0.02247191011235955,
+        "ranks": {
+          "keyword": 29,
+          "exact": 29
+        }
+      },
+      {
+        "chunkId": "270b741fec74541e605df123",
+        "rank": 32,
+        "score": 0.022222222222222223,
+        "ranks": {
+          "keyword": 30,
+          "exact": 30
+        }
+      },
+      {
+        "chunkId": "98cdd701ede501898cccad60",
+        "rank": 33,
+        "score": 0.02197802197802198,
+        "ranks": {
+          "keyword": 31,
+          "exact": 31
+        }
+      },
+      {
+        "chunkId": "30ac43f3db9a29c36e1358d0",
+        "rank": 34,
+        "score": 0.021739130434782608,
+        "ranks": {
+          "keyword": 32,
+          "exact": 32
+        }
+      },
+      {
+        "chunkId": "5fe35133dacaca0c123f8316",
+        "rank": 35,
+        "score": 0.021505376344086023,
+        "ranks": {
+          "keyword": 33,
+          "exact": 33
+        }
+      },
+      {
+        "chunkId": "459e8f8308859e832d08c201",
+        "rank": 36,
+        "score": 0.02127659574468085,
+        "ranks": {
+          "keyword": 34,
+          "exact": 34
+        }
+      },
+      {
+        "chunkId": "893e59044b1c8fb662e04257",
+        "rank": 37,
+        "score": 0.021052631578947368,
+        "ranks": {
+          "keyword": 35,
+          "exact": 35
+        }
+      },
+      {
+        "chunkId": "253ec942972ce0ec8d51fd21",
+        "rank": 38,
+        "score": 0.020833333333333332,
+        "ranks": {
+          "keyword": 36,
+          "exact": 36
+        }
+      },
+      {
+        "chunkId": "f0cb5425e02c4530858a132e",
+        "rank": 39,
+        "score": 0.020618556701030927,
+        "ranks": {
+          "keyword": 37,
+          "exact": 37
+        }
+      },
+      {
+        "chunkId": "bb400e7c31e507f36a107ceb",
+        "rank": 40,
+        "score": 0.020202020202020204,
+        "ranks": {
+          "keyword": 39,
+          "exact": 39
+        }
+      },
+      {
+        "chunkId": "70fe80b22df5bf0f29ec8237",
+        "rank": 41,
+        "score": 0.02,
+        "ranks": {
+          "keyword": 40,
+          "exact": 40
+        }
+      },
+      {
+        "chunkId": "ec06d9a8189378a81b7cbd66",
+        "rank": 42,
+        "score": 0.0196078431372549,
+        "ranks": {
+          "keyword": 42,
+          "exact": 42
+        }
+      },
+      {
+        "chunkId": "5894690a07cec688ffc684b6",
+        "rank": 43,
+        "score": 0.019417475728155338,
+        "ranks": {
+          "keyword": 43,
+          "exact": 43
+        }
+      },
+      {
+        "chunkId": "1448d0874ca15b22d5877fd3",
+        "rank": 44,
+        "score": 0.019230769230769232,
+        "ranks": {
+          "keyword": 44,
+          "exact": 44
+        }
+      },
+      {
+        "chunkId": "6913e589213c1aaaec9872a3",
+        "rank": 45,
+        "score": 0.01904761904761905,
+        "ranks": {
+          "keyword": 45,
+          "exact": 45
+        }
+      },
+      {
+        "chunkId": "2314c2ef378df898a74afe20",
+        "rank": 46,
+        "score": 0.018867924528301886,
+        "ranks": {
+          "keyword": 46,
+          "exact": 46
+        }
+      },
+      {
+        "chunkId": "2aaa3b8b4d27cbbb97871b3c",
+        "rank": 47,
+        "score": 0.018691588785046728,
+        "ranks": {
+          "keyword": 47,
+          "exact": 47
+        }
+      },
+      {
+        "chunkId": "f6078389bb20b37714c1ffe2",
+        "rank": 48,
+        "score": 0.018518518518518517,
+        "ranks": {
+          "keyword": 48,
+          "exact": 48
+        }
+      },
+      {
+        "chunkId": "654a3f010c4a9a32ef49378a",
+        "rank": 49,
+        "score": 0.01834862385321101,
+        "ranks": {
+          "keyword": 49,
+          "exact": 49
+        }
+      },
+      {
+        "chunkId": "34f6652f63e0340838ebab63",
+        "rank": 50,
+        "score": 0.01818181818181818,
+        "ranks": {
+          "keyword": 50,
+          "exact": 50
+        }
+      },
+      {
+        "chunkId": "29e39107bb8f58e0355d156e",
+        "rank": 51,
+        "score": 0.014925373134328358,
+        "ranks": {
+          "vector": 7
+        }
+      },
+      {
+        "chunkId": "1df6d35ab960eaf2be0c33a0",
+        "rank": 52,
+        "score": 0.014705882352941176,
+        "ranks": {
+          "vector": 8
+        }
+      },
+      {
+        "chunkId": "ad25fce5ef6699e1fe249506",
+        "rank": 53,
+        "score": 0.014084507042253521,
+        "ranks": {
+          "vector": 11
+        }
+      },
+      {
+        "chunkId": "3374d288154bdeef6b11c2fc",
+        "rank": 54,
+        "score": 0.013888888888888888,
+        "ranks": {
+          "vector": 12
+        }
+      },
+      {
+        "chunkId": "5d4f51fe6aa841e91d3b3974",
+        "rank": 55,
+        "score": 0.0136986301369863,
+        "ranks": {
+          "vector": 13
+        }
+      },
+      {
+        "chunkId": "b7b4bd32a12672c2b977ae8d",
+        "rank": 56,
+        "score": 0.012987012987012988,
+        "ranks": {
+          "vector": 17
+        }
+      },
+      {
+        "chunkId": "a152a7c6a36d1ab4033045ad",
+        "rank": 57,
+        "score": 0.01282051282051282,
+        "ranks": {
+          "vector": 18
+        }
+      },
+      {
+        "chunkId": "63af28d6c097d98565538a7e",
+        "rank": 58,
+        "score": 0.012658227848101266,
+        "ranks": {
+          "vector": 19
+        }
+      },
+      {
+        "chunkId": "435b40317d8c4a0239ac4e86",
+        "rank": 59,
+        "score": 0.0125,
+        "ranks": {
+          "vector": 20
+        }
+      },
+      {
+        "chunkId": "7579d9776f5011381f49a8e5",
+        "rank": 60,
+        "score": 0.012345679012345678,
+        "ranks": {
+          "vector": 21
+        }
+      },
+      {
+        "chunkId": "c7836e6005bb2e6ca7434b69",
+        "rank": 61,
+        "score": 0.012195121951219513,
+        "ranks": {
+          "vector": 22
+        }
+      },
+      {
+        "chunkId": "b7110e64690f016c66411d92",
+        "rank": 62,
+        "score": 0.012048192771084338,
+        "ranks": {
+          "vector": 23
+        }
+      },
+      {
+        "chunkId": "63c0108f837001f61462021c",
+        "rank": 63,
+        "score": 0.011904761904761904,
+        "ranks": {
+          "vector": 24
+        }
+      },
+      {
+        "chunkId": "fc9bb1ad996f6d3a1236ae2e",
+        "rank": 64,
+        "score": 0.011627906976744186,
+        "ranks": {
+          "vector": 26
+        }
+      },
+      {
+        "chunkId": "8f23fa5d7f3f91ce35ac921d",
+        "rank": 65,
+        "score": 0.011494252873563218,
+        "ranks": {
+          "vector": 27
+        }
+      },
+      {
+        "chunkId": "7146e61bf458cd6c09c2563a",
+        "rank": 66,
+        "score": 0.011363636363636364,
+        "ranks": {
+          "vector": 28
+        }
+      },
+      {
+        "chunkId": "00254cda057b639709d16c7a",
+        "rank": 67,
+        "score": 0.011235955056179775,
+        "ranks": {
+          "vector": 29
+        }
+      },
+      {
+        "chunkId": "c7c29c121a8c5aff5a33c4fb",
+        "rank": 68,
+        "score": 0.01098901098901099,
+        "ranks": {
+          "vector": 31
+        }
+      },
+      {
+        "chunkId": "de9b0c9a500cb8667a0cc13c",
+        "rank": 69,
+        "score": 0.010869565217391304,
+        "ranks": {
+          "vector": 32
+        }
+      },
+      {
+        "chunkId": "b6cddfb5d9d8f79e2da9d2c9",
+        "rank": 70,
+        "score": 0.010752688172043012,
+        "ranks": {
+          "vector": 33
+        }
+      },
+      {
+        "chunkId": "53dafab57a5b3c1f0ee4183b",
+        "rank": 71,
+        "score": 0.010526315789473684,
+        "ranks": {
+          "vector": 35
+        }
+      },
+      {
+        "chunkId": "5f8a13e3e9f00605fbe0cb4b",
+        "rank": 72,
+        "score": 0.010416666666666666,
+        "ranks": {
+          "vector": 36
+        }
+      },
+      {
+        "chunkId": "b91ad67fe48c967a6a3f8115",
+        "rank": 73,
+        "score": 0.010309278350515464,
+        "ranks": {
+          "vector": 37
+        }
+      },
+      {
+        "chunkId": "3925023dfdda03807f1ec948",
+        "rank": 74,
+        "score": 0.01020408163265306,
+        "ranks": {
+          "vector": 38
+        }
+      },
+      {
+        "chunkId": "a119e24bfd7bedf45979fac6",
+        "rank": 75,
+        "score": 0.010101010101010102,
+        "ranks": {
+          "vector": 39
+        }
+      },
+      {
+        "chunkId": "8054bc9b6f41bea5ac3d1d3c",
+        "rank": 76,
+        "score": 0.01,
+        "ranks": {
+          "vector": 40
+        }
+      },
+      {
+        "chunkId": "8e5254953d1b6ef944a4484d",
+        "rank": 77,
+        "score": 0.00980392156862745,
+        "ranks": {
+          "vector": 42
+        }
+      },
+      {
+        "chunkId": "9f3d5d1baf3e93d8f202967a",
+        "rank": 78,
+        "score": 0.009708737864077669,
+        "ranks": {
+          "vector": 43
+        }
+      },
+      {
+        "chunkId": "c4b145636e2b7bf2d148225d",
+        "rank": 79,
+        "score": 0.009615384615384616,
+        "ranks": {
+          "vector": 44
+        }
+      },
+      {
+        "chunkId": "36e5fb386a6926207c6c9aaf",
+        "rank": 80,
+        "score": 0.009523809523809525,
+        "ranks": {
+          "vector": 45
+        }
+      },
+      {
+        "chunkId": "cc5bde56051c106a09c2010e",
+        "rank": 81,
+        "score": 0.009433962264150943,
+        "ranks": {
+          "vector": 46
+        }
+      },
+      {
+        "chunkId": "9c27c60a88ef5f9de67ffb54",
+        "rank": 82,
+        "score": 0.009345794392523364,
+        "ranks": {
+          "vector": 47
+        }
+      },
+      {
+        "chunkId": "15532228d21b9a349f683fbc",
+        "rank": 83,
+        "score": 0.009259259259259259,
+        "ranks": {
+          "vector": 48
+        }
+      },
+      {
+        "chunkId": "11f38322cea85ac2792548eb",
+        "rank": 84,
+        "score": 0.009174311926605505,
+        "ranks": {
+          "vector": 49
+        }
+      },
+      {
+        "chunkId": "f98ff05cfcafe600a9f1408a",
+        "rank": 85,
+        "score": 0.00909090909090909,
+        "ranks": {
+          "vector": 50
+        }
+      }
+    ]
+  },
+  "chunks": {
+    "cbe74b1aa7bd352dbed39acd": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.0.md",
+      "title": "TypeScript 3.0",
+      "headingPath": [
+        "New unknown top type"
+      ],
+      "sectionPath": [
+        "New unknown top type"
+      ],
+      "anchor": "new-unknown-top-type",
+      "docType": "release-notes",
+      "tokenCount": 119
+    },
+    "02912d43e35e5916061a8f64": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "title": "More on Functions",
+      "headingPath": [
+        "Other Types to Know About"
+      ],
+      "sectionPath": [
+        "Other Types to Know About",
+        "unknown"
+      ],
+      "anchor": "unknown",
+      "docType": "handbook",
+      "tokenCount": 543
+    },
+    "b364cef04a521d7131da761a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.0.md",
+      "title": "TypeScript 3.0",
+      "headingPath": [
+        "New unknown top type",
+        "Example"
+      ],
+      "sectionPath": [
+        "New unknown top type",
+        "Example"
+      ],
+      "anchor": "example-3",
+      "docType": "release-notes",
+      "tokenCount": 1046
+    },
+    "4c1aa60200aa5ea7a49e3308": {
+      "docPath": "packages/documentation/copy/en/reference/Type Compatibility.md",
+      "title": "Type Compatibility",
+      "headingPath": [],
+      "sectionPath": [
+        "Advanced Topics"
+      ],
+      "anchor": "advanced-topics",
+      "docType": "reference",
+      "tokenCount": 707
+    },
+    "a049bb8c4f5f307c1a3015d8": {
+      "docPath": "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md",
+      "title": "Do's and Don'ts",
+      "headingPath": [
+        "General Types"
+      ],
+      "sectionPath": [
+        "General Types"
+      ],
+      "anchor": "general-types",
+      "docType": "other",
+      "tokenCount": 469
+    },
+    "e00db1895e7ae73c24a72354": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "title": "TypeScript 4.0",
+      "headingPath": [
+        "unknown on catch Clause Bindings"
+      ],
+      "sectionPath": [
+        "unknown on catch Clause Bindings"
+      ],
+      "anchor": "unknown-on-catch-clause-bindings",
+      "docType": "release-notes",
+      "tokenCount": 472
+    },
+    "29e39107bb8f58e0355d156e": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md",
+      "title": "Everyday Types",
+      "headingPath": [],
+      "sectionPath": [
+        "any"
+      ],
+      "anchor": "any",
+      "docType": "handbook",
+      "tokenCount": 603
+    },
+    "1df6d35ab960eaf2be0c33a0": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Basics.md",
+      "title": "The Basics",
+      "headingPath": [],
+      "sectionPath": [
+        "noImplicitAny"
+      ],
+      "anchor": "noimplicitany",
+      "docType": "handbook",
+      "tokenCount": 334
+    },
+    "2c9764f05d9cffaa9ab871ee": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "title": "TypeScript 4.4",
+      "headingPath": [
+        "Defaulting to the unknown Type in Catch Variables (--useUnknownInCatchVariables)"
+      ],
+      "sectionPath": [
+        "Defaulting to the unknown Type in Catch Variables (--useUnknownInCatchVariables)"
+      ],
+      "anchor": "defaulting-to-the-unknown-type-in-catch-variables---useunknownincatchvariables",
+      "docType": "release-notes",
+      "tokenCount": 750
+    },
+    "fdee7c9194b7b1de1f1b1901": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/useUnknownInCatchVariables.md",
+      "title": "TSConfig Option: useUnknownInCatchVariables",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 228
+    },
+    "ad25fce5ef6699e1fe249506": {
+      "docPath": "packages/documentation/copy/en/javascript/Type Checking JavaScript Files.md",
+      "title": "Type Checking JavaScript Files",
+      "headingPath": [
+        "Unspecified type parameters default to any"
+      ],
+      "sectionPath": [
+        "Unspecified type parameters default to any"
+      ],
+      "anchor": "unspecified-type-parameters-default-to-any",
+      "docType": "other",
+      "tokenCount": 484
+    },
+    "3374d288154bdeef6b11c2fc": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.1.md",
+      "title": "TypeScript 2.1",
+      "headingPath": [],
+      "sectionPath": [
+        "Support for --target ES2016, --target ES2017 and --target ESNext"
+      ],
+      "anchor": "support-for---target-es2016---target-es2017-and---target-esnext",
+      "docType": "release-notes",
+      "tokenCount": 777
+    },
+    "5d4f51fe6aa841e91d3b3974": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/noImplicitAny.md",
+      "title": "TSConfig Option: noImplicitAny",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 172
+    },
+    "c512827b64fce5c12c44a41f": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "title": "Object Types",
+      "headingPath": [
+        "Generic Object Types"
+      ],
+      "sectionPath": [
+        "Generic Object Types"
+      ],
+      "anchor": "generic-object-types",
+      "docType": "handbook",
+      "tokenCount": 734
+    },
+    "08309b6893aab0217c0f6c0e": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.1.md",
+      "title": "TypeScript 4.1",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes",
+        "lib.d.ts Changes"
+      ],
+      "anchor": "libdts-changes",
+      "docType": "release-notes",
+      "tokenCount": 798
+    },
+    "3b8cbcd163026ecb0ec48f1a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.8.md",
+      "title": "TypeScript 4.8",
+      "headingPath": [
+        "Improved Intersection Reduction, Union Compatibility, and Narrowing"
+      ],
+      "sectionPath": [
+        "Improved Intersection Reduction, Union Compatibility, and Narrowing"
+      ],
+      "anchor": "improved-intersection-reduction-union-compatibility-and-narrowing",
+      "docType": "release-notes",
+      "tokenCount": 469
+    },
+    "b7b4bd32a12672c2b977ae8d": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.9.md",
+      "title": "TypeScript 3.9",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes",
+        "Getters/Setters are No Longer Enumerable"
+      ],
+      "anchor": "getterssetters-are-no-longer-enumerable",
+      "docType": "release-notes",
+      "tokenCount": 440
+    },
+    "a152a7c6a36d1ab4033045ad": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Type Manipulation/Generics.md",
+      "title": "Generics",
+      "headingPath": [
+        "Hello World of Generics"
+      ],
+      "sectionPath": [
+        "Hello World of Generics"
+      ],
+      "anchor": "hello-world-of-generics",
+      "docType": "handbook",
+      "tokenCount": 450
+    },
+    "63af28d6c097d98565538a7e": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.8.md",
+      "title": "TypeScript 4.8",
+      "headingPath": [
+        "Improved Inference from Binding Patterns"
+      ],
+      "sectionPath": [
+        "Improved Inference from Binding Patterns"
+      ],
+      "anchor": "improved-inference-from-binding-patterns",
+      "docType": "release-notes",
+      "tokenCount": 597
+    },
+    "435b40317d8c4a0239ac4e86": {
+      "docPath": "packages/documentation/copy/en/reference/Type Inference.md",
+      "title": "Type Inference",
+      "headingPath": [
+        "Contextual Typing"
+      ],
+      "sectionPath": [
+        "Contextual Typing"
+      ],
+      "anchor": "contextual-typing",
+      "docType": "reference",
+      "tokenCount": 415
+    },
+    "7579d9776f5011381f49a8e5": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.1.md",
+      "title": "TypeScript 5.1",
+      "headingPath": [
+        "Easier Implicit Returns for undefined-Returning Functions"
+      ],
+      "sectionPath": [
+        "Easier Implicit Returns for undefined-Returning Functions"
+      ],
+      "anchor": "easier-implicit-returns-for-undefined-returning-functions",
+      "docType": "release-notes",
+      "tokenCount": 519
+    },
+    "c7836e6005bb2e6ca7434b69": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "title": "More on Functions",
+      "headingPath": [
+        "Other Types to Know About"
+      ],
+      "sectionPath": [
+        "Other Types to Know About"
+      ],
+      "anchor": "other-types-to-know-about",
+      "docType": "handbook",
+      "tokenCount": 424
+    },
+    "b7110e64690f016c66411d92": {
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "title": "Advanced Types",
+      "headingPath": [
+        "Nullable types"
+      ],
+      "sectionPath": [
+        "Nullable types"
+      ],
+      "anchor": "nullable-types",
+      "docType": "reference",
+      "tokenCount": 396
+    },
+    "63c0108f837001f61462021c": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md",
+      "title": "TypeScript 5.4",
+      "headingPath": [
+        "The NoInfer Utility Type"
+      ],
+      "sectionPath": [
+        "The NoInfer Utility Type"
+      ],
+      "anchor": "the-noinfer-utility-type",
+      "docType": "release-notes",
+      "tokenCount": 463
+    },
+    "0f6281667020b14db512b7f5": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "title": "TypeScript 4.4",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes",
+        "Using unknown in Catch Variables"
+      ],
+      "anchor": "using-unknown-in-catch-variables",
+      "docType": "release-notes",
+      "tokenCount": 588
+    },
+    "fc9bb1ad996f6d3a1236ae2e": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/strictBuiltinIteratorReturn.md",
+      "title": "TSConfig Option: strictBuiltinIteratorReturn",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 63
+    },
+    "8f23fa5d7f3f91ce35ac921d": {
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "title": "Advanced Types",
+      "headingPath": [
+        "Conditional Types"
+      ],
+      "sectionPath": [
+        "Conditional Types"
+      ],
+      "anchor": "conditional-types",
+      "docType": "reference",
+      "tokenCount": 706
+    },
+    "7146e61bf458cd6c09c2563a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.8.md",
+      "title": "TypeScript 5.8",
+      "headingPath": [
+        "Granular Checks for Branches in Return Expressions"
+      ],
+      "sectionPath": [
+        "Granular Checks for Branches in Return Expressions"
+      ],
+      "anchor": "granular-checks-for-branches-in-return-expressions",
+      "docType": "release-notes",
+      "tokenCount": 593
+    },
+    "00254cda057b639709d16c7a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.1.md",
+      "title": "TypeScript 4.1",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes",
+        "Conditional Spreads Create Optional Properties"
+      ],
+      "anchor": "conditional-spreads-create-optional-properties",
+      "docType": "release-notes",
+      "tokenCount": 764
+    },
+    "632868e8fa6a8f549b75bd94": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.8.md",
+      "title": "TypeScript 4.8",
+      "headingPath": [
+        "Improved Intersection Reduction, Union Compatibility, and Narrowing"
+      ],
+      "sectionPath": [
+        "Improved Intersection Reduction, Union Compatibility, and Narrowing"
+      ],
+      "anchor": "improved-intersection-reduction-union-compatibility-and-narrowing",
+      "docType": "release-notes",
+      "tokenCount": 420
+    },
+    "c7c29c121a8c5aff5a33c4fb": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.8.md",
+      "title": "TypeScript 2.8",
+      "headingPath": [
+        "Conditional Types"
+      ],
+      "sectionPath": [
+        "Conditional Types"
+      ],
+      "anchor": "conditional-types",
+      "docType": "release-notes",
+      "tokenCount": 753
+    },
+    "de9b0c9a500cb8667a0cc13c": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Type Manipulation/Generics.md",
+      "title": "Generics",
+      "headingPath": [
+        "Hello World of Generics"
+      ],
+      "sectionPath": [
+        "Hello World of Generics"
+      ],
+      "anchor": "hello-world-of-generics",
+      "docType": "handbook",
+      "tokenCount": 443
+    },
+    "b6cddfb5d9d8f79e2da9d2c9": {
+      "docPath": "packages/documentation/copy/en/reference/Type Compatibility.md",
+      "title": "Type Compatibility",
+      "headingPath": [],
+      "sectionPath": [
+        "Enums"
+      ],
+      "anchor": "enums",
+      "docType": "reference",
+      "tokenCount": 736
+    },
+    "68e3dc1ec02dddd2a9aa3212": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.7.md",
+      "title": "TypeScript 4.7",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes",
+        "lib.d.ts Updates"
+      ],
+      "anchor": "libdts-updates",
+      "docType": "release-notes",
+      "tokenCount": 301
+    },
+    "53dafab57a5b3c1f0ee4183b": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.0.md",
+      "title": "TypeScript 2.0",
+      "headingPath": [],
+      "sectionPath": [
+        "Null- and undefined-aware types"
+      ],
+      "anchor": "null--and-undefined-aware-types",
+      "docType": "release-notes",
+      "tokenCount": 786
+    },
+    "5f8a13e3e9f00605fbe0cb4b": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.8.md",
+      "title": "TypeScript 4.8",
+      "headingPath": [
+        "Correctness Fixes and Breaking Changes"
+      ],
+      "sectionPath": [
+        "Correctness Fixes and Breaking Changes"
+      ],
+      "anchor": "correctness-fixes-and-breaking-changes",
+      "docType": "release-notes",
+      "tokenCount": 782
+    },
+    "b91ad67fe48c967a6a3f8115": {
+      "docPath": "packages/documentation/copy/en/reference/Type Inference.md",
+      "title": "Type Inference",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "reference",
+      "tokenCount": 641
+    },
+    "3925023dfdda03807f1ec948": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md",
+      "title": "TypeScript 5.4",
+      "headingPath": [
+        "Notable Behavioral Changes"
+      ],
+      "sectionPath": [
+        "Notable Behavioral Changes",
+        "Name Restrictions on Enum Members"
+      ],
+      "anchor": "name-restrictions-on-enum-members",
+      "docType": "release-notes",
+      "tokenCount": 510
+    },
+    "a119e24bfd7bedf45979fac6": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.5.md",
+      "title": "TypeScript 4.5",
+      "headingPath": [],
+      "sectionPath": [
+        "Better Editor Support for Unresolved Types"
+      ],
+      "anchor": "better-editor-support-for-unresolved-types",
+      "docType": "release-notes",
+      "tokenCount": 750
+    },
+    "8054bc9b6f41bea5ac3d1d3c": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.7.md",
+      "title": "TypeScript 5.7",
+      "headingPath": [
+        "Notable Behavioral Changes"
+      ],
+      "sectionPath": [
+        "Notable Behavioral Changes",
+        "Creating Index Signatures from Non-Literal Method Names in Classes"
+      ],
+      "anchor": "creating-index-signatures-from-non-literal-method-names-in-classes",
+      "docType": "release-notes",
+      "tokenCount": 467
+    },
+    "279518f5b44356bdf77781ac": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md",
+      "title": "Everyday Types",
+      "headingPath": [
+        "Type Assertions"
+      ],
+      "sectionPath": [
+        "Type Assertions"
+      ],
+      "anchor": "type-assertions",
+      "docType": "handbook",
+      "tokenCount": 461
+    },
+    "8e5254953d1b6ef944a4484d": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.0.md",
+      "title": "TypeScript 2.0",
+      "headingPath": [],
+      "sectionPath": [
+        "Type widening"
+      ],
+      "anchor": "type-widening",
+      "docType": "release-notes",
+      "tokenCount": 525
+    },
+    "9f3d5d1baf3e93d8f202967a": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/strictNullChecks.md",
+      "title": "TSConfig Option: strictNullChecks",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 502
+    },
+    "c4b145636e2b7bf2d148225d": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 6.0.md",
+      "title": "TypeScript 6.0",
+      "headingPath": [
+        "Less Context-Sensitivity on this-less Functions"
+      ],
+      "sectionPath": [
+        "Less Context-Sensitivity on this-less Functions"
+      ],
+      "anchor": "less-context-sensitivity-on-this-less-functions",
+      "docType": "release-notes",
+      "tokenCount": 684
+    },
+    "36e5fb386a6926207c6c9aaf": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.1.md",
+      "title": "TypeScript 2.1",
+      "headingPath": [
+        "Better inference for literal types"
+      ],
+      "sectionPath": [
+        "Better inference for literal types"
+      ],
+      "anchor": "better-inference-for-literal-types",
+      "docType": "release-notes",
+      "tokenCount": 483
+    },
+    "cc5bde56051c106a09c2010e": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.2.md",
+      "title": "TypeScript 4.2",
+      "headingPath": [
+        "Breaking Changes"
+      ],
+      "sectionPath": [
+        "Breaking Changes"
+      ],
+      "anchor": "breaking-changes",
+      "docType": "release-notes",
+      "tokenCount": 650
+    },
+    "9c27c60a88ef5f9de67ffb54": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Classes.md",
+      "title": "Classes",
+      "headingPath": [
+        "Relationships Between Classes"
+      ],
+      "sectionPath": [
+        "Relationships Between Classes"
+      ],
+      "anchor": "relationships-between-classes",
+      "docType": "handbook",
+      "tokenCount": 303
+    },
+    "15532228d21b9a349f683fbc": {
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "title": "Advanced Types",
+      "headingPath": [
+        "Type inference in conditional types"
+      ],
+      "sectionPath": [
+        "Type inference in conditional types"
+      ],
+      "anchor": "type-inference-in-conditional-types",
+      "docType": "reference",
+      "tokenCount": 784
+    },
+    "11f38322cea85ac2792548eb": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Basics.md",
+      "title": "The Basics",
+      "headingPath": [
+        "Strictness"
+      ],
+      "sectionPath": [
+        "Strictness"
+      ],
+      "anchor": "strictness",
+      "docType": "handbook",
+      "tokenCount": 510
+    },
+    "f98ff05cfcafe600a9f1408a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md",
+      "title": "TypeScript 5.4",
+      "headingPath": [
+        "Notable Behavioral Changes"
+      ],
+      "sectionPath": [
+        "Notable Behavioral Changes"
+      ],
+      "anchor": "notable-behavioral-changes",
+      "docType": "release-notes",
+      "tokenCount": 600
+    },
+    "48daa2f6103c45e4488ce859": {
+      "docPath": "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md",
+      "title": "Do's and Don'ts",
+      "headingPath": [
+        "Function Overloads",
+        "Ordering"
+      ],
+      "sectionPath": [
+        "Function Overloads",
+        "Ordering"
+      ],
+      "anchor": "ordering",
+      "docType": "other",
+      "tokenCount": 250
+    },
+    "7f77ac65832258a484f0f186": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md",
+      "title": "TypeScript 4.9",
+      "headingPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "sectionPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "anchor": "unlisted-property-narrowing-with-the-in-operator",
+      "docType": "release-notes",
+      "tokenCount": 484
+    },
+    "396aa05177df3bb28fdb2245": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.2.md",
+      "title": "TypeScript 5.2",
+      "headingPath": [
+        "Breaking Changes and Correctness Fixes",
+        "Consistent Export Checking for Merged Symbols"
+      ],
+      "sectionPath": [
+        "Breaking Changes and Correctness Fixes",
+        "Consistent Export Checking for Merged Symbols"
+      ],
+      "anchor": "consistent-export-checking-for-merged-symbols",
+      "docType": "release-notes",
+      "tokenCount": 374
+    },
+    "59d9934f0bf2300dd1401da7": {
+      "docPath": "packages/documentation/copy/en/javascript/Type Checking JavaScript Files.md",
+      "title": "Type Checking JavaScript Files",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "other",
+      "tokenCount": 686
+    },
+    "57144147482c49456f725f9d": {
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "title": "Advanced Types",
+      "headingPath": [
+        "Index types"
+      ],
+      "sectionPath": [
+        "Index types"
+      ],
+      "anchor": "index-types",
+      "docType": "reference",
+      "tokenCount": 446
+    },
+    "75f76c33f68418051c417048": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/noUncheckedIndexedAccess.md",
+      "title": "TSConfig Option: noUncheckedIndexedAccess",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 334
+    },
+    "b766ae85a26051d827cbd3c7": {
+      "docPath": "packages/documentation/copy/en/reference/JSX.md",
+      "title": "JSX",
+      "headingPath": [
+        "Type Checking",
+        "Attribute type checking"
+      ],
+      "sectionPath": [
+        "Type Checking",
+        "Attribute type checking"
+      ],
+      "anchor": "attribute-type-checking",
+      "docType": "reference",
+      "tokenCount": 467
+    },
+    "78177a961a5b04891ec1344a": {
+      "docPath": "packages/tsconfig-reference/copy/en/options/noPropertyAccessFromIndexSignature.md",
+      "title": "TSConfig Option: noPropertyAccessFromIndexSignature",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "option",
+      "tokenCount": 434
+    },
+    "1eca9e19137687b60713cd3a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 6.0.md",
+      "title": "TypeScript 6.0",
+      "headingPath": [
+        "New Types for \"upsert\" Methods (a.k.a. getOrInsert)"
+      ],
+      "sectionPath": [
+        "New Types for \"upsert\" Methods (a.k.a. getOrInsert)"
+      ],
+      "anchor": "new-types-for-upsert-methods-aka-getorinsert",
+      "docType": "release-notes",
+      "tokenCount": 536
+    },
+    "d165025d27b2c20e13b9a008": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.3.md",
+      "title": "TypeScript 4.3",
+      "headingPath": [
+        "Separate Write Types on Properties"
+      ],
+      "sectionPath": [
+        "Separate Write Types on Properties"
+      ],
+      "anchor": "separate-write-types-on-properties",
+      "docType": "release-notes",
+      "tokenCount": 606
+    },
+    "10044b349c2d9b0082330cb4": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.7.md",
+      "title": "TypeScript 4.7",
+      "headingPath": [
+        "extends Constraints on infer Type Variables"
+      ],
+      "sectionPath": [
+        "extends Constraints on infer Type Variables"
+      ],
+      "anchor": "extends-constraints-on-infer-type-variables",
+      "docType": "release-notes",
+      "tokenCount": 609
+    },
+    "fa0d1b2804011d879afe4323": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "title": "TypeScript 4.4",
+      "headingPath": [
+        "Control Flow Analysis of Aliased Conditions and Discriminants"
+      ],
+      "sectionPath": [
+        "Control Flow Analysis of Aliased Conditions and Discriminants"
+      ],
+      "anchor": "control-flow-analysis-of-aliased-conditions-and-discriminants",
+      "docType": "release-notes",
+      "tokenCount": 632
+    },
+    "ab3de1ec267283113f948635": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.3.md",
+      "title": "TypeScript 5.3",
+      "headingPath": [],
+      "sectionPath": [
+        "switch (true) Narrowing"
+      ],
+      "anchor": "switch-true-narrowing",
+      "docType": "release-notes",
+      "tokenCount": 497
+    },
+    "3a164a80d8ef92b1724fbacd": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.6.md",
+      "title": "TypeScript 3.6",
+      "headingPath": [
+        "Stricter Generators"
+      ],
+      "sectionPath": [
+        "Stricter Generators"
+      ],
+      "anchor": "stricter-generators",
+      "docType": "release-notes",
+      "tokenCount": 595
+    },
+    "8be0f66d85adb013fd698a76": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.6.md",
+      "title": "TypeScript 5.6",
+      "headingPath": [
+        "Iterator Helper Methods"
+      ],
+      "sectionPath": [
+        "Iterator Helper Methods"
+      ],
+      "anchor": "iterator-helper-methods",
+      "docType": "release-notes",
+      "tokenCount": 586
+    },
+    "3de802eec4c18d1177efd6cc": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "title": "TypeScript 4.4",
+      "headingPath": [
+        "Symbol and Template String Pattern Index Signatures"
+      ],
+      "sectionPath": [
+        "Symbol and Template String Pattern Index Signatures"
+      ],
+      "anchor": "symbol-and-template-string-pattern-index-signatures",
+      "docType": "release-notes",
+      "tokenCount": 594
+    },
+    "270b741fec74541e605df123": {
+      "docPath": "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md",
+      "title": "Do's and Don'ts",
+      "headingPath": [
+        "Callback Types"
+      ],
+      "sectionPath": [
+        "Callback Types"
+      ],
+      "anchor": "callback-types",
+      "docType": "other",
+      "tokenCount": 604
+    },
+    "98cdd701ede501898cccad60": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "title": "TypeScript 4.0",
+      "headingPath": [
+        "Variadic Tuple Types"
+      ],
+      "sectionPath": [
+        "Variadic Tuple Types"
+      ],
+      "anchor": "variadic-tuple-types",
+      "docType": "release-notes",
+      "tokenCount": 608
+    },
+    "30ac43f3db9a29c36e1358d0": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Type Manipulation/Conditional Types.md",
+      "title": "Conditional Types",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "handbook",
+      "tokenCount": 654
+    },
+    "5fe35133dacaca0c123f8316": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.5.md",
+      "title": "TypeScript 5.5",
+      "headingPath": [
+        "Inferred Type Predicates"
+      ],
+      "sectionPath": [
+        "Inferred Type Predicates"
+      ],
+      "anchor": "inferred-type-predicates",
+      "docType": "release-notes",
+      "tokenCount": 620
+    },
+    "459e8f8308859e832d08c201": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.3.md",
+      "title": "TypeScript 5.3",
+      "headingPath": [
+        "instanceof Narrowing Through Symbol.hasInstance"
+      ],
+      "sectionPath": [
+        "instanceof Narrowing Through Symbol.hasInstance"
+      ],
+      "anchor": "instanceof-narrowing-through-symbolhasinstance",
+      "docType": "release-notes",
+      "tokenCount": 630
+    },
+    "893e59044b1c8fb662e04257": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Type Manipulation/Keyof Type Operator.md",
+      "title": "Keyof Type Operator",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "handbook",
+      "tokenCount": 238
+    },
+    "253ec942972ce0ec8d51fd21": {
+      "docPath": "packages/documentation/copy/en/reference/Utility Types.md",
+      "title": "Utility Types",
+      "headingPath": [],
+      "sectionPath": [
+        "ReturnType<Type>"
+      ],
+      "anchor": "returntypetype",
+      "docType": "reference",
+      "tokenCount": 689
+    },
+    "f0cb5425e02c4530858a132e": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md",
+      "title": "TypeScript 4.9",
+      "headingPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "sectionPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "anchor": "unlisted-property-narrowing-with-the-in-operator",
+      "docType": "release-notes",
+      "tokenCount": 670
+    },
+    "bb400e7c31e507f36a107ceb": {
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md",
+      "title": "tsc CLI Options",
+      "headingPath": [
+        "Compiler Options"
+      ],
+      "sectionPath": [
+        "Compiler Options"
+      ],
+      "anchor": "compiler-options",
+      "docType": "other",
+      "tokenCount": 747
+    },
+    "70fe80b22df5bf0f29ec8237": {
+      "docPath": "packages/documentation/copy/en/reference/Type Compatibility.md",
+      "title": "Type Compatibility",
+      "headingPath": [
+        "Comparing two functions"
+      ],
+      "sectionPath": [
+        "Comparing two functions",
+        "Optional Parameters and Rest Parameters"
+      ],
+      "anchor": "optional-parameters-and-rest-parameters",
+      "docType": "reference",
+      "tokenCount": 436
+    },
+    "ec06d9a8189378a81b7cbd66": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Type Manipulation/Typeof Type Operator.md",
+      "title": "Typeof Type Operator",
+      "headingPath": [],
+      "sectionPath": [],
+      "anchor": "",
+      "docType": "handbook",
+      "tokenCount": 473
+    },
+    "5894690a07cec688ffc684b6": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "title": "Object Types",
+      "headingPath": [
+        "Property Modifiers",
+        "Optional Properties"
+      ],
+      "sectionPath": [
+        "Property Modifiers",
+        "Optional Properties"
+      ],
+      "anchor": "optional-properties",
+      "docType": "handbook",
+      "tokenCount": 494
+    },
+    "1448d0874ca15b22d5877fd3": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.7.md",
+      "title": "TypeScript 4.7",
+      "headingPath": [
+        "Optional Variance Annotations for Type Parameters"
+      ],
+      "sectionPath": [
+        "Optional Variance Annotations for Type Parameters"
+      ],
+      "anchor": "optional-variance-annotations-for-type-parameters",
+      "docType": "release-notes",
+      "tokenCount": 493
+    },
+    "6913e589213c1aaaec9872a3": {
+      "docPath": "packages/documentation/copy/en/javascript/JSDoc Reference.md",
+      "title": "JSDoc Reference",
+      "headingPath": [
+        "Types",
+        "@type"
+      ],
+      "sectionPath": [
+        "Types",
+        "@type"
+      ],
+      "anchor": "type",
+      "docType": "other",
+      "tokenCount": 533
+    },
+    "2314c2ef378df898a74afe20": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.8.md",
+      "title": "TypeScript 4.8",
+      "headingPath": [
+        "Improved Inference for infer Types in Template String Types"
+      ],
+      "sectionPath": [
+        "Improved Inference for infer Types in Template String Types"
+      ],
+      "anchor": "improved-inference-for-infer-types-in-template-string-types",
+      "docType": "release-notes",
+      "tokenCount": 523
+    },
+    "2aaa3b8b4d27cbbb97871b3c": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md",
+      "title": "TypeScript 4.9",
+      "headingPath": [
+        "The satisfies Operator"
+      ],
+      "sectionPath": [
+        "The satisfies Operator"
+      ],
+      "anchor": "the-satisfies-operator",
+      "docType": "release-notes",
+      "tokenCount": 542
+    },
+    "f6078389bb20b37714c1ffe2": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.6.md",
+      "title": "TypeScript 5.6",
+      "headingPath": [
+        "Strict Builtin Iterator Checks (and --strictBuiltinIteratorReturn)"
+      ],
+      "sectionPath": [
+        "Strict Builtin Iterator Checks (and --strictBuiltinIteratorReturn)"
+      ],
+      "anchor": "strict-builtin-iterator-checks-and---strictbuiltiniteratorreturn",
+      "docType": "release-notes",
+      "tokenCount": 572
+    },
+    "654a3f010c4a9a32ef49378a": {
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md",
+      "title": "TypeScript 5.4",
+      "headingPath": [
+        "Notable Behavioral Changes",
+        "New Enum Assignability Restrictions"
+      ],
+      "sectionPath": [
+        "Notable Behavioral Changes",
+        "New Enum Assignability Restrictions"
+      ],
+      "anchor": "new-enum-assignability-restrictions",
+      "docType": "release-notes",
+      "tokenCount": 566
+    },
+    "34f6652f63e0340838ebab63": {
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "title": "Object Types",
+      "headingPath": [
+        "Excess Property Checks"
+      ],
+      "sectionPath": [
+        "Excess Property Checks"
+      ],
+      "anchor": "excess-property-checks",
+      "docType": "handbook",
+      "tokenCount": 613
+    }
+  },
+  "context": [
+    {
+      "rank": 1,
+      "chunkId": "b364cef04a521d7131da761a",
+      "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#example-3",
+      "title": "TypeScript 3.0 > New unknown top type > Example",
+      "text": "TypeScript 3.0 > New unknown top type > Example\n\n```ts\n// In an intersection everything absorbs unknown\n\ntype T00 = unknown & null; // null\ntype T01 = unknown & undefined; // undefined\ntype T02 = unknown & null & undefined; // null & undefined (which becomes never)\ntype T03 = unknown & string; //..."
+    },
+    {
+      "rank": 2,
+      "chunkId": "cbe74b1aa7bd352dbed39acd",
+      "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type",
+      "title": "TypeScript 3.0 > New unknown top type",
+      "text": "TypeScript 3.0 > New unknown top type\n\nTypeScript 3.0 introduces a new top type `unknown`.\n`unknown` is the type-safe counterpart of `any`.\nAnything is assignable to `unknown`, but `unknown` isn't assignable to anything but itself and `any` without a type assertion or a control flow based narrowi..."
+    },
+    {
+      "rank": 3,
+      "chunkId": "2c9764f05d9cffaa9ab871ee",
+      "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-4.html#defaulting-to-the-unknown-type-in-catch-variables---useunknownincatchvariables",
+      "title": "TypeScript 4.4 > Defaulting to the unknown Type in Catch Variables (--useUnknownInCatchVariables)",
+      "text": "TypeScript 4.4 > Defaulting to the unknown Type in Catch Variables (--useUnknownInCatchVariables)\n\nIn JavaScript, any type of value can be thrown with `throw` and caught in a `catch` clause.\nBecause of this, TypeScript historically typed catch clause variables as `any`, and would not allow any ot..."
+    },
+    {
+      "rank": 4,
+      "chunkId": "4c1aa60200aa5ea7a49e3308",
+      "source": "https://www.typescriptlang.org/docs/handbook/type-compatibility.html#advanced-topics",
+      "title": "Type Compatibility > Advanced Topics",
+      "text": "Type Compatibility\n\n## Advanced Topics\n\n### Subtype vs Assignment\n\nSo far, we've used \"compatible\", which is not a term defined in the language spec.\nIn TypeScript, there are two kinds of compatibility: subtype and assignment.\nThese differ only in that assignment extends subtype compatibility wit..."
+    },
+    {
+      "rank": 5,
+      "chunkId": "e00db1895e7ae73c24a72354",
+      "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#unknown-on-catch-clause-bindings",
+      "title": "TypeScript 4.0 > unknown on catch Clause Bindings",
+      "text": "TypeScript 4.0 > unknown on catch Clause Bindings\n\nSince the beginning days of TypeScript, `catch` clause variables have always been typed as `any`.\nThis meant that TypeScript allowed you to do anything you wanted with them.\n\n```ts\n// @useUnknownInCatchVariables: false\ntry {\n  // Do some work\n} c..."
+    },
+    {
+      "rank": 6,
+      "chunkId": "fdee7c9194b7b1de1f1b1901",
+      "source": "https://www.typescriptlang.org/tsconfig/useUnknownInCatchVariables.html",
+      "title": "TSConfig Option: useUnknownInCatchVariables",
+      "text": "TSConfig Option: useUnknownInCatchVariables\n\nDefault catch clause variables as `unknown` instead of `any`.\n\nIn TypeScript 4.0, support was added to allow changing the type of the variable in a catch clause from `any` to `unknown`. Allowing for code like:\n\n```ts\n// @useUnknownInCatchVariables\ntry ..."
+    },
+    {
+      "rank": 7,
+      "chunkId": "02912d43e35e5916061a8f64",
+      "source": "https://www.typescriptlang.org/docs/handbook/2/functions.html#unknown",
+      "title": "More on Functions > Other Types to Know About > unknown",
+      "text": "More on Functions > Other Types to Know About\n\n### unknown\n\nThe `unknown` type represents _any_ value.\nThis is similar to the `any` type, but is safer because it's not legal to do anything with an `unknown` value:\n\n```ts\n// @errors: 2571 18046\nfunction f1(a: any) {\n  a.b(); // OK\n}\nfunction f2(a:..."
+    },
+    {
+      "rank": 8,
+      "chunkId": "0f6281667020b14db512b7f5",
+      "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-4.html#using-unknown-in-catch-variables",
+      "title": "TypeScript 4.4 > Breaking Changes > Using unknown in Catch Variables",
+      "text": "TypeScript 4.4 > Breaking Changes\n\n### Using unknown in Catch Variables\n\nUsers running with the [`strict`](/tsconfig#strict) flag may see new errors around `catch` variables being `unknown`, especially if the existing code assumes only `Error` values have been caught.\nThis often results in error ..."
+    }
+  ],
+  "totalMs": 8.545799999999986
+}

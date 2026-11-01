@@ -25,6 +25,10 @@ export default defineConfig({
       },
       {
         plugins: [storybookTest({ configDir: '.storybook' })],
+        // Pre-bundled up front: found mid-run, Vite reloads the page and the
+        // tests that were running fail (it happens on every run with an empty
+        // cache, as in CI).
+        optimizeDeps: { include: ['react-markdown'] },
         test: {
           name: 'stories',
           browser: {

@@ -1,0 +1,59 @@
+.markdown {
+  line-height: var(--leading);
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-surface-strong);
+  border-radius: var(--radius-1);
+  padding: 0.1em 0.3em;
+}
+
+.markdown pre {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  padding: var(--space-3);
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.citation {
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: super;
+  min-width: 1.6em;
+  margin: 0 0.1em;
+  padding: 0.2em 0.35em;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.citation:hover {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.marker {
+  font-size: var(--text-xs);
+  vertical-align: super;
+}
