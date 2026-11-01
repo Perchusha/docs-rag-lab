@@ -8,7 +8,7 @@ import common from '../lib/common.module.css'
 import { formatMs } from '../lib/format.ts'
 import { doubledTokens, listOf } from '../lib/fusion.ts'
 import type { Transport } from '../lib/transport.ts'
-import { ContextView, type Reveal } from './ContextView.tsx'
+import { ContextView } from './ContextView.tsx'
 import { DocumentView } from './DocumentView.tsx'
 import { FusionView, LIST_LABELS } from './FusionView.tsx'
 import styles from './Inspector.module.css'
@@ -30,7 +30,9 @@ export interface InspectorProps {
   /** undefined: the trace's default tab. */
   tab: InspectorTab | undefined
   onTabChange: (tab: InspectorTab) => void
-  reveal?: Reveal | undefined
+  /** A chunk the Context tab scrolls to and focuses once; see ContextView. */
+  reveal?: string | undefined
+  onRevealed?: (() => void) | undefined
   transport: Transport
 }
 
@@ -123,7 +125,14 @@ export function Inspector(props: InspectorProps) {
           {
             id: 'context',
             label: `Context (${String(trace.context.length)})`,
-            panel: <ContextView {...shared} citations={citations} reveal={props.reveal} />,
+            panel: (
+              <ContextView
+                {...shared}
+                citations={citations}
+                reveal={props.reveal}
+                onRevealed={props.onRevealed}
+              />
+            ),
           },
           {
             id: 'document',

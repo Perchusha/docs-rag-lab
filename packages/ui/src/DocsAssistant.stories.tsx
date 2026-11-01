@@ -64,6 +64,16 @@ export const AskAndInspect: Story = {
     await expect(
       canvas.getByRole('heading', { name: '1. TypeScript 5.0 > @satisfies Support in JSDoc' }),
     ).toHaveFocus()
+
+    // The citation moved focus once. Leaving the Context tab and coming back
+    // keeps focus in the tab list, and the arrow keys keep working.
+    canvas.getByRole('tab', { name: 'Context (8)' }).focus()
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect(canvas.getByRole('tab', { name: 'Lists' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect(canvas.getByRole('tab', { name: 'Context (8)' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect(canvas.getByRole('tab', { name: 'Document' })).toHaveFocus()
   },
 }
 

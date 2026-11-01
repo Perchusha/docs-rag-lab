@@ -5,33 +5,33 @@ import { ExternalLink } from '../chat/AnswerMarkdown.tsx'
 import common from '../lib/common.module.css'
 import styles from './Views.module.css'
 
-/** A request to show one chunk: scroll to it and move focus there. A new nonce asks again. */
-export interface Reveal {
-  chunkId: string
-  nonce: number
-}
-
 export interface ContextViewProps {
   trace: RetrievalTrace
   citations: readonly Citation[]
   selectedChunkId: string | undefined
   onSelectChunk: (chunkId: string) => void
-  reveal?: Reveal | undefined
+  /** A chunk to scroll to and move focus to, once: a citation asked to show it. */
+  reveal?: string | undefined
+  /**
+   * Called once the reveal is done, so the owner clears it. The panel unmounts
+   * when another tab is selected; a reveal left set would take focus away from
+   * the tab list every time the Context tab is selected again.
+   */
+  onRevealed?: (() => void) | undefined
 }
 
 /** The top K chunks exactly as they went to the answer, with the ones the answer cited marked. */
 export function ContextView(props: ContextViewProps) {
-  const { trace, citations, selectedChunkId, onSelectChunk, reveal } = props
+  const { trace, citations, selectedChunkId, onSelectChunk, reveal, onRevealed } = props
   const headings = useRef(new Map<string, HTMLHeadingElement>())
-  const handled = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    if (reveal === undefined || handled.current === reveal.nonce) return
-    handled.current = reveal.nonce
-    const heading = headings.current.get(reveal.chunkId)
+    if (reveal === undefined) return
+    const heading = headings.current.get(reveal)
     heading?.scrollIntoView({ block: 'nearest' })
     heading?.focus()
-  }, [reveal])
+    onRevealed?.()
+  }, [reveal, onRevealed])
 
   if (trace.context.length === 0) {
     return <p className={styles.meta}>No chunks went to the answer.</p>

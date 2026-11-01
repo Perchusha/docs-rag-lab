@@ -11,7 +11,6 @@ import { QuestionForm, type QuestionRequest } from './chat/QuestionForm.tsx'
 import { Sources } from './chat/Sources.tsx'
 import { useAssistant } from './chat/useAssistant.ts'
 import styles from './DocsAssistant.module.css'
-import type { Reveal } from './inspector/ContextView.tsx'
 import { Inspector, type InspectorTab } from './inspector/Inspector.tsx'
 import { isRunning, statusText, type Mode } from './lib/assistant.ts'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
@@ -47,7 +46,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const { state, run, stop } = useAssistant(transport)
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [tab, setTab] = useState<InspectorTab | undefined>(undefined)
-  const [reveal, setReveal] = useState<Reveal | undefined>(undefined)
+  const [reveal, setReveal] = useState<string | undefined>(undefined)
 
   const submit = useCallback(
     (mode: Mode, request: QuestionRequest) => {
@@ -65,7 +64,10 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const showCitation = useCallback((citation: Citation) => {
     setSelected(citation.chunkId)
     setTab('context')
-    setReveal((current) => ({ chunkId: citation.chunkId, nonce: (current?.nonce ?? 0) + 1 }))
+    setReveal(citation.chunkId)
+  }, [])
+  const revealed = useCallback(() => {
+    setReveal(undefined)
   }, [])
 
   const style =
@@ -108,6 +110,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
             tab={tab}
             onTabChange={setTab}
             reveal={reveal}
+            onRevealed={revealed}
             transport={transport}
           />
         </section>
