@@ -9,4 +9,5 @@ pnpm-lock.yaml
 .next/
 dist/
 storybook-static/
+next-env.d.ts
 coverage/
