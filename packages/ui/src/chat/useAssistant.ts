@@ -7,9 +7,9 @@ import type { Transport } from '../lib/transport.ts'
 export interface Assistant {
   state: AssistantState
   /** Asks (retrieval, then a streamed answer) or searches (retrieval only). Stops any earlier run. */
-  run(mode: Mode, request: RetrievalRequest): Promise<void>
+  run: (mode: Mode, request: RetrievalRequest) => Promise<void>
   /** Stops the running question; the app route then stops the Claude stream. */
-  stop(): void
+  stop: () => void
 }
 
 function messageOf(error: unknown): string {

@@ -43,6 +43,7 @@
   --color-text-muted: #59636e;
   --color-danger: #b42318;
   --color-danger-surface: #fff1f0;
+  --color-success: #1a7f37;
   --color-highlight: #fff8c5;
 
   /* The three retrieval lists. The two BM25 lists share one hue in two
@@ -70,6 +71,7 @@
     --color-text-muted: #9198a1;
     --color-danger: #ff8182;
     --color-danger-surface: #2d1214;
+    --color-success: #3fb950;
     --color-highlight: #3b2e00;
 
     --color-list-vector: #a371f7;

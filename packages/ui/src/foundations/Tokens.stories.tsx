@@ -42,6 +42,8 @@ const pairs: Pair[] = [
     color: 'var(--color-danger)',
     background: 'var(--color-danger-surface)',
   },
+  { name: 'success on bg', color: 'var(--color-success)', background: 'var(--color-bg)' },
+  { name: 'danger on bg', color: 'var(--color-danger)', background: 'var(--color-bg)' },
   { name: 'text on highlight', color: 'var(--color-text)', background: 'var(--color-highlight)' },
 ]
 
