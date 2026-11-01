@@ -49,6 +49,19 @@ describe('AnswerMarkdown', () => {
     expect(out).not.toContain('#cite-1')
   })
 
+  it('keeps the text after a cited code block out of the code', () => {
+    const out = html(
+      answerMarkdown([
+        { kind: 'text', text: '```ts\nconst a = 1 satisfies number\n```' },
+        { kind: 'cite', numbers: [1] },
+        { kind: 'text', text: '\n\nAfter the code.' },
+      ]),
+    )
+    expect(out).toContain('<button')
+    expect(out).toContain('<p>After the code.</p>')
+    expect(out).not.toContain('#cite-1')
+  })
+
   it('shows a marker with no known citation as plain text', () => {
     const out = html('Claim[7](#cite-7)')
     expect(out).toMatch(/Claim<span[^>]*>\[7\]<\/span>/)

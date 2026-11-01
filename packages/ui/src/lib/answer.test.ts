@@ -38,6 +38,25 @@ describe('answerMarkdown', () => {
     )
   })
 
+  it('puts a marker after a closing code fence on its own line', () => {
+    const fenced: AnswerPart[] = [
+      { kind: 'text', text: 'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n' },
+      { kind: 'cite', numbers: [1] },
+      { kind: 'text', text: '\nAfter the code.' },
+    ]
+    expect(answerMarkdown(fenced)).toBe(
+      'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n\n[1](#cite-1)\n\nAfter the code.',
+    )
+  })
+
+  it('treats a bare fence that opens a block as code, not as a closing fence', () => {
+    const open: AnswerPart[] = [
+      { kind: 'text', text: 'Text\n```' },
+      { kind: 'cite', numbers: [2] },
+    ]
+    expect(answerMarkdown(open)).toBe('Text\n```[2](#cite-2)')
+  })
+
   it('renders the recorded answer with both of its markers', () => {
     const markdown = answerMarkdown(answerFixture.parts)
     expect(markdown).toContain('introduced in TypeScript 4.9.[1](#cite-1)')
