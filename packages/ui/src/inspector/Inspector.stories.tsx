@@ -129,7 +129,9 @@ export const ChunkBoundaries: Story = {
     const canvas = within(canvasElement)
     const pick = canvas.getAllByRole('button', { name: /TypeScript 4\.9 > The satisfies Operator/ })
     await userEvent.click(pick[0] ?? canvasElement)
-    await expect(pick[0]).toHaveAttribute('aria-pressed', 'true')
+    // Selected is said in text, not only by the row's background.
+    await expect(pick[0]).toHaveAttribute('aria-current', 'true')
+    await expect(pick[0]).toHaveTextContent(/selected$/)
 
     await userEvent.click(canvas.getByRole('tab', { name: 'Document' }))
     const chunks = await canvas.findByRole('list', { name: 'Chunks of TypeScript 4.9' })

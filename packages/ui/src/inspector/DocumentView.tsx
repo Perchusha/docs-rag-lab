@@ -83,7 +83,7 @@ export function DocumentView({ trace, chunkId, onSelectChunk, transport }: Docum
                 <button
                   type="button"
                   className={styles.chunk}
-                  aria-pressed={selected}
+                  aria-current={selected ? 'true' : undefined}
                   onClick={() => {
                     onSelectChunk(chunk.chunkId)
                   }}

@@ -59,6 +59,7 @@ export function ContextView(props: ContextViewProps) {
               >
                 {chunk.rank}. {chunk.title}
               </h3>
+              {selected && <span className={common.badge}>selected</span>}
               {cited.map((c) => (
                 <span key={c.number} className={common.badge}>
                   cited as [{c.number}]
@@ -72,7 +73,7 @@ export function ContextView(props: ContextViewProps) {
               <button
                 type="button"
                 className={common.button}
-                aria-pressed={selected}
+                aria-current={selected ? 'true' : undefined}
                 onClick={() => {
                   onSelectChunk(chunk.chunkId)
                 }}
