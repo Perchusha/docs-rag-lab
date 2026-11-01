@@ -4,9 +4,9 @@ Client components: chat, citations, inspector, eval dashboard and topic map, wit
 
 ## Boundaries
 
-- Client-safe: imports no internal package at all, not even `import type` from core or db (rule `ui-no-internal-packages`).
+- Client-safe: imports no internal package but `@docs-rag-lab/contracts`, not even `import type` from core or db (rule `ui-no-internal-packages`, ADR-0006).
 - No Node.js built-ins (rule `ui-no-node-builtins`).
-- Data arrives through props and app route handlers. Where shared types such as the retrieval trace live is still open (ADR-0002); until an ADR settles it, ui defines the view types it renders.
+- Data arrives through props and app route handlers. The shapes it renders (the retrieval trace, citations, the answer stream) come from `@docs-rag-lab/contracts`; ui does not define its own copies (ADR-0006).
 
 ## Conventions
 

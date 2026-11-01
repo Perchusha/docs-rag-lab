@@ -3,6 +3,14 @@
 // over the question's terms, and BM25 over its exact tokens (code, identifiers,
 // flags, source tokens such as error codes). Every call returns the hits for
 // generation and a serializable trace of how they were chosen.
+import {
+  TRACE_VERSION,
+  type ListName,
+  type RetrievalTrace,
+  type TraceChunk,
+  type TraceFusion,
+  type TraceList,
+} from '@docs-rag-lab/contracts'
 import type {
   Candidate,
   EmbeddingCache,
@@ -19,14 +27,6 @@ import type { RateLimiter } from './embeddings/rate-limit.ts'
 import { citationSource, citationTitle } from './generate.ts'
 import { analyzeQuery } from './query.ts'
 import { fuseRrf } from './rrf.ts'
-import {
-  TRACE_VERSION,
-  type ListName,
-  type RetrievalTrace,
-  type TraceChunk,
-  type TraceFusion,
-  type TraceList,
-} from './trace.ts'
 import type { UsageMeter } from './usage.ts'
 
 export interface RetrieveOptions {

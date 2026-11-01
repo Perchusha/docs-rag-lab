@@ -16,6 +16,7 @@
     "test:network": "vitest run --config vitest.network.config.js"
   },
   "dependencies": {
+    "@docs-rag-lab/contracts": "workspace:*",
     "@docs-rag-lab/core": "workspace:*",
     "@docs-rag-lab/source-typescript": "workspace:*"
   },

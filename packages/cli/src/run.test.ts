@@ -4,12 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import {
-  createEmbeddingProvider,
-  embeddingCacheKey,
-  openIndexes,
-  type RetrievalTrace,
-} from '@docs-rag-lab/core'
+import type { RetrievalTrace } from '@docs-rag-lab/contracts'
+import { createEmbeddingProvider, embeddingCacheKey, openIndexes } from '@docs-rag-lab/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import config from './drl.config.ts'

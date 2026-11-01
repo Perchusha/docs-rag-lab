@@ -37,27 +37,8 @@ export { createEmbeddingProvider } from './embeddings/factory.ts'
 export { embeddingCachePath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
 export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
 export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
-export {
-  analyzeQuery,
-  MIN_TERM_LENGTH,
-  quoteTerm,
-  type ExactToken,
-  type ExactTokenOrigin,
-  type QueryPlan,
-} from './query.ts'
+export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
-export {
-  STRATEGIES,
-  TRACE_VERSION,
-  type ListName,
-  type RetrievalTrace,
-  type Strategy,
-  type TraceCandidate,
-  type TraceChunk,
-  type TraceContextChunk,
-  type TraceFusion,
-  type TraceList,
-} from './trace.ts'
 export {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,

@@ -1,4 +1,5 @@
-import type { RetrievalTrace, SyncReport } from '@docs-rag-lab/core'
+import type { RetrievalTrace } from '@docs-rag-lab/contracts'
+import type { SyncReport } from '@docs-rag-lab/core'
 import { describe, expect, it } from 'vitest'
 
 import {

@@ -1,13 +1,12 @@
 import { parseArgs } from 'node:util'
 
+import { STRATEGIES, type Strategy } from '@docs-rag-lab/contracts'
 import {
   DOC_TYPES,
   formatUsage,
-  STRATEGIES,
   UsageMeter,
   type DocType,
   type DrlConfig,
-  type Strategy,
 } from '@docs-rag-lab/core'
 
 import {

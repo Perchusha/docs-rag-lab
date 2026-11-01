@@ -1,8 +1,7 @@
 // The shape of the drl config. The values (model IDs, prices, limits) live in
 // one config file only, never in code (CLAUDE.md, SPEC section 14).
+import type { Strategy } from '@docs-rag-lab/contracts'
 import type { Source } from '@docs-rag-lab/source-kit'
-
-import type { Strategy } from './trace.ts'
 
 /** USD per million tokens. */
 export interface ModelPrice {

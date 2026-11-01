@@ -1,10 +1,5 @@
-import type {
-  EmbedProgress,
-  NumberedCitation,
-  RetrievalTrace,
-  SyncReport,
-  TraceList,
-} from '@docs-rag-lab/core'
+import type { RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
+import type { EmbedProgress, NumberedCitation, SyncReport } from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
 

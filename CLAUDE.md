@@ -46,8 +46,9 @@ These are enforced by dependency-cruiser. Do not work around them.
 
 - Apps import packages. Packages never import apps.
 - `packages/sources/*` import only `@docs-rag-lab/source-kit`.
-- `core` imports `source-kit` and `db`, never `ui`.
-- `ui` is client-safe: no imports from `core` or `db`.
+- `core` imports `source-kit`, `db` and `contracts`, never `ui`.
+- `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`.
+- `contracts` imports nothing: no internal package, no Node.js built-in, no npm package (ADR-0006).
 - Import a package only through its public `index.ts`.
 
 ## Definition of done

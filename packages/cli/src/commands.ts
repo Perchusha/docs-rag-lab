@@ -2,6 +2,7 @@
 // meter; run() prints the usage line afterwards, also when a command fails.
 import { join } from 'node:path'
 
+import type { Strategy } from '@docs-rag-lab/contracts'
 import {
   buildAnswerRequest,
   CitationNumbering,
@@ -15,7 +16,6 @@ import {
   type DocType,
   type DrlConfig,
   type Retrieval,
-  type Strategy,
   type UsageMeter,
 } from '@docs-rag-lab/core'
 

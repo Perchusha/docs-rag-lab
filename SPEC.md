@@ -63,6 +63,7 @@ packages/
     typescript/     TypeScript-Website parser (twoslash)
     react/          react.dev parser (MDX components; created in M6 with turbo gen)
   db/               SQLite schema, migrations, typed queries
+  contracts/        data shapes that cross boundaries: the retrieval trace, citations, the answer stream (ADR-0006)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   cli/              drl sync | ask | eval | questions
   mcp/              MCP server over core (created in M10)
@@ -80,8 +81,9 @@ docs/journal.md     short notes per milestone with before/after metrics
 **Dependency rules.** These are enforced by dependency-cruiser in CI and in Claude Code hooks.
 - Apps import packages. Packages never import apps.
 - `sources/*` import only `source-kit` (no core, no db, no ui).
-- `core` imports `source-kit` and `db`, never `ui`.
-- `ui` is client-safe: no imports from `core` or `db`. It talks to app route handlers.
+- `core` imports `source-kit`, `db` and `contracts`, never `ui`.
+- `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`. It talks to app route handlers.
+- `contracts` imports nothing: no internal package, no Node.js built-in, no npm package. It holds the shapes that core produces and ui renders (ADR-0006).
 - A package is imported only through its public `index.ts`, never through internals.
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
