@@ -29,6 +29,20 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The ui story tests run in Playwright's headless Chromium. The browser is
+      # cached per Playwright version; its system libraries come from apt.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./packages/ui/node_modules/playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @docs-rag-lab/ui exec playwright install --with-deps --only-shell chromium
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @docs-rag-lab/ui exec playwright install-deps chromium
       # Prettier, then the em-dash check (tooling/repo-checks).
       - run: pnpm format:check
       # lint includes the dependency-cruiser boundary check (//#depcruise).
