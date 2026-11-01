@@ -22,7 +22,7 @@ The second M3 PR adds the ui package, Storybook and the Next.js app on top of th
 |---|---|---|
 | Localhost only | `next dev` and `next start` take `--hostname 127.0.0.1`; Storybook takes `--host 127.0.0.1` | `netstat`: `127.0.0.1:3000` and `127.0.0.1:6006` only |
 | Safe markdown | No rehype-raw; default URL sanitizing; only http(s) links, with `rel="noopener noreferrer"`; images as alt text | 6 unit tests on server-rendered HTML; every citation link in the live app has the rel |
-| Accessibility | A text marker beside the two BM25 shades; a real table with `aria-sort` on button headers; WAI-ARIA tabs; a polite status region instead of a live answer; no animation under reduced motion | 25 stories, each a test in Chromium with axe in light and dark (50 runs, 0 violations); axe on the live app in 5 states, 0 violations |
+| Accessibility | A text marker beside the two BM25 shades; a real table with `aria-sort` on button headers; WAI-ARIA tabs; a polite status region instead of a live answer; no animation under reduced motion | 26 stories, each a test in Chromium with axe in light and dark (52 runs, 0 violations); axe on the live app in 5 states, 0 violations |
 | Keyboard play tests | Sorting with Enter and Space; tabs with the arrow keys, Home and End; one tab stop | The KeyboardSorting and KeyboardTabs stories, plus a keyboard-only run of the live app: Tab to an example, Enter, Ctrl+Enter to ask, Tab to the citation, Enter |
 
 **Measured in the app,** over the real index with cached query vectors:
@@ -54,11 +54,21 @@ Every citation links to a typescriptlang.org page, with the section anchor where
 - **TypeScript blue fails AA.** `#3178c6` reaches 4.4:1 on white. The theme is now a light and a dark shade (`#235a97`, `#79b8ff`), and the tokens story checks every text colour on its backgrounds in both schemes.
 - **`pnpm dev` through turbo would have hidden shell API keys.** Turbo's strict env mode passes only declared variables to a task, so only the dotenv file would have worked. `pnpm dev` and `pnpm storybook` call pnpm directly.
 
-**Hook timings (ADR-0002).** On a forced cache miss, the post-edit check takes 8.4-8.5 s for ui and 6.6-8.0 s for ts-docs: ui sits at the 8 s budget. The hook's own runs while this PR was built had a median of 4.5 s for ui, so lint stays in PostToolUse. ui's lint moves to the Stop hook first if a typical run passes 8 s.
+**What the code-reviewer subagent caught.** It ran in a fresh context, ran every check, and probed the live components with its own Playwright scripts. Two blocking findings:
+- **A citation kept stealing focus.** After a citation click, every return to the Context tab moved focus to the old chunk, and the arrow keys in the tab list stopped working. The reveal request outlived its use: ContextView remembered it had handled it, but the panel unmounts when another tab is selected. DocsAssistant now clears the request once it is handled, and the AskAndInspect story leaves the tab and comes back.
+- **One commit did not typecheck on its own.** `git rm` of the app's placeholder had been staged early and went into an unrelated ui fix, leaving the app's tsconfig with no input. The branch was rebuilt with the deletion in the app commit, before anything was pushed.
+
+It also found:
+- **A citation after a code block turned the rest of the answer into code**, because the marker landed on the closing fence line. It now starts its own line.
+- **The selected chunk was shown by colour alone**, and its buttons were `aria-pressed` toggles that never untoggled. It now has `aria-current` and a visible "selected" label.
+- **No test for a new question replacing a running one.** The first version of the story passed even with the abort removed: the reducer drops late events once the search finishes, which hid the leak. With a search slower than the whole stream it fails without the abort.
+- **Smaller fixes:** `ask()` also stops when the response body is cancelled, not only on the request signal; mid-stream failures are logged; the engine builds the source `rag.config.ts` names; chunk locations no longer assume the TypeScript-Website layout; the tab list leaves Alt+Arrow to the browser.
+
+**Hook timings (ADR-0002).** On a forced cache miss, the post-edit check takes 8.4-8.5 s for ui and 6.6-8.0 s for ts-docs: ui is just over the 8 s budget. The hook's own runs while this PR was built had a median of 4.5 s for ui, so lint stays in PostToolUse. ui's lint moves to the Stop hook first if a typical run passes 8 s.
 
 | | |
 |---|---|
-| Tests | 355 offline in the product packages (232 after the first half): contracts 22 (0), ui 84 (34 unit, 50 story tests: 25 stories in light and dark), ts-docs 17 (0). Tooling: config 20, claude-hooks 85, repo-checks 14 |
+| Tests | 363 offline in the product packages (232 after the first half): contracts 22 (0), ui 89 (37 unit, 52 story tests: 26 stories in light and dark), ts-docs 20 (0). Tooling: config 20, claude-hooks 85, repo-checks 14 |
 | ui test task | 11.5 s with Chromium; 5.0 s of it is Vitest |
 | Spend | $0.1199: the recorded answer fixture ($0.0171), four asks in the app ($0.0858), one time-to-first-token run ($0.0170). 0 Voyage tokens |
 
@@ -66,7 +76,7 @@ Every citation links to a typescriptlang.org page, with the section anchor where
 - The eval harness, reports and the dashboard view (a new ui view, with its stories).
 - Check the two hypotheses on the full golden set. The fusion view shows the double counting per question; the eval shows whether removing it helps.
 - Tables in answers render as text, because there is no remark-gfm. Add it if eval answers need tables.
-- ui's post-edit check is at the 8 s budget on a cache miss; re-measure when the dashboard lands.
+- ui's post-edit check is just over the 8 s budget on a forced cache miss; re-measure when the dashboard lands.
 
 ## M3, first half - The engine under the app (2026-11-01)
 

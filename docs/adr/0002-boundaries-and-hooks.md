@@ -121,7 +121,7 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
   | ui | 8.4-8.5s | 2.0-2.8s |
   | ts-docs | 6.6-8.0s | 1.7-1.8s |
 
-  The hook's own runs while M3 was built were faster than a forced miss: for ui a median of 4.5s and a max of 12.6s, the slow ones while story tests ran at the same time; for ts-docs 1.6-3.6s. The forced miss of ui sits at the 8s budget, because its lint is type-aware over React code with the hooks rules, and typecheck covers the stories. Lint stays in PostToolUse for now, since a typical edit is well under the budget. If ui's typical run passes 8s (the M4 dashboard adds to it), move ui's lint to the Stop hook first.
+  The hook's own runs while M3 was built were faster than a forced miss: for ui a median of 4.5s and a max of 12.6s, the slow ones while story tests ran at the same time; for ts-docs 1.6-3.6s. The forced miss of ui is just over the 8s budget, because its lint is type-aware over React code with the hooks rules, and typecheck covers the stories. Lint stays in PostToolUse for now, since a typical edit is well under the budget. If ui's typical run passes 8s (the M4 dashboard adds to it), move ui's lint to the Stop hook first.
 - ts-docs typecheck runs `next typegen` before tsc (ADR-0008), which the timing above includes.
 - With pnpm 12's default `verifyDepsBeforeRun: install`, the hook's own `pnpm turbo` call installs dependencies after a `package.json` edit, so the next check sees the new links.
 

@@ -32,11 +32,11 @@ Before any engine change, a throwaway Next.js 16.4.3 app in a separate worktree 
 `apps/ts-docs` holds config, a page and three routes:
 - **`rag.config.ts`** holds only what belongs to the app: ID, source, title, tagline, theme and example questions, checked by `defineDocsApp` from ui. Engine values come from settings (ADR-0007). The page passes `settings.retrieval.strategy` and core's `DOC_TYPES` to the client component.
 - **Routes** are one line each. They call handlers in `src/server/handlers.ts`, which take a `Request` and return a `Response`, so they are tested without Next.js:
-  - `POST /api/ask` streams `AnswerEvent`s as NDJSON (ADR-0006). The response waits for the first event, so a request the engine refuses still gets a status code: 400 for a bad field or an unknown source, 503 when there is no index yet, 500 for a missing key. After the first event, a failure is sent as an `error` event. The request's signal goes to `ask()`, so closing the tab stops the Claude stream, and no error event is sent once the browser has gone.
+  - `POST /api/ask` streams `AnswerEvent`s as NDJSON (ADR-0006). The response waits for the first event, so a request the engine refuses still gets a status code: 400 for a bad field or an unknown source, 503 when there is no index yet, 500 for a missing key. After the first event, a failure is sent as an `error` event and logged on the server. `ask()` gets the request's signal combined with one that fires when the response body is cancelled, so closing the tab stops the Claude stream even if one of the two never fires, and no error event is sent once the browser has gone.
   - `POST /api/search` returns the trace. It makes no Claude call, which makes "Search only" free apart from an uncached query embedding.
   - `GET /api/documents?source=&path=` returns a document's chunks in order, for the inspector's chunk boundaries.
 - **Request bodies** go through `parseRetrievalRequest` from contracts first: shape only, unknown fields refused, questions capped at 2,000 characters. The engine then checks the values (ADR-0006).
-- **One engine per server process**, built on the first request. The rate limiter must see every request, or Voyage's 3 requests per minute would not hold across them. The root dotenv file is loaded there with core's `loadRootEnv`, because Next.js only reads the app folder's own.
+- **One engine per server process**, built on the first request, for the source `rag.config.ts` names. The rate limiter must see every request, or Voyage's 3 requests per minute would not hold across them. The root dotenv file is loaded there with core's `loadRootEnv`, because Next.js only reads the app folder's own.
 - **`next.config.ts`:** `serverExternalPackages: ['better-sqlite3', 'sqlite-vec']`, `turbopack.root` and `outputFileTracingRoot` at the repository root, and `agentRules: false`.
 - **Scripts:**
   - `typecheck` is `next typegen && tsc --noEmit`, so route types exist before tsc runs;
@@ -57,7 +57,7 @@ Claude answers in markdown, rendered with react-markdown:
 - **React-markdown's default URL sanitizing stays,** so `javascript:` and other unsafe URLs are dropped.
 - **Only http(s) links render as links.** They open in a new tab with `rel="noopener noreferrer"`, and say so to screen readers. Other links render as their text, so a relative URL cannot point into the app.
 - **Images render as their alt text,** so an answer cannot load anything from another site.
-- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). The renderer turns them into buttons named after their source.
+- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). After a closing code fence a marker starts its own line, because text after a closing fence keeps the code block open. The renderer turns them into buttons named after their source.
 
 `AnswerMarkdown.test.tsx` checks each point on server-rendered HTML. There is no `remark-gfm`, so a table in an answer shows as text. Add it if answers need tables.
 
@@ -72,7 +72,7 @@ Claude answers in markdown, rendered with react-markdown:
 ### 6. Accessibility
 
 The conditions from the M3 approval, and how each is met:
-- **Double counting is not shown by colour alone.** The two BM25 lists share one hue in two shades, and every row in both lists also says "BM25 x2". A banner names the tokens that are both a search term and an exact token, and how many context chunks they affect.
+- **Double counting is not shown by colour alone.** The two BM25 lists share one hue in two shades, and every row in both lists also says "BM25 x2". A banner names the tokens that are both a search term and an exact token, and says how many context chunks are in both BM25 lists.
 - **The fusion view is a real `<table>`** with a caption and column headers. Sortable headers are buttons inside `<th>` elements that carry `aria-sort`, on the sorted column only.
 - **The inspector tabs follow the WAI-ARIA tabs pattern:** one tab stop, the arrow keys move between tabs and wrap, Home and End go to the first and last, and a tab is selected when it gets focus. Every panel exists in the DOM, hidden, so each `aria-controls` points at an element.
 - **The streaming answer is not a live region.** A screen reader would read every delta. A polite status region announces the state instead: "Searching the docs", "Writing the answer", "Answer ready, with 1 source", "Stopped", and errors.
@@ -81,7 +81,8 @@ The conditions from the M3 approval, and how each is met:
 Also:
 - each focusable element shows a 2px focus outline (`:focus-visible`);
 - the Stop button is `aria-disabled`, not `disabled`, so it keeps focus when a run ends;
-- a citation button moves focus to its chunk in the Context tab;
+- the selected chunk is marked with `aria-current` and a visible "selected" label, not only a background. Selecting is not a toggle, so there is no `aria-pressed`;
+- a citation button moves focus to its chunk in the Context tab, once: DocsAssistant clears the request when it is done, so coming back to the tab later leaves focus in the tab list;
 - each rank cell reads "1, score 9.16", not "19.16", through visually hidden text.
 
 ### 7. Every story is a test
@@ -96,7 +97,8 @@ Also:
 Play functions cover the conditions in section 6:
 - sorting with Enter and Space on the header buttons, and `aria-sort` moving with it;
 - the tabs with the arrow keys, Home and End, and the single tab stop;
-- a citation moving focus to its chunk;
+- a citation moving focus to its chunk, and the tab list keeping focus afterwards;
+- a new question replacing one still streaming, with nothing of the first reaching the page;
 - the status texts, and Stop.
 
 Stories replay recorded fixtures with no network:
@@ -133,7 +135,7 @@ pnpm 12 fails an install when a dependency has a build script that `allowBuilds`
 
 - One code path serves the CLI and the app. The routes add only parsing, status codes and the stream.
 - The ui test task takes about 11s with Chromium, and it needs the browser installed once. The Stop hook runs it whenever ui changes.
-- The ui's post-edit check is the slowest in the repository: 8.4-8.5s on a forced cache miss, at the 8s budget of ADR-0002. Its own runs during this PR had a median of 4.5s. See ADR-0002.
+- The ui's post-edit check is the slowest in the repository: 8.4-8.5s on a forced cache miss, just over the 8s budget of ADR-0002. Its own runs during this PR had a median of 4.5s. See ADR-0002.
 - A new docs app (react-docs in M6) is a `rag.config.ts`, a page and three one-line routes.
 - Every new ui state needs a story. axe then checks it in both colour schemes with no further work.
 
