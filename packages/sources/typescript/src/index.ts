@@ -11,6 +11,27 @@ export interface TypescriptSourceOptions {
   branch?: string
 }
 
+/**
+ * Bump when parsing the same file gives different output: the next sync then
+ * re-parses everything (the embedding cache keeps it free).
+ * 1: the M1 parser, as indexed at the end of M1.
+ */
+export const PARSER_VERSION = 1
+
+/**
+ * Exact tokens for keyword search. The docs write compiler errors as bare
+ * numbers in `// @errors: 2345` directives, so a question about TS2345 also
+ * searches for 2345.
+ */
+export function exactTokensOf(question: string): string[] {
+  const tokens = new Set<string>()
+  for (const match of question.matchAll(/\bTS(\d{4,5})\b/gi)) {
+    tokens.add(`TS${match[1] ?? ''}`)
+    tokens.add(match[1] ?? '')
+  }
+  return [...tokens]
+}
+
 /** Error codes named by `// @errors:` twoslash directives, sorted. */
 export function errorCodesOf(code: readonly string[]): number[] {
   const codes = new Set<number>()
@@ -83,7 +104,9 @@ export function typescriptSource(options: TypescriptSourceOptions = {}): Source 
       url: 'https://creativecommons.org/licenses/by/4.0/',
       attribution: 'TypeScript documentation, Copyright (c) Microsoft Corporation.',
     },
+    parserVersion: PARSER_VERSION,
     match: matchPath,
     parse: parseFile,
+    exactTokens: exactTokensOf,
   }
 }

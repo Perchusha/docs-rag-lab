@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+import { openDatabase } from '@docs-rag-lab/db'
 import { git, type Source } from '@docs-rag-lab/source-kit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -41,6 +42,23 @@ function indexes(): OpenIndexes {
 function closeIndexes(): void {
   open?.close()
   open = undefined
+}
+
+/**
+ * Every row of the keyword index's FTS5 shadow tables, read through a second
+ * connection. Equal snapshots mean FTS5 wrote nothing in between: re-indexing
+ * a chunk, even with the same text, adds segments and rewrites the averages.
+ */
+function keywordIndexSnapshot(): string {
+  const db = openDatabase(sourceIndexPath(dataDir, source.id))
+  try {
+    const tables = ['chunks_fts_data', 'chunks_fts_idx', 'chunks_fts_docsize', 'chunks_fts_config']
+    return JSON.stringify(
+      tables.map((table) => db.prepare(`select * from ${table} order by 1, 2`).all()),
+    )
+  } finally {
+    db.close()
+  }
 }
 
 async function sync(provider: RecordingProvider, full = false): Promise<SyncReport> {
@@ -131,14 +149,17 @@ describe('syncSource', { timeout: 60_000 }, () => {
     // B is gone from chunks and chunks_vec; the manifest points at the new head.
     expect(index.documentPaths()).toEqual(['docs/a.md', 'docs/c.md'])
     const nearB = index.searchVectors(fakeVector(provider.embedded[1] ?? '', 8), 10)
-    expect(nearB.map((hit) => hit.docPath)).not.toContain('docs/b.md')
+    const nearPaths = [...index.chunksById(nearB.map((hit) => hit.chunkId)).values()].map(
+      (hit) => hit.docPath,
+    )
+    expect(nearPaths).not.toContain('docs/b.md')
     expect(nearB).toHaveLength(3)
     expect(index.getManifest()?.commitSha).toBe(head)
 
     // The changed chunk is searchable by its new vector.
     const echo = index.searchVectors(fakeVector(provider.embedded[0] ?? '', 8), 1)[0]
     expect(echo?.chunkId).toBe(secondId)
-    expect(echo?.distance).toBeCloseTo(0, 5)
+    expect(echo?.score).toBeCloseTo(0, 5)
   })
 
   it('embeds nothing when nothing changed', async () => {
@@ -156,6 +177,25 @@ describe('syncSource', { timeout: 60_000 }, () => {
       vectors: { needed: 0, embedded: 0, cached: 0 },
     })
     expect(provider.calls).toEqual([])
+  })
+
+  it('makes zero writes to the keyword index when the corpus is unchanged, even on a full re-parse', async () => {
+    // Regression test for migration 3: the version 2 trigger re-indexed every
+    // chunk a sync upserted, so each full rebuild grew the index (6.2 to 9.0 MB
+    // on the real TypeScript index).
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    const before = keywordIndexSnapshot()
+    expect((JSON.parse(before) as unknown[][])[2]).toHaveLength(3) // one docsize row per chunk
+
+    const incremental = await sync(provider)
+    const full = await sync(provider, true)
+
+    expect(incremental.mode).toBe('incremental')
+    expect(full).toMatchObject({ mode: 'full', chunks: { unchanged: 3, changed: 0, added: 0 } })
+    expect(keywordIndexSnapshot()).toBe(before)
+    expect(provider.calls).toHaveLength(1) // only the first sync embedded anything
   })
 
   it('rebuilds a deleted index entirely from the embedding cache', async () => {
@@ -196,6 +236,72 @@ describe('syncSource', { timeout: 60_000 }, () => {
     expect(report.mode).toBe('full')
     expect(report.reason).toMatch(/^chunker version changed from 0 to \d+$/)
     expect(report.chunks).toMatchObject({ unchanged: 3, added: 0, changed: 0 })
+    expect(provider.calls).toEqual([])
+  })
+
+  it('re-parses everything after a parser version change, and embeds nothing for unchanged text', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    provider.calls.length = 0
+    source = { ...source, parserVersion: 2 }
+
+    const report = await sync(provider)
+
+    expect(report).toMatchObject({
+      mode: 'full',
+      reason: 'parser version changed from 1 to 2',
+      documents: { added: 0, modified: 0, unchanged: 2, deleted: 0 },
+      chunks: { added: 0, changed: 0, unchanged: 3, deleted: 0 },
+      vectors: { needed: 0, embedded: 0, cached: 0 },
+    })
+    expect(provider.calls).toEqual([])
+    expect(indexes().index.getManifest()?.parserVersion).toBe(2)
+
+    // The next sync is incremental again.
+    expect((await sync(provider)).mode).toBe('incremental')
+  })
+
+  it('re-embeds only the chunks a new parser version changes', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    provider.calls.length = 0
+    // The new parser renders doc B differently and leaves doc A alone.
+    const parse = source.parse.bind(source)
+    source = {
+      ...source,
+      parserVersion: 2,
+      parse: async (file, ctx) => {
+        const doc = await parse(file, ctx)
+        return file.path.endsWith('b.md') ? { ...doc, title: 'Doc B, renamed' } : doc
+      },
+    }
+
+    const report = await sync(provider)
+
+    expect(report.chunks).toMatchObject({ changed: 1, unchanged: 2 })
+    expect(provider.embedded).toHaveLength(1)
+    expect(provider.embedded[0]).toContain('Doc B, renamed')
+  })
+
+  it('treats an index from before parser versions as a parser change', async () => {
+    const provider = new RecordingProvider()
+    await commit('initial')
+    await sync(provider)
+    const { index } = indexes()
+    const manifest = index.getManifest()
+    if (manifest === undefined) throw new Error('expected a manifest')
+    index.applyChanges({
+      documents: [],
+      deletePaths: [],
+      manifest: { ...manifest, parserVersion: null },
+    })
+    provider.calls.length = 0
+
+    const report = await sync(provider)
+
+    expect(report.reason).toBe('parser version changed from none to 1')
     expect(provider.calls).toEqual([])
   })
 

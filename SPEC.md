@@ -132,11 +132,11 @@ export default defineDocsApp({
 
 | Table | Contents |
 |---|---|
-| `manifest` | source_id, repo, branch, include_paths (json), commit_sha, synced_at, embed_model, embed_dimensions, context_model, chunker_version |
+| `manifest` | source_id, repo, branch, include_paths (json), commit_sha, synced_at, embed_model, embed_dimensions, context_model, chunker_version, parser_version |
 | `documents` | id, path, url, title, doc_type, content_hash, last_changed_sha |
 | `chunks` | pk, id, doc_id, ordinal, heading_path, anchor, block_types (json), text, context, metadata (json), token_count, text_hash |
-| `chunks_fts` | FTS5 virtual table over heading_path, context, text |
-| `chunks_vec` | sqlite-vec `vec0` virtual table with cosine distance: rowid = chunks.pk, embedding |
+| `chunks_fts` | FTS5 table over heading_path, context, text with the trigram tokenizer; external content on `chunks`, kept in sync by triggers (ADR-0005) |
+| `chunks_vec` | sqlite-vec `vec0` virtual table with cosine distance: rowid = chunks.pk, doc_type (metadata column, for filters inside the KNN query), embedding |
 | `eval_runs` | id, commit_sha, strategy (json), models (json), created_at, metrics (json) |
 | `eval_results` | run_id, question_id, retrieved_ids (json), answer, scores (json), trace (json) |
 | `questions` | id, chunk_id, type, prompt, answer, verified_by (compiler, judge or human), commit_sha, status (active or stale) |
@@ -146,7 +146,7 @@ Notes on the chunk columns:
 - `context` is the contextual retrieval prefix.
 - `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`.
 
-`manifest.include_paths`, `embed_model` (provider, model and dimensions) and `chunker_version` decide when a sync must rebuild everything (ADR-0004).
+`manifest.include_paths`, `embed_model` (provider, model and dimensions), `chunker_version` and `parser_version` decide when a sync must rebuild everything (ADR-0004, ADR-0005). A rebuild re-parses every file but embeds only changed text.
 
 **Shared embedding cache:** key = sha256(provider id + input_type + text), where the provider id names the model and dimensions, for example `voyage:voyage-4:1024`; value = vector. It lives in `data/cache.sqlite` and is used by core (ADR-0003).
 
@@ -162,9 +162,11 @@ export interface Source {
   repo: string               // 'https://github.com/microsoft/TypeScript-Website'
   branch: string             // 'v2'
   include: string[]          // sparse-checkout paths
+  parserVersion: number      // bump when parse output changes; stored in the manifest
   license: { name: string; url: string; attribution: string }
   match(path: string): boolean
   parse(file: SourceFile, ctx: ParseContext): Promise<ParsedDoc>
+  exactTokens?(question: string): string[] // source-specific tokens for keyword search: TS2345 -> 2345
 }
 
 export type DocType = 'handbook' | 'reference' | 'option' | 'release-notes' | 'other'
@@ -192,6 +194,7 @@ export type Block =
 Sync, diffing, hashing and chunking live in `source-kit`, and the embedding cache in `core` (ADR-0003), never in individual sources. A source only knows how to parse its own format. The `compiled` field of code blocks arrives with the twoslash compile in M7.
 
 **Conformance suite.** Every source must pass `runSourceConformance(source, fixtures)`. It returns a list of failures (empty when the source passes):
+- has a positive integer `parserVersion`;
 - parses every fixture without throwing;
 - produces absolute URLs that match the expected pattern, and a known `docType`;
 - produces the same chunk IDs on two parses;
@@ -230,7 +233,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 - **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. In M7, compile them at ingest with twoslash and inline the real compiler errors and inferred types into the chunk text. Keep the structured compiler output in metadata for interview questions.
 - **Metadata:**
   - the release-notes version becomes `version_introduced`;
-  - error codes from `@errors` are stored for exact-match search.
+  - error codes from `@errors` are stored per document as `error_codes`. Keyword search finds them in the chunk text instead, which is per chunk, and `exactTokens` turns `TS2345` into `2345` (ADR-0005). Per-chunk compiler metadata arrives with M7.
 
 ### React
 - **Repo and license:** `reactjs/react.dev`, branch `main`. Content is CC BY 4.0 (`LICENSE-DOCS.md`).
@@ -247,7 +250,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings.
 2. Find changes:
    - if the manifest has a previous SHA, run `git diff --name-status -z --no-renames <old> <new> -- <include paths>`, fetching the old commit by SHA if the shallow clone lacks it;
-   - otherwise, or if the old commit is unreachable, or the chunker version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
+   - otherwise, or if the old commit is unreachable, or the chunker version, parser version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
 3. Apply changes:
    - deleted files: remove their documents and chunks;
    - added or modified files: parse, chunk, and compare chunk hashes.
@@ -269,14 +272,16 @@ Every `drl` command that calls an API ends with the tokens it used and their est
 - The context is prepended for both embedding and FTS. It is stored separately so the inspector can show it and eval can toggle it.
 
 ### Retrieval
-1. Vector search top 50 plus FTS5 BM25 top 50.
-2. Reciprocal Rank Fusion.
-3. `rerank-3` over the top 20.
+1. Vector search top 50 plus FTS5 BM25 top 50 over the question's terms, plus BM25 top 50 over its exact tokens: code in backticks, camelCase identifiers, `--flags` and source tokens (ADR-0005).
+2. Reciprocal Rank Fusion (k=60, equal weights; M4 tunes them).
+3. `rerank-3` over the top 20 (M5).
 4. Top K (default 8) goes to generation.
 
-Filters: source, version, block type.
+Strategies: `vector` (step 1's vector list only, ladder row 2) and `hybrid` (steps 1-2, ladder row 3). `drl ask` and `drl search` take `--strategy`.
 
-Every retrieval returns a **trace object**: all candidate lists with scores, plus timings. The inspector renders it and eval results store it.
+Filters: docType runs inside the KNN query (a vec0 metadata column) and the keyword query. Source is the choice of index file, one per source. Version and block type filters are not built yet.
+
+Every retrieval returns a **trace object**: plain JSON with a version, holding every candidate list with ranks and scores, the fused ranking, the final context and timings. The inspector renders it and eval results store it. `drl search --json` prints it.
 
 ### Generation
 - Sonnet receives the retrieved chunks as `search_result` content blocks with citations enabled:
@@ -295,9 +300,10 @@ Every retrieval returns a **trace object**: all candidate lists with scores, plu
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
-{"id":"ts-0001","question":"...","answer":"...","anchors":["handbook-v2/Everyday Types.md#union-types"],"tags":["basic"]}
+{"id":"ts-0001","question":"...","answer":"...","anchors":["packages/documentation/copy/en/handbook-v2/Everyday Types.md#union-types"],"tags":["basic"]}
 ```
-- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`.
+- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`, `cross-lingual` (a question in another language than the docs).
+- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document when the chunk's own anchor is the fragment, or when the chunk contains that section (a heading inside the chunk text slugs to the fragment). Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches.
 - Start with 40 questions per source, written or reviewed by a human. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
 
 **Metrics:**
@@ -400,6 +406,23 @@ Every milestone ends with:
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
 | M10 | MCP + more sources | Docs RAG Lab MCP server, dogfooding via `.mcp.json`. Optional: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD) | Claude Code uses Docs RAG Lab while working on Docs RAG Lab |
+
+### M4 retrieval targets from M2
+
+Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer.
+
+| Question | M1 (vector) | M2 (hybrid) | M4 target |
+|---|---|---|---|
+| "In which version did `satisfies` appear?" | 1 | 3 | 1 |
+| "What does the `strict` flag enable?", the `Compiler Options.md#compiler-options` anchor | 6 | 9 | 6 or better |
+| ts-0004, "В чём разница между `unknown` и `any`?" | 2 | 7 | 2 or better |
+| ts-0040, "What does error TS2345 mean?" (vector: not in top 50) | - | 6 (handbook), 3 (release notes) | stays in the top 8 |
+
+Hypotheses to check first, on the full golden set and not tuned to these four questions:
+1. **Backticked plain words are counted twice.** A word like `satisfies`, `strict`, `unknown` or `any` is both a search term and an exact token, so BM25 enters the fusion twice. Check: limit exact tokens to code-shaped ones (identifiers, flags, source tokens, code with punctuation).
+2. **Trigram matches 3-character terms inside other words.** `any` matches "many" and "company", so 488 of 994 chunks match it. Check: match 3-character terms as whole words, for example through a second unicode61 column or table.
+
+If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the fused top 20) is the next lever.
 
 ## 14. Conventions
 

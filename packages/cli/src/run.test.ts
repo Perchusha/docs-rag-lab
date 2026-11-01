@@ -4,8 +4,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import {
+  createEmbeddingProvider,
+  embeddingCacheKey,
+  openIndexes,
+  type RetrievalTrace,
+} from '@docs-rag-lab/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import config from './drl.config.ts'
 import { run, USAGE } from './run.ts'
 
 function capture() {
@@ -100,12 +107,161 @@ describe('run', () => {
     expect(err.text()).toContain('unknown source "react" (configured: typescript)')
   })
 
+  it('validates --strategy and --doc-type before calling any API', async () => {
+    const err = capture()
+    expect(
+      await run(['search', 'q', '--strategy', 'bm25'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).toContain('--strategy must be one of vector, hybrid, got "bm25"')
+
+    expect(
+      await run(['ask', 'q', '--doc-type', 'option,manual'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).toContain(
+      '--doc-type must be one of handbook, reference, option, release-notes, other, got "manual"',
+    )
+  })
+
+  it('searches without an Anthropic key, since search never calls Claude', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    const err = capture()
+
+    const code = await run(['search', 'What is a union type?', '--doc-type', 'option', '--json'], {
+      out: capture().writer,
+      err: err.writer,
+      root,
+    })
+
+    // It gets as far as the (empty) index, past every key and flag check.
+    expect(code).toBe(1)
+    expect(err.text()).toContain('drl search failed: the index is empty: run drl sync first')
+  })
+
+  it('prints the whole trace as JSON from a seeded index, with the query vector from the cache', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    const question = 'What does error TS2345 mean?'
+    const { dimensions } = config.embeddings
+    const providerId = createEmbeddingProvider(config.embeddings, { voyage: 'pa-test' }).id
+    const unit = (i: number) =>
+      Float32Array.from({ length: dimensions }, (_, j) => (j === i ? 1 : 0))
+    const chunk = (id: string, text: string, vector: Float32Array) => ({
+      id,
+      ordinal: 0,
+      headingPath: [id],
+      anchor: id,
+      blockTypes: ['prose'],
+      text,
+      metadata: {},
+      tokenCount: 5,
+      textHash: id,
+      vector,
+    })
+    // Seed data/ in the temp root: two chunks, and the question's vector in the cache.
+    const indexes = openIndexes(join(root, config.dataDir), 'typescript')
+    indexes.index.applyChanges({
+      documents: [
+        {
+          path: 'docs/a.md',
+          url: 'https://x.dev/a',
+          title: 'A',
+          docType: 'handbook',
+          contentHash: 'h',
+          lastChangedSha: 's',
+          chunks: [
+            chunk('code', 'A > code\n\n// @errors: 2345', unit(0)),
+            chunk('near', 'A > near\n\nArguments and parameters.', unit(1)),
+          ],
+        },
+      ],
+      deletePaths: [],
+      manifest: {
+        sourceId: 'typescript',
+        repo: 'r',
+        branch: 'v2',
+        includePaths: [],
+        commitSha: 's',
+        syncedAt: '2026-10-31T00:00:00.000Z',
+        embedModel: providerId,
+        embedDimensions: dimensions,
+        contextModel: null,
+        chunkerVersion: 2,
+        parserVersion: 1,
+      },
+    })
+    indexes.cache.putMany([
+      {
+        key: embeddingCacheKey(providerId, 'query', question),
+        provider: providerId,
+        inputType: 'query',
+        vector: unit(1),
+      },
+    ])
+    indexes.close()
+    const out = capture()
+    const err = capture()
+
+    const code = await run(['search', question, '--json'], {
+      out: out.writer,
+      err: err.writer,
+      root,
+    })
+
+    expect(code).toBe(0)
+    const trace = JSON.parse(out.text()) as RetrievalTrace
+    expect(trace).toMatchObject({ version: 1, strategy: 'hybrid', sourceId: 'typescript' })
+    expect(trace.embedding.from).toBe('cache')
+    expect(trace.lists.find((list) => list.name === 'exact')?.candidates[0]?.chunkId).toBe('code')
+    expect(trace.context.map((c) => c.chunkId)).toEqual(['code', 'near'])
+    expect(err.text()).toContain('0 tokens in 0 requests, 1 cached')
+  })
+
+  it('keeps stdout for the JSON alone with --json, and reports usage on stderr', async () => {
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    const out = capture()
+    const err = capture()
+
+    await run(['search', 'q', '--json'], { out: out.writer, err: err.writer, root })
+
+    expect(out.text()).toBe('')
+    expect(err.text()).toContain('usage: no API calls')
+  })
+
+  it('asks for a question for search too', async () => {
+    const err = capture()
+    expect(await run(['search'], { out: capture().writer, err: err.writer, root })).toBe(1)
+    expect(err.text()).toContain('search needs a question')
+  })
+
   it('validates --top-k', async () => {
     const err = capture()
     expect(
       await run(['ask', 'q', '--top-k', '0'], { out: capture().writer, err: err.writer, root }),
     ).toBe(1)
-    expect(err.text()).toContain('--top-k must be a positive integer')
+    expect(err.text()).toContain('--top-k must be a whole number from 1 to 100')
+    expect(
+      await run(['search', 'q', '--top-k', '4097'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).not.toContain('k value in knn query')
+  })
+
+  it('accepts --json only with search', async () => {
+    const err = capture()
+    expect(
+      await run(['ask', 'q', '--json'], { out: capture().writer, err: err.writer, root }),
+    ).toBe(2)
+    expect(err.text()).toContain('--json works only with search')
   })
 })
 

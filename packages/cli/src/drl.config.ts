@@ -28,7 +28,9 @@ export default defineConfig({
     contextualize: 'claude-haiku-5-5',
   },
   answer: { effort: 'low', maxTokens: 16_000 },
-  retrieval: { topK: 8 },
+  // Hybrid = vector + BM25 + exact tokens, fused by RRF (ADR-0005). k=60 and 50 candidates
+  // per list are the usual defaults, not tuned; M4 tunes them on the full golden set.
+  retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
   pricing: {
     checked: '2026-10-31',
     sources: [

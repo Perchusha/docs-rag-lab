@@ -7,6 +7,7 @@ export {
   type EmbeddingsConfig,
   type ModelPrice,
   type PricingConfig,
+  type RetrievalConfig,
   type VoyageEmbeddingsConfig,
 } from './config.ts'
 export {
@@ -35,7 +36,28 @@ export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.t
 export { createEmbeddingProvider } from './embeddings/factory.ts'
 export { embeddingCachePath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
 export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
-export { vectorSearch, type VectorSearchOptions } from './retrieve.ts'
+export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
+export {
+  analyzeQuery,
+  MIN_TERM_LENGTH,
+  quoteTerm,
+  type ExactToken,
+  type ExactTokenOrigin,
+  type QueryPlan,
+} from './query.ts'
+export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
+export {
+  STRATEGIES,
+  TRACE_VERSION,
+  type ListName,
+  type RetrievalTrace,
+  type Strategy,
+  type TraceCandidate,
+  type TraceChunk,
+  type TraceContextChunk,
+  type TraceFusion,
+  type TraceList,
+} from './trace.ts'
 export {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,
@@ -51,3 +73,4 @@ export {
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
+export { DOC_TYPES, type DocType } from '@docs-rag-lab/source-kit'

@@ -34,6 +34,7 @@ function source(): Source {
     branch: 'main',
     include: ['docs/guide', 'docs/notes'],
     license: { name: 'MIT', url: 'https://example.com', attribution: 'Demo' },
+    parserVersion: 1,
     match: (path) => path.endsWith('.md'),
     parse: () => Promise.reject(new Error('not used')),
   }

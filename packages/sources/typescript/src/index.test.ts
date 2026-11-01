@@ -4,7 +4,13 @@ import { fileURLToPath } from 'node:url'
 import { readSourceFile, type ParsedDoc, type Block } from '@docs-rag-lab/source-kit'
 import { describe, expect, it } from 'vitest'
 
-import { errorCodesOf, matchPath, typescriptSource } from './index.ts'
+import {
+  errorCodesOf,
+  exactTokensOf,
+  matchPath,
+  PARSER_VERSION,
+  typescriptSource,
+} from './index.ts'
 
 const fixtureRoot = fileURLToPath(new URL('../__fixtures__/repo/', import.meta.url))
 const DOCS = 'packages/documentation/copy/en'
@@ -218,5 +224,26 @@ describe('errorCodesOf', () => {
 
   it('reads codes from the directive line only, not from a number on the next line', () => {
     expect(errorCodesOf(['// @errors: 2345\n42\nfoo()'])).toEqual([2345])
+  })
+})
+
+describe('exactTokensOf', () => {
+  it('adds the bare number for an error code, the way @errors directives write it', () => {
+    expect(exactTokensOf('What does error TS2345 mean?')).toEqual(['TS2345', '2345'])
+    expect(exactTokensOf('ts2322 or TS18048: and TS2322 again')).toEqual([
+      'TS2322',
+      '2322',
+      'TS18048',
+      '18048',
+    ])
+  })
+
+  it('ignores numbers that are not error codes', () => {
+    expect(exactTokensOf('TypeScript 5.0 and TS 2345 and XTS2345 and TS123')).toEqual([])
+  })
+
+  it('is the source hook, next to the parser version', () => {
+    expect(source.exactTokens?.('TS2345')).toEqual(['TS2345', '2345'])
+    expect(source.parserVersion).toBe(PARSER_VERSION)
   })
 })

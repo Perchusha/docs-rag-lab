@@ -1,4 +1,4 @@
-import type { SyncReport } from '@docs-rag-lab/core'
+import type { RetrievalTrace, SyncReport } from '@docs-rag-lab/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -7,6 +7,7 @@ import {
   formatEmbedProgress,
   formatEstimateRatio,
   formatSyncReport,
+  formatTrace,
 } from './format.ts'
 
 describe('formatDuration', () => {
@@ -87,5 +88,135 @@ describe('formatCitations', () => {
         '    "A union type is a type formed from two or more other types."',
     )
     expect(formatCitations([])).toBe('Sources: none cited.')
+  })
+})
+
+describe('formatTrace', () => {
+  const chunk = (title: string, heading: string, docType: string) => ({
+    docPath: `${title}.md`,
+    title,
+    headingPath: [heading],
+    anchor: heading.toLowerCase(),
+    docType,
+    tokenCount: 10,
+  })
+  const trace: RetrievalTrace = {
+    version: 1,
+    question: 'What does error TS2345 mean?',
+    sourceId: 'typescript',
+    strategy: 'hybrid',
+    params: { topK: 2, candidates: 50, rrfK: 60 },
+    filters: { docTypes: [] },
+    query: {
+      terms: ['error', 'ts2345', 'mean', '2345'],
+      exactTokens: [
+        { token: 'TS2345', from: 'source' },
+        { token: '2345', from: 'source' },
+      ],
+    },
+    embedding: { provider: 'voyage:voyage-4:1024', from: 'cache', ms: 0.42 },
+    lists: [
+      {
+        name: 'vector',
+        scoring: 'cosine-distance',
+        ms: 1.5,
+        candidates: [
+          { chunkId: 'a', rank: 1, score: 0.6213 },
+          { chunkId: 'b', rank: 2, score: 0.65 },
+        ],
+      },
+      {
+        name: 'keyword',
+        scoring: 'bm25',
+        query: '"error" OR "2345"',
+        ms: 0.8,
+        candidates: [{ chunkId: 'b', rank: 1, score: 12.345 }],
+      },
+      {
+        name: 'exact',
+        scoring: 'bm25',
+        skipped: 'no exact tokens in the question',
+        ms: 0,
+        candidates: [],
+      },
+    ],
+    fusion: {
+      method: 'rrf',
+      k: 60,
+      ms: 0.1,
+      ranked: [
+        { chunkId: 'b', rank: 1, score: 1 / 62 + 1 / 61, ranks: { vector: 2, keyword: 1 } },
+        { chunkId: 'a', rank: 2, score: 1 / 61, ranks: { vector: 1 } },
+      ],
+    },
+    chunks: {
+      a: chunk('Checks', 'checkJs', 'option'),
+      b: chunk('Everyday Types', 'Literal Inference', 'handbook'),
+    },
+    context: [
+      {
+        rank: 1,
+        chunkId: 'b',
+        source: 'https://x.dev/b#literal-inference',
+        title: 'Everyday Types > Literal Inference',
+        text: 'b',
+      },
+      {
+        rank: 2,
+        chunkId: 'a',
+        source: 'https://x.dev/a#checkjs',
+        title: 'Checks > checkJs',
+        text: 'a',
+      },
+    ],
+    totalMs: 3.21,
+  }
+
+  it('prints the query, every list with ranks and scores, the fused ranking and the context', () => {
+    expect(formatTrace(trace).split('\n')).toEqual([
+      'retrieval: hybrid over typescript, top 2',
+      'terms: error, ts2345, mean, 2345',
+      'exact tokens: TS2345 (source), 2345 (source)',
+      'doc types: all',
+      'query vector: from cache, 0.4ms',
+      '',
+      'vector (cosine distance, lower is better): 2 candidates, 1.5ms',
+      '   1.  0.6213  Checks > checkJs  [option]',
+      '   2.  0.6500  Everyday Types > Literal Inference  [handbook]',
+      '',
+      'keyword (BM25, higher is better): 1 candidates, 0.8ms, "error" OR "2345"',
+      '   1.   12.35  Everyday Types > Literal Inference  [handbook]',
+      '',
+      'exact: skipped, no exact tokens in the question',
+      '',
+      'fused (RRF, k=60): 2 candidates, 0.1ms',
+      '   1. 0.0325  v2  k1   Everyday Types > Literal Inference  [handbook]',
+      '   2. 0.0164  v1  k-   Checks > checkJs  [option]',
+      '',
+      'context: 2 chunks go to the answer',
+      '   1. Everyday Types > Literal Inference',
+      '      https://x.dev/b#literal-inference',
+      '   2. Checks > checkJs',
+      '      https://x.dev/a#checkjs',
+      '',
+      'retrieval time: 3.2ms',
+    ])
+  })
+
+  it('shows only the first entries of long lists, and no fusion for vector search', () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ chunkId: 'a', rank: i + 1, score: 0.5 }))
+    const vector: RetrievalTrace = {
+      ...trace,
+      strategy: 'vector',
+      filters: { docTypes: ['option', 'handbook'] },
+      lists: [{ name: 'vector', scoring: 'cosine-distance', ms: 1, candidates: many }],
+      fusion: { method: 'none' },
+    }
+    const text = formatTrace(vector, 10)
+    expect(text).toContain('doc types: option, handbook')
+    expect(text).toContain('  10.  0.5000')
+    expect(text).not.toContain('  11.  0.5000')
+    expect(text).toContain('      (2 more)')
+    expect(text).not.toContain('fused')
   })
 })

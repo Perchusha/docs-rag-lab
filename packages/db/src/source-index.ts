@@ -1,9 +1,82 @@
 // The per-source index: data/sources/<source-id>.sqlite (SPEC sections 4 and 6).
-// M1 tables only: manifest, documents, chunks and the chunks_vec vector table.
-// FTS arrives in M2, eval tables in M4.
-import { migrate, openDatabase, type SqliteDatabase } from './open.ts'
+// Tables: manifest, documents, chunks, the chunks_fts keyword index and the
+// chunks_vec vector table (ADR-0004, ADR-0005). Eval tables arrive in M4.
+import { migrate, openDatabase, type Migration, type SqliteDatabase } from './open.ts'
 
-const MIGRATIONS = [
+// The keyword index reads its text from chunks (external content), so it
+// stores only the index. Triggers keep it in sync with every write to chunks,
+// including cascade deletes and later context updates. The trigram tokenizer
+// matches substrings, so "unchecked indexed access" finds
+// noUncheckedIndexedAccess (ADR-0005).
+const KEYWORD_INDEX = `
+  create virtual table chunks_fts using fts5(
+    heading_path, context, text,
+    content = 'chunks', content_rowid = 'pk', tokenize = 'trigram'
+  );
+  create trigger chunks_fts_insert after insert on chunks begin
+    insert into chunks_fts (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  create trigger chunks_fts_delete after delete on chunks begin
+    insert into chunks_fts (chunks_fts, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+  end;
+  create trigger chunks_fts_update after update of heading_path, context, text on chunks begin
+    insert into chunks_fts (chunks_fts, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+    insert into chunks_fts (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  insert into chunks_fts (chunks_fts) values ('rebuild');
+`
+
+function vectorTableSql(dimensions: number): string {
+  if (!Number.isInteger(dimensions) || dimensions <= 0) {
+    throw new Error(`invalid embedding dimensions: ${String(dimensions)}`)
+  }
+  // doc_type is a metadata column, so docType filters run inside the KNN query.
+  return `create virtual table chunks_vec using vec0(
+    doc_type text,
+    embedding float[${String(dimensions)}] distance_metric=cosine
+  )`
+}
+
+/**
+ * Version 2: the parser version in the manifest, the keyword index, and a
+ * doc_type column in chunks_vec. vec0 cannot add a column in place, so the
+ * stored vectors are copied into the new table; nothing is embedded again.
+ */
+function addKeywordIndexAndDocTypes(db: SqliteDatabase): void {
+  db.exec('alter table manifest add column parser_version integer')
+  db.exec(KEYWORD_INDEX)
+
+  const table = db
+    .prepare("select sql from sqlite_master where type = 'table' and name = 'chunks_vec'")
+    .get() as { sql: string } | undefined
+  if (table === undefined) return
+  const dimensions = Number(/float\[(\d+)\]/.exec(table.sql)?.[1])
+  const { vectors } = db.prepare('select count(*) as vectors from chunks_vec').get() as {
+    vectors: number
+  }
+  db.exec(`
+    create temp table vectors_v1 as
+      select v.rowid as pk, d.doc_type as doc_type, v.embedding as embedding
+      from chunks_vec v join chunks c on c.pk = v.rowid join documents d on d.id = c.doc_id;
+    drop table chunks_vec;
+    ${vectorTableSql(dimensions)};
+    insert into chunks_vec (rowid, doc_type, embedding)
+      select pk, doc_type, embedding from vectors_v1;
+    drop table vectors_v1;
+  `)
+  const { copied } = db.prepare('select count(*) as copied from chunks_vec').get() as {
+    copied: number
+  }
+  if (copied !== vectors) {
+    throw new Error(`copied ${String(copied)} of ${String(vectors)} vectors into the new table`)
+  }
+}
+
+const MIGRATIONS: readonly Migration[] = [
   `
   create table manifest (
     id integer primary key check (id = 1),
@@ -46,7 +119,29 @@ const MIGRATIONS = [
   );
   create index chunks_doc_id on chunks (doc_id);
   `,
+  addKeywordIndexAndDocTypes,
+  // Version 3: a sync upserts every chunk of a parsed document, so the version 2
+  // trigger re-indexed unchanged text too, and a full rebuild doubled the
+  // keyword index on disk. Re-index only text that changed, then merge the
+  // index segments.
+  `
+  drop trigger chunks_fts_update;
+  create trigger chunks_fts_update after update of heading_path, context, text on chunks
+  when old.heading_path is not new.heading_path
+    or old.context is not new.context
+    or old.text is not new.text
+  begin
+    insert into chunks_fts (chunks_fts, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+    insert into chunks_fts (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  insert into chunks_fts (chunks_fts) values ('optimize');
+  `,
 ]
+
+/** Exported for the migration tests; not part of the package entry. */
+export const SOURCE_INDEX_MIGRATIONS = MIGRATIONS
 
 export interface Manifest {
   sourceId: string
@@ -60,6 +155,8 @@ export interface Manifest {
   embedDimensions: number
   contextModel: string | null
   chunkerVersion: number
+  /** The source's parser version; null for an index synced before M2. */
+  parserVersion: number | null
 }
 
 export interface ChunkWrite {
@@ -95,9 +192,20 @@ export interface IndexChanges {
   resetVectors?: number | undefined
 }
 
+/** Restricts a search. An empty or missing list means no restriction. */
+export interface SearchFilter {
+  docTypes?: readonly string[] | undefined
+}
+
+/** One entry of a candidate list: the chunk and the score that ranked it. */
+export interface Candidate {
+  chunkId: string
+  score: number
+}
+
+/** A chunk with its document, as retrieval hands it to generation. */
 export interface SearchHit {
   chunkId: string
-  distance: number
   text: string
   headingPath: string[]
   anchor: string
@@ -135,11 +243,11 @@ interface ManifestRow {
   embed_dimensions: number
   context_model: string | null
   chunker_version: number
+  parser_version: number | null
 }
 
-interface SearchRow {
+interface ChunkRow {
   id: string
-  distance: number
   text: string
   heading_path: string
   anchor: string
@@ -166,6 +274,27 @@ function parseRecord(text: string): Record<string, unknown> {
     throw new Error(`expected a JSON object, got ${text}`)
   }
   return value as Record<string, unknown>
+}
+
+function toSearchHit(row: ChunkRow): SearchHit {
+  return {
+    chunkId: row.id,
+    text: row.text,
+    headingPath: parseStringArray(row.heading_path),
+    anchor: row.anchor,
+    blockTypes: parseStringArray(row.block_types),
+    metadata: parseRecord(row.metadata),
+    tokenCount: row.token_count,
+    docPath: row.path,
+    url: row.url,
+    title: row.title,
+    docType: row.doc_type,
+  }
+}
+
+/** `?, ?, ?` for an IN list. */
+function placeholders(values: readonly unknown[]): string {
+  return values.map(() => '?').join(', ')
 }
 
 /** better-sqlite3 binds JS numbers as REAL; vec0 rowids must be integers. */
@@ -200,6 +329,7 @@ export class SourceIndex {
       embedDimensions: row.embed_dimensions,
       contextModel: row.context_model,
       chunkerVersion: row.chunker_version,
+      parserVersion: row.parser_version,
     }
   }
 
@@ -240,8 +370,9 @@ export class SourceIndex {
 
   /**
    * Applies one sync in a single transaction: deletes, document and chunk
-   * upserts, vectors, then the manifest. Throws (and rolls back) if a chunk
-   * would end up without a vector.
+   * upserts, vectors, then the manifest. The keyword index follows the chunks
+   * through triggers. Throws (and rolls back) if a chunk would end up without
+   * a vector, a vector with a stale doc type, or the keyword index out of sync.
    */
   applyChanges(changes: IndexChanges): void {
     const db = this.#db
@@ -269,40 +400,72 @@ export class SourceIndex {
           `index would hold ${String(counts.chunks)} chunks but ${String(counts.vectors)} vectors (${String(counts.missing)} chunks without one)`,
         )
       }
+      const { stale } = db
+        .prepare(
+          `select count(*) as stale from chunks_vec v
+           join chunks c on c.pk = v.rowid join documents d on d.id = c.doc_id
+           where v.doc_type is not d.doc_type`,
+        )
+        .get() as { stale: number }
+      if (stale > 0) throw new Error(`${String(stale)} vectors carry a stale doc type`)
+      this.#checkKeywordIndex()
 
       this.#writeManifest(changes.manifest)
     })()
   }
 
-  /** The k nearest chunks to `vector` by cosine distance, closest first. */
-  searchVectors(vector: Float32Array, k: number): SearchHit[] {
+  /**
+   * The k nearest chunks to `vector` by cosine distance, closest first. The
+   * doc type filter runs inside the KNN query, so it still returns k chunks.
+   */
+  searchVectors(vector: Float32Array, k: number, filter: SearchFilter = {}): Candidate[] {
+    const docTypes = filter.docTypes ?? []
+    const where = docTypes.length > 0 ? `and doc_type in (${placeholders(docTypes)})` : ''
     const rows = this.#db
       .prepare(
         `with knn as (
-           select rowid, distance from chunks_vec where embedding match ? and k = ?
+           select rowid, distance from chunks_vec where embedding match ? and k = ? ${where}
          )
-         select c.id, knn.distance, c.text, c.heading_path, c.anchor, c.block_types, c.metadata,
-                c.token_count, d.path, d.url, d.title, d.doc_type
-         from knn
-         join chunks c on c.pk = knn.rowid
-         join documents d on d.id = c.doc_id
-         order by knn.distance`,
+         select c.id, knn.distance from knn join chunks c on c.pk = knn.rowid
+         order by knn.distance, c.id`,
       )
-      .all(vector, k) as SearchRow[]
-    return rows.map((row) => ({
-      chunkId: row.id,
-      distance: row.distance,
-      text: row.text,
-      headingPath: parseStringArray(row.heading_path),
-      anchor: row.anchor,
-      blockTypes: parseStringArray(row.block_types),
-      metadata: parseRecord(row.metadata),
-      tokenCount: row.token_count,
-      docPath: row.path,
-      url: row.url,
-      title: row.title,
-      docType: row.doc_type,
-    }))
+      .all(vector, k, ...docTypes) as { id: string; distance: number }[]
+    return rows.map((row) => ({ chunkId: row.id, score: row.distance }))
+  }
+
+  /**
+   * The k best chunks for an FTS5 query, best first. The score is BM25 with
+   * the sign flipped, so higher is better. The caller builds the query
+   * (core quotes every term); an invalid one throws.
+   */
+  searchKeywords(query: string, k: number, filter: SearchFilter = {}): Candidate[] {
+    const docTypes = filter.docTypes ?? []
+    const where = docTypes.length > 0 ? `and d.doc_type in (${placeholders(docTypes)})` : ''
+    const rows = this.#db
+      .prepare(
+        `select c.id, -bm25(chunks_fts) as score
+         from chunks_fts
+         join chunks c on c.pk = chunks_fts.rowid
+         join documents d on d.id = c.doc_id
+         where chunks_fts match ? ${where}
+         order by bm25(chunks_fts), c.id
+         limit ?`,
+      )
+      .all(query, ...docTypes, k) as { id: string; score: number }[]
+    return rows.map((row) => ({ chunkId: row.id, score: row.score }))
+  }
+
+  /** The chunks with these IDs, with their documents. Unknown IDs are absent from the map. */
+  chunksById(ids: readonly string[]): Map<string, SearchHit> {
+    const rows = this.#db
+      .prepare(
+        `select c.id, c.text, c.heading_path, c.anchor, c.block_types, c.metadata, c.token_count,
+                d.path, d.url, d.title, d.doc_type
+         from chunks c join documents d on d.id = c.doc_id
+         where c.id in (select value from json_each(?))`,
+      )
+      .all(JSON.stringify(ids)) as ChunkRow[]
+    return new Map(rows.map((row) => [row.id, toSearchHit(row)]))
   }
 
   stats(): IndexStats {
@@ -325,13 +488,21 @@ export class SourceIndex {
   }
 
   #createVectorTable(dimensions: number, dropExisting: boolean): void {
-    if (!Number.isInteger(dimensions) || dimensions <= 0) {
-      throw new Error(`invalid embedding dimensions: ${String(dimensions)}`)
-    }
+    const sql = vectorTableSql(dimensions)
     if (dropExisting) this.#db.exec('drop table if exists chunks_vec')
-    this.#db.exec(
-      `create virtual table chunks_vec using vec0(embedding float[${String(dimensions)}] distance_metric=cosine)`,
-    )
+    this.#db.exec(sql)
+  }
+
+  /** FTS5 compares the keyword index with the chunks table; any drift throws. */
+  #checkKeywordIndex(): void {
+    try {
+      this.#db
+        .prepare("insert into chunks_fts (chunks_fts, rank) values ('integrity-check', 1)")
+        .run()
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new Error(`the keyword index does not match the chunks (${reason})`, { cause: error })
+    }
   }
 
   #deleteDocument(path: string): void {
@@ -381,7 +552,12 @@ export class SourceIndex {
     const wanted = new Set(doc.chunks.map((chunk) => chunk.id))
 
     const deleteVector = db.prepare('delete from chunks_vec where rowid = ?')
-    const insertVector = db.prepare('insert into chunks_vec (rowid, embedding) values (?, ?)')
+    const insertVector = db.prepare(
+      'insert into chunks_vec (rowid, doc_type, embedding) values (?, ?, ?)',
+    )
+    // Kept vectors carry the document's doc type too. Writing it on every sync
+    // follows a changed type and repairs any drift, so --full always heals.
+    const retypeVector = db.prepare('update chunks_vec set doc_type = ? where rowid = ?')
     const deleteChunk = db.prepare('delete from chunks where pk = ?')
     for (const [id, pk] of stored) {
       if (wanted.has(id)) continue
@@ -416,7 +592,9 @@ export class SourceIndex {
       }) as { pk: number }
       if (chunk.vector !== undefined) {
         deleteVector.run(vecRowid(pk))
-        insertVector.run(vecRowid(pk), chunk.vector)
+        insertVector.run(vecRowid(pk), doc.docType, chunk.vector)
+      } else {
+        retypeVector.run(doc.docType, vecRowid(pk))
       }
     }
   }
@@ -425,15 +603,16 @@ export class SourceIndex {
     this.#db
       .prepare(
         `insert into manifest (id, source_id, repo, branch, include_paths, commit_sha, synced_at, embed_model,
-                               embed_dimensions, context_model, chunker_version)
+                               embed_dimensions, context_model, chunker_version, parser_version)
          values (1, @sourceId, @repo, @branch, @includePaths, @commitSha, @syncedAt, @embedModel,
-                 @embedDimensions, @contextModel, @chunkerVersion)
+                 @embedDimensions, @contextModel, @chunkerVersion, @parserVersion)
          on conflict (id) do update set
            source_id = excluded.source_id, repo = excluded.repo, branch = excluded.branch,
            include_paths = excluded.include_paths,
            commit_sha = excluded.commit_sha, synced_at = excluded.synced_at,
            embed_model = excluded.embed_model, embed_dimensions = excluded.embed_dimensions,
-           context_model = excluded.context_model, chunker_version = excluded.chunker_version`,
+           context_model = excluded.context_model, chunker_version = excluded.chunker_version,
+           parser_version = excluded.parser_version`,
       )
       .run({ ...manifest, includePaths: JSON.stringify(manifest.includePaths) })
   }

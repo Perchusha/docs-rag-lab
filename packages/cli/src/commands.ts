@@ -9,10 +9,13 @@ import {
   createEmbeddingProvider,
   openIndexes,
   RateLimiter,
+  retrieve,
   streamAnswer,
   syncSource,
-  vectorSearch,
+  type DocType,
   type DrlConfig,
+  type Retrieval,
+  type Strategy,
   type UsageMeter,
 } from '@docs-rag-lab/core'
 
@@ -22,8 +25,8 @@ import {
   formatDuration,
   formatEmbedProgress,
   formatEstimateRatio,
-  formatHits,
   formatSyncReport,
+  formatTrace,
 } from './format.ts'
 
 export interface Writer {
@@ -105,59 +108,83 @@ export async function syncCommand(
   }
 }
 
-export async function askCommand(
-  ctx: CommandContext,
-  args: { question: string; source: string; topK: number; verbose: boolean },
-): Promise<void> {
-  const { config, out } = ctx
+export interface RetrievalArgs {
+  question: string
+  source: string
+  topK: number
+  strategy: Strategy
+  docTypes: DocType[]
+}
+
+/** Retrieves for a question with the config's settings and the command-line overrides. */
+async function retrieveFor(ctx: CommandContext, args: RetrievalArgs): Promise<Retrieval> {
+  const { config } = ctx
   const source = findSource(config, args.source)
   const { provider, limiter } = embeddingsFor(config)
-  const anthropicKey = requireKey('ANTHROPIC_API_KEY')
   const indexes = openIndexes(join(ctx.root, config.dataDir), source.id)
-  const { index, cache } = indexes
   try {
-    const hits = await vectorSearch({
+    return await retrieve({
       question: args.question,
+      source,
+      settings: { ...config.retrieval, strategy: args.strategy, topK: args.topK },
+      docTypes: args.docTypes,
       provider,
-      index,
-      cache,
-      topK: args.topK,
+      index: indexes.index,
+      cache: indexes.cache,
       meter: ctx.meter,
       limiter,
     })
-    if (args.verbose) out.write(`retrieved (cosine distance):\n${formatHits(hits)}\n\n`)
-    if (hits.length === 0) {
-      out.write('No indexed chunks to answer from.\n')
-      return
-    }
-
-    const model = config.models.answer
-    const request = buildAnswerRequest({
-      question: args.question,
-      hits,
-      model,
-      effort: config.answer.effort,
-      maxTokens: config.answer.maxTokens,
-    })
-    const numbering = new CitationNumbering()
-    const message = await streamAnswer(createClaudeClient(anthropicKey), request, {
-      onText: (delta) => out.write(delta),
-      onTextBlock: (block) => {
-        const numbers = numbering.add(block)
-        if (numbers.length > 0) out.write(numbers.map((n) => `[${String(n)}]`).join(''))
-      },
-      // Also called when the stream fails part-way, so those tokens are reported.
-      onUsage: (usage) => {
-        ctx.meter.recordMessage(model, usage)
-      },
-    })
-    if (message.stop_reason === 'max_tokens')
-      out.write('\n\n(The answer hit max_tokens and is cut off.)')
-    if (message.stop_reason === 'refusal') out.write('\n\n(Claude declined to answer.)')
-    out.write(`\n\n${formatCitations(numbering.list())}\n`)
   } finally {
     indexes.close()
   }
+}
+
+/** `drl search`: retrieval only, no answer. Prints the trace, as text or JSON. */
+export async function searchCommand(
+  ctx: CommandContext,
+  args: RetrievalArgs & { json: boolean },
+): Promise<void> {
+  const { trace } = await retrieveFor(ctx, args)
+  ctx.out.write(args.json ? `${JSON.stringify(trace, null, 2)}\n` : `${formatTrace(trace)}\n`)
+}
+
+export async function askCommand(
+  ctx: CommandContext,
+  args: RetrievalArgs & { verbose: boolean },
+): Promise<void> {
+  const { config, out } = ctx
+  const anthropicKey = requireKey('ANTHROPIC_API_KEY')
+  const { hits, trace } = await retrieveFor(ctx, args)
+  if (args.verbose) out.write(`${formatTrace(trace)}\n\n`)
+  if (hits.length === 0) {
+    out.write('No indexed chunks to answer from.\n')
+    return
+  }
+
+  const model = config.models.answer
+  const request = buildAnswerRequest({
+    question: args.question,
+    hits,
+    model,
+    effort: config.answer.effort,
+    maxTokens: config.answer.maxTokens,
+  })
+  const numbering = new CitationNumbering()
+  const message = await streamAnswer(createClaudeClient(anthropicKey), request, {
+    onText: (delta) => out.write(delta),
+    onTextBlock: (block) => {
+      const numbers = numbering.add(block)
+      if (numbers.length > 0) out.write(numbers.map((n) => `[${String(n)}]`).join(''))
+    },
+    // Also called when the stream fails part-way, so those tokens are reported.
+    onUsage: (usage) => {
+      ctx.meter.recordMessage(model, usage)
+    },
+  })
+  if (message.stop_reason === 'max_tokens')
+    out.write('\n\n(The answer hit max_tokens and is cut off.)')
+  if (message.stop_reason === 'refusal') out.write('\n\n(Claude declined to answer.)')
+  out.write(`\n\n${formatCitations(numbering.list())}\n`)
 }
 
 export async function limitsCommand(ctx: CommandContext): Promise<void> {

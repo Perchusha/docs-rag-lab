@@ -2,6 +2,111 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M2 - Hybrid search and the retrieval trace (2026-10-31)
+
+**What exists now:**
+- keyword search: SQLite FTS5 with the trigram tokenizer, over the heading path, context and text of every chunk, kept in sync by triggers;
+- hybrid retrieval: vector search, BM25 over the question's words, and BM25 over its exact tokens (code in backticks, camelCase identifiers, `--flags`, `TS2345`), fused with Reciprocal Rank Fusion;
+- doc type filters inside the KNN query (a sqlite-vec metadata column) and the keyword query;
+- a retrieval trace: every candidate list with ranks and scores, the fused ranking, the final context and timings. `drl ask --verbose` prints it, and the new `drl search` prints it without calling Claude (`--json` for all of it);
+- a parser version in the manifest, so a parser change re-parses on its own.
+
+Before M2, retrieval was vector-only (M1). The design and the measurements behind it are in ADR-0005.
+
+**Before/after.** `drl search --strategy vector|hybrid` over three groups of questions: the 7 `exact-token` questions of the draft golden set (`eval/questions.draft.jsonl`, not reviewed yet), the 3 journal questions from M1, and one cross-lingual question. Each cell is the rank of the best anchor chunk; the top 8 go to the answer.
+
+| Question | Vector (M1) | Hybrid (M2) |
+|---|---|---|
+| ts-0028 `noUncheckedIndexedAccess` | 3 | 2 |
+| ts-0029 `exactOptionalPropertyTypes` | 1 | 2 |
+| ts-0030 `verbatimModuleSyntax` | 1 | 2 |
+| ts-0031 `isolatedModules` | 1 | 1 |
+| ts-0032 `skipLibCheck` | 1 | 2 |
+| ts-0036 `--erasableSyntaxOnly` | 1 | 1 |
+| **TS2345** (ts-0040, the M1 journal question), handbook anchors | **not in top 50** | **6** |
+| **TS2345**, the TS 5.7 and 5.9 sections that print the error | **not in top 50** | **3** |
+| `satisfies` (journal) | 1 | 3 |
+| `strict` (journal), `strict.md` | 1 | 1 |
+| `strict` (journal), the compiler options table | 6 | 9 |
+| ts-0004, in Russian: `unknown` vs `any` | 2 | 7 |
+
+An anchor chunk reaches the answer for 9 of 10 questions with vector search and 10 of 10 with hybrid. Hybrid takes 6-10 ms with a cached query vector. Nothing was tuned on these questions: RRF k=60, equal weights and 50 candidates per list are the usual defaults, and M4 tunes them on the full set.
+
+**TS2345, before and after:**
+- M1: "The search results don't define error TS2345 directly, so I can't give you an official explanation of it."
+- M2 cites the TypeScript 5.9 release notes, whose compiler output reads `error TS2345: Argument of type 'ArrayBufferLike' is not assignable to parameter of type 'BufferSource'`, and concludes: "In short, the error message reads 'Argument of type X is not assignable to parameter of type Y'." It cost $0.0236.
+
+**What hybrid made worse.** It is not a free win, and the traces show why:
+- `satisfies` dropped from 1 to 3 and the Russian question from 2 to 7. Both stayed in the top 8.
+- For `strict`, the compiler options table fell from 6 to 9, out of the context. The answer still lists the four options from the 2.3 notes, but now says "the search results don't explicitly state that `strict` enables" `strictPropertyInitialization` and `strictBindCallApply`. M1's answer had them from that table.
+- The cause: a backticked plain word (`satisfies`, `strict`, `unknown`, `any`) is both a search term and an exact token, so BM25 counts twice in the fusion, and in the trigram index `strict` also matches every `strictX` option. Limiting exact tokens to code-shaped ones is an M4 question, decided on 40 questions, not 10.
+
+**The tokenizer was measured, not guessed.** BM25 only, on an in-memory copy of the index; the count is how often the anchor document lands in the top 8:
+
+| | unicode61 | porter | unicode61 + split camelCase | trigram |
+|---|---|---|---|---|
+| 7 `exact-token` questions | 7/7 | 7/7 | 7/7 | 7/7 |
+| 10 partial option names ("unchecked index access option") | 5/10 | - | 8/10 | **10/10** |
+| 6 paraphrases that name no part of the option | 5/6 | 4/6 | 5/6 | 5/6 |
+
+Trigram costs 6.2 MB of index instead of 1.0 MB, and 0.8 ms per query instead of 0.3 ms.
+
+**The index upgrade cost nothing.** Migrations ran in place, first on an in-memory copy of the real index, then on the real file:
+
+| | Result |
+|---|---|
+| Migration 2 (keyword index, doc type column, parser version) | 218 ms. 994 vectors before and after, with the same SHA-256 over every embedding: copied, not re-embedded |
+| FTS5 integrity check against the chunks table | ok, about 45 ms. It also runs inside every sync |
+| First sync after it | `parser version changed from none to 1`: 248 files re-parsed, 994 chunks unchanged, **0 tokens, 2.2s** |
+| Second sync | incremental, 0.9s, 0 tokens |
+| Index on disk | about 14 MB compacted (7.5 MB in M1). The file here is 21 MB, 7 MB of it free pages left by the migrations, which later writes reuse |
+| Tests | 204, all offline (153 in M1): db 26, source-kit 39, source-typescript 41, core 71, cli 27 |
+| PostToolUse hook per edit | 2.3-3.4s (the budget is 8s) |
+| M2's own API spend | 88 Voyage tokens (7 new query embeddings) and $0.0627 for the three `drl ask` answers |
+
+**A bug that only real data showed.** The first full rebuild after migration 2 grew the keyword index from 6.2 MB to 9.0 MB, and the file from 14.2 MB to 19.3 MB:
+- A sync upserts every chunk of a parsed document, and the update trigger re-indexed all of them, changed or not.
+- Migration 3 adds a `WHEN` clause and merges the index segments, which brings the index back to 6.2 MB.
+- A later `--full` re-parse left it at exactly 6,174,420 bytes.
+- The unit tests had passed both before and after the fix; a new test now counts index segments.
+
+**What was surprising:**
+- **The docs do contain `TS2345`,** in 2 chunks: the TS 5.7 and 5.9 release notes print the compiler output. They are the only place in the corpus that shows the message. The draft anchors for ts-0040 pointed only at handbook examples, so two anchors were added. The handbook chunks write the code as `// @errors: 2345` (27 chunks), never as `TS2345`.
+- **`error_codes` is per document, not per chunk.** 181 chunks in 15 documents "contain" 2345 through that metadata, against the 27 chunks that hold the directive. Matching on that metadata would have been 7x coarser than the text. Per-chunk compiler metadata belongs to M7.
+- **RRF punishes a strong signal from a single list.** With two lists, BM25 put a TS2345 handbook anchor 5th, but vector search did not have it in its top 50, so the fused rank was 12th: chunks that both lists found at middling ranks beat it. A third list over the exact tokens alone brought it to 6th.
+- **vec0 cannot add a column in place,** so the doc type column meant copying 994 vectors through a temporary table, with the dimensions read from the old table's SQL.
+- **Source filtering needed no column.** There is one index file per source, so `--source` already picks the file. Searching several sources at once comes with the second source in M6.
+
+**What the code-reviewer subagent caught.** It ran in a fresh context before the PR. It reproduced all 12 rows of the before/after table offline from cached query vectors, and it found no bugs in the SQL, FTS5, sqlite-vec, migration or RRF code. One of its probes proved that a failed migration 2 rolls back completely. It found these:
+- **`TypeScript` and `JavaScript` counted as exact tokens.** The identifier rule took any inner capital.
+  - `TypeScript` matches 831 of 994 chunks, so for 9 of the 40 draft questions the exact list was ranked by chunk length alone, with full weight in the fusion.
+  - Outside backticks, only camelCase counts now. None of the 10 measured questions changed rank.
+- **The journal entry was not committed** when the review started. It is now.
+- **Docs that no longer matched the code:**
+  - the sync step in SPEC did not list the parser version as a rebuild reason;
+  - ADR-0004 still said parser changes need `--full`;
+  - `packages/sources/CLAUDE.md`, which loads when Claude edits a parser, did not say to bump `parserVersion`;
+  - SPEC did not say how an anchor matches a chunk when its section is packed inside a bigger chunk. 17 of the 43 `#` anchors in the draft set are such sections, including both new ts-0040 anchors.
+- **Tests that did not prove their claim:**
+  - the empty-exact-list test rebuilt the implementation's own fusion call; it now compares against a real run whose exact list comes back empty;
+  - a comment said bare `OR` and `NOT` are searched as words, but they are stopwords;
+  - `drl search --json` had no successful run; a test now seeds an index and a cached query vector.
+- **Smaller fixes:**
+  - `--top-k` above 4096 reached sqlite-vec's raw error; it is now capped at 100;
+  - `--json` was accepted by every command; it now works only with `search`;
+  - a vector with a stale doc type would have blocked every sync with no way to repair it. Kept vectors now get their document's doc type on every write, so `--full` heals it. A full re-parse takes 1.9s instead of 1.7s.
+
+### Open items for M3
+- The trace type lives in core, and `ui` may not import core. Decide whether it moves to a contracts package when the inspector needs it.
+- Model IDs and prices still live in `packages/cli/src/drl.config.ts` (ADR-0004). The first app needs the same values.
+- A chunk that packs several sections can get an empty heading path but a section anchor. The TS 5.9 chunk is cited as just "TypeScript 5.9", anchored at `#notable-behavioral-changes`. The inspector shows chunk boundaries, which makes this the time to look at it.
+
+### Open items for M4
+- Win back the three hybrid regressions while TS2345 stays in the top 8: the targets and the two hypotheses to check (backticked plain words counted twice, trigram matches of 3-character terms) are in SPEC section 13. Measure on the full golden set, together with RRF k and list weights; the M5 reranker is the next lever.
+- Graded relevance: the TS 5.7 and 5.9 sections show the TS2345 message but not its cause, which the handbook anchors explain.
+- Review and approve the draft golden set, then rename it to `questions.jsonl`.
+- Version and block type filters (SPEC section 9) are not built yet.
+
 ## M1 - TypeScript ingest and CLI (2026-10-31)
 
 **What exists now:** the first end-to-end RAG path, over the TypeScript docs.

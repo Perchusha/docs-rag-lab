@@ -10,8 +10,10 @@ One package per documentation source, named `@docs-rag-lab/source-<id>`. A sourc
 ## Conventions
 
 - Every source passes `runSourceConformance(source, fixtures)` from source-kit.
+- Bump the source's `parserVersion` whenever `parse` gives different output for the same file. The next sync then re-parses everything by itself, and unchanged chunk text is not re-embedded (ADR-0005). Without the bump, stale chunks stay in the index until someone runs `--full`.
+- `exactTokens` (optional) maps tokens in a question to how the docs write them, for keyword search: TypeScript turns `TS2345` into `2345`.
 - Fixtures in `__fixtures__/` are byte-for-byte copies of upstream files. Never reformat them; Prettier and the em-dash check skip them.
 - `ParsedDoc.url` is the absolute canonical public URL used in citations.
 - Code blocks are preserved byte-for-byte and never split.
-- Golden eval questions live in `eval/questions.jsonl`, and a human approves every one.
+- Golden eval questions live in `eval/questions.jsonl`, and a human approves every one. Drafts that no human has approved yet live in `eval/questions.draft.jsonl`.
 - New sources are scaffolded with `turbo gen source` (from M6), not by copying a folder.

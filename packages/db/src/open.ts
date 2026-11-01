@@ -15,11 +15,14 @@ export function openDatabase(path: string): SqliteDatabase {
   return db
 }
 
+/** SQL, or a function for a step that SQL alone cannot express. */
+export type Migration = string | ((db: SqliteDatabase) => void)
+
 /**
  * Applies the migrations that are newer than the file's `user_version`, each
  * in its own transaction. Migration N (1-based) brings the file to version N.
  */
-export function migrate(db: SqliteDatabase, migrations: readonly string[]): void {
+export function migrate(db: SqliteDatabase, migrations: readonly Migration[]): void {
   const current = db.pragma('user_version', { simple: true })
   if (typeof current !== 'number') throw new Error('PRAGMA user_version did not return a number')
   if (current > migrations.length) {
@@ -27,9 +30,10 @@ export function migrate(db: SqliteDatabase, migrations: readonly string[]): void
       `database schema version ${String(current)} is newer than this code (${String(migrations.length)})`,
     )
   }
-  migrations.slice(current).forEach((sql, index) => {
+  migrations.slice(current).forEach((migration, index) => {
     db.transaction(() => {
-      db.exec(sql)
+      if (typeof migration === 'string') db.exec(migration)
+      else migration(db)
       db.pragma(`user_version = ${String(current + index + 1)}`)
     })()
   })
