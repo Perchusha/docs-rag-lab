@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-31
 - Milestone: M1
+- Amended: 2026-11-01, M3: section 1 is superseded by ADR-0007
 
 ## Context
 
@@ -22,6 +23,8 @@ ADR-0003 covers which package owns what. This ADR covers how the parts work.
 `packages/cli/src/drl.config.ts` holds sources, model IDs, the embedding endpoint, model, dimensions, batch and rate limits, `topK`, answer effort, and the price table with the date and the pages it was checked against. `defineConfig` and the types come from core.
 
 SPEC section 4 sketches `apps/ts-docs/rag.config.ts`, but packages may not import apps (`packages-not-to-apps`), so the CLI cannot read it. No model ID or price appears anywhere else; the network smoke test reads the same file. Revisit in M3, when the first app needs the same values.
+
+Superseded in M3 by ADR-0007: the values and their types moved to the leaf package `@docs-rag-lab/settings`, which the CLI and every app import.
 
 ### 2. Chunking
 

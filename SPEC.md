@@ -64,6 +64,7 @@ packages/
     react/          react.dev parser (MDX components; created in M6 with turbo gen)
   db/               SQLite schema, migrations, typed queries
   contracts/        data shapes that cross boundaries: the retrieval trace, citations, the answer stream (ADR-0006)
+  settings/         engine settings shared by the CLI and apps: models, prices, limits, retrieval defaults (ADR-0007)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   cli/              drl sync | ask | eval | questions
   mcp/              MCP server over core (created in M10)
@@ -84,23 +85,18 @@ docs/journal.md     short notes per milestone with before/after metrics
 - `core` imports `source-kit`, `db` and `contracts`, never `ui`.
 - `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`. It talks to app route handlers.
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package. It holds the shapes that core produces and ui renders (ADR-0006).
+- `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - A package is imported only through its public `index.ts`, never through internals.
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
 
-**One config file per app.** Packages may not import apps, so the `drl` CLI keeps its own config with the same kind of values in `packages/cli/src/drl.config.ts` (ADR-0004).
+**Settings and app config.** Engine settings live in one place, `packages/settings/src/settings.ts`: data dirs, source options, the embedding provider and its limits, model IDs, answer effort, retrieval defaults and prices. They are plain data with no secrets, so they can be written into traces and reports; the provider constructors in core read API keys from the environment (ADR-0007). The CLI and every app import the same object. An app's own config holds only what belongs to the app:
 ```ts
 // apps/ts-docs/rag.config.ts
 export default defineDocsApp({
   id: 'ts-docs',
-  sources: [typescriptSource({ branch: 'v2' })],
-  retrieval: { strategy: 'hybrid', rerank: true, contextual: true, topK: 8 },
-  models: {
-    answer: 'claude-sonnet-5-5',
-    contextualize: 'claude-haiku-5-5',
-    judge: 'claude-sonnet-5-5',
-  },
-  embeddings: { provider: 'voyage', model: 'voyage-4' },
+  source: 'typescript',
+  title: 'TypeScript docs',
   theme: { accent: '#3178c6' },
   examples: ['What does error TS2345 mean?', 'In which version did `satisfies` appear?'],
 })

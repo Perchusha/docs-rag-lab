@@ -18,9 +18,9 @@ import type {
   SearchHit,
   SourceIndex,
 } from '@docs-rag-lab/db'
+import type { RetrievalSettings } from '@docs-rag-lab/settings'
 import type { DocType, Source } from '@docs-rag-lab/source-kit'
 
-import type { RetrievalConfig } from './config.ts'
 import { embedWithCache } from './embeddings/cached.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import type { RateLimiter } from './embeddings/rate-limit.ts'
@@ -33,7 +33,7 @@ export interface RetrieveOptions {
   question: string
   /** The source the index belongs to; its exactTokens hook feeds keyword search. */
   source: Pick<Source, 'id' | 'exactTokens'>
-  settings: RetrievalConfig
+  settings: RetrievalSettings
   /** Only chunks of these doc types; empty or missing means all. */
   docTypes?: readonly DocType[] | undefined
   provider: EmbeddingProvider

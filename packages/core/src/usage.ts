@@ -1,6 +1,6 @@
 // Token and cost accounting. Every command reports what it spent, from the
 // token counts the APIs return and the prices in config (ADR-0004).
-import type { PricingConfig } from './config.ts'
+import type { PricingSettings } from '@docs-rag-lab/settings'
 
 export interface ModelUsage {
   kind: 'embedding' | 'messages'
@@ -79,7 +79,7 @@ export class UsageMeter {
     )
   }
 
-  estimateCost(pricing: PricingConfig): CostEstimate {
+  estimateCost(pricing: PricingSettings): CostEstimate {
     const byModel = new Map<string, number>()
     const unpriced: string[] = []
     for (const [model, u] of this.entries()) {
@@ -105,7 +105,7 @@ const count = (n: number): string => n.toLocaleString('en-US')
 const usd = (n: number): string => `$${n.toFixed(4)}`
 
 /** One line for the end of every command. */
-export function formatUsage(meter: UsageMeter, pricing: PricingConfig): string {
+export function formatUsage(meter: UsageMeter, pricing: PricingSettings): string {
   const entries = meter.entries()
   const cost = meter.estimateCost(pricing)
   if (entries.length === 0) return 'usage: no API calls, 0 tokens, $0.0000'

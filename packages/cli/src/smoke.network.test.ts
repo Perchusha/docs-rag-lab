@@ -4,26 +4,24 @@
 import {
   createClaudeClient,
   createEmbeddingProvider,
+  findRepoRoot,
   formatUsage,
+  loadRootEnv,
   UsageMeter,
 } from '@docs-rag-lab/core'
+import { settings } from '@docs-rag-lab/settings'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import config from './drl.config.ts'
-import { findRepoRoot, loadEnv, requireKey } from './env.ts'
-
-loadEnv(findRepoRoot(import.meta.dirname))
+loadRootEnv(findRepoRoot(import.meta.dirname))
 const meter = new UsageMeter()
 
 afterAll(() => {
-  console.log(formatUsage(meter, config.pricing))
+  console.log(formatUsage(meter, settings.pricing))
 })
 
 describe('network smoke test', () => {
   it('embeds one sentence with Voyage through the configured endpoint', async () => {
-    const provider = createEmbeddingProvider(config.embeddings, {
-      voyage: requireKey('VOYAGE_API_KEY'),
-    })
+    const provider = createEmbeddingProvider(settings.embeddings)
 
     // A full sentence: Atlas reports total_tokens 0 for a one-word query.
     const result = await provider.embed(
@@ -33,13 +31,13 @@ describe('network smoke test', () => {
     meter.recordEmbedding(provider.model, result.tokens)
 
     expect(result.vectors).toHaveLength(1)
-    expect(result.vectors[0]).toHaveLength(config.embeddings.dimensions)
+    expect(result.vectors[0]).toHaveLength(settings.embeddings.dimensions)
     expect(result.tokens).toBeGreaterThan(0)
   })
 
   it('answers a tiny question with Haiku from one search result', async () => {
-    const client = createClaudeClient(requireKey('ANTHROPIC_API_KEY'))
-    const model = config.models.contextualize
+    const client = createClaudeClient()
+    const model = settings.models.contextualize
 
     const message = await client.messages.create({
       model,

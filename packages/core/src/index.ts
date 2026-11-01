@@ -1,15 +1,6 @@
 // Public entry of @docs-rag-lab/core: embeddings, ingest, retrieval and
 // generation (SPEC section 9). Sources are passed in; core never imports one.
-export {
-  defineConfig,
-  type DrlConfig,
-  type Effort,
-  type EmbeddingsConfig,
-  type ModelPrice,
-  type PricingConfig,
-  type RetrievalConfig,
-  type VoyageEmbeddingsConfig,
-} from './config.ts'
+export { findRepoRoot, loadRootEnv, MissingKeyError, requireKey, type KeyName } from './env.ts'
 export {
   formatUsage,
   UsageMeter,
@@ -54,4 +45,4 @@ export {
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
-export { DOC_TYPES, type DocType } from '@docs-rag-lab/source-kit'
+export { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'

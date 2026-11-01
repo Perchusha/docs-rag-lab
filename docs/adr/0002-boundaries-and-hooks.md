@@ -5,7 +5,7 @@
 - Milestone: M0
 - Amended: 2026-10-31, section 5 (permission deny rules), before M1
 - Amended: 2026-10-31, M1: `source-kit-is-leaf` replaces `source-kit-only-db` (ADR-0003); post-edit hook re-measured on real code
-- Amended: 2026-11-01, M3: the contracts rules (ADR-0006); npm packages are visible to the rules
+- Amended: 2026-11-01, M3: the contracts and settings rules (ADR-0006, ADR-0007); npm packages are visible to the rules
 
 ## Context
 
@@ -26,9 +26,10 @@ The rules live in `packages/config/dependency-cruiser.cjs`. The root `.dependenc
 |---|---|
 | `packages-not-to-apps` | SPEC |
 | `sources-only-source-kit` (no other source either) | SPEC |
-| `core-allowed-packages` | SPEC. Read as an allowlist: source-kit, db and contracts. Core never imports a concrete source; apps and the CLI pass sources in. It was `core-only-source-kit-db` until M3 |
+| `core-allowed-packages` | SPEC. Read as an allowlist: source-kit, db, contracts and settings. Core never imports a concrete source; apps and the CLI pass sources in. It was `core-only-source-kit-db` until M3 |
 | `ui-no-internal-packages` (type-only imports included) | SPEC "client-safe", read strictly. Since M3 it allows `contracts`, which is client-safe by its own rules (ADR-0006) |
 | `contracts-is-leaf`, `contracts-client-safe` | added in M3 (ADR-0006): contracts imports no internal package, no Node.js built-in and no npm package |
+| `settings-is-leaf`, `core-settings-types-only` | added in M3 (ADR-0007): settings imports no internal package, and core imports only its types, so model IDs reach core as arguments |
 | `ui-no-node-builtins` | SPEC "client-safe" |
 | `no-deep-imports` (only `src/index.ts`; `packages/config` is exempt, because it serves presets through subpaths) | SPEC |
 | `apps-not-to-apps` | added: apps are leaves; shared code belongs in a package |

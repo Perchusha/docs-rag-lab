@@ -4,14 +4,15 @@ The RAG engine: ingest orchestration, embeddings and the embedding cache, contex
 
 ## Boundaries
 
-- Imports only `@docs-rag-lab/source-kit`, `@docs-rag-lab/db` and `@docs-rag-lab/contracts` (rule `core-allowed-packages`).
+- Imports only `@docs-rag-lab/source-kit`, `@docs-rag-lab/db`, `@docs-rag-lab/contracts`, and types from `@docs-rag-lab/settings` (rules `core-allowed-packages`, `core-settings-types-only`).
 - Never imports `ui`, a concrete source (`@docs-rag-lab/source-*`) or an app. Apps and the CLI pass sources in.
 - Exposes everything through `src/index.ts`.
 
 ## Conventions
 
 - The pipeline is hand-written: no LangChain, LlamaIndex or other RAG frameworks.
-- Model IDs, prices and limits come from config, never from literals in code.
+- Model IDs, prices and limits arrive as arguments from the CLI or an app, which read them from `@docs-rag-lab/settings`. Never a literal in code, and never an imported value (ADR-0007).
+- API keys are read from `process.env` only inside the provider constructors (`createVoyageProvider`, `createClaudeClient`), with `requireKey`. Never pass a key through settings or options.
 - Call Claude through `@anthropic-ai/sdk` directly, so `search_result` blocks and citations work.
 - Every retrieval returns a serializable trace object (SPEC section 9, ADR-0005). Its type lives in `@docs-rag-lab/contracts` (ADR-0006); bump `TRACE_VERSION` there when its shape changes.
 - Embeddings go through the `EmbeddingProvider` interface and `embedWithCache`, never a provider client directly (ADR-0004).

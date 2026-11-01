@@ -1,7 +1,8 @@
+import type { Strategy } from '@docs-rag-lab/contracts'
 import { openEmbeddingCache, openSourceIndex, type ChunkWrite } from '@docs-rag-lab/db'
-import { describe, expect, it } from 'vitest'
+import type { RetrievalSettings } from '@docs-rag-lab/settings'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import type { RetrievalConfig } from './config.ts'
 import { retrieve, type RetrieveOptions } from './retrieve.ts'
 import { fuseRrf } from './rrf.ts'
 import { fakeVector, RecordingProvider } from './test-helpers.ts'
@@ -15,7 +16,7 @@ const source = {
   exactTokens: (q: string) => [...q.matchAll(/\bTS(\d+)\b/g)].flatMap((m) => [m[0], m[1] ?? '']),
 }
 
-const settings = (overrides: Partial<RetrievalConfig> = {}): RetrievalConfig => ({
+const settings = (overrides: Partial<RetrievalSettings> = {}): RetrievalSettings => ({
   strategy: 'hybrid',
   topK: 2,
   candidates: 10,
@@ -96,6 +97,11 @@ function options(
 }
 
 describe('retrieve', () => {
+  it('takes the same strategies from settings that the trace records', () => {
+    // settings is a leaf and cannot import contracts, so it repeats the union.
+    expectTypeOf<RetrievalSettings['strategy']>().toEqualTypeOf<Strategy>()
+  })
+
   it('vector: returns the nearest chunks and a trace with one list and no fusion', async () => {
     const provider = new RecordingProvider()
     const { hits, trace } = await retrieve(

@@ -1,11 +1,12 @@
+import type { VoyageEmbeddingsSettings } from '@docs-rag-lab/settings'
 import { VoyageAIError } from 'voyageai'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { VoyageEmbeddingsConfig } from '../config.ts'
+import { MissingKeyError } from '../env.ts'
 import { EmbeddingRequestError } from './provider.ts'
 import { createVoyageProvider, type VoyageEmbedApi } from './voyage.ts'
 
-const config: VoyageEmbeddingsConfig = {
+const config: VoyageEmbeddingsSettings = {
   provider: 'voyage',
   endpoint: 'https://ai.example.com/v1',
   model: 'voyage-test',
@@ -40,6 +41,18 @@ const ok = (
 })
 
 describe('createVoyageProvider', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('reads VOYAGE_API_KEY itself when it builds the client, so settings never carry it', () => {
+    vi.stubEnv('VOYAGE_API_KEY', undefined)
+    expect(() => createVoyageProvider(config)).toThrow(MissingKeyError)
+
+    vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
+    expect(createVoyageProvider(config).id).toBe('voyage:voyage-test:3')
+  })
+
   it('names the vector space and sends the model, input type and dimensions', async () => {
     const { api, requests } = fakeApi(() =>
       Promise.resolve(
@@ -52,7 +65,7 @@ describe('createVoyageProvider', () => {
         ),
       ),
     )
-    const provider = createVoyageProvider(config, 'key', api)
+    const provider = createVoyageProvider(config, api)
 
     const result = await provider.embed(['a', 'b'], 'document')
 
@@ -79,23 +92,18 @@ describe('createVoyageProvider', () => {
         rawResponse: { headers: new Headers() },
       }),
     )
-    const result = await createVoyageProvider(config, 'key', api).embed(['a', 'b'], 'query')
+    const result = await createVoyageProvider(config, api).embed(['a', 'b'], 'query')
     expect(result.vectors[0]).toEqual(new Float32Array([1, 0, 0]))
   })
 
   it('rejects a response with the wrong number or size of embeddings', async () => {
     const short = createVoyageProvider(
       config,
-      'key',
       fakeApi(() => Promise.resolve(ok([[1, 0, 0]], 1))).api,
     )
     await expect(short.embed(['a', 'b'], 'document')).rejects.toThrow('1 embeddings for 2 inputs')
 
-    const narrow = createVoyageProvider(
-      config,
-      'key',
-      fakeApi(() => Promise.resolve(ok([[1, 0]], 1))).api,
-    )
+    const narrow = createVoyageProvider(config, fakeApi(() => Promise.resolve(ok([[1, 0]], 1))).api)
     await expect(narrow.embed(['a'], 'document')).rejects.toThrow('2 dimensions, expected 3')
   })
 
@@ -116,7 +124,7 @@ describe('createVoyageProvider', () => {
         }),
       ),
     )
-    const error = await createVoyageProvider(config, 'key', limited.api)
+    const error = await createVoyageProvider(config, limited.api)
       .embed(['a'], 'document')
       .catch((e: unknown) => e)
     expect(error).toBeInstanceOf(EmbeddingRequestError)
@@ -125,7 +133,7 @@ describe('createVoyageProvider', () => {
     const unauthorized = fakeApi(() =>
       Promise.reject(new VoyageAIError({ message: 'Unauthorized', statusCode: 401 })),
     )
-    const final = await createVoyageProvider(config, 'key', unauthorized.api)
+    const final = await createVoyageProvider(config, unauthorized.api)
       .embed(['a'], 'document')
       .catch((e: unknown) => e)
     expect(final).toMatchObject({ status: 401, retryable: false })
@@ -142,7 +150,7 @@ describe('createVoyageProvider', () => {
         }),
       ),
     )
-    const probe = await createVoyageProvider(config, 'key', api).probeRateLimits?.()
+    const probe = await createVoyageProvider(config, api).probeRateLimits?.()
 
     expect(requests[0]?.input).toEqual(['ok'])
     expect(probe).toEqual({
@@ -157,7 +165,7 @@ describe('createVoyageProvider', () => {
 
   it('reports no headers when the API sends none', async () => {
     const { api } = fakeApi(() => Promise.resolve(ok([[1, 0, 0]], 1)))
-    expect(await createVoyageProvider(config, 'key', api).probeRateLimits?.()).toEqual({
+    expect(await createVoyageProvider(config, api).probeRateLimits?.()).toEqual({
       headers: {},
       tokens: 1,
     })

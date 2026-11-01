@@ -18,6 +18,7 @@
   "dependencies": {
     "@docs-rag-lab/contracts": "workspace:*",
     "@docs-rag-lab/core": "workspace:*",
+    "@docs-rag-lab/settings": "workspace:*",
     "@docs-rag-lab/source-typescript": "workspace:*"
   },
   "devDependencies": {

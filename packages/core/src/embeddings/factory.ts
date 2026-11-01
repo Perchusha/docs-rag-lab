@@ -1,19 +1,13 @@
-import type { EmbeddingsConfig } from '../config.ts'
+import type { EmbeddingsSettings } from '@docs-rag-lab/settings'
+
 import type { EmbeddingProvider } from './provider.ts'
 import { createVoyageProvider } from './voyage.ts'
 
-export interface ProviderKeys {
-  /** Checked by the caller (the CLI's requireKey). */
-  voyage: string
-}
-
 /**
- * The provider named in config. Voyage is the only one today; a local model
- * becomes a second `provider` value and a switch here.
+ * The provider named in settings. Voyage is the only one today; a local model
+ * becomes a second `provider` value and a switch here. The provider reads its
+ * API key from the environment when it is created (ADR-0007).
  */
-export function createEmbeddingProvider(
-  config: EmbeddingsConfig,
-  keys: ProviderKeys,
-): EmbeddingProvider {
-  return createVoyageProvider(config, keys.voyage)
+export function createEmbeddingProvider(settings: EmbeddingsSettings): EmbeddingProvider {
+  return createVoyageProvider(settings)
 }

@@ -4,11 +4,13 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type { SearchHit } from '@docs-rag-lab/db'
 import { describe, expect, it } from 'vitest'
 
+import { MissingKeyError } from './env.ts'
 import {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,
   citationSource,
   CitationNumbering,
+  createClaudeClient,
   streamAnswer,
   toSearchResult,
   type AnswerStream,
@@ -40,6 +42,14 @@ const hit: SearchHit = {
   title: 'Everyday Types',
   docType: 'handbook',
 }
+
+describe('createClaudeClient', () => {
+  it('reads ANTHROPIC_API_KEY itself, so no caller handles the key', () => {
+    expect(() => createClaudeClient({})).toThrow(MissingKeyError)
+    expect(() => createClaudeClient({})).toThrow(/ANTHROPIC_API_KEY is not set/)
+    expect(createClaudeClient({ ANTHROPIC_API_KEY: 'sk-test' }).apiKey).toBe('sk-test')
+  })
+})
 
 describe('toSearchResult', () => {
   it('sends one citable text block per span, with the anchored URL and heading path', () => {

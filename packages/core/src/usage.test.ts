@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import type { PricingConfig } from './config.ts'
+import type { PricingSettings } from '@docs-rag-lab/settings'
 import { formatUsage, UsageMeter } from './usage.ts'
 
-const pricing: PricingConfig = {
+const pricing: PricingSettings = {
   checked: '2026-10-31',
   sources: ['https://example.com/pricing'],
   models: {

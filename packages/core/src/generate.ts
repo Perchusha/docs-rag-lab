@@ -4,8 +4,9 @@
 // precise passages.
 import Anthropic from '@anthropic-ai/sdk'
 import type { SearchHit } from '@docs-rag-lab/db'
+import type { Effort } from '@docs-rag-lab/settings'
 
-import type { Effort } from './config.ts'
+import { requireKey } from './env.ts'
 
 export const ANSWER_SYSTEM_PROMPT = [
   'You answer questions about technical documentation.',
@@ -83,8 +84,9 @@ export function buildAnswerRequest(
   }
 }
 
-export function createClaudeClient(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey })
+/** The Claude client. It reads ANTHROPIC_API_KEY from the environment here, so settings never carry the key. */
+export function createClaudeClient(env: NodeJS.ProcessEnv = process.env): Anthropic {
+  return new Anthropic({ apiKey: requireKey('ANTHROPIC_API_KEY', env) })
 }
 
 export interface StreamHandlers {

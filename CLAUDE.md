@@ -49,6 +49,7 @@ These are enforced by dependency-cruiser. Do not work around them.
 - `core` imports `source-kit`, `db` and `contracts`, never `ui`.
 - `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`.
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package (ADR-0006).
+- `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - Import a package only through its public `index.ts`.
 
 ## Definition of done
@@ -75,5 +76,5 @@ A task is done when all of these hold:
 - Read or print `.env*` files, or commit secrets.
 - Write to `data/` or `.cache/` by hand. These are generated.
 - Add LangChain, LlamaIndex or other RAG frameworks.
-- Hardcode model IDs or prices outside config.
+- Hardcode model IDs or prices outside `packages/settings`, or put a secret in it.
 - Use em dashes in any text: docs, comments, commit messages, UI copy. Use plain hyphens.

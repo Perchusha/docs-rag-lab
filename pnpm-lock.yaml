@@ -247,6 +247,9 @@ importers:
       '@docs-rag-lab/core':
         specifier: workspace:*
         version: link:../core
+      '@docs-rag-lab/settings':
+        specifier: workspace:*
+        version: link:../settings
       '@docs-rag-lab/source-typescript':
         specifier: workspace:*
         version: link:../sources/typescript
@@ -336,6 +339,9 @@ importers:
       '@docs-rag-lab/db':
         specifier: workspace:*
         version: link:../db
+      '@docs-rag-lab/settings':
+        specifier: workspace:*
+        version: link:../settings
       '@docs-rag-lab/source-kit':
         specifier: workspace:*
         version: link:../source-kit
@@ -380,6 +386,24 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.13.0(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@26.6.6)(yaml@2.9.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(yaml@2.9.1))
+
+  packages/settings:
+    devDependencies:
+      '@docs-rag-lab/config':
+        specifier: workspace:*
+        version: link:../config
       eslint:
         specifier: 'catalog:'
         version: 10.13.0(supports-color@7.2.0)

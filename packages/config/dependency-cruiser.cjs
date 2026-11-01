@@ -44,10 +44,29 @@ module.exports = {
     {
       name: 'core-allowed-packages',
       comment:
-        'core imports only source-kit, db and contracts: never ui, a concrete source or an app (SPEC section 4, ADR-0002, ADR-0006).',
+        'core imports only source-kit, db, contracts and settings (types only): never ui, a concrete source or an app (SPEC section 4, ADR-0002, ADR-0006, ADR-0007).',
       severity: 'error',
       from: { path: '^packages/core/' },
-      to: { path: INTERNAL, pathNot: ['^packages/(core|source-kit|db|contracts)/', CONFIG] },
+      to: {
+        path: INTERNAL,
+        pathNot: ['^packages/(core|source-kit|db|contracts|settings)/', CONFIG],
+      },
+    },
+    {
+      name: 'core-settings-types-only',
+      comment:
+        'core imports only types from settings: model IDs and prices reach core as arguments, never as imported values (ADR-0007).',
+      severity: 'error',
+      from: { path: '^packages/core/' },
+      to: { path: '^packages/settings/', dependencyTypesNot: ['type-only'] },
+    },
+    {
+      name: 'settings-is-leaf',
+      comment:
+        'settings imports no other internal package: it is plain data and its schema, shared by the CLI and apps (ADR-0007).',
+      severity: 'error',
+      from: { path: '^packages/settings/' },
+      to: { path: INTERNAL, pathNot: ['^packages/settings/', CONFIG] },
     },
     {
       name: 'ui-no-internal-packages',

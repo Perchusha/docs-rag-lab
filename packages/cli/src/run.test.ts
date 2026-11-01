@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url'
 
 import type { RetrievalTrace } from '@docs-rag-lab/contracts'
 import { createEmbeddingProvider, embeddingCacheKey, openIndexes } from '@docs-rag-lab/core'
+import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import config from './drl.config.ts'
 import { run, USAGE } from './run.ts'
 
 function capture() {
@@ -144,8 +144,8 @@ describe('run', () => {
   it('prints the whole trace as JSON from a seeded index, with the query vector from the cache', async () => {
     vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
     const question = 'What does error TS2345 mean?'
-    const { dimensions } = config.embeddings
-    const providerId = createEmbeddingProvider(config.embeddings, { voyage: 'pa-test' }).id
+    const { dimensions } = settings.embeddings
+    const providerId = createEmbeddingProvider(settings.embeddings).id
     const unit = (i: number) =>
       Float32Array.from({ length: dimensions }, (_, j) => (j === i ? 1 : 0))
     const chunk = (id: string, text: string, vector: Float32Array) => ({
@@ -161,7 +161,7 @@ describe('run', () => {
       vector,
     })
     // Seed data/ in the temp root: two chunks, and the question's vector in the cache.
-    const indexes = openIndexes(join(root, config.dataDir), 'typescript')
+    const indexes = openIndexes(join(root, settings.dataDir), 'typescript')
     indexes.index.applyChanges({
       documents: [
         {

@@ -30,7 +30,7 @@ Every claim about retrieval quality will be backed by a measured row in a result
 - Node 26.13.0, the current LTS. It is pinned in `.nvmrc`, and `pnpm install` refuses anything outside `^26.13.0`.
 - pnpm 12.16.1 (`npm i -g pnpm@12.16.1`). Node 26 does not bundle corepack.
 - git on the PATH, for syncing doc sources.
-- For `drl` only: an Anthropic API key and a Voyage key created in MongoDB Atlas (AI Model APIs). Copy `.env.example` to `.env` and fill it in; the CLI loads it itself. Without a payment method on the Atlas org, Voyage allows 3 requests and 10K tokens per minute, so the first full index takes about an hour; the limits are in `packages/cli/src/drl.config.ts`.
+- For `drl` only: an Anthropic API key and a Voyage key created in MongoDB Atlas (AI Model APIs). Copy `.env.example` to `.env` and fill it in; the CLI loads it itself. Without a payment method on the Atlas org, Voyage allows 3 requests and 10K tokens per minute, so the first full index takes about an hour; the limits are in `packages/settings/src/settings.ts`.
 
 ## Quickstart
 
