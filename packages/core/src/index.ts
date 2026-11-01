@@ -25,9 +25,24 @@ export {
 } from './embeddings/cached.ts'
 export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.ts'
 export { createEmbeddingProvider } from './embeddings/factory.ts'
-export { embeddingCachePath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
+export {
+  embeddingCachePath,
+  openIndexes,
+  sourceIndexPath,
+  type OpenIndexes,
+  type OpenIndexesOptions,
+} from './indexes.ts'
 export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
 export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
+export { ask, usageSummary, type AskOptions } from './ask.ts'
+export {
+  createEngine,
+  UnknownSourceError,
+  type AskRun,
+  type Engine,
+  type EngineOptions,
+  type EngineSettings,
+} from './engine.ts'
 export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
 export {
@@ -40,9 +55,9 @@ export {
   createClaudeClient,
   streamAnswer,
   toSearchResult,
+  type AnswerClient,
   type AnswerRequestOptions,
   type AnswerStream,
-  type NumberedCitation,
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'

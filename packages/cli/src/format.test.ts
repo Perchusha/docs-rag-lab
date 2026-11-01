@@ -81,6 +81,8 @@ describe('formatCitations', () => {
           title: 'Everyday Types > Union Types',
           source: 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types',
           citedText: 'A union type is a type formed\nfrom two or more other types.',
+          chunkId: 'c1',
+          contextRank: 1,
         },
       ]),
     ).toBe(

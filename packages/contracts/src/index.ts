@@ -17,3 +17,12 @@ export {
   type TraceFusion,
   type TraceList,
 } from './trace.ts'
+export {
+  NO_CONTEXT,
+  type AnswerEvent,
+  type Citation,
+  type ModelUsageSummary,
+  type RetrievalRequest,
+  type UsageSummary,
+} from './answer.ts'
+export type { DocumentChunk, DocumentChunks } from './document.ts'

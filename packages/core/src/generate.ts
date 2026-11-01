@@ -3,6 +3,7 @@
 // and whose content is one text block per rendered block, so Claude can cite
 // precise passages.
 import Anthropic from '@anthropic-ai/sdk'
+import type { Citation } from '@docs-rag-lab/contracts'
 import type { SearchHit } from '@docs-rag-lab/db'
 import type { Effort } from '@docs-rag-lab/settings'
 
@@ -121,15 +122,27 @@ export interface AnswerStream {
   readonly currentMessage: Anthropic.Message | undefined
 }
 
-/** Streams the answer and resolves with the final message. */
+/** The part of the Claude client that streamAnswer uses; tests pass a fake. */
+export interface AnswerClient {
+  messages: {
+    stream(
+      request: Anthropic.MessageCreateParamsNonStreaming,
+      options?: { signal?: AbortSignal },
+    ): AnswerStream
+  }
+}
+
+/**
+ * Streams the answer and resolves with the final message. An aborted `signal`
+ * stops the request, so a closed browser tab stops spending tokens.
+ */
 export async function streamAnswer(
-  client: {
-    messages: { stream(request: Anthropic.MessageCreateParamsNonStreaming): AnswerStream }
-  },
+  client: AnswerClient,
   request: Anthropic.MessageCreateParamsNonStreaming,
   handlers: StreamHandlers = {},
+  signal?: AbortSignal,
 ): Promise<Anthropic.Message> {
-  const stream = client.messages.stream(request)
+  const stream = client.messages.stream(request, signal === undefined ? undefined : { signal })
   stream.on('text', (delta) => handlers.onText?.(delta))
   stream.on('contentBlock', (block) => {
     if (block.type === 'text') handlers.onTextBlock?.(block)
@@ -144,19 +157,19 @@ export async function streamAnswer(
   }
 }
 
-export interface NumberedCitation {
-  number: number
-  source: string
-  title: string
-  citedText: string
-}
-
 /**
  * Numbers search-result citations in order of first use, one number per
- * search result, so the answer can show [1], [2] and a source list.
+ * search result, so the answer can show [1], [2] and a source list. Each
+ * number also names the context chunk it points to: search result i is
+ * context[i], in the order buildAnswerRequest sent them.
  */
 export class CitationNumbering {
-  readonly #byIndex = new Map<number, NumberedCitation>()
+  readonly #byIndex = new Map<number, Citation>()
+  readonly #context: readonly Pick<SearchHit, 'chunkId'>[]
+
+  constructor(context: readonly Pick<SearchHit, 'chunkId'>[]) {
+    this.#context = context
+  }
 
   /** The numbers for a text block's search-result citations, deduplicated, in order. */
   add(block: Anthropic.TextBlock): number[] {
@@ -165,11 +178,20 @@ export class CitationNumbering {
       if (citation.type !== 'search_result_location') continue
       let entry = this.#byIndex.get(citation.search_result_index)
       if (entry === undefined) {
+        const index = citation.search_result_index
+        const chunk = this.#context[index]
+        if (chunk === undefined) {
+          throw new Error(
+            `a citation points to search result ${String(index)}, but the context has ${String(this.#context.length)}`,
+          )
+        }
         entry = {
           number: this.#byIndex.size + 1,
           source: citation.source,
           title: citation.title ?? citation.source,
           citedText: citation.cited_text,
+          chunkId: chunk.chunkId,
+          contextRank: index + 1,
         }
         this.#byIndex.set(citation.search_result_index, entry)
       }
@@ -178,7 +200,7 @@ export class CitationNumbering {
     return numbers
   }
 
-  list(): NumberedCitation[] {
+  list(): Citation[] {
     return [...this.#byIndex.values()].sort((a, b) => a.number - b.number)
   }
 }

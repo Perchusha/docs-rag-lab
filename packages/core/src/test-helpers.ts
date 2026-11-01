@@ -1,11 +1,88 @@
 // Shared fakes for core's tests: a deterministic embedding provider that
-// records every text it embeds, and a tiny markdown source. Not exported from
-// the package entry.
+// records every text it embeds, a tiny markdown source, and a Claude client
+// that replays a recorded answer. Not exported from the package entry.
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
+import type Anthropic from '@anthropic-ai/sdk'
 import type { Block, ParsedDoc, Section, Source, SourceFile } from '@docs-rag-lab/source-kit'
 
 import type { EmbeddingProvider, EmbedResult, InputType } from './embeddings/provider.ts'
+import type { AnswerClient, AnswerStream } from './generate.ts'
+
+// Hand-built in the shape of the search results docs: two cited search
+// results, one cited twice, plus uncited text and an empty thinking block.
+export const ANSWER_MESSAGE = JSON.parse(
+  readFileSync(new URL('./__fixtures__/answer-message.json', import.meta.url), 'utf8'),
+) as Anthropic.Message
+
+export interface FakeAnswerClient extends AnswerClient {
+  readonly requests: Anthropic.MessageCreateParamsNonStreaming[]
+  readonly signals: (AbortSignal | undefined)[]
+}
+
+/**
+ * A Claude client whose stream replays the text blocks of `message`. It can
+ * fail after the first block, and it stops with an abort error when its
+ * signal is aborted between blocks, like the SDK.
+ */
+export function fakeAnswerClient(
+  options: {
+    message?: Anthropic.Message
+    failAfterFirstBlock?: boolean
+    /** Called after each block, for example to abort part-way. */
+    afterBlock?: (index: number) => void
+  } = {},
+): FakeAnswerClient {
+  const message = options.message ?? ANSWER_MESSAGE
+  const textBlocks = message.content.filter(
+    (block): block is Anthropic.TextBlock => block.type === 'text',
+  )
+  const requests: Anthropic.MessageCreateParamsNonStreaming[] = []
+  const signals: (AbortSignal | undefined)[] = []
+  return {
+    requests,
+    signals,
+    messages: {
+      stream(request, streamOptions) {
+        requests.push(request)
+        signals.push(streamOptions?.signal)
+        const listeners: {
+          text: ((d: string) => void)[]
+          block: ((b: Anthropic.ContentBlock) => void)[]
+        } = { text: [], block: [] }
+        let current: Anthropic.Message | undefined
+        const stream: AnswerStream = {
+          on(event: 'text' | 'contentBlock', listener: never) {
+            if (event === 'text') listeners.text.push(listener)
+            else listeners.block.push(listener)
+            return stream
+          },
+          get currentMessage() {
+            return current
+          },
+          finalMessage() {
+            for (const [i, block] of textBlocks.entries()) {
+              if (streamOptions?.signal?.aborted === true) {
+                return Promise.reject(new Error('Request was aborted.'))
+              }
+              current = { ...message, usage: { ...message.usage, output_tokens: 10 * (i + 1) } }
+              for (const listener of listeners.text) listener(block.text)
+              for (const listener of listeners.block) listener(block)
+              options.afterBlock?.(i)
+              if (options.failAfterFirstBlock === true) {
+                return Promise.reject(new Error('connection reset'))
+              }
+            }
+            current = message
+            return Promise.resolve(message)
+          },
+        }
+        return stream
+      },
+    },
+  }
+}
 
 /** A unit vector derived from the text's hash. */
 export function fakeVector(text: string, dimensions: number): Float32Array {

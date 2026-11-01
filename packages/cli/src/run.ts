@@ -2,11 +2,13 @@ import { parseArgs } from 'node:util'
 
 import { STRATEGIES, type Strategy } from '@docs-rag-lab/contracts'
 import {
+  createEngine,
   DOC_TYPES,
   findRepoRoot,
   formatUsage,
   loadRootEnv,
   MissingKeyError,
+  UnknownSourceError,
   UsageMeter,
   type DocType,
   type Source,
@@ -108,6 +110,15 @@ function docTypesOf(values: readonly string[] | undefined): DocType[] {
   return docTypes
 }
 
+/** Errors whose message says what to do; they need no stack trace. */
+function isUsageError(error: unknown): boolean {
+  return (
+    error instanceof CliError ||
+    error instanceof MissingKeyError ||
+    error instanceof UnknownSourceError
+  )
+}
+
 /** Runs one drl command and returns the process exit code. */
 export async function run(argv: readonly string[], options: RunOptions = {}): Promise<number> {
   const out = options.out ?? process.stdout
@@ -157,7 +168,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
-    const ctx = { settings, sources, root, meter, out, now }
+    const engine = createEngine({ settings, sources, root })
+    const ctx = { settings, sources, engine, root, meter, out, now }
     if (command === 'sync') {
       const source = rest[0]
       if (source === undefined)
@@ -188,7 +200,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`\ndrl ${command} failed: ${message}\n`)
     if (options.debug ?? process.env.DRL_DEBUG === '1') {
       if (error instanceof Error && error.stack !== undefined) err.write(`${error.stack}\n`)
-    } else if (!(error instanceof CliError || error instanceof MissingKeyError)) {
+    } else if (!isUsageError(error)) {
       err.write('Set DRL_DEBUG=1 to see the stack trace.\n')
     }
     return 1

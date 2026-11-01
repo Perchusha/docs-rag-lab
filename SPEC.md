@@ -287,7 +287,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
   - `source` = canonical doc URL with anchor;
   - `title` = doc title + the heading path of the section the chunk starts in (`sectionPath`);
   - `content` = text blocks, one per rendered block of the chunk, so citations point at precise passages.
-- The response is streamed, and citations are rendered inline in the UI.
+- The response is streamed, and citations are rendered inline in the UI. Core reports an answer as a sequence of events: the trace, text deltas, the citation markers of each cited text block (each citation names its context chunk), then `done` with the stop reason and the usage, tokens and estimated cost (ADR-0006). The CLI prints them; an app route sends them to the browser.
 - The system prompt says: answer only from the provided results, and say so when they are not enough.
 
 ### Agentic mode

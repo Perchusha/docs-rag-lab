@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -87,7 +87,9 @@ describe('run', () => {
     })
 
     expect(code).toBe(1)
-    expect(err.text()).toContain('the index is empty: run drl sync first')
+    expect(err.text()).toContain(
+      'there is no index for typescript yet: run drl sync typescript first',
+    )
     expect(err.text()).toContain('Set DRL_DEBUG=1')
     expect(err.text()).not.toMatch(/\n\s+at /)
 
@@ -136,9 +138,12 @@ describe('run', () => {
       root,
     })
 
-    // It gets as far as the (empty) index, past every key and flag check.
+    // It gets as far as the index, past every key and flag check, and creates no index file.
     expect(code).toBe(1)
-    expect(err.text()).toContain('drl search failed: the index is empty: run drl sync first')
+    expect(err.text()).toContain(
+      'drl search failed: there is no index for typescript yet: run drl sync typescript first',
+    )
+    expect(existsSync(join(root, 'data', 'sources', 'typescript.sqlite'))).toBe(false)
   })
 
   it('prints the whole trace as JSON from a seeded index, with the query vector from the cache', async () => {

@@ -46,6 +46,23 @@ Each new rule has a violating fixture in `packages/config/__fixtures__/boundarie
 - The real graph now holds 20 npm modules, with no new violations.
 - A new fixture imports a package that its `package.json` does not declare, and the test expects `no-non-package-json` to report it.
 
+### 4. Answers are a sequence of events
+
+`ask()` in core reports an answer as `AnswerEvent`s through a callback, in this order:
+1. `trace`: the retrieval trace, before any text;
+2. `text`: each delta, as it streams;
+3. `citations`: at the end of each text block that cites something, its markers in order, plus the sources numbered for the first time in it;
+4. `done`, with Claude's stop reason (or `no_context` when retrieval found nothing, and then no Claude call is made) and the usage so far: tokens per model and the estimated cost;
+5. or `error`, which only a transport writes: `ask()` throws, and the caller decides how to report it.
+
+Each `Citation` carries the chunk ID and context rank of the search result it cites, so a click on `[2]` can select that chunk in the inspector. `CitationNumbering` maps search result i to context chunk i, the order `buildAnswerRequest` sends them in, and refuses an index outside the context.
+
+`createEngine` in core wraps this for hosts: it builds the provider, the rate limiter and the Claude client once, opens the source index per call, and exposes `search`, `ask` and `documentChunks`. The CLI's `drl ask` and `drl search` use it, and the apps will. The CLI prints the events in the same format as before; its tests replay events through a fake engine.
+
+Read paths open the index with `create: false`, so a question before the first sync creates no file and says `there is no index for typescript yet: run drl sync typescript first`.
+
+`ask()` takes an `AbortSignal` and passes it to the Claude request, so an app can stop the stream when the browser goes away. The M3 spike measured this in a Next.js route: a client disconnect fires the request's abort signal and cancels the response stream.
+
 ## Consequences
 
 - One definition of each shape. A field the inspector reads cannot drift from what core writes, because both compile against the same type.

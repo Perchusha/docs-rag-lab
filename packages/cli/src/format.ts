@@ -1,5 +1,5 @@
-import type { RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
-import type { EmbedProgress, NumberedCitation, SyncReport } from '@docs-rag-lab/core'
+import type { Citation, RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
+import type { EmbedProgress, SyncReport } from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
 
@@ -132,7 +132,7 @@ function oneLine(text: string, max: number): string {
   return flat.length <= max ? flat : `${flat.slice(0, max - 3).trimEnd()}...`
 }
 
-export function formatCitations(citations: readonly NumberedCitation[]): string {
+export function formatCitations(citations: readonly Citation[]): string {
   if (citations.length === 0) return 'Sources: none cited.'
   return [
     'Sources:',
