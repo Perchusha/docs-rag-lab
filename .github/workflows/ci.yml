@@ -47,5 +47,7 @@ jobs:
       # Prettier, then the em-dash check (tooling/repo-checks).
       - run: pnpm format:check
       # lint includes the dependency-cruiser boundary check (//#depcruise).
-      # build runs next build: bundling problems only show there.
-      - run: pnpm turbo run lint typecheck test build
+      - run: pnpm turbo run lint typecheck test
+      # next build, on its own so it does not compete with the tests for the CPUs.
+      # Bundling problems only show here.
+      - run: pnpm turbo run build
