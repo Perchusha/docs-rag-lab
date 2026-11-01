@@ -47,6 +47,7 @@ The config also held `Source` objects, which carry functions. M4 will write the 
 
 - `settings-is-leaf`: settings imports no internal package. It cannot import contracts either, so `RetrievalSettings.strategy` repeats the `'vector' | 'hybrid'` union. A type test in core checks that it equals contracts' `Strategy`.
 - `core-settings-types-only`: core imports only types from settings (dependency type `type-only`). Model IDs and prices reach core as arguments from the CLI or an app, never as an import. Core itself never picks a model.
+  - Limit, found in review: dependency-cruiser counts `import { type Settings } from ...` as type-only, but with `verbatimModuleSyntax` Node keeps it as `import {} from ...` and loads the module. The shared ESLint preset therefore has `@typescript-eslint/no-import-type-side-effects`, which requires `import type` for imports of types only. A value is still never readable without a value import, which the rule does catch.
 - `ui-no-internal-packages` already keeps ui out. A fixture proves it.
 - The core allowlist (`core-allowed-packages`) now names settings.
 

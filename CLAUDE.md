@@ -20,7 +20,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - All checks, as CI runs them: `pnpm format:check` and `pnpm turbo run lint typecheck test`
 - One package: `pnpm turbo run test --filter=@docs-rag-lab/core` (also works with `lint` and `typecheck`)
 - Changed packages and their dependents: `pnpm turbo run test "--filter=...[HEAD]"`
-- Typecheck every commit of the branch: `git rebase --exec "pnpm install --frozen-lockfile --offline && pnpm turbo run typecheck" $(git merge-base HEAD origin/main)` (needs a clean tree; it replays the commits on their own base, so nothing is rewritten, and stops at the first commit that fails)
+- Typecheck every commit of the branch: `git rebase --exec "pnpm install --frozen-lockfile --offline && pnpm turbo run typecheck" $(git merge-base HEAD origin/main)` (needs a clean tree; it replays the commits on their own base, so nothing is rewritten, and stops at the first commit that fails: fix it, `git commit --amend`, then `git rebase --continue`, or `git rebase --abort` to give up)
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded)

@@ -31,6 +31,8 @@ Nothing in it changed the engine API beyond the abort signal.
 | Citation titles that changed | | 243 of 994: 170 packs under the document root, 73 under a section |
 | Cost of the forced re-parse | | 3.0s, 0 tokens. 994 chunks unchanged; the keyword index and every embedding byte-identical |
 
+The trace carries the same field, `chunks[id].sectionPath`, so `TRACE_VERSION` is now 2. Nothing stores traces before M4.
+
 **Nothing else moved.** All 20 M2 searches (the 10 before/after questions, vector and hybrid) return the same fused rankings and the same contexts. One `drl ask --verbose` through the engine cost $0.0169.
 
 **What was surprising:**
@@ -38,9 +40,19 @@ Nothing in it changed the engine API beyond the abort signal.
 - **No npm import had ever reached a boundary rule.** The new `contracts-client-safe` rule needs to see npm imports, and saw none: the `exclude` pattern matched `node_modules` and `dist/`, which removes modules from the graph, not just from traversal. So `no-non-package-json` could never fire. Now 20 npm modules are in the graph, nothing new fails, and a fixture proves the rule fires.
 - **`git stash` is no tool for a mutation test** when the change adds untracked packages: the tracked half disappears, `pnpm` reinstalls without the new packages, and the stash no longer applies over the new lockfile. It came back after discarding the lockfile change. Mutation checks now edit the one line under test instead.
 
+**What the code-reviewer subagent caught.** It ran in a fresh context, ran every check and the per-commit typecheck (all 7 commits passed, none rewritten), and probed the boundary rules on a scratch tree. No blocking issues. It found:
+- **A hole in `core-settings-types-only`.** dependency-cruiser counts `import { type Settings } from ...` as type-only, but with `verbatimModuleSyntax` Node still loads the module: the reviewer proved it with a `console.log` in a probe module. The ESLint preset now has `no-import-type-side-effects`, which no file in the repo violated.
+- **Docs that contradicted the code:**
+  - `apps/CLAUDE.md` still said model IDs live in `rag.config.ts`, which is exactly what the app PR would have followed;
+  - ADR-0005 and ADR-0006 still said `TRACE_VERSION` 1;
+  - SPEC still said "config only".
+- **Invariants without a test where they could break:** that ingest stores `sectionPath` (dropping it would have fallen back silently), and that an answer failing part-way keeps its usage. Both now have tests; the first fails when ingest drops the field.
+- **Engine input checks.** The engine checked doc types but not strategy or top K, and an app forwards whatever a browser sends. It now throws `InvalidRequestError` for each, and a missing index throws `IndexNotFoundError`, which the CLI shows without the stack-trace hint.
+- **Smaller fixes:** `contracts-client-safe` would have flagged a contracts test importing vitest; two copies of `spansOf`; the usage summary spread unchecked fields.
+
 | | |
 |---|---|
-| Tests | 229 offline (204 in M2): db 28, source-kit 40, source-typescript 41, core 91, cli 25, settings 4 |
+| Tests | 232 offline (204 in M2): db 28, source-kit 40, source-typescript 41, core 94, cli 25, settings 4 |
 | Boundary rules | 4 new (`contracts-is-leaf`, `contracts-client-safe`, `settings-is-leaf`, `core-settings-types-only`), each with a violating fixture; 19 rule tests |
 | Spend | $0.0169 (one answer); 0 Voyage tokens |
 

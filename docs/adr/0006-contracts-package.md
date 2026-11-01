@@ -26,14 +26,14 @@ M3 moves the trace here unchanged:
 - `ExactToken`, which the trace's query section uses;
 - `TraceFusedCandidate`, a non-generic copy of RRF's fused entry. `fuseRrf` in core stays generic, and its result is assignable to the trace.
 
-`filters.docTypes` is now `string[]` instead of source-kit's `DocType[]`, because contracts may not import source-kit. The JSON is identical, so `TRACE_VERSION` stays 1.
+`filters.docTypes` is now `string[]` instead of source-kit's `DocType[]`, because contracts may not import source-kit. The JSON is identical, so the move kept `TRACE_VERSION` at 1. The next commit bumped it to 2, adding `TraceChunk.sectionPath`, the section a chunk starts in (ADR-0004, chunker version 3). The version history is in `trace.ts`.
 
 Core no longer re-exports these types. Every consumer imports them from contracts, so each type has one import path.
 
 ### 2. Rules that keep it safe for ui
 
 - `contracts-is-leaf`: contracts imports no internal package. ui can import it without reaching core or db through it, which is the laundering `config-is-leaf` prevents for presets.
-- `contracts-client-safe`: contracts imports nothing but its own files. That means no Node.js built-ins and no npm packages, so the same file runs in the browser, in Node with type stripping, and inside Next.js.
+- `contracts-client-safe`: contracts imports nothing but its own files. That means no Node.js built-ins and no npm packages, so the same file runs in the browser, in Node with type stripping, and inside Next.js. Test files (`*.test.ts`) are exempt, so they can import vitest.
 - `ui-no-internal-packages` now allows contracts and nothing else.
 - The core rule, renamed `core-allowed-packages`, allows source-kit, db and contracts.
 
@@ -59,7 +59,9 @@ Each `Citation` carries the chunk ID and context rank of the search result it ci
 
 `createEngine` in core wraps this for hosts: it builds the provider, the rate limiter and the Claude client once, opens the source index per call, and exposes `search`, `ask` and `documentChunks`. The CLI's `drl ask` and `drl search` use it, and the apps will. The CLI prints the events in the same format as before; its tests replay events through a fake engine.
 
-Read paths open the index with `create: false`, so a question before the first sync creates no file and says `there is no index for typescript yet: run drl sync typescript first`.
+Read paths open the index with `create: false`, so a question before the first sync creates no file and throws `IndexNotFoundError`: `there is no index for typescript yet: run drl sync typescript first`.
+
+The engine checks every field of a `RetrievalRequest` and throws `InvalidRequestError` for an empty question, an unknown strategy or doc type, or a top K outside 1 to `MAX_TOP_K` (100). The CLI checks its flags first, with messages that name the flag; an app forwards what a browser sent, so the engine cannot rely on that.
 
 `ask()` takes an `AbortSignal` and passes it to the Claude request, so an app can stop the stream when the browser goes away. The M3 spike measured this in a Next.js route: a client disconnect fires the request's abort signal and cancels the response stream.
 

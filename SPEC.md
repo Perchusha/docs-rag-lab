@@ -115,7 +115,7 @@ export default defineDocsApp({
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
   - Sonnet: answers, the interviewer, the judge.
-  - Model IDs live in config only.
+  - Model IDs live in `packages/settings` only (ADR-0007).
 - **Storage:** SQLite through `better-sqlite3`, with `sqlite-vec` for vectors and FTS5 for keyword search (BM25). One file per source.
 - **Embeddings and reranking:** Voyage AI. Default embedding model `voyage-4`, reranker `rerank-3`.
   - The API key is created in MongoDB Atlas (AI Model APIs). The endpoint is `https://ai.mongodb.com/v1`.
@@ -429,7 +429,7 @@ If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the
 - No RAG frameworks.
 - Unit tests never hit the network: fixtures live in `__fixtures__`. Network tests are tagged and opt-in.
 - Secrets only come from `.env` (`ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`). `.env.example` is committed.
-- Model IDs and prices live in config only.
+- Model IDs and prices live in `packages/settings` only (ADR-0007).
 - Conventional commits. Every non-obvious decision gets an ADR: `docs/adr/NNNN-title.md`.
 - Generated data (`data/`, `.cache/`) is gitignored. Eval reports are committed.
 - Writing style in docs and comments: never use em dashes, use plain hyphens.
