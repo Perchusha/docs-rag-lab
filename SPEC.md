@@ -141,6 +141,7 @@ export default defineDocsApp({
 
 Notes on the chunk columns:
 - `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
+- `ordinal` is the chunk's 0-based place in its document; the inspector orders chunk boundaries by it. The chunk ID uses a different number, the pack's place within its section.
 - `context` is the contextual retrieval prefix.
 - `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`.
 
