@@ -106,7 +106,7 @@ export const NewQuestionReplacesRunning: Story = {
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
     await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Search only' }))
-    await canvas.findByText('Search done: 8 chunks in the context', undefined, { timeout: 3000 })
+    await canvas.findByText('Search done: 8 chunks in the context')
     await expect(status).toHaveTextContent('Search done: 8 chunks in the context')
     await expect(canvas.getByRole('heading', { name: 'Search' })).toBeVisible()
     await expect(canvas.queryByRole('heading', { name: 'Sources' })).toBeNull()
