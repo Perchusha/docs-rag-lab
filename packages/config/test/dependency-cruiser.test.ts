@@ -56,24 +56,57 @@ describe('boundary rules (SPEC section 4)', () => {
     ])
   })
 
-  it('core imports only source-kit and db', () => {
-    expect(edges('core-only-source-kit-db')).toEqual([
+  it('core imports only source-kit, db, contracts and settings', () => {
+    expect(edges('core-allowed-packages')).toEqual([
       'packages/core/src/imports-app.ts -> apps/alpha/src/index.ts',
       'packages/core/src/imports-source.ts -> packages/sources/typescript/src/index.ts',
       'packages/core/src/imports-ui.ts -> packages/ui/src/index.ts',
     ])
   })
 
-  it('ui imports no internal package, not even types', () => {
+  it('ui imports no internal package but contracts, not even types', () => {
     expect(edges('ui-no-internal-packages')).toEqual([
       'packages/ui/src/imports-core-type.ts -> packages/core/src/index.ts',
       'packages/ui/src/imports-core.ts -> packages/core/src/index.ts',
       'packages/ui/src/imports-db.ts -> packages/db/src/index.ts',
+      'packages/ui/src/imports-settings.ts -> packages/settings/src/index.ts',
     ])
   })
 
   it('ui imports no Node.js built-ins', () => {
     expect(edges('ui-no-node-builtins')).toEqual(['packages/ui/src/imports-node.ts -> fs'])
+  })
+
+  it('contracts imports no internal package', () => {
+    expect(edges('contracts-is-leaf')).toEqual([
+      'packages/contracts/src/imports-core.ts -> packages/core/src/index.ts',
+    ])
+  })
+
+  it('contracts imports no Node.js built-ins and no npm packages', () => {
+    const found = edges('contracts-client-safe')
+
+    expect(found).toContain('packages/contracts/src/imports-node.ts -> fs')
+    expect(
+      found.filter((edge) => edge.startsWith('packages/contracts/src/imports-npm.ts -> ')),
+    ).toHaveLength(1)
+    expect(found.every((edge) => /imports-(node|npm)\.ts/.test(edge))).toBe(true)
+    // Its tests may import the test runner.
+    expect(found.some((edge) => edge.startsWith('packages/contracts/src/trace.test.ts'))).toBe(
+      false,
+    )
+  })
+
+  it('core imports only types from settings', () => {
+    expect(edges('core-settings-types-only')).toEqual([
+      'packages/core/src/imports-settings-value.ts -> packages/settings/src/index.ts',
+    ])
+  })
+
+  it('settings imports no internal package', () => {
+    expect(edges('settings-is-leaf')).toEqual([
+      'packages/settings/src/imports-core.ts -> packages/core/src/index.ts',
+    ])
   })
 
   it('source-kit imports no internal package', () => {
@@ -124,6 +157,9 @@ describe('boundary rules (SPEC section 4)', () => {
       'apps/alpha/src/index.ts -> packages/core/src/index.ts',
       'packages/core/src/index.ts -> packages/source-kit/src/index.ts',
       'packages/core/src/index.ts -> packages/db/src/index.ts',
+      'packages/core/src/index.ts -> packages/contracts/src/index.ts',
+      'packages/core/src/imports-settings-type.ts -> packages/settings/src/index.ts',
+      'packages/ui/src/imports-contracts.ts -> packages/contracts/src/index.ts',
       'packages/core/src/same-package.ts -> packages/core/src/internal.ts',
       'packages/sources/typescript/src/same-package.ts -> packages/sources/typescript/src/internal.ts',
       'packages/sources/typescript/src/index.ts -> packages/source-kit/src/index.ts',
@@ -135,6 +171,14 @@ describe('boundary rules (SPEC section 4)', () => {
       .map((violation) => `${violation.from} -> ${violation.to}`)
 
     for (const edge of allowed) expect(boundaryViolations).not.toContain(edge)
+  })
+
+  it('sees npm packages, so an undeclared one is caught', () => {
+    // Until M3 the exclude pattern dropped node_modules and dist/ paths, so no
+    // npm import reached the rules at all.
+    expect(edges('no-non-package-json').map((edge) => edge.split(' -> ')[0])).toEqual([
+      'packages/cli/src/undeclared-npm.ts',
+    ])
   })
 
   it('finds no cycles or unresolvable imports in the fixture', () => {

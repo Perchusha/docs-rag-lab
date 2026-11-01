@@ -3,9 +3,11 @@
 // and whose content is one text block per rendered block, so Claude can cite
 // precise passages.
 import Anthropic from '@anthropic-ai/sdk'
+import type { Citation } from '@docs-rag-lab/contracts'
 import type { SearchHit } from '@docs-rag-lab/db'
+import type { Effort } from '@docs-rag-lab/settings'
 
-import type { Effort } from './config.ts'
+import { requireKey } from './env.ts'
 
 export const ANSWER_SYSTEM_PROMPT = [
   'You answer questions about technical documentation.',
@@ -19,12 +21,26 @@ export function citationSource(hit: Pick<SearchHit, 'url' | 'anchor'>): string {
   return hit.anchor === '' || hit.url.includes('#') ? hit.url : `${hit.url}#${hit.anchor}`
 }
 
-/** The citation title: doc title and heading path. */
-export function citationTitle(hit: Pick<SearchHit, 'title' | 'headingPath'>): string {
-  return [hit.title, ...hit.headingPath].join(' > ')
+/**
+ * The heading path of the section a chunk starts in, which its anchor points to
+ * (metadata.sectionPath, chunker version 3). A pack of sections under the
+ * document root has an empty heading path, so without this it would be cited
+ * by the document title alone. Falls back to the heading path for older chunks.
+ */
+export function sectionPathOf(hit: Pick<SearchHit, 'headingPath' | 'metadata'>): string[] {
+  const path = hit.metadata.sectionPath
+  return Array.isArray(path) && path.every((part) => typeof part === 'string')
+    ? path
+    : hit.headingPath
 }
 
-function spansOf(hit: SearchHit): [number, number][] {
+/** The citation title: doc title, then the section the chunk starts in. */
+export function citationTitle(hit: Pick<SearchHit, 'title' | 'headingPath' | 'metadata'>): string {
+  return [hit.title, ...sectionPathOf(hit)].join(' > ')
+}
+
+/** Character ranges of a chunk's rendered blocks (metadata.spans), or one range after the prefix line. */
+export function spansOf(hit: Pick<SearchHit, 'text' | 'metadata'>): [number, number][] {
   const spans = hit.metadata.spans
   if (
     Array.isArray(spans) &&
@@ -83,8 +99,9 @@ export function buildAnswerRequest(
   }
 }
 
-export function createClaudeClient(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey })
+/** The Claude client. It reads ANTHROPIC_API_KEY from the environment here, so settings never carry the key. */
+export function createClaudeClient(env: NodeJS.ProcessEnv = process.env): Anthropic {
+  return new Anthropic({ apiKey: requireKey('ANTHROPIC_API_KEY', env) })
 }
 
 export interface StreamHandlers {
@@ -106,15 +123,27 @@ export interface AnswerStream {
   readonly currentMessage: Anthropic.Message | undefined
 }
 
-/** Streams the answer and resolves with the final message. */
+/** The part of the Claude client that streamAnswer uses; tests pass a fake. */
+export interface AnswerClient {
+  messages: {
+    stream(
+      request: Anthropic.MessageCreateParamsNonStreaming,
+      options?: { signal?: AbortSignal },
+    ): AnswerStream
+  }
+}
+
+/**
+ * Streams the answer and resolves with the final message. An aborted `signal`
+ * stops the request, so a closed browser tab stops spending tokens.
+ */
 export async function streamAnswer(
-  client: {
-    messages: { stream(request: Anthropic.MessageCreateParamsNonStreaming): AnswerStream }
-  },
+  client: AnswerClient,
   request: Anthropic.MessageCreateParamsNonStreaming,
   handlers: StreamHandlers = {},
+  signal?: AbortSignal,
 ): Promise<Anthropic.Message> {
-  const stream = client.messages.stream(request)
+  const stream = client.messages.stream(request, signal === undefined ? undefined : { signal })
   stream.on('text', (delta) => handlers.onText?.(delta))
   stream.on('contentBlock', (block) => {
     if (block.type === 'text') handlers.onTextBlock?.(block)
@@ -129,19 +158,19 @@ export async function streamAnswer(
   }
 }
 
-export interface NumberedCitation {
-  number: number
-  source: string
-  title: string
-  citedText: string
-}
-
 /**
  * Numbers search-result citations in order of first use, one number per
- * search result, so the answer can show [1], [2] and a source list.
+ * search result, so the answer can show [1], [2] and a source list. Each
+ * number also names the context chunk it points to: search result i is
+ * context[i], in the order buildAnswerRequest sent them.
  */
 export class CitationNumbering {
-  readonly #byIndex = new Map<number, NumberedCitation>()
+  readonly #byIndex = new Map<number, Citation>()
+  readonly #context: readonly Pick<SearchHit, 'chunkId'>[]
+
+  constructor(context: readonly Pick<SearchHit, 'chunkId'>[]) {
+    this.#context = context
+  }
 
   /** The numbers for a text block's search-result citations, deduplicated, in order. */
   add(block: Anthropic.TextBlock): number[] {
@@ -150,11 +179,20 @@ export class CitationNumbering {
       if (citation.type !== 'search_result_location') continue
       let entry = this.#byIndex.get(citation.search_result_index)
       if (entry === undefined) {
+        const index = citation.search_result_index
+        const chunk = this.#context[index]
+        if (chunk === undefined) {
+          throw new Error(
+            `a citation points to search result ${String(index)}, but the context has ${String(this.#context.length)}`,
+          )
+        }
         entry = {
           number: this.#byIndex.size + 1,
           source: citation.source,
           title: citation.title ?? citation.source,
           citedText: citation.cited_text,
+          chunkId: chunk.chunkId,
+          contextRank: index + 1,
         }
         this.#byIndex.set(citation.search_result_index, entry)
       }
@@ -163,7 +201,7 @@ export class CitationNumbering {
     return numbers
   }
 
-  list(): NumberedCitation[] {
+  list(): Citation[] {
     return [...this.#byIndex.values()].sort((a, b) => a.number - b.number)
   }
 }

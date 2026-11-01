@@ -1,10 +1,5 @@
-import type {
-  EmbedProgress,
-  NumberedCitation,
-  RetrievalTrace,
-  SyncReport,
-  TraceList,
-} from '@docs-rag-lab/core'
+import type { Citation, RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
+import type { EmbedProgress, SyncReport } from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
 
@@ -75,7 +70,7 @@ export function formatTrace(trace: RetrievalTrace, limit = 10): string {
   const label = (chunkId: string): string => {
     const chunk = trace.chunks[chunkId]
     if (chunk === undefined) return chunkId
-    return `${[chunk.title, ...chunk.headingPath].join(' > ')}  [${chunk.docType}]`
+    return `${[chunk.title, ...chunk.sectionPath].join(' > ')}  [${chunk.docType}]`
   }
   const { terms, exactTokens } = trace.query
   const lines = [
@@ -137,7 +132,7 @@ function oneLine(text: string, max: number): string {
   return flat.length <= max ? flat : `${flat.slice(0, max - 3).trimEnd()}...`
 }
 
-export function formatCitations(citations: readonly NumberedCitation[]): string {
+export function formatCitations(citations: readonly Citation[]): string {
   if (citations.length === 0) return 'Sources: none cited.'
   return [
     'Sources:',

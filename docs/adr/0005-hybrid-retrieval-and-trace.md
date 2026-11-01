@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-31
 - Milestone: M2
+- Amended: 2026-11-01, M3: the trace type moved to `@docs-rag-lab/contracts` (ADR-0006), and `TRACE_VERSION` 2 adds `chunks[id].sectionPath`, the section a chunk starts in
 
 ## Context
 

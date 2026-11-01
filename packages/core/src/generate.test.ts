@@ -1,24 +1,22 @@
-import { readFileSync } from 'node:fs'
-
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SearchHit } from '@docs-rag-lab/db'
 import { describe, expect, it } from 'vitest'
 
+import { MissingKeyError } from './env.ts'
 import {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,
   citationSource,
+  citationTitle,
   CitationNumbering,
+  createClaudeClient,
+  sectionPathOf,
   streamAnswer,
   toSearchResult,
-  type AnswerStream,
 } from './generate.ts'
+import { ANSWER_MESSAGE, fakeAnswerClient } from './test-helpers.ts'
 
-// Hand-built in the shape of the search results docs: two cited search
-// results, one cited twice, plus uncited text and an empty thinking block.
-const message = JSON.parse(
-  readFileSync(new URL('./__fixtures__/answer-message.json', import.meta.url), 'utf8'),
-) as Anthropic.Message
+const message = ANSWER_MESSAGE
 
 const text =
   'Everyday Types > Union Types\n\nA union type is...\n\n```ts\nlet id: number | string\n```'
@@ -40,6 +38,34 @@ const hit: SearchHit = {
   title: 'Everyday Types',
   docType: 'handbook',
 }
+
+describe('citationTitle', () => {
+  it('names the section a pack under the document root starts in, not just the document', () => {
+    // A real case: By Example.md#organizing-types used to be cited as "Declaration Reference".
+    const packed = {
+      title: 'Declaration Reference',
+      headingPath: [],
+      metadata: { sectionPath: ['Organizing Types'] },
+    }
+    expect(citationTitle(packed)).toBe('Declaration Reference > Organizing Types')
+    expect(sectionPathOf(packed)).toEqual(['Organizing Types'])
+  })
+
+  it('falls back to the heading path for chunks from before chunker version 3', () => {
+    expect(citationTitle(hit)).toBe('Everyday Types > Union Types')
+    expect(citationTitle({ ...hit, metadata: { sectionPath: 'not a path' } })).toBe(
+      'Everyday Types > Union Types',
+    )
+  })
+})
+
+describe('createClaudeClient', () => {
+  it('reads ANTHROPIC_API_KEY itself, so no caller handles the key', () => {
+    expect(() => createClaudeClient({})).toThrow(MissingKeyError)
+    expect(() => createClaudeClient({})).toThrow(/ANTHROPIC_API_KEY is not set/)
+    expect(createClaudeClient({ ANTHROPIC_API_KEY: 'sk-test' }).apiKey).toBe('sk-test')
+  })
+})
 
 describe('toSearchResult', () => {
   it('sends one citable text block per span, with the anchored URL and heading path', () => {
@@ -102,41 +128,6 @@ const textBlocks = message.content.filter(
   (block): block is Anthropic.TextBlock => block.type === 'text',
 )
 
-/** A fake stream that replays the fixture, or fails after the first text block. */
-function fakeClient(options: { failAfterFirstBlock?: boolean } = {}) {
-  const listeners: {
-    text: ((d: string) => void)[]
-    block: ((b: Anthropic.ContentBlock) => void)[]
-  } = {
-    text: [],
-    block: [],
-  }
-  let current: Anthropic.Message | undefined
-  const stream: AnswerStream = {
-    on(event: 'text' | 'contentBlock', listener: never) {
-      if (event === 'text') listeners.text.push(listener)
-      else listeners.block.push(listener)
-      return stream
-    },
-    get currentMessage() {
-      return current
-    },
-    finalMessage() {
-      for (const [i, block] of textBlocks.entries()) {
-        current = { ...message, usage: { ...message.usage, output_tokens: 10 * (i + 1) } }
-        for (const listener of listeners.text) listener(block.text)
-        for (const listener of listeners.block) listener(block)
-        if (options.failAfterFirstBlock === true) {
-          return Promise.reject(new Error('connection reset'))
-        }
-      }
-      current = message
-      return Promise.resolve(message)
-    },
-  }
-  return { messages: { stream: () => stream } }
-}
-
 describe('streamAnswer', () => {
   const request = buildAnswerRequest({
     question: 'q',
@@ -151,7 +142,7 @@ describe('streamAnswer', () => {
     const blocks: Anthropic.TextBlock[] = []
     const usages: Anthropic.Usage[] = []
 
-    const final = await streamAnswer(fakeClient(), request, {
+    const final = await streamAnswer(fakeAnswerClient(), request, {
       onText: (delta) => (text += delta),
       onTextBlock: (block) => blocks.push(block),
       onUsage: (usage) => usages.push(usage),
@@ -166,17 +157,36 @@ describe('streamAnswer', () => {
   it('still reports the usage so far when the stream fails part-way', async () => {
     const usages: Anthropic.Usage[] = []
     await expect(
-      streamAnswer(fakeClient({ failAfterFirstBlock: true }), request, {
+      streamAnswer(fakeAnswerClient({ failAfterFirstBlock: true }), request, {
         onUsage: (usage) => usages.push(usage),
       }),
     ).rejects.toThrow('connection reset')
     expect(usages.map((usage) => usage.output_tokens)).toEqual([10])
   })
+
+  it('passes the abort signal to the request, and stops when it fires', async () => {
+    const controller = new AbortController()
+    const client = fakeAnswerClient({
+      afterBlock: () => {
+        controller.abort()
+      },
+    })
+    let text = ''
+
+    await expect(
+      streamAnswer(client, request, { onText: (delta) => (text += delta) }, controller.signal),
+    ).rejects.toThrow('aborted')
+    expect(client.signals).toEqual([controller.signal])
+    expect(text).toBe(textBlocks[0]?.text)
+  })
 })
 
 describe('citations', () => {
-  it('numbers search results in order of first use and lists each once', () => {
-    const numbering = new CitationNumbering()
+  // Search result i of the request is context[i].
+  const context = [{ chunkId: 'narrowing-1' }, { chunkId: 'union-types-1' }]
+
+  it('numbers search results in order of first use, lists each once and names its chunk', () => {
+    const numbering = new CitationNumbering(context)
     for (const block of textBlocks) numbering.add(block)
     expect(numbering.list()).toEqual([
       {
@@ -184,18 +194,29 @@ describe('citations', () => {
         source: 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types',
         title: 'Everyday Types > Union Types',
         citedText: 'A union type is a type formed from two or more other types.',
+        chunkId: 'union-types-1',
+        contextRank: 2,
       },
       {
         number: 2,
         source: 'https://www.typescriptlang.org/docs/handbook/2/narrowing.html',
         title: 'Narrowing',
         citedText: 'Narrowing occurs when TypeScript can deduce a more specific type.',
+        chunkId: 'narrowing-1',
+        contextRank: 1,
       },
     ])
   })
 
   it('returns the markers for each text block as it completes', () => {
-    const numbering = new CitationNumbering()
+    const numbering = new CitationNumbering(context)
     expect(textBlocks.map((block) => numbering.add(block))).toEqual([[1], [], [2, 1], []])
+  })
+
+  it('refuses a citation that points outside the context', () => {
+    const numbering = new CitationNumbering([{ chunkId: 'only-one' }])
+    expect(() => textBlocks.map((block) => numbering.add(block))).toThrow(
+      'a citation points to search result 1, but the context has 1',
+    )
   })
 })

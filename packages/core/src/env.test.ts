@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { CliError, findRepoRoot, loadEnv, requireKey } from './env.ts'
+import { findRepoRoot, loadRootEnv, MissingKeyError, requireKey } from './env.ts'
 
 let root: string
 
@@ -27,17 +27,17 @@ describe('findRepoRoot', () => {
   })
 })
 
-describe('loadEnv', () => {
+describe('loadRootEnv', () => {
   it('loads the root dotenv file, and values already in the environment win', () => {
     writeFileSync(join(root, '.env'), 'DRL_TEST_FROM_FILE=file\nDRL_TEST_BOTH=from-file\n')
 
-    expect(loadEnv(root)).toBe(true)
+    expect(loadRootEnv(root)).toBe(true)
     expect(process.env.DRL_TEST_FROM_FILE).toBe('file')
     expect(process.env.DRL_TEST_BOTH).toBe('from-shell')
   })
 
   it('is fine without a dotenv file', () => {
-    expect(loadEnv(root)).toBe(false)
+    expect(loadRootEnv(root)).toBe(false)
   })
 })
 
@@ -48,7 +48,7 @@ describe('requireKey', () => {
 
   it('names the missing key and points at .env.example', () => {
     const missing = () => requireKey('ANTHROPIC_API_KEY', { ANTHROPIC_API_KEY: '  ' })
-    expect(missing).toThrow(CliError)
+    expect(missing).toThrow(MissingKeyError)
     expect(missing).toThrow(/ANTHROPIC_API_KEY is not set\. Copy \.env\.example/)
   })
 

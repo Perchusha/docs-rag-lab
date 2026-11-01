@@ -12,5 +12,7 @@ export {
   type Manifest,
   type SearchFilter,
   type SearchHit,
+  type StoredChunk,
+  type StoredDocument,
 } from './source-index.ts'
 export { EmbeddingCache, openEmbeddingCache, type CachedEmbedding } from './embedding-cache.ts'

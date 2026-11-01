@@ -5,6 +5,7 @@
 - Milestone: M0
 - Amended: 2026-10-31, section 5 (permission deny rules), before M1
 - Amended: 2026-10-31, M1: `source-kit-is-leaf` replaces `source-kit-only-db` (ADR-0003); post-edit hook re-measured on real code
+- Amended: 2026-11-01, M3: the contracts and settings rules (ADR-0006, ADR-0007); npm packages are visible to the rules
 
 ## Context
 
@@ -25,8 +26,10 @@ The rules live in `packages/config/dependency-cruiser.cjs`. The root `.dependenc
 |---|---|
 | `packages-not-to-apps` | SPEC |
 | `sources-only-source-kit` (no other source either) | SPEC |
-| `core-only-source-kit-db` | SPEC. Read as an allowlist: core never imports a concrete source; apps and the CLI pass sources in |
-| `ui-no-internal-packages` (type-only imports included) | SPEC "client-safe", read strictly |
+| `core-allowed-packages` | SPEC. Read as an allowlist: source-kit, db, contracts and settings. Core never imports a concrete source; apps and the CLI pass sources in. It was `core-only-source-kit-db` until M3 |
+| `ui-no-internal-packages` (type-only imports included) | SPEC "client-safe", read strictly. Since M3 it allows `contracts`, which is client-safe by its own rules (ADR-0006) |
+| `contracts-is-leaf`, `contracts-client-safe` | added in M3 (ADR-0006): contracts imports no internal package, no Node.js built-in and no npm package |
+| `settings-is-leaf`, `core-settings-types-only` | added in M3 (ADR-0007): settings imports no internal package, and core imports only its types, so model IDs reach core as arguments |
 | `ui-no-node-builtins` | SPEC "client-safe" |
 | `no-deep-imports` (only `src/index.ts`; `packages/config` is exempt, because it serves presets through subpaths) | SPEC |
 | `apps-not-to-apps` | added: apps are leaves; shared code belongs in a package |
@@ -43,7 +46,9 @@ Known limits, accepted for now:
 - `tooling/*` is not constrained by the package rules (it imports nothing internal today);
 - on Windows, a mis-cased path such as `../Apps/x` resolves locally. CI runs on Linux, where it fails as unresolvable.
 
-Open question for M2-M3: core produces the trace and citation shapes that ui renders, but ui may not import core, not even types. Those shapes need a types-only home, or ui defines its own view types. Decide that in an ADR when it comes up.
+Open question for M2-M3, closed by ADR-0006: core produces the trace and citation shapes that ui renders, but ui may not import core, not even types. Those shapes need a types-only home, or ui defines its own view types. They now live in `@docs-rag-lab/contracts`.
+
+Fixed in M3: until then the `exclude` option also matched `node_modules` and `dist/`, which removed every npm package from the graph, not only from traversal. `no-non-package-json` could never fire. Now only fixture and generated folders are excluded, `doNotFollow` still stops at `node_modules`, and the real graph holds 20 npm modules with no new violations. A fixture that imports an undeclared package proves the rule fires.
 
 ### 2. Where the check runs
 

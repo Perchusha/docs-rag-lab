@@ -19,8 +19,9 @@ import type { Block, ParsedDoc, Section } from './types.ts'
 /**
  * Bump when chunk boundaries or chunk text change: it forces a full rebuild.
  * 2: a fence line with an info string no longer closes a nested fence.
+ * 3: every chunk records sectionPath, the section it starts in.
  */
-export const CHUNKER_VERSION = 2
+export const CHUNKER_VERSION = 3
 
 export const DEFAULT_MAX_TOKENS = 800
 
@@ -30,9 +31,17 @@ export interface Chunk {
   docPath: string
   /** Position of the chunk in its document. */
   ordinal: number
+  /** The section the chunk belongs to: for a pack of sections, their common parent. Part of the ID. */
   headingPath: string[]
   /** URL fragment of the first section in the chunk, '' for none. */
   anchor: string
+  /**
+   * Heading path of the section the chunk starts in, the one `anchor` points to.
+   * It differs from headingPath when a pack starts at a child section: a pack
+   * under the document root has an empty headingPath but starts at, say,
+   * ['Organizing Types'].
+   */
+  sectionPath: string[]
   /** Block kinds in the chunk, in order of first appearance. */
   blockTypes: string[]
   /** Heading-path prefix line, then the rendered blocks. */
@@ -67,6 +76,8 @@ interface Item {
   pieces: Piece[]
   tokens: number
   anchor: string
+  /** Heading path of the section the item belongs to. */
+  path: string[]
   /** Set when the item is a whole child subtree. */
   child?: Node
 }
@@ -254,7 +265,12 @@ export function chunkDocument(
   const max = options.maxTokens ?? DEFAULT_MAX_TOKENS
   const chunks: Chunk[] = []
 
-  const emit = (node: Node, ordinal: number, anchor: string, pieces: readonly Piece[]): void => {
+  const emit = (
+    node: Node,
+    ordinal: number,
+    start: { anchor: string; path: readonly string[] },
+    pieces: readonly Piece[],
+  ): void => {
     const headingPath = [...node.section.headingPath]
     let text = [doc.title, ...headingPath].join(' > ')
     const spans: [number, number][] = []
@@ -277,7 +293,8 @@ export function chunkDocument(
       docPath,
       ordinal: chunks.length,
       headingPath,
-      anchor,
+      anchor: start.anchor,
+      sectionPath: [...start.path],
       blockTypes,
       text,
       textHash: sha256Hex(text),
@@ -286,10 +303,12 @@ export function chunkDocument(
     })
   }
 
+  const own = (node: Node) => ({ anchor: node.section.anchor, path: node.section.headingPath })
+
   const chunkNode = (node: Node): void => {
     const all = subtreePieces(node, max)
     if (sumTokens(all) <= max) {
-      if (hasContent(all)) emit(node, 0, node.section.anchor, all)
+      if (hasContent(all)) emit(node, 0, own(node), all)
       return
     }
 
@@ -301,25 +320,25 @@ export function chunkDocument(
         const only = pack.length === 1 ? pack[0]?.child : undefined
         if (only !== undefined) {
           const pieces = subtreePieces(only, max)
-          if (hasContent(pieces)) emit(only, 0, only.section.anchor, pieces)
+          if (hasContent(pieces)) emit(only, 0, own(only), pieces)
           continue
         }
         const pieces = pack.flatMap((item) => item.pieces)
         if (!hasContent(pieces)) continue
-        emit(node, ordinal, pack[0]?.anchor ?? node.section.anchor, pieces)
+        emit(node, ordinal, pack[0] ?? own(node), pieces)
         ordinal++
       }
       run = []
     }
 
     for (const p of ownPieces(node, max)) {
-      run.push({ pieces: [p], tokens: p.tokens, anchor: node.section.anchor })
+      run.push({ pieces: [p], tokens: p.tokens, ...own(node) })
     }
     for (const child of node.children) {
       const pieces = [headingPiece(child), ...subtreePieces(child, max)]
       const tokens = sumTokens(pieces)
       if (tokens <= max) {
-        run.push({ pieces, tokens, anchor: child.section.anchor, child })
+        run.push({ pieces, tokens, ...own(child), child })
         continue
       }
       flush()

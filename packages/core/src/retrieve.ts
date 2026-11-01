@@ -3,22 +3,6 @@
 // over the question's terms, and BM25 over its exact tokens (code, identifiers,
 // flags, source tokens such as error codes). Every call returns the hits for
 // generation and a serializable trace of how they were chosen.
-import type {
-  Candidate,
-  EmbeddingCache,
-  SearchFilter,
-  SearchHit,
-  SourceIndex,
-} from '@docs-rag-lab/db'
-import type { DocType, Source } from '@docs-rag-lab/source-kit'
-
-import type { RetrievalConfig } from './config.ts'
-import { embedWithCache } from './embeddings/cached.ts'
-import type { EmbeddingProvider } from './embeddings/provider.ts'
-import type { RateLimiter } from './embeddings/rate-limit.ts'
-import { citationSource, citationTitle } from './generate.ts'
-import { analyzeQuery } from './query.ts'
-import { fuseRrf } from './rrf.ts'
 import {
   TRACE_VERSION,
   type ListName,
@@ -26,14 +10,30 @@ import {
   type TraceChunk,
   type TraceFusion,
   type TraceList,
-} from './trace.ts'
+} from '@docs-rag-lab/contracts'
+import type {
+  Candidate,
+  EmbeddingCache,
+  SearchFilter,
+  SearchHit,
+  SourceIndex,
+} from '@docs-rag-lab/db'
+import type { RetrievalSettings } from '@docs-rag-lab/settings'
+import type { DocType, Source } from '@docs-rag-lab/source-kit'
+
+import { embedWithCache } from './embeddings/cached.ts'
+import type { EmbeddingProvider } from './embeddings/provider.ts'
+import type { RateLimiter } from './embeddings/rate-limit.ts'
+import { citationSource, citationTitle, sectionPathOf } from './generate.ts'
+import { analyzeQuery } from './query.ts'
+import { fuseRrf } from './rrf.ts'
 import type { UsageMeter } from './usage.ts'
 
 export interface RetrieveOptions {
   question: string
   /** The source the index belongs to; its exactTokens hook feeds keyword search. */
   source: Pick<Source, 'id' | 'exactTokens'>
-  settings: RetrievalConfig
+  settings: RetrievalSettings
   /** Only chunks of these doc types; empty or missing means all. */
   docTypes?: readonly DocType[] | undefined
   provider: EmbeddingProvider
@@ -152,6 +152,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
       docPath: record.docPath,
       title: record.title,
       headingPath: record.headingPath,
+      sectionPath: sectionPathOf(record),
       anchor: record.anchor,
       docType: record.docType,
       tokenCount: record.tokenCount,

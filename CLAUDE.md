@@ -20,6 +20,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - All checks, as CI runs them: `pnpm format:check` and `pnpm turbo run lint typecheck test`
 - One package: `pnpm turbo run test --filter=@docs-rag-lab/core` (also works with `lint` and `typecheck`)
 - Changed packages and their dependents: `pnpm turbo run test "--filter=...[HEAD]"`
+- Typecheck every commit of the branch: `git rebase --exec "pnpm install --frozen-lockfile --offline && pnpm turbo run typecheck" $(git merge-base HEAD origin/main)` (needs a clean tree; it replays the commits on their own base, so nothing is rewritten, and stops at the first commit that fails: fix it, `git commit --amend`, then `git rebase --continue`, or `git rebase --abort` to give up)
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded)
@@ -45,8 +46,10 @@ These are enforced by dependency-cruiser. Do not work around them.
 
 - Apps import packages. Packages never import apps.
 - `packages/sources/*` import only `@docs-rag-lab/source-kit`.
-- `core` imports `source-kit` and `db`, never `ui`.
-- `ui` is client-safe: no imports from `core` or `db`.
+- `core` imports `source-kit`, `db` and `contracts`, never `ui`.
+- `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`.
+- `contracts` imports nothing: no internal package, no Node.js built-in, no npm package (ADR-0006).
+- `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - Import a package only through its public `index.ts`.
 
 ## Definition of done
@@ -65,6 +68,7 @@ A task is done when all of these hold:
 - For changes touching more than one package: plan first, list the files you will touch, and wait for approval.
 - Propose new dependencies in the plan, with a reason. Prefer small, well-maintained ones. Check current versions on npm instead of guessing.
 - Keep commits small, with conventional commit messages.
+- Every commit must pass typecheck on its own, not just the branch head. Put a type before its consumers, or both in one commit. Run the per-commit check (Commands) before pushing.
 - Before committing a milestone, run the `code-reviewer` subagent (once it exists).
 
 ## Never
@@ -72,5 +76,5 @@ A task is done when all of these hold:
 - Read or print `.env*` files, or commit secrets.
 - Write to `data/` or `.cache/` by hand. These are generated.
 - Add LangChain, LlamaIndex or other RAG frameworks.
-- Hardcode model IDs or prices outside config.
+- Hardcode model IDs or prices outside `packages/settings`, or put a secret in it.
 - Use em dashes in any text: docs, comments, commit messages, UI copy. Use plain hyphens.

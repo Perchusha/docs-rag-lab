@@ -64,6 +64,7 @@ describe('chunkDocument', () => {
     expect(chunks.map((chunk) => chunk.text.split('\n')[0])).toEqual(['Doc', 'Doc > A', 'Doc > B'])
     expect(chunks.map((chunk) => chunk.headingPath)).toEqual([[], ['A'], ['B']])
     expect(chunks.map((chunk) => chunk.anchor)).toEqual(['', 'a', 'b'])
+    expect(chunks.map((chunk) => chunk.sectionPath)).toEqual([[], ['A'], ['B']])
     expect(chunks[1]?.text).toContain('### A1\n\n')
     for (const chunk of chunks) expect(chunk.tokenCount).toBeLessThanOrEqual(160)
   })
@@ -200,6 +201,27 @@ describe('chunkDocument', () => {
     ])
     expect(chunks[1]?.text).toMatch(/^Doc > A\n\n### Three\n\n.*\n\n### Four\n\n/s)
     expect(chunks[1]?.id).toBe(chunkId('a.md', ['A'], 0, 1))
+    // The second pack starts in Three, which its anchor points to.
+    expect(chunks.map((chunk) => chunk.sectionPath)).toEqual([['A'], ['A', 'Three']])
+  })
+
+  it('records the section a chunk starts in, also for a pack under the document root', () => {
+    const chunks = chunkDocument(
+      'a.md',
+      doc(
+        section(['One'], words(40)),
+        section(['Two'], words(40)),
+        section(['Three'], words(40)),
+        section(['Four'], words(40)),
+      ),
+      { maxTokens: 100 },
+    )
+
+    // Packs under the root have no heading path of their own.
+    expect(chunks.map((chunk) => [chunk.headingPath, chunk.anchor, chunk.sectionPath])).toEqual([
+      [[], 'one', ['One']],
+      [[], 'three', ['Three']],
+    ])
   })
 
   it('drops sections that have a heading but no content', () => {

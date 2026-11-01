@@ -10,6 +10,6 @@ Thin Next.js App Router apps (from M3). An app is config, theme and example ques
 
 ## Conventions
 
-- One config file per app: `rag.config.ts` (SPEC section 4). Model IDs live there, not in components.
+- One config file per app: `rag.config.ts` (SPEC section 4). It holds only what belongs to the app: id, source, title, theme and example questions. Engine settings (model IDs, prices, limits, retrieval defaults) come from `@docs-rag-lab/settings` (ADR-0007), never from the app or its components.
 - Secrets come from `.env` at the repo root and are read on the server only.
 - Source indexes are opened from `data/sources/<source-id>.sqlite`; app state lives in `data/apps/<app>.sqlite`.

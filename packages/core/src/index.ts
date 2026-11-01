@@ -1,15 +1,6 @@
 // Public entry of @docs-rag-lab/core: embeddings, ingest, retrieval and
 // generation (SPEC section 9). Sources are passed in; core never imports one.
-export {
-  defineConfig,
-  type DrlConfig,
-  type Effort,
-  type EmbeddingsConfig,
-  type ModelPrice,
-  type PricingConfig,
-  type RetrievalConfig,
-  type VoyageEmbeddingsConfig,
-} from './config.ts'
+export { findRepoRoot, loadRootEnv, MissingKeyError, requireKey, type KeyName } from './env.ts'
 export {
   formatUsage,
   UsageMeter,
@@ -34,43 +25,43 @@ export {
 } from './embeddings/cached.ts'
 export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.ts'
 export { createEmbeddingProvider } from './embeddings/factory.ts'
-export { embeddingCachePath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
+export {
+  embeddingCachePath,
+  IndexNotFoundError,
+  openIndexes,
+  sourceIndexPath,
+  type OpenIndexes,
+  type OpenIndexesOptions,
+} from './indexes.ts'
 export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
 export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
+export { ask, usageSummary, type AskOptions } from './ask.ts'
 export {
-  analyzeQuery,
-  MIN_TERM_LENGTH,
-  quoteTerm,
-  type ExactToken,
-  type ExactTokenOrigin,
-  type QueryPlan,
-} from './query.ts'
+  createEngine,
+  InvalidRequestError,
+  MAX_TOP_K,
+  UnknownSourceError,
+  type AskRun,
+  type Engine,
+  type EngineOptions,
+  type EngineSettings,
+} from './engine.ts'
+export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
-export {
-  STRATEGIES,
-  TRACE_VERSION,
-  type ListName,
-  type RetrievalTrace,
-  type Strategy,
-  type TraceCandidate,
-  type TraceChunk,
-  type TraceContextChunk,
-  type TraceFusion,
-  type TraceList,
-} from './trace.ts'
 export {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,
   citationSource,
   citationTitle,
+  sectionPathOf,
   CitationNumbering,
   createClaudeClient,
   streamAnswer,
   toSearchResult,
+  type AnswerClient,
   type AnswerRequestOptions,
   type AnswerStream,
-  type NumberedCitation,
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
-export { DOC_TYPES, type DocType } from '@docs-rag-lab/source-kit'
+export { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'

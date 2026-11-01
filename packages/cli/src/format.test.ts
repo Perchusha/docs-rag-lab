@@ -1,4 +1,5 @@
-import type { RetrievalTrace, SyncReport } from '@docs-rag-lab/core'
+import type { RetrievalTrace } from '@docs-rag-lab/contracts'
+import type { SyncReport } from '@docs-rag-lab/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -80,6 +81,8 @@ describe('formatCitations', () => {
           title: 'Everyday Types > Union Types',
           source: 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types',
           citedText: 'A union type is a type formed\nfrom two or more other types.',
+          chunkId: 'c1',
+          contextRank: 1,
         },
       ]),
     ).toBe(
@@ -92,16 +95,19 @@ describe('formatCitations', () => {
 })
 
 describe('formatTrace', () => {
-  const chunk = (title: string, heading: string, docType: string) => ({
+  // headingPath [] is a pack of sections under the document root: the label
+  // comes from sectionPath, the section the chunk starts in.
+  const chunk = (title: string, heading: string, docType: string, headingPath = [heading]) => ({
     docPath: `${title}.md`,
     title,
-    headingPath: [heading],
+    headingPath,
+    sectionPath: [heading],
     anchor: heading.toLowerCase(),
     docType,
     tokenCount: 10,
   })
   const trace: RetrievalTrace = {
-    version: 1,
+    version: 2,
     question: 'What does error TS2345 mean?',
     sourceId: 'typescript',
     strategy: 'hybrid',
@@ -151,7 +157,7 @@ describe('formatTrace', () => {
     },
     chunks: {
       a: chunk('Checks', 'checkJs', 'option'),
-      b: chunk('Everyday Types', 'Literal Inference', 'handbook'),
+      b: chunk('Everyday Types', 'Literal Inference', 'handbook', []),
     },
     context: [
       {

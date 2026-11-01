@@ -161,6 +161,7 @@ export interface Manifest {
 
 export interface ChunkWrite {
   id: string
+  /** 0-based position in the document (source-kit's Chunk.ordinal), not the pack number in the chunk ID. */
   ordinal: number
   headingPath: readonly string[]
   anchor: string
@@ -223,6 +224,30 @@ export interface DocTypeStats {
   documents: number
   chunks: number
   tokens: number
+}
+
+/** A chunk as the chunk-boundary view shows it. */
+export interface StoredChunk {
+  chunkId: string
+  /** 0-based position in the document. */
+  ordinal: number
+  headingPath: string[]
+  anchor: string
+  blockTypes: string[]
+  text: string
+  /** The contextual retrieval prefix (M5), or null. */
+  context: string | null
+  metadata: Record<string, unknown>
+  tokenCount: number
+}
+
+/** A document with all its chunks, in document order. */
+export interface StoredDocument {
+  path: string
+  url: string
+  title: string
+  docType: string
+  chunks: StoredChunk[]
 }
 
 export interface IndexStats {
@@ -466,6 +491,48 @@ export class SourceIndex {
       )
       .all(JSON.stringify(ids)) as ChunkRow[]
     return new Map(rows.map((row) => [row.id, toSearchHit(row)]))
+  }
+
+  /** A document and its chunks in document order, or undefined if the path is not indexed. */
+  documentChunks(path: string): StoredDocument | undefined {
+    const document = this.#db
+      .prepare('select id, path, url, title, doc_type from documents where path = ?')
+      .get(path) as
+      { id: number; path: string; url: string; title: string; doc_type: string } | undefined
+    if (document === undefined) return undefined
+    const rows = this.#db
+      .prepare(
+        `select id, ordinal, heading_path, anchor, block_types, text, context, metadata, token_count
+         from chunks where doc_id = ? order by ordinal, pk`,
+      )
+      .all(document.id) as {
+      id: string
+      ordinal: number
+      heading_path: string
+      anchor: string
+      block_types: string
+      text: string
+      context: string | null
+      metadata: string
+      token_count: number
+    }[]
+    return {
+      path: document.path,
+      url: document.url,
+      title: document.title,
+      docType: document.doc_type,
+      chunks: rows.map((row) => ({
+        chunkId: row.id,
+        ordinal: row.ordinal,
+        headingPath: parseStringArray(row.heading_path),
+        anchor: row.anchor,
+        blockTypes: parseStringArray(row.block_types),
+        text: row.text,
+        context: row.context,
+        metadata: parseRecord(row.metadata),
+        tokenCount: row.token_count,
+      })),
+    }
   }
 
   stats(): IndexStats {

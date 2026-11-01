@@ -1,14 +1,23 @@
 import { parseArgs } from 'node:util'
 
+import { STRATEGIES, type Strategy } from '@docs-rag-lab/contracts'
 import {
+  createEngine,
   DOC_TYPES,
+  findRepoRoot,
   formatUsage,
-  STRATEGIES,
+  IndexNotFoundError,
+  InvalidRequestError,
+  loadRootEnv,
+  MAX_TOP_K,
+  MissingKeyError,
+  UnknownSourceError,
   UsageMeter,
   type DocType,
-  type DrlConfig,
-  type Strategy,
+  type Source,
 } from '@docs-rag-lab/core'
+import { settings as defaultSettings, type Settings } from '@docs-rag-lab/settings'
+import { typescriptSource } from '@docs-rag-lab/source-typescript'
 
 import {
   askCommand,
@@ -18,8 +27,7 @@ import {
   type RetrievalArgs,
   type Writer,
 } from './commands.ts'
-import defaultConfig from './drl.config.ts'
-import { CliError, findRepoRoot, loadEnv } from './env.ts'
+import { CliError } from './errors.ts'
 import { formatDuration } from './format.ts'
 
 export const USAGE = `Usage: drl <command> [options]
@@ -33,9 +41,9 @@ Commands:
   limits                      Show the embedding API's rate-limit headers (one tiny request)
 
 Retrieval options (ask and search):
-  --source <id>               The source to search (default: the first in drl.config.ts)
+  --source <id>               The source to search (default: the first in settings)
   --strategy vector|hybrid    Vector search only, or vector + keyword search fused by RRF
-                              (default: retrieval.strategy in drl.config.ts)
+                              (default: retrieval.strategy in settings)
   --doc-type <type>           Only chunks of this doc type; repeat it or separate with commas:
                               ${DOC_TYPES.join(', ')}
   --top-k <n>                 Chunks that go to the answer, 1 to 100 (default: retrieval.topK)
@@ -48,8 +56,16 @@ Every command that calls an API ends with its token usage and estimated cost.
 Set DRL_DEBUG=1 to print stack traces of failures.
 `
 
+/** The Source objects for the configured sources. Settings hold their options as data. */
+export function sourcesFor(settings: Settings): Source[] {
+  return [typescriptSource(settings.sources.typescript)]
+}
+
 export interface RunOptions {
-  config?: DrlConfig
+  /** Defaults to @docs-rag-lab/settings. */
+  settings?: Settings
+  /** Defaults to sourcesFor(settings). */
+  sources?: readonly Source[]
   out?: Writer
   err?: Writer
   root?: string
@@ -57,9 +73,6 @@ export interface RunOptions {
   /** Print stack traces of failures (default: DRL_DEBUG=1). */
   debug?: boolean
 }
-
-// More chunks than this would not make a useful answer request; sqlite-vec also caps k at 4096.
-const MAX_TOP_K = 100
 
 function positiveInteger(
   value: string | undefined,
@@ -97,12 +110,24 @@ function docTypesOf(values: readonly string[] | undefined): DocType[] {
   return docTypes
 }
 
+/** Errors whose message says what to do; they need no stack trace. */
+function isUsageError(error: unknown): boolean {
+  return (
+    error instanceof CliError ||
+    error instanceof MissingKeyError ||
+    error instanceof UnknownSourceError ||
+    error instanceof IndexNotFoundError ||
+    error instanceof InvalidRequestError
+  )
+}
+
 /** Runs one drl command and returns the process exit code. */
 export async function run(argv: readonly string[], options: RunOptions = {}): Promise<number> {
   const out = options.out ?? process.stdout
   const err = options.err ?? process.stderr
   const now = options.now ?? (() => Date.now())
-  const config = options.config ?? defaultConfig
+  const settings = options.settings ?? defaultSettings
+  const sources = options.sources ?? sourcesFor(settings)
 
   let parsed
   try {
@@ -112,7 +137,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       strict: true,
       options: {
         full: { type: 'boolean', default: false },
-        source: { type: 'string', default: config.sources[0]?.id ?? '' },
+        source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
         'doc-type': { type: 'string', multiple: true },
@@ -144,8 +169,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   const start = now()
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
-    loadEnv(root)
-    const ctx = { config, root, meter, out, now }
+    loadRootEnv(root)
+    const engine = createEngine({ settings, sources, root })
+    const ctx = { settings, sources, engine, root, meter, out, now }
     if (command === 'sync') {
       const source = rest[0]
       if (source === undefined)
@@ -161,8 +187,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const retrieval: RetrievalArgs = {
         question,
         source: values.source,
-        topK: positiveInteger(values['top-k'], config.retrieval.topK, '--top-k', MAX_TOP_K),
-        strategy: strategyOf(values.strategy, config.retrieval.strategy),
+        topK: positiveInteger(values['top-k'], settings.retrieval.topK, '--top-k', MAX_TOP_K),
+        strategy: strategyOf(values.strategy, settings.retrieval.strategy),
         docTypes: docTypesOf(values['doc-type']),
       }
       if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
@@ -176,14 +202,14 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`\ndrl ${command} failed: ${message}\n`)
     if (options.debug ?? process.env.DRL_DEBUG === '1') {
       if (error instanceof Error && error.stack !== undefined) err.write(`${error.stack}\n`)
-    } else if (!(error instanceof CliError)) {
+    } else if (!isUsageError(error)) {
       err.write('Set DRL_DEBUG=1 to see the stack trace.\n')
     }
     return 1
   } finally {
     // With --json, stdout carries only the JSON; the usage lines go to stderr.
     const report = values.json ? err : out
-    report.write(`\n${formatUsage(meter, config.pricing)}\n`)
+    report.write(`\n${formatUsage(meter, settings.pricing)}\n`)
     report.write(`elapsed: ${formatDuration(now() - start)}\n`)
   }
 }

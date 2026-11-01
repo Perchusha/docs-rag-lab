@@ -1,8 +1,7 @@
-// The shape of the drl config. The values (model IDs, prices, limits) live in
-// one config file only, never in code (CLAUDE.md, SPEC section 14).
-import type { Source } from '@docs-rag-lab/source-kit'
-
-import type { Strategy } from './trace.ts'
+// The schema of the engine settings (ADR-0007). Settings are plain data: no
+// functions, no class instances and no secrets, so they can be written into
+// traces and eval reports as they are. API keys never appear here; the
+// provider constructors in core read them from the environment.
 
 /** USD per million tokens. */
 export interface ModelPrice {
@@ -13,14 +12,14 @@ export interface ModelPrice {
   cacheRead?: number
 }
 
-export interface PricingConfig {
+export interface PricingSettings {
   /** When the prices were last checked, and where. */
   checked: string
   sources: string[]
   models: Record<string, ModelPrice>
 }
 
-export interface VoyageEmbeddingsConfig {
+export interface VoyageEmbeddingsSettings {
   provider: 'voyage'
   /** The Voyage API through MongoDB Atlas, for example https://ai.mongodb.com/v1. */
   endpoint: string
@@ -32,12 +31,13 @@ export interface VoyageEmbeddingsConfig {
   rateLimit: { rpm: number; tpm: number }
 }
 
-export type EmbeddingsConfig = VoyageEmbeddingsConfig
+export type EmbeddingsSettings = VoyageEmbeddingsSettings
 
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
-export interface RetrievalConfig {
-  strategy: Strategy
+export interface RetrievalSettings {
+  /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
+  strategy: 'vector' | 'hybrid'
   /** Chunks that go to generation. */
   topK: number
   /** Depth of each candidate list (vector, keyword, exact) before fusion. */
@@ -46,22 +46,28 @@ export interface RetrievalConfig {
   rrfK: number
 }
 
-export interface DrlConfig {
+/** Options for a source's factory, as data. The CLI and apps build the Source objects. */
+export interface SourceSettings {
+  branch: string
+}
+
+export interface Settings {
   /** Generated data, relative to the repository root (gitignored). */
   dataDir: string
   /** Source checkouts, relative to the repository root (gitignored). */
   cacheDir: string
-  sources: Source[]
-  embeddings: EmbeddingsConfig
+  /** Options per source, keyed by source ID. Hosts build the Source objects (the CLI in sourcesFor). */
+  sources: { typescript: SourceSettings }
+  embeddings: EmbeddingsSettings
   models: {
     answer: string
     contextualize: string
   }
   answer: { effort: Effort; maxTokens: number }
-  retrieval: RetrievalConfig
-  pricing: PricingConfig
+  retrieval: RetrievalSettings
+  pricing: PricingSettings
 }
 
-export function defineConfig(config: DrlConfig): DrlConfig {
-  return config
+export function defineSettings(settings: Settings): Settings {
+  return settings
 }

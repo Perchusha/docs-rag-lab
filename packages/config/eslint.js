@@ -30,6 +30,12 @@ export function createConfig(tsconfigRootDir) {
       rules: { '@eslint-community/eslint-comments/require-description': 'error' },
     },
     {
+      // With verbatimModuleSyntax, `import { type A } from 'x'` still loads
+      // 'x' at runtime as `import {} from 'x'`. Write `import type` instead,
+      // so a types-only boundary (core -> settings, ADR-0007) stays one.
+      rules: { '@typescript-eslint/no-import-type-side-effects': 'error' },
+    },
+    {
       files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
       extends: [tseslint.configs.disableTypeChecked],
       languageOptions: { globals: globals.node },

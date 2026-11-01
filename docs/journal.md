@@ -2,6 +2,65 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M3, first half - The engine under the app (2026-11-01)
+
+M3 is two PRs. This one prepares the packages the ts-docs app will sit on, and is verified through the CLI and the real index. The second adds the ui package, the Next.js app and the M3 entry proper.
+
+**What exists now:**
+- `@docs-rag-lab/contracts`: the retrieval trace, the answer events and citations, a document's chunks. It imports nothing, so ui may use it (ADR-0006).
+- `@docs-rag-lab/settings`: every model ID, price and limit, as plain data with no secrets, shared by the CLI and every app. API keys are read only inside the provider constructors (ADR-0007).
+- `ask()` reports an answer as events (trace, text, citation markers, done with tokens and cost), and `createEngine()` gives the CLI and the apps one code path for search, ask and document lookups.
+- Citation titles name the section a chunk starts in.
+- A CLAUDE.md rule, with a command: every commit must pass typecheck on its own.
+
+**The spike came first.** A throwaway Next.js 16.4 app in a separate worktree ran `retrieve()` over a copy of the real index, in `next dev` and in `next build && next start`:
+- opening the index takes 3-7 ms per request and retrieval 5-8 ms, so opening it per request is fine;
+- sqlite-vec has to be a server external package. Bundled, it fails at runtime with `tR.resolve is not a function`. better-sqlite3 is on Next's default list, and pnpm needs no extra dependencies;
+- an NDJSON stream from a route reaches the client chunk by chunk, and a client disconnect fires the request's abort signal. That is why `ask()` takes an `AbortSignal`;
+- `next dev` writes an `AGENTS.md` into the app, which contains an em dash and would fail `format:check`.
+
+Nothing in it changed the engine API beyond the abort signal.
+
+**Packed chunks are cited by their section.** A pack of sections takes its parent's heading path, which is empty under the document root, so the answer cited "TypeScript 5.9" for the section on notable behavioral changes. Chunker version 3 records the section each chunk starts in:
+
+| | Before | After |
+|---|---|---|
+| TS 5.9 chunk with the `TS2345` output | TypeScript 5.9 | TypeScript 5.9 > Notable Behavioral Changes |
+| `jsdoc-supported-types.html#template` | JSDoc Reference > Types | JSDoc Reference > Types > @template |
+| `typescript-3-7.html#dom-changes` | TypeScript 3.7 > 3.7 Breaking Changes | TypeScript 3.7 > 3.7 Breaking Changes > DOM Changes |
+| Citation titles that changed | | 243 of 994: 170 packs under the document root, 73 under a section |
+| Cost of the forced re-parse | | 3.0s, 0 tokens. 994 chunks unchanged; the keyword index and every embedding byte-identical |
+
+The trace carries the same field, `chunks[id].sectionPath`, so `TRACE_VERSION` is now 2. Nothing stores traces before M4.
+
+**Nothing else moved.** All 20 M2 searches (the 10 before/after questions, vector and hybrid) return the same fused rankings and the same contexts. One `drl ask --verbose` through the engine cost $0.0169.
+
+**What was surprising:**
+- **The plan was wrong about document order.** It said chunks had no document-order column, and proposed a migration. In fact `chunks.ordinal` is the chunk's place in its document: it runs 0..n-1 in all 248 documents. The number inside the chunk ID is a different one, the pack's place in its section, and that is what the plan had read. The migration was dropped before anything was pushed; SPEC and the db types now say which ordinal is which.
+- **No npm import had ever reached a boundary rule.** The new `contracts-client-safe` rule needs to see npm imports, and saw none: the `exclude` pattern matched `node_modules` and `dist/`, which removes modules from the graph, not just from traversal. So `no-non-package-json` could never fire. Now 20 npm modules are in the graph, nothing new fails, and a fixture proves the rule fires.
+- **`git stash` is no tool for a mutation test** when the change adds untracked packages: the tracked half disappears, `pnpm` reinstalls without the new packages, and the stash no longer applies over the new lockfile. It came back after discarding the lockfile change. Mutation checks now edit the one line under test instead.
+
+**What the code-reviewer subagent caught.** It ran in a fresh context, ran every check and the per-commit typecheck (all 7 commits passed, none rewritten), and probed the boundary rules on a scratch tree. No blocking issues. It found:
+- **A hole in `core-settings-types-only`.** dependency-cruiser counts `import { type Settings } from ...` as type-only, but with `verbatimModuleSyntax` Node still loads the module: the reviewer proved it with a `console.log` in a probe module. The ESLint preset now has `no-import-type-side-effects`, which no file in the repo violated.
+- **Docs that contradicted the code:**
+  - `apps/CLAUDE.md` still said model IDs live in `rag.config.ts`, which is exactly what the app PR would have followed;
+  - ADR-0005 and ADR-0006 still said `TRACE_VERSION` 1;
+  - SPEC still said "config only".
+- **Invariants without a test where they could break:** that ingest stores `sectionPath` (dropping it would have fallen back silently), and that an answer failing part-way keeps its usage. Both now have tests; the first fails when ingest drops the field.
+- **Engine input checks.** The engine checked doc types but not strategy or top K, and an app forwards whatever a browser sends. It now throws `InvalidRequestError` for each, and a missing index throws `IndexNotFoundError`, which the CLI shows without the stack-trace hint.
+- **Smaller fixes:** `contracts-client-safe` would have flagged a contracts test importing vitest; two copies of `spansOf`; the usage summary spread unchecked fields.
+
+| | |
+|---|---|
+| Tests | 232 offline (204 in M2): db 28, source-kit 40, source-typescript 41, core 94, cli 25, settings 4 |
+| Boundary rules | 4 new (`contracts-is-leaf`, `contracts-client-safe`, `settings-is-leaf`, `core-settings-types-only`), each with a violating fixture; 19 rule tests |
+| Spend | $0.0169 (one answer); 0 Voyage tokens |
+
+### Open items for the second half
+- The ui package (chat, citations, the inspector with its fusion view) and Storybook with the a11y addon.
+- The Next.js app, bound to 127.0.0.1, with `sqlite-vec` in `serverExternalPackages` and `agentRules: false`; ADR-0008 records the spike.
+- Re-measure the post-edit hook for ui and the app (ADR-0002).
+
 ## M2 - Hybrid search and the retrieval trace (2026-10-31)
 
 **What exists now:**

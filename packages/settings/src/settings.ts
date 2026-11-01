@@ -1,12 +1,12 @@
 // The one place for model IDs, prices and API limits (CLAUDE.md, SPEC section
-// 14). Packages may not import apps, so the CLI keeps its own config (ADR-0004).
-import { defineConfig } from '@docs-rag-lab/core'
-import { typescriptSource } from '@docs-rag-lab/source-typescript'
+// 14). The CLI and every app read these values (ADR-0007). No secrets: API keys
+// come from the environment, read by the provider constructors in core.
+import { defineSettings } from './types.ts'
 
-export default defineConfig({
+export const settings = defineSettings({
   dataDir: 'data',
   cacheDir: '.cache',
-  sources: [typescriptSource({ branch: 'v2' })],
+  sources: { typescript: { branch: 'v2' } },
   embeddings: {
     provider: 'voyage',
     // Voyage through MongoDB Atlas. Keys scoped to a region use eu. or us.ai.mongodb.com.

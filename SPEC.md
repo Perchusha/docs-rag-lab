@@ -63,6 +63,8 @@ packages/
     typescript/     TypeScript-Website parser (twoslash)
     react/          react.dev parser (MDX components; created in M6 with turbo gen)
   db/               SQLite schema, migrations, typed queries
+  contracts/        data shapes that cross boundaries: the retrieval trace, citations, the answer stream (ADR-0006)
+  settings/         engine settings shared by the CLI and apps: models, prices, limits, retrieval defaults (ADR-0007)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   cli/              drl sync | ask | eval | questions
   mcp/              MCP server over core (created in M10)
@@ -80,25 +82,21 @@ docs/journal.md     short notes per milestone with before/after metrics
 **Dependency rules.** These are enforced by dependency-cruiser in CI and in Claude Code hooks.
 - Apps import packages. Packages never import apps.
 - `sources/*` import only `source-kit` (no core, no db, no ui).
-- `core` imports `source-kit` and `db`, never `ui`.
-- `ui` is client-safe: no imports from `core` or `db`. It talks to app route handlers.
+- `core` imports `source-kit`, `db` and `contracts`, never `ui`.
+- `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`. It talks to app route handlers.
+- `contracts` imports nothing: no internal package, no Node.js built-in, no npm package. It holds the shapes that core produces and ui renders (ADR-0006).
+- `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - A package is imported only through its public `index.ts`, never through internals.
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
 
-**One config file per app.** Packages may not import apps, so the `drl` CLI keeps its own config with the same kind of values in `packages/cli/src/drl.config.ts` (ADR-0004).
+**Settings and app config.** Engine settings live in one place, `packages/settings/src/settings.ts`: data dirs, source options, the embedding provider and its limits, model IDs, answer effort, retrieval defaults and prices. They are plain data with no secrets, so they can be written into traces and reports; the provider constructors in core read API keys from the environment (ADR-0007). The CLI and every app import the same object. An app's own config holds only what belongs to the app:
 ```ts
 // apps/ts-docs/rag.config.ts
 export default defineDocsApp({
   id: 'ts-docs',
-  sources: [typescriptSource({ branch: 'v2' })],
-  retrieval: { strategy: 'hybrid', rerank: true, contextual: true, topK: 8 },
-  models: {
-    answer: 'claude-sonnet-5-5',
-    contextualize: 'claude-haiku-5-5',
-    judge: 'claude-sonnet-5-5',
-  },
-  embeddings: { provider: 'voyage', model: 'voyage-4' },
+  source: 'typescript',
+  title: 'TypeScript docs',
   theme: { accent: '#3178c6' },
   examples: ['What does error TS2345 mean?', 'In which version did `satisfies` appear?'],
 })
@@ -117,7 +115,7 @@ export default defineDocsApp({
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
   - Sonnet: answers, the interviewer, the judge.
-  - Model IDs live in config only.
+  - Model IDs live in `packages/settings` only (ADR-0007).
 - **Storage:** SQLite through `better-sqlite3`, with `sqlite-vec` for vectors and FTS5 for keyword search (BM25). One file per source.
 - **Embeddings and reranking:** Voyage AI. Default embedding model `voyage-4`, reranker `rerank-3`.
   - The API key is created in MongoDB Atlas (AI Model APIs). The endpoint is `https://ai.mongodb.com/v1`.
@@ -143,8 +141,9 @@ export default defineDocsApp({
 
 Notes on the chunk columns:
 - `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
+- `ordinal` is the chunk's 0-based place in its document; the inspector orders chunk boundaries by it. The chunk ID uses a different number, the pack's place within its section.
 - `context` is the contextual retrieval prefix.
-- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`.
+- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`, and `sectionPath`, the heading path of the section the chunk starts in (the one its anchor points to). For a pack of sections, `heading_path` is their common parent, which is empty under the document root.
 
 `manifest.include_paths`, `embed_model` (provider, model and dimensions), `chunker_version` and `parser_version` decide when a sync must rebuild everything (ADR-0004, ADR-0005). A rebuild re-parses every file but embeds only changed text.
 
@@ -286,9 +285,9 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 ### Generation
 - Sonnet receives the retrieved chunks as `search_result` content blocks with citations enabled:
   - `source` = canonical doc URL with anchor;
-  - `title` = doc title + heading path;
+  - `title` = doc title + the heading path of the section the chunk starts in (`sectionPath`);
   - `content` = text blocks, one per rendered block of the chunk, so citations point at precise passages.
-- The response is streamed, and citations are rendered inline in the UI.
+- The response is streamed, and citations are rendered inline in the UI. Core reports an answer as a sequence of events: the trace, text deltas, the citation markers of each cited text block (each citation names its context chunk), then `done` with the stop reason and the usage, tokens and estimated cost (ADR-0006). The CLI prints them; an app route sends them to the browser.
 - The system prompt says: answer only from the provided results, and say so when they are not enough.
 
 ### Agentic mode
@@ -430,7 +429,7 @@ If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the
 - No RAG frameworks.
 - Unit tests never hit the network: fixtures live in `__fixtures__`. Network tests are tagged and opt-in.
 - Secrets only come from `.env` (`ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`). `.env.example` is committed.
-- Model IDs and prices live in config only.
+- Model IDs and prices live in `packages/settings` only (ADR-0007).
 - Conventional commits. Every non-obvious decision gets an ADR: `docs/adr/NNNN-title.md`.
 - Generated data (`data/`, `.cache/`) is gitignored. Eval reports are committed.
 - Writing style in docs and comments: never use em dashes, use plain hyphens.

@@ -21,7 +21,7 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 - a retrieval trace with every candidate list, the fused ranking, the final context and timings: `drl ask --verbose` and `drl search`;
 - a parser version in the index, so a parser change re-parses without `--full`.
 
-M3 adds the ts-docs app with the inspector. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
+M3 adds the ts-docs app with the inspector. Its first half is done: the shared `contracts` and `settings` packages, one engine for the CLI and the apps, and citation titles for packed chunks. The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
 Every claim about retrieval quality will be backed by a measured row in a results table here. No measurements exist yet; the first rows arrive with the eval harness in M4.
 
@@ -30,7 +30,7 @@ Every claim about retrieval quality will be backed by a measured row in a result
 - Node 26.13.0, the current LTS. It is pinned in `.nvmrc`, and `pnpm install` refuses anything outside `^26.13.0`.
 - pnpm 12.16.1 (`npm i -g pnpm@12.16.1`). Node 26 does not bundle corepack.
 - git on the PATH, for syncing doc sources.
-- For `drl` only: an Anthropic API key and a Voyage key created in MongoDB Atlas (AI Model APIs). Copy `.env.example` to `.env` and fill it in; the CLI loads it itself. Without a payment method on the Atlas org, Voyage allows 3 requests and 10K tokens per minute, so the first full index takes about an hour; the limits are in `packages/cli/src/drl.config.ts`.
+- For `drl` only: an Anthropic API key and a Voyage key created in MongoDB Atlas (AI Model APIs). Copy `.env.example` to `.env` and fill it in; the CLI loads it itself. Without a payment method on the Atlas org, Voyage allows 3 requests and 10K tokens per minute, so the first full index takes about an hour; the limits are in `packages/settings/src/settings.ts`.
 
 ## Quickstart
 
@@ -76,6 +76,8 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 | `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, chunker, conformance suite |
 | `packages/sources/typescript` | `@docs-rag-lab/source-typescript` | TypeScript-Website parser |
 | `packages/db` | `@docs-rag-lab/db` | SQLite schema, migrations, typed queries |
+| `packages/contracts` | `@docs-rag-lab/contracts` | Data shapes that cross boundaries: retrieval trace, citations, answer events |
+| `packages/settings` | `@docs-rag-lab/settings` | Engine settings shared by the CLI and apps: models, prices, limits |
 | `packages/ui` | `@docs-rag-lab/ui` | Client components: chat, citations, inspector |
 | `packages/cli` | `@docs-rag-lab/cli` | The `drl` CLI |
 | `packages/config` | `@docs-rag-lab/config` | Shared tsconfig, ESLint and Vitest presets; dependency-cruiser rules |
@@ -91,12 +93,12 @@ Enforced by dependency-cruiser on every `lint` run, locally, in CI and in the Cl
 
 - Apps import packages. Packages never import apps, and apps never import other apps.
 - `sources/*` import only `source-kit`.
-- `core` imports only `source-kit` and `db`.
-- `source-kit` and `db` import no internal package.
-- `ui` is client-safe: it imports no internal package, not even types, and no Node.js built-ins.
+- `core` imports only `source-kit`, `db`, `contracts`, and types from `settings`.
+- `source-kit`, `db`, `contracts` and `settings` import no internal package. `contracts` imports no npm package or Node.js built-in either.
+- `ui` is client-safe: of the internal packages it imports only `contracts`, and no Node.js built-ins.
 - A package is imported only through its public `src/index.ts`.
 
-Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md). Why the chunker lives in source-kit and the embedding cache in core is in [ADR-0003](docs/adr/0003-source-kit-and-core-split.md). The ingest design (chunk IDs, incremental sync, rate limits, cost reporting) is in [ADR-0004](docs/adr/0004-ingest-design.md).
+Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md). Why the chunker lives in source-kit and the embedding cache in core is in [ADR-0003](docs/adr/0003-source-kit-and-core-split.md). The ingest design (chunk IDs, incremental sync, rate limits, cost reporting) is in [ADR-0004](docs/adr/0004-ingest-design.md). Hybrid retrieval and the trace are in [ADR-0005](docs/adr/0005-hybrid-retrieval-and-trace.md), the contracts package and the answer events in [ADR-0006](docs/adr/0006-contracts-package.md), and the settings package in [ADR-0007](docs/adr/0007-settings-package.md).
 
 ## How this repo is built with Claude Code
 

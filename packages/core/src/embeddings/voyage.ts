@@ -1,9 +1,10 @@
 // Voyage AI through MongoDB Atlas (SPEC section 5). The official client calls
 // api.voyageai.com unless `environment` names the Atlas endpoint. Retries are
 // ours (cached.ts), so the client's own retries are off.
+import type { VoyageEmbeddingsSettings } from '@docs-rag-lab/settings'
 import { VoyageAIClient, VoyageAIError, VoyageAITimeoutError } from 'voyageai'
 
-import type { VoyageEmbeddingsConfig } from '../config.ts'
+import { requireKey } from '../env.ts'
 import {
   EmbeddingRequestError,
   type EmbeddingProvider,
@@ -81,11 +82,14 @@ function vectorsOf(response: EmbedResponse, count: number, dimensions: number): 
 // Atlas states the free-trial limits in x-api-warning instead of rate-limit headers.
 const RATE_LIMIT_HEADER = /ratelimit|rate-limit|retry-after|^x-api-warning$/i
 
+/**
+ * A Voyage provider. Without `api`, it builds the official client and reads
+ * VOYAGE_API_KEY from the environment here, so settings never carry the key.
+ */
 export function createVoyageProvider(
-  config: VoyageEmbeddingsConfig,
-  apiKey: string,
+  config: VoyageEmbeddingsSettings,
   api: VoyageEmbedApi = new VoyageAIClient({
-    apiKey,
+    apiKey: requireKey('VOYAGE_API_KEY'),
     environment: config.endpoint,
     maxRetries: 0,
     timeoutInSeconds: 120,

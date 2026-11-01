@@ -1,25 +1,27 @@
-// drl sync | ask | limits. Each command records its API usage in the shared
-// meter; run() prints the usage line afterwards, also when a command fails.
+// drl sync | ask | search | limits. Each command records its API usage in the
+// shared meter; run() prints the usage line afterwards, also when a command
+// fails. ask and search go through the engine, the same code path as the apps.
 import { join } from 'node:path'
 
 import {
-  buildAnswerRequest,
-  CitationNumbering,
-  createClaudeClient,
+  NO_CONTEXT,
+  type Citation,
+  type RetrievalRequest,
+  type Strategy,
+} from '@docs-rag-lab/contracts'
+import {
   createEmbeddingProvider,
   openIndexes,
   RateLimiter,
-  retrieve,
-  streamAnswer,
   syncSource,
   type DocType,
-  type DrlConfig,
-  type Retrieval,
-  type Strategy,
+  type Engine,
+  type Source,
   type UsageMeter,
 } from '@docs-rag-lab/core'
+import type { Settings } from '@docs-rag-lab/settings'
 
-import { CliError, requireKey } from './env.ts'
+import { CliError } from './errors.ts'
 import {
   formatCitations,
   formatDuration,
@@ -34,7 +36,11 @@ export interface Writer {
 }
 
 export interface CommandContext {
-  config: DrlConfig
+  settings: Settings
+  /** The configured sources, built from settings; the first is the default. */
+  sources: readonly Source[]
+  /** Search and ask, over the same settings and sources. */
+  engine: Engine
   root: string
   meter: UsageMeter
   out: Writer
@@ -44,22 +50,19 @@ export interface CommandContext {
 // Progress lines during a long sync: at most one every this many milliseconds.
 const PROGRESS_INTERVAL_MS = 20_000
 
-type Source = DrlConfig['sources'][number]
-
-function findSource(config: DrlConfig, id: string): Source {
-  const source = config.sources.find((s) => s.id === id)
+function findSource(sources: readonly Source[], id: string): Source {
+  const source = sources.find((s) => s.id === id)
   if (source === undefined) {
-    const known = config.sources.map((s) => s.id).join(', ')
+    const known = sources.map((s) => s.id).join(', ')
     throw new CliError(`unknown source "${id}" (configured: ${known})`)
   }
   return source
 }
 
-function embeddingsFor(config: DrlConfig) {
-  const provider = createEmbeddingProvider(config.embeddings, {
-    voyage: requireKey('VOYAGE_API_KEY'),
-  })
-  const limiter = new RateLimiter(config.embeddings.rateLimit)
+/** The provider reads VOYAGE_API_KEY itself, when it is created (ADR-0007). */
+function embeddingsFor(settings: Settings) {
+  const provider = createEmbeddingProvider(settings.embeddings)
+  const limiter = new RateLimiter(settings.embeddings.rateLimit)
   return { provider, limiter }
 }
 
@@ -67,12 +70,12 @@ export async function syncCommand(
   ctx: CommandContext,
   args: { source: string; full: boolean },
 ): Promise<void> {
-  const { config, out } = ctx
-  const source = findSource(config, args.source)
-  const { provider, limiter } = embeddingsFor(config)
+  const { settings, out } = ctx
+  const source = findSource(ctx.sources, args.source)
+  const { provider, limiter } = embeddingsFor(settings)
   const start = ctx.now()
   let lastProgress = 0
-  const indexes = openIndexes(join(ctx.root, config.dataDir), source.id)
+  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id)
   const { index, cache } = indexes
   try {
     const report = await syncSource({
@@ -80,7 +83,7 @@ export async function syncCommand(
       provider,
       index,
       cache,
-      checkoutDir: join(ctx.root, config.cacheDir, 'sources', source.id),
+      checkoutDir: join(ctx.root, settings.cacheDir, 'sources', source.id),
       meter: ctx.meter,
       limiter,
       full: args.full,
@@ -116,27 +119,9 @@ export interface RetrievalArgs {
   docTypes: DocType[]
 }
 
-/** Retrieves for a question with the config's settings and the command-line overrides. */
-async function retrieveFor(ctx: CommandContext, args: RetrievalArgs): Promise<Retrieval> {
-  const { config } = ctx
-  const source = findSource(config, args.source)
-  const { provider, limiter } = embeddingsFor(config)
-  const indexes = openIndexes(join(ctx.root, config.dataDir), source.id)
-  try {
-    return await retrieve({
-      question: args.question,
-      source,
-      settings: { ...config.retrieval, strategy: args.strategy, topK: args.topK },
-      docTypes: args.docTypes,
-      provider,
-      index: indexes.index,
-      cache: indexes.cache,
-      meter: ctx.meter,
-      limiter,
-    })
-  } finally {
-    indexes.close()
-  }
+function requestOf(args: RetrievalArgs): RetrievalRequest {
+  const { question, source, strategy, topK, docTypes } = args
+  return { question, source, strategy, topK, docTypes }
 }
 
 /** `drl search`: retrieval only, no answer. Prints the trace, as text or JSON. */
@@ -144,7 +129,7 @@ export async function searchCommand(
   ctx: CommandContext,
   args: RetrievalArgs & { json: boolean },
 ): Promise<void> {
-  const { trace } = await retrieveFor(ctx, args)
+  const { trace } = await ctx.engine.search(requestOf(args), ctx.meter)
   ctx.out.write(args.json ? `${JSON.stringify(trace, null, 2)}\n` : `${formatTrace(trace)}\n`)
 }
 
@@ -152,54 +137,48 @@ export async function askCommand(
   ctx: CommandContext,
   args: RetrievalArgs & { verbose: boolean },
 ): Promise<void> {
-  const { config, out } = ctx
-  const anthropicKey = requireKey('ANTHROPIC_API_KEY')
-  const { hits, trace } = await retrieveFor(ctx, args)
-  if (args.verbose) out.write(`${formatTrace(trace)}\n\n`)
-  if (hits.length === 0) {
-    out.write('No indexed chunks to answer from.\n')
-    return
-  }
-
-  const model = config.models.answer
-  const request = buildAnswerRequest({
-    question: args.question,
-    hits,
-    model,
-    effort: config.answer.effort,
-    maxTokens: config.answer.maxTokens,
-  })
-  const numbering = new CitationNumbering()
-  const message = await streamAnswer(createClaudeClient(anthropicKey), request, {
-    onText: (delta) => out.write(delta),
-    onTextBlock: (block) => {
-      const numbers = numbering.add(block)
-      if (numbers.length > 0) out.write(numbers.map((n) => `[${String(n)}]`).join(''))
-    },
-    // Also called when the stream fails part-way, so those tokens are reported.
-    onUsage: (usage) => {
-      ctx.meter.recordMessage(model, usage)
+  const { out } = ctx
+  const citations: Citation[] = []
+  // The engine records usage in the meter as it goes, also when the stream
+  // fails part-way, so run() still reports those tokens.
+  await ctx.engine.ask(requestOf(args), {
+    meter: ctx.meter,
+    onEvent: (event) => {
+      if (event.type === 'trace') {
+        if (args.verbose) out.write(`${formatTrace(event.trace)}\n\n`)
+      } else if (event.type === 'text') {
+        out.write(event.text)
+      } else if (event.type === 'citations') {
+        out.write(event.numbers.map((n) => `[${String(n)}]`).join(''))
+        citations.push(...event.citations)
+      } else if (event.type === 'done') {
+        if (event.stopReason === NO_CONTEXT) {
+          out.write('No indexed chunks to answer from.\n')
+          return
+        }
+        if (event.stopReason === 'max_tokens')
+          out.write('\n\n(The answer hit max_tokens and is cut off.)')
+        if (event.stopReason === 'refusal') out.write('\n\n(Claude declined to answer.)')
+        out.write(`\n\n${formatCitations(citations)}\n`)
+      }
     },
   })
-  if (message.stop_reason === 'max_tokens')
-    out.write('\n\n(The answer hit max_tokens and is cut off.)')
-  if (message.stop_reason === 'refusal') out.write('\n\n(Claude declined to answer.)')
-  out.write(`\n\n${formatCitations(numbering.list())}\n`)
 }
 
 export async function limitsCommand(ctx: CommandContext): Promise<void> {
-  const { config, out } = ctx
-  const { provider } = embeddingsFor(config)
+  const { settings, out } = ctx
+  const { provider } = embeddingsFor(settings)
   if (provider.probeRateLimits === undefined) {
     throw new CliError(`${provider.id} cannot report rate limits`)
   }
   const probe = await provider.probeRateLimits()
   ctx.meter.recordEmbedding(provider.model, probe.tokens)
-  const { rpm, tpm } = config.embeddings.rateLimit
+  const { rpm, tpm } = settings.embeddings.rateLimit
   out.write(
     `configured: ${String(rpm)} requests and ${tpm.toLocaleString('en-US')} tokens per minute\n`,
   )
   const entries = Object.entries(probe.headers)
-  if (entries.length === 0) out.write(`${config.embeddings.endpoint} sent no rate-limit headers.\n`)
+  if (entries.length === 0)
+    out.write(`${settings.embeddings.endpoint} sent no rate-limit headers.\n`)
   else for (const [name, value] of entries) out.write(`${name}: ${value}\n`)
 }

@@ -558,3 +558,67 @@ describe('SourceIndex migration 2', () => {
     expect(index.searchKeywords('"anything"', 5)).toEqual([])
   })
 })
+
+describe('SourceIndex documentChunks', () => {
+  // The chunk helper writes ordinal 0; give each chunk its place in the document.
+  const inOrder = (chunks: ChunkWrite[]): ChunkWrite[] =>
+    chunks.map((c, ordinal) => ({ ...c, ordinal }))
+
+  it('returns a document with its chunks in document order', () => {
+    const idx = memoryIndex()
+    // IDs that sort differently from the document order.
+    const chunks = inOrder([
+      chunk('z', [1, 0, 0, 0]),
+      chunk('a', [0, 1, 0, 0]),
+      chunk('m', [0, 0, 1, 0]),
+    ])
+    idx.applyChanges({ documents: [doc('d', chunks)], deletePaths: [], manifest: manifest() })
+
+    const stored = idx.documentChunks('d')
+    expect(stored).toMatchObject({ path: 'd', url: 'https://example.com/d', title: 'D' })
+    expect(stored?.chunks.map((c) => [c.chunkId, c.ordinal])).toEqual([
+      ['z', 0],
+      ['a', 1],
+      ['m', 2],
+    ])
+    expect(stored?.chunks[0]).toMatchObject({
+      headingPath: ['Section', 'z'],
+      blockTypes: ['prose'],
+      text: 'text of z',
+      context: null,
+      metadata: { spans: [[0, 9]] },
+    })
+    expect(idx.documentChunks('missing')).toBeUndefined()
+  })
+
+  it('follows a chunk inserted in the middle, and a move does not touch the keyword index', () => {
+    const db = openDatabase(':memory:')
+    index = new SourceIndex(db)
+    const segments = () =>
+      (db.prepare('select count(*) as n from chunks_fts_data').get() as { n: number }).n
+    const write = (chunks: ChunkWrite[]) => {
+      index?.applyChanges({
+        documents: [doc('d', inOrder(chunks))],
+        deletePaths: [],
+        manifest: manifest(),
+      })
+    }
+    write([chunk('first', [1, 0, 0, 0]), chunk('last', [0, 1, 0, 0])])
+    write([chunk('first'), chunk('middle', [0, 0, 1, 0]), chunk('last')])
+    expect(index.documentChunks('d')?.chunks.map((c) => c.chunkId)).toEqual([
+      'first',
+      'middle',
+      'last',
+    ])
+
+    // Moving a kept chunk changes only its ordinal, which the FTS trigger ignores.
+    const before = segments()
+    write([chunk('last'), chunk('first'), chunk('middle')])
+    expect(segments()).toBe(before)
+    expect(index.documentChunks('d')?.chunks.map((c) => c.chunkId)).toEqual([
+      'last',
+      'first',
+      'middle',
+    ])
+  })
+})

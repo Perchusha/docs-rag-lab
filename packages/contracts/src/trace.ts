@@ -1,13 +1,13 @@
 // The retrieval trace (SPEC section 9): every candidate list with ranks and
 // scores, the fused ranking, timings and the final context. It is plain,
-// serializable data with a version, so eval can store it as JSON and the M3
-// inspector can render it. Bump TRACE_VERSION when its shape changes.
-import type { DocType } from '@docs-rag-lab/source-kit'
+// serializable data with a version: core produces it, the CLI prints it, the
+// inspector renders it and eval stores it (ADR-0006). Bump TRACE_VERSION when
+// its shape changes.
+//
+// 1: M2.
+// 2: TraceChunk.sectionPath, the section a chunk starts in (M3).
 
-import type { ExactToken } from './query.ts'
-import type { FusedCandidate } from './rrf.ts'
-
-export const TRACE_VERSION = 1
+export const TRACE_VERSION = 2
 
 export type Strategy = 'vector' | 'hybrid'
 
@@ -15,6 +15,16 @@ export const STRATEGIES: readonly Strategy[] = ['vector', 'hybrid']
 
 /** vector: KNN over embeddings. keyword: BM25 over the question's terms. exact: BM25 over its exact tokens. */
 export type ListName = 'vector' | 'keyword' | 'exact'
+
+export const LIST_NAMES: readonly ListName[] = ['vector', 'keyword', 'exact']
+
+/** Where an exact token came from: code in backticks, a camelCase identifier, a --flag, or the source's own hook. */
+export type ExactTokenOrigin = 'backticks' | 'identifier' | 'flag' | 'source'
+
+export interface ExactToken {
+  token: string
+  from: ExactTokenOrigin
+}
 
 export interface TraceCandidate {
   chunkId: string
@@ -35,14 +45,28 @@ export interface TraceList {
   candidates: TraceCandidate[]
 }
 
+/** One entry of the fused ranking. */
+export interface TraceFusedCandidate {
+  chunkId: string
+  /** 1-based position in the fused ranking. */
+  rank: number
+  /** The RRF score: the sum of 1 / (k + rank) over the lists the chunk is in. */
+  score: number
+  /** The chunk's 1-based rank in each list it appears in. */
+  ranks: Partial<Record<ListName, number>>
+}
+
 export type TraceFusion =
-  { method: 'none' } | { method: 'rrf'; k: number; ms: number; ranked: FusedCandidate<ListName>[] }
+  { method: 'none' } | { method: 'rrf'; k: number; ms: number; ranked: TraceFusedCandidate[] }
 
 /** What a candidate is, for every chunk that appears in any list. */
 export interface TraceChunk {
   docPath: string
   title: string
+  /** The section the chunk belongs to; for a pack of sections, their common parent. */
   headingPath: string[]
+  /** The section the chunk starts in, which `anchor` points to. Label chunks with this. */
+  sectionPath: string[]
   anchor: string
   docType: string
   tokenCount: number
@@ -64,7 +88,7 @@ export interface RetrievalTrace {
   sourceId: string
   strategy: Strategy
   params: { topK: number; candidates: number; rrfK: number }
-  filters: { docTypes: DocType[] }
+  filters: { docTypes: string[] }
   query: { terms: string[]; exactTokens: ExactToken[] }
   embedding: { provider: string; from: 'cache' | 'api'; ms: number }
   lists: TraceList[]

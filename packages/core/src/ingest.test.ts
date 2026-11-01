@@ -162,6 +162,25 @@ describe('syncSource', { timeout: 60_000 }, () => {
     expect(echo?.score).toBeCloseTo(0, 5)
   })
 
+  it('stores each chunk in document order, with the section it starts in', async () => {
+    // Four small sections that do not fit together: two packs under the document root.
+    const sections = ['One', 'Two', 'Three', 'Four']
+      .map((heading) => `## ${heading}\n\n${paragraph(300, heading.toLowerCase())}`)
+      .join('\n\n')
+    write('docs/d.md', `# Doc D\n\n${sections}\n`)
+    await commit('add D')
+
+    await sync(new RecordingProvider())
+
+    const stored = indexes().index.documentChunks('docs/d.md')
+    expect(
+      stored?.chunks.map((chunk) => [chunk.ordinal, chunk.headingPath, chunk.metadata.sectionPath]),
+    ).toEqual([
+      [0, [], ['One']],
+      [1, [], ['Three']],
+    ])
+  })
+
   it('embeds nothing when nothing changed', async () => {
     const provider = new RecordingProvider()
     const head = await commit('initial')

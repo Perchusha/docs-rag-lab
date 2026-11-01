@@ -1,18 +1,14 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import {
-  createEmbeddingProvider,
-  embeddingCacheKey,
-  openIndexes,
-  type RetrievalTrace,
-} from '@docs-rag-lab/core'
+import type { RetrievalTrace } from '@docs-rag-lab/contracts'
+import { createEmbeddingProvider, embeddingCacheKey, openIndexes } from '@docs-rag-lab/core'
+import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import config from './drl.config.ts'
 import { run, USAGE } from './run.ts'
 
 function capture() {
@@ -68,17 +64,24 @@ describe('run', () => {
     expect(out.text()).toContain('usage: no API calls, 0 tokens, $0.0000')
   })
 
-  it('reports a dotenv file it cannot read as a failed command, with the usage line', async () => {
+  it('reports an unexpected failure with a hint, and its stack trace only with DRL_DEBUG', async () => {
+    // A directory where the dotenv file should be: not a usage error.
     mkdirSync(join(root, '.env'))
     const out = capture()
     const err = capture()
 
-    expect(await run(['limits'], { out: out.writer, err: err.writer, root })).toBe(1)
+    expect(await run(['limits'], { out: out.writer, err: err.writer, root, debug: false })).toBe(1)
     expect(err.text()).toContain('drl limits failed:')
+    expect(err.text()).toContain('Set DRL_DEBUG=1')
+    expect(err.text()).not.toMatch(/\n\s+at /)
     expect(out.text()).toContain('usage: no API calls')
+
+    const debug = capture()
+    await run(['limits'], { out: capture().writer, err: debug.writer, root, debug: true })
+    expect(debug.text()).toMatch(/\n\s+at /)
   })
 
-  it('explains an empty index without a stack trace unless DRL_DEBUG is set', async () => {
+  it('says to sync first when there is no index, without a stack trace hint', async () => {
     vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test')
     const err = capture()
@@ -91,13 +94,10 @@ describe('run', () => {
     })
 
     expect(code).toBe(1)
-    expect(err.text()).toContain('the index is empty: run drl sync first')
-    expect(err.text()).toContain('Set DRL_DEBUG=1')
-    expect(err.text()).not.toMatch(/\n\s+at /)
-
-    const debug = capture()
-    await run(['ask', 'q'], { out: capture().writer, err: debug.writer, root, debug: true })
-    expect(debug.text()).toMatch(/\n\s+at /)
+    expect(err.text()).toContain(
+      'there is no index for typescript yet: run drl sync typescript first',
+    )
+    expect(err.text()).not.toContain('DRL_DEBUG')
   })
 
   it('names the configured sources when the source is unknown', async () => {
@@ -140,16 +140,20 @@ describe('run', () => {
       root,
     })
 
-    // It gets as far as the (empty) index, past every key and flag check.
+    // It gets past every flag check to the index, which comes before the Voyage key, and
+    // creates no index file.
     expect(code).toBe(1)
-    expect(err.text()).toContain('drl search failed: the index is empty: run drl sync first')
+    expect(err.text()).toContain(
+      'drl search failed: there is no index for typescript yet: run drl sync typescript first',
+    )
+    expect(existsSync(join(root, 'data', 'sources', 'typescript.sqlite'))).toBe(false)
   })
 
   it('prints the whole trace as JSON from a seeded index, with the query vector from the cache', async () => {
     vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
     const question = 'What does error TS2345 mean?'
-    const { dimensions } = config.embeddings
-    const providerId = createEmbeddingProvider(config.embeddings, { voyage: 'pa-test' }).id
+    const { dimensions } = settings.embeddings
+    const providerId = createEmbeddingProvider(settings.embeddings).id
     const unit = (i: number) =>
       Float32Array.from({ length: dimensions }, (_, j) => (j === i ? 1 : 0))
     const chunk = (id: string, text: string, vector: Float32Array) => ({
@@ -165,7 +169,7 @@ describe('run', () => {
       vector,
     })
     // Seed data/ in the temp root: two chunks, and the question's vector in the cache.
-    const indexes = openIndexes(join(root, config.dataDir), 'typescript')
+    const indexes = openIndexes(join(root, settings.dataDir), 'typescript')
     indexes.index.applyChanges({
       documents: [
         {
@@ -216,7 +220,7 @@ describe('run', () => {
 
     expect(code).toBe(0)
     const trace = JSON.parse(out.text()) as RetrievalTrace
-    expect(trace).toMatchObject({ version: 1, strategy: 'hybrid', sourceId: 'typescript' })
+    expect(trace).toMatchObject({ version: 2, strategy: 'hybrid', sourceId: 'typescript' })
     expect(trace.embedding.from).toBe('cache')
     expect(trace.lists.find((list) => list.name === 'exact')?.candidates[0]?.chunkId).toBe('code')
     expect(trace.context.map((c) => c.chunkId)).toEqual(['code', 'near'])

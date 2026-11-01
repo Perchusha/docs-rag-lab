@@ -1,6 +1,7 @@
 // Turns a question into FTS5 queries for keyword search (ADR-0005). Every term
 // is quoted, so FTS5 syntax in a question (OR, NOT, NEAR, *, ^, :, quotes) is
 // matched as text and never parsed as an operator.
+import type { ExactToken } from '@docs-rag-lab/contracts'
 
 /** The trigram tokenizer cannot match anything shorter than this. */
 export const MIN_TERM_LENGTH = 3
@@ -16,13 +17,6 @@ const STOPWORDS = new Set(
     'will with would you your'
   ).split(' '),
 )
-
-export type ExactTokenOrigin = 'backticks' | 'identifier' | 'flag' | 'source'
-
-export interface ExactToken {
-  token: string
-  from: ExactTokenOrigin
-}
 
 export interface QueryPlan {
   /** Words of the question (and source tokens) that keyword search looks for, lowercased. */

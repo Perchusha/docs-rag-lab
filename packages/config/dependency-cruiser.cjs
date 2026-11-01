@@ -42,20 +42,55 @@ module.exports = {
       },
     },
     {
-      name: 'core-only-source-kit-db',
+      name: 'core-allowed-packages',
       comment:
-        'core imports only source-kit and db: never ui, a concrete source or an app (SPEC section 4, ADR-0002).',
+        'core imports only source-kit, db, contracts and settings (types only): never ui, a concrete source or an app (SPEC section 4, ADR-0002, ADR-0006, ADR-0007).',
       severity: 'error',
       from: { path: '^packages/core/' },
-      to: { path: INTERNAL, pathNot: ['^packages/(core|source-kit|db)/', CONFIG] },
+      to: {
+        path: INTERNAL,
+        pathNot: ['^packages/(core|source-kit|db|contracts|settings)/', CONFIG],
+      },
+    },
+    {
+      name: 'core-settings-types-only',
+      comment:
+        'core imports only types from settings: model IDs and prices reach core as arguments, never as imported values (ADR-0007).',
+      severity: 'error',
+      from: { path: '^packages/core/' },
+      to: { path: '^packages/settings/', dependencyTypesNot: ['type-only'] },
+    },
+    {
+      name: 'settings-is-leaf',
+      comment:
+        'settings imports no other internal package: it is plain data and its schema, shared by the CLI and apps (ADR-0007).',
+      severity: 'error',
+      from: { path: '^packages/settings/' },
+      to: { path: INTERNAL, pathNot: ['^packages/settings/', CONFIG] },
     },
     {
       name: 'ui-no-internal-packages',
       comment:
-        'ui is client-safe: it never imports core, db or any other internal package, not even types. It talks to app route handlers (SPEC section 4).',
+        'ui is client-safe: it imports no internal package but contracts, not even types from core or db. It talks to app route handlers (SPEC section 4, ADR-0006).',
       severity: 'error',
       from: { path: '^packages/ui/' },
-      to: { path: INTERNAL, pathNot: ['^packages/ui/', CONFIG] },
+      to: { path: INTERNAL, pathNot: ['^packages/(ui|contracts)/', CONFIG] },
+    },
+    {
+      name: 'contracts-is-leaf',
+      comment:
+        'contracts imports no other internal package, so ui can import it without reaching core or db (ADR-0006).',
+      severity: 'error',
+      from: { path: '^packages/contracts/' },
+      to: { path: INTERNAL, pathNot: ['^packages/contracts/', CONFIG] },
+    },
+    {
+      name: 'contracts-client-safe',
+      comment:
+        'contracts imports nothing but its own files: no Node.js built-ins and no npm packages, so it runs in the browser and in Node. Its tests may import vitest (ADR-0006).',
+      severity: 'error',
+      from: { path: '^packages/contracts/src/', pathNot: '\\.test\\.ts$' },
+      to: { dependencyTypesNot: ['local'] },
     },
     {
       name: 'ui-no-node-builtins',
@@ -133,8 +168,11 @@ module.exports = {
     },
   ],
   options: {
+    // npm packages stay in the graph, so rules can see them, but are not followed.
     doNotFollow: { path: 'node_modules' },
-    exclude: { path: '(^|/)(node_modules|__fixtures__|\\.next|\\.turbo|dist|coverage)/' },
+    // Fixture and generated folders. Not node_modules or dist/: excluding those
+    // dropped every npm package from the graph (packages have no build step, ADR-0001).
+    exclude: { path: '(^|/)(__fixtures__|\\.next|\\.turbo|coverage)/' },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ['exports'],

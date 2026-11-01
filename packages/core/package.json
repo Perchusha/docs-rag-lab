@@ -21,7 +21,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@docs-rag-lab/contracts": "workspace:*",
     "@docs-rag-lab/db": "workspace:*",
+    "@docs-rag-lab/settings": "workspace:*",
     "@docs-rag-lab/source-kit": "workspace:*",
     "voyageai": "^0.4.0"
   }
