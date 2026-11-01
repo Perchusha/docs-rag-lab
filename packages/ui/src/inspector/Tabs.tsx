@@ -36,6 +36,8 @@ export function Tabs<Id extends string>({ label, tabs, selected, onSelect }: Tab
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // Alt+Left and Alt+Right are the browser's Back and Forward.
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     const target = {
       ArrowRight: current + 1,
       ArrowLeft: current - 1,

@@ -22,9 +22,9 @@ export function chunkTitle(chunk: Pick<TraceChunk, 'title' | 'sectionPath'>): st
   return [chunk.title, ...chunk.sectionPath].join(' > ')
 }
 
-/** The doc path from the docs folder on, plus the anchor. */
+/** The doc's folder and file name, plus the anchor: the same rule for every source's layout. */
 export function chunkLocation(chunk: Pick<TraceChunk, 'docPath' | 'anchor'>): string {
-  const path = chunk.docPath.replace(/^.*\/copy\/en\//, '')
+  const path = chunk.docPath.split('/').slice(-2).join('/')
   return chunk.anchor === '' ? path : `${path}#${chunk.anchor}`
 }
 

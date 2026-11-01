@@ -116,6 +116,10 @@ export const KeyboardTabs: Story = {
     await expect(tab(/Fusion/)).toHaveFocus()
     await expect(tab(/Fusion/)).toHaveAttribute('aria-selected', 'true')
 
+    // Alt+Arrow is the browser's Back and Forward: the tab list leaves it alone.
+    await userEvent.keyboard('{Alt>}{ArrowRight}{/Alt}')
+    await expect(tab(/Fusion/)).toHaveAttribute('aria-selected', 'true')
+
     // Tab leaves the tab list for the panel: the other tabs are not tab stops.
     await userEvent.tab()
     await expect(canvas.getByRole('tabpanel')).toHaveFocus()

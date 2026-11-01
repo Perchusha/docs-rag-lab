@@ -30,6 +30,10 @@ describe('format', () => {
     expect(chunkTitle(chunk)).toBe('TypeScript 4.9 > The satisfies Operator')
     expect(chunkLocation(chunk)).toBe('release-notes/TypeScript 4.9.md#the-satisfies-operator')
     expect(chunkLocation({ ...chunk, anchor: '' })).toBe('release-notes/TypeScript 4.9.md')
+    // No source's folder layout is built in: a react.dev path shortens the same way.
+    expect(
+      chunkLocation({ docPath: 'src/content/reference/react/useState.md', anchor: 'usage' }),
+    ).toBe('react/useState.md#usage')
   })
 
   it('formats the recorded usage', () => {

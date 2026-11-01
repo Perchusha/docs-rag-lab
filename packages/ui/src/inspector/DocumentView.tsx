@@ -29,6 +29,7 @@ export function DocumentView({ trace, chunkId, onSelectChunk, transport }: Docum
     const controller = new AbortController()
     transport.document(trace.sourceId, docPath, controller.signal).then(
       (document) => {
+        if (controller.signal.aborted) return
         setLoaded({ path: docPath, document })
       },
       (error: unknown) => {
@@ -44,7 +45,13 @@ export function DocumentView({ trace, chunkId, onSelectChunk, transport }: Docum
   if (docPath === undefined) {
     return <p className={styles.meta}>This chunk is not in the trace.</p>
   }
-  if (loaded?.path !== docPath) return <p className={styles.meta}>Loading the document</p>
+  if (loaded?.path !== docPath) {
+    return (
+      <p role="status" className={styles.meta}>
+        Loading the document
+      </p>
+    )
+  }
   if ('error' in loaded) {
     return <p className={styles.error}>Could not load the document: {loaded.error}</p>
   }
