@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { DocsAssistant } from './DocsAssistant.tsx'
 import { answerFixture, documentFixture } from './fixtures.ts'
@@ -46,8 +46,8 @@ export const AskAndInspect: Story = {
       strategy: 'hybrid',
       docTypes: [],
     })
-    await expect(status).toHaveTextContent('Searching the docs')
-
+    // State shows up after React renders, so status checks wait for it. The
+    // short Searching state is checked in Stop, where it lasts 400 ms.
     await expect(await canvas.findByText('Answer ready, with 1 source')).toBe(status)
     await expect(canvas.getByRole('tab', { name: 'Fusion' })).toHaveAttribute(
       'aria-selected',
@@ -122,12 +122,12 @@ export const Stop: Story = {
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
     await userEvent.keyboard('{Control>}{Enter}{/Control}')
-    await expect(canvas.getByRole('status')).toHaveTextContent('Searching the docs')
+    const status = canvas.getByRole('status')
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
-    await expect(canvas.getByRole('status')).toHaveTextContent('Stopped')
-    await expect(canvas.getByRole('button', { name: 'Stop' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
+    await waitFor(() => expect(status).toHaveTextContent('Stopped'))
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Stop' })).toHaveAttribute('aria-disabled', 'true'),
     )
   },
 }
