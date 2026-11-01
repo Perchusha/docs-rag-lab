@@ -93,6 +93,27 @@ export const SearchOnly: Story = {
   },
 }
 
+/** A new question replaces one still running: nothing of the first reaches the page. */
+export const NewQuestionReplacesRunning: Story = {
+  args: {
+    // The search answers after the replaced ask would have streamed every event,
+    // so an ask that kept going would reach the page.
+    transport: replayTransport({ events: answerFixture.events, delayMs: 30, searchDelayMs: 1500 }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const status = canvas.getByRole('status')
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Search only' }))
+    await canvas.findByText('Search done: 8 chunks in the context', undefined, { timeout: 3000 })
+    await expect(status).toHaveTextContent('Search done: 8 chunks in the context')
+    await expect(canvas.getByRole('heading', { name: 'Search' })).toBeVisible()
+    await expect(canvas.queryByRole('heading', { name: 'Sources' })).toBeNull()
+    await expect(canvas.queryAllByRole('button', { name: /^Source / })).toHaveLength(0)
+  },
+}
+
 export const Stop: Story = {
   args: {
     transport: replayTransport({ events: answerFixture.events, delayMs: 400 }),

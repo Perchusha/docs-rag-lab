@@ -17,6 +17,8 @@ export interface ReplayOptions {
   documents?: readonly DocumentChunks[]
   /** The wait before each event and response. */
   delayMs?: number
+  /** The wait before search() answers, when it should differ from delayMs. */
+  searchDelayMs?: number
   /** Every call fails with this message instead. */
   failure?: string
   /** Called with each request, so a story can check what the form sent. */
@@ -43,6 +45,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 
 export function replayTransport(options: ReplayOptions): Transport {
   const { events = [], documents = [], delayMs = 0 } = options
+  const searchDelayMs = options.searchDelayMs ?? delayMs
   const trace =
     options.trace ?? events.flatMap((event) => (event.type === 'trace' ? [event.trace] : [])).at(0)
 
@@ -58,7 +61,7 @@ export function replayTransport(options: ReplayOptions): Transport {
 
     async search(request, signal) {
       options.onRequest?.('search', request)
-      await sleep(delayMs, signal)
+      await sleep(searchDelayMs, signal)
       if (options.failure !== undefined) throw new Error(options.failure)
       if (trace === undefined) throw new Error('nothing to replay: no trace')
       return trace
