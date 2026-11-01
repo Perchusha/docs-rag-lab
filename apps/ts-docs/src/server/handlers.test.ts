@@ -157,7 +157,8 @@ describe('handleAsk', () => {
     })
   })
 
-  it('ends the stream with an error event when the answer fails part-way', async () => {
+  it('ends the stream with an error event when the answer fails part-way, and logs it', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { factory } = engineWith({
       ask: async (_request, run) => {
         run.onEvent({ type: 'trace', trace })
@@ -171,6 +172,26 @@ describe('handleAsk', () => {
       { type: 'trace', trace },
       { type: 'error', message: 'connection reset' },
     ])
+    expect(log).toHaveBeenCalledOnce()
+  })
+
+  it('stops the answer when the response body is cancelled, even if the request signal does not fire', async () => {
+    let seen: AbortSignal | undefined
+    const { factory } = engineWith({
+      ask: (_request, run) => {
+        seen = run.signal
+        run.onEvent({ type: 'trace', trace })
+        return new Promise((_resolve, reject) => {
+          run.signal?.addEventListener('abort', () => {
+            reject(new Error('Request was aborted.'))
+          })
+        })
+      },
+    })
+    const response = await handleAsk(factory, post('/api/ask', { question: 'q' }))
+    expect(seen?.aborted).toBe(false)
+    await response.body?.cancel()
+    expect(seen?.aborted).toBe(true)
   })
 
   it("passes the request's signal, and sends no error once the browser has gone", async () => {

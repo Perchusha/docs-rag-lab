@@ -71,8 +71,9 @@ export async function handleSearch(engine: EngineFactory, request: Request): Pro
  * POST /api/ask: the answer as an NDJSON stream of AnswerEvents (ADR-0006).
  * The response waits for the first event, so a request the engine refuses
  * (bad field, unknown source, no index, no key) still gets a status code.
- * After that, a failure is sent as an `error` event. When the browser goes
- * away, the request's signal stops the Claude stream.
+ * After that, a failure is sent as an `error` event, and logged. When the
+ * browser goes away, the Claude stream stops: on the request's abort signal,
+ * or when the response body is cancelled, whichever comes first.
  */
 export async function handleAsk(engine: EngineFactory, request: Request): Promise<Response> {
   const parsed = await requestOf(request)
@@ -81,12 +82,15 @@ export async function handleAsk(engine: EngineFactory, request: Request): Promis
   const encoder = new TextEncoder()
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined
   let open = true
+  const gone = new AbortController()
+  const signal = AbortSignal.any([request.signal, gone.signal])
   const body = new ReadableStream<Uint8Array>({
     start(c) {
       controller = c
     },
     cancel() {
       open = false
+      gone.abort()
     },
   })
   const close = () => {
@@ -107,7 +111,7 @@ export async function handleAsk(engine: EngineFactory, request: Request): Promis
 
   let ask: Promise<unknown>
   try {
-    ask = engine().ask(parsed, { meter: new UsageMeter(), onEvent: send, signal: request.signal })
+    ask = engine().ask(parsed, { meter: new UsageMeter(), onEvent: send, signal })
   } catch (error) {
     return errorResponse(error)
   }
@@ -121,7 +125,10 @@ export async function handleAsk(engine: EngineFactory, request: Request): Promis
         first.reject(error)
         return
       }
-      if (!request.signal.aborted) send({ type: 'error', message: messageOf(error) })
+      if (!signal.aborted) {
+        console.error(error)
+        send({ type: 'error', message: messageOf(error) })
+      }
       close()
     },
   )
