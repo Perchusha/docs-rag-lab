@@ -6,15 +6,25 @@ packages:
 
 engineStrict: true
 
+# pnpm 12 fails an install when a dependency has a build script that is not
+# listed here. esbuild's script (from Storybook) only checks its binary, which
+# the optional @esbuild/<platform> package already provides.
+allowBuilds:
+  esbuild: false
+
 catalog:
   '@eslint-community/eslint-plugin-eslint-comments': ^4.8.1
   '@eslint/js': ^10.0.1
   '@types/node': ^26.6.6
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
   dependency-cruiser: ^18.7.0
   eslint: ^10.13.0
   eslint-config-prettier: ^10.1.8
   globals: ^17.13.0
   prettier: ^3.9.10
+  react: ^19.3.1
+  react-dom: ^19.3.1
   turbo: ^2.11.10
   typescript: ~6.0.3
   typescript-eslint: ^8.72.1

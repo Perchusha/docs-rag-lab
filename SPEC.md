@@ -93,14 +93,19 @@ The full rule set, including the rules added on top of these (for example `db` i
 **Settings and app config.** Engine settings live in one place, `packages/settings/src/settings.ts`: data dirs, source options, the embedding provider and its limits, model IDs, answer effort, retrieval defaults and prices. They are plain data with no secrets, so they can be written into traces and reports; the provider constructors in core read API keys from the environment (ADR-0007). The CLI and every app import the same object. An app's own config holds only what belongs to the app:
 ```ts
 // apps/ts-docs/rag.config.ts
+import { defineDocsApp } from '@docs-rag-lab/ui'
+
 export default defineDocsApp({
   id: 'ts-docs',
   source: 'typescript',
-  title: 'TypeScript docs',
-  theme: { accent: '#3178c6' },
+  title: 'TypeScript docs assistant',
+  // One shade per colour scheme: each must reach 4.5:1 on its background (ADR-0008).
+  theme: { accent: { light: '#235a97', dark: '#79b8ff' } },
   examples: ['What does error TS2345 mean?', 'In which version did `satisfies` appear?'],
 })
 ```
+
+The app itself is a page and three one-line routes over the engine: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order). It listens on 127.0.0.1 only (ADR-0008).
 
 **Storage layout:**
 - The index belongs to the source, not to the app: `data/sources/<source-id>.sqlite`. Apps open the source indexes they need, so `interview-prep` reads the TS and React indexes without duplicating them.
@@ -111,7 +116,8 @@ export default defineDocsApp({
 ## 5. Tech stack
 
 - **Runtime and tooling:** current Node LTS, pnpm, Turborepo, TypeScript strict, ESM, Vitest, ESLint, Prettier, dependency-cruiser, Storybook. Exact versions and the reasons for them (for example TypeScript 6.0 rather than 7) are in ADR-0001.
-- **Apps:** Next.js App Router with streaming route handlers.
+- **Apps:** Next.js 16 App Router with streaming route handlers, bound to 127.0.0.1 (ADR-0008).
+- **UI:** React 19 with CSS Modules and design tokens (light and dark), react-markdown for answers (no raw HTML), Storybook 10. Every story runs as a test in headless Chromium through Playwright, with axe, in both colour schemes (ADR-0008).
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
   - Sonnet: answers, the interviewer, the judge.
@@ -287,7 +293,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
   - `source` = canonical doc URL with anchor;
   - `title` = doc title + the heading path of the section the chunk starts in (`sectionPath`);
   - `content` = text blocks, one per rendered block of the chunk, so citations point at precise passages.
-- The response is streamed, and citations are rendered inline in the UI. Core reports an answer as a sequence of events: the trace, text deltas, the citation markers of each cited text block (each citation names its context chunk), then `done` with the stop reason and the usage, tokens and estimated cost (ADR-0006). The CLI prints them; an app route sends them to the browser.
+- The response is streamed, and citations are rendered inline in the UI. Core reports an answer as a sequence of events: the trace, text deltas, the citation markers of each cited text block (each citation names its context chunk), then `done` with the stop reason and the usage, tokens and estimated cost (ADR-0006). The CLI prints them; an app route sends them to the browser as NDJSON, one event per line, and ui renders the markdown without raw HTML, with each citation marker as a button that shows its chunk in the inspector (ADR-0008).
 - The system prompt says: answer only from the provided results, and say so when they are not enough.
 
 ### Agentic mode

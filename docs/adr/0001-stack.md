@@ -4,6 +4,7 @@
 - Date: 2026-10-31
 - Milestone: M0
 - Amended: 2026-10-31, M1 (runtime dependencies, type stripping verified)
+- Amended: 2026-11-01, M3: Next.js, React and Storybook added, and the app has a build task (ADR-0008)
 
 ## Context
 
@@ -29,8 +30,8 @@ All versions below were checked with `npm view` on 2026-10-31. The resolved vers
 | GitHub Actions | checkout@v7, setup-node@v7, pnpm/action-setup@v6 | Current majors. setup-node reads `.nvmrc`; action-setup reads `packageManager` |
 
 Deferred until the milestone that uses them, so that M0 installs nothing unused:
-- Next.js 16.4 and React 19.3 (M3);
-- Storybook 10 (M3);
+- Next.js 16.4 and React 19.3 (M3, added; versions and reasons in ADR-0008);
+- Storybook 10 (M3, added; ADR-0008);
 - better-sqlite3 13 and sqlite-vec 0.1.9 (M1, added; see "M1 additions" below);
 - `@anthropic-ai/sdk` and `voyageai` (M1, added);
 - `@turbo/gen` (before M6).
@@ -47,7 +48,7 @@ So the project uses 6.0.3, the last JS-based line, pinned with `~6.0.3`. Revisit
 ### Internal packages have no build step
 
 Every package's `package.json` exports `{ ".": "./src/index.ts" }`.
-- Next.js, Vitest and Node 26 all consume TypeScript source directly. There is no `build` task, no `dist/`, and no project references.
+- Next.js, Vitest and Node 26 all consume TypeScript source directly. No package has a `build` task or a `dist/`, and there are no project references. The one build task is the app's `next build` (M3, ADR-0008), which compiles the packages it imports from source.
 - `exports` exposing only `.` also enforces SPEC's "only through index.ts" at the resolver level.
 
 The shared tsconfig presets (`packages/config/tsconfig/`) make this safe:

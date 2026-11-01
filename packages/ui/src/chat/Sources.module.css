@@ -1,0 +1,42 @@
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.list {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+
+/* List items, not flex boxes: a flex box loses its number. */
+.item + .item {
+  margin-top: var(--space-3);
+}
+
+.item > * + * {
+  margin-top: var(--space-1);
+}
+
+.item::marker {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.title {
+  font-weight: 600;
+}
+
+.quote {
+  margin: 0;
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}

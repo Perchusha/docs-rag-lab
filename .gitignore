@@ -9,6 +9,8 @@ node_modules/
 .turbo/
 .next/
 dist/
+storybook-static/
+next-env.d.ts
 coverage/
 *.tsbuildinfo
 
