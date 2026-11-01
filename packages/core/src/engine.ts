@@ -6,7 +6,13 @@
 // which costs a few milliseconds and never holds a write lock between calls.
 import { join } from 'node:path'
 
-import type { AnswerEvent, DocumentChunks, RetrievalRequest } from '@docs-rag-lab/contracts'
+import {
+  STRATEGIES,
+  type AnswerEvent,
+  type DocumentChunks,
+  type RetrievalRequest,
+  type Strategy,
+} from '@docs-rag-lab/contracts'
 import type { Settings } from '@docs-rag-lab/settings'
 import { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'
 
@@ -14,7 +20,7 @@ import { ask } from './ask.ts'
 import { createEmbeddingProvider } from './embeddings/factory.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import { RateLimiter } from './embeddings/rate-limit.ts'
-import { createClaudeClient, sectionPathOf, type AnswerClient } from './generate.ts'
+import { createClaudeClient, sectionPathOf, spansOf, type AnswerClient } from './generate.ts'
 import { openIndexes, type OpenIndexes } from './indexes.ts'
 import { retrieve, type Retrieval } from './retrieve.ts'
 import type { UsageMeter } from './usage.ts'
@@ -52,6 +58,12 @@ export interface Engine {
   documentChunks(sourceId: string, path: string): DocumentChunks | undefined
 }
 
+/**
+ * The most chunks a request may send to the answer. More would not make a
+ * useful answer request, and sqlite-vec caps k at 4096.
+ */
+export const MAX_TOP_K = 100
+
 /** Thrown for a source ID the engine was not given. */
 export class UnknownSourceError extends Error {
   constructor(id: string, known: readonly Source[]) {
@@ -60,27 +72,48 @@ export class UnknownSourceError extends Error {
   }
 }
 
-/** The request's doc types, checked: an unknown one would silently match nothing. */
-function docTypesOf(values: readonly string[] | undefined): DocType[] {
-  return (values ?? []).map((value) => {
+/**
+ * A request field the engine cannot use. Hosts may check fields earlier, with
+ * their own messages (the CLI does, per flag); the engine checks them anyway,
+ * because an app forwards what a browser sent.
+ */
+export class InvalidRequestError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'InvalidRequestError'
+  }
+}
+
+interface CheckedRequest {
+  question: string
+  strategy: Strategy | undefined
+  topK: number | undefined
+  docTypes: DocType[]
+}
+
+function checkRequest(request: RetrievalRequest): CheckedRequest {
+  const question = request.question.trim()
+  if (question === '') throw new InvalidRequestError('the question is empty')
+  const { strategy, topK } = request
+  if (strategy !== undefined && !STRATEGIES.includes(strategy)) {
+    throw new InvalidRequestError(
+      `unknown strategy "${strategy}" (known: ${STRATEGIES.join(', ')})`,
+    )
+  }
+  if (topK !== undefined && (!Number.isInteger(topK) || topK < 1 || topK > MAX_TOP_K)) {
+    throw new InvalidRequestError(
+      `top K must be a whole number from 1 to ${String(MAX_TOP_K)}, got ${String(topK)}`,
+    )
+  }
+  // An unknown doc type would silently match nothing.
+  const docTypes = (request.docTypes ?? []).map((value) => {
     const docType = DOC_TYPES.find((known) => known === value)
     if (docType === undefined) {
-      throw new Error(`unknown doc type "${value}" (known: ${DOC_TYPES.join(', ')})`)
+      throw new InvalidRequestError(`unknown doc type "${value}" (known: ${DOC_TYPES.join(', ')})`)
     }
     return docType
   })
-}
-
-function spansOf(metadata: Record<string, unknown>): [number, number][] {
-  const spans = metadata.spans
-  if (!Array.isArray(spans)) return []
-  return spans.filter(
-    (span): span is [number, number] =>
-      Array.isArray(span) &&
-      span.length === 2 &&
-      typeof span[0] === 'number' &&
-      typeof span[1] === 'number',
-  )
+  return { question, strategy, topK, docTypes }
 }
 
 export function createEngine(options: EngineOptions): Engine {
@@ -115,15 +148,20 @@ export function createEngine(options: EngineOptions): Engine {
     }
   }
 
-  const retrieveOptions = (request: RetrievalRequest, meter: UsageMeter, indexes: OpenIndexes) => ({
+  const retrieveOptions = (
+    source: Source,
+    request: CheckedRequest,
+    meter: UsageMeter,
+    indexes: OpenIndexes,
+  ) => ({
     question: request.question,
-    source: sourceOf(request.source),
+    source,
     settings: {
       ...settings.retrieval,
       ...(request.strategy === undefined ? {} : { strategy: request.strategy }),
       ...(request.topK === undefined ? {} : { topK: request.topK }),
     },
-    docTypes: docTypesOf(request.docTypes),
+    docTypes: request.docTypes,
     provider: providerOf(),
     index: indexes.index,
     cache: indexes.cache,
@@ -136,19 +174,21 @@ export function createEngine(options: EngineOptions): Engine {
 
     // async, so a bad request rejects instead of throwing before a promise exists.
     async search(request, meter) {
+      const checked = checkRequest(request)
       const source = sourceOf(request.source)
       return await withIndexes(source, (indexes) =>
-        retrieve(retrieveOptions(request, meter, indexes)),
+        retrieve(retrieveOptions(source, checked, meter, indexes)),
       )
     },
 
     async ask(request, run) {
+      const checked = checkRequest(request)
       const source = sourceOf(request.source)
       // Before retrieval, so a missing ANTHROPIC_API_KEY fails before any Voyage call.
       const answerClient = clientOf()
       return await withIndexes(source, (indexes) =>
         ask({
-          ...retrieveOptions(request, run.meter, indexes),
+          ...retrieveOptions(source, checked, run.meter, indexes),
           client: answerClient,
           model: settings.models.answer,
           effort: settings.answer.effort,
@@ -180,7 +220,7 @@ export function createEngine(options: EngineOptions): Engine {
             anchor: chunk.anchor,
             tokenCount: chunk.tokenCount,
             text: chunk.text,
-            spans: spansOf(chunk.metadata),
+            spans: spansOf(chunk),
             context: chunk.context,
           })),
         }

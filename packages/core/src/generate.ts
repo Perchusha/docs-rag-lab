@@ -39,7 +39,8 @@ export function citationTitle(hit: Pick<SearchHit, 'title' | 'headingPath' | 'me
   return [hit.title, ...sectionPathOf(hit)].join(' > ')
 }
 
-function spansOf(hit: SearchHit): [number, number][] {
+/** Character ranges of a chunk's rendered blocks (metadata.spans), or one range after the prefix line. */
+export function spansOf(hit: Pick<SearchHit, 'text' | 'metadata'>): [number, number][] {
   const spans = hit.metadata.spans
   if (
     Array.isArray(spans) &&

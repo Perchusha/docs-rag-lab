@@ -2,12 +2,23 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
+import {
+  NO_CONTEXT,
+  type AnswerEvent,
+  type RetrievalRequest,
+  type Strategy,
+} from '@docs-rag-lab/contracts'
 import type { ChunkWrite } from '@docs-rag-lab/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { createEngine, UnknownSourceError, type EngineSettings } from './engine.ts'
-import { openIndexes, sourceIndexPath } from './indexes.ts'
+import {
+  createEngine,
+  InvalidRequestError,
+  MAX_TOP_K,
+  UnknownSourceError,
+  type EngineSettings,
+} from './engine.ts'
+import { IndexNotFoundError, openIndexes, sourceIndexPath } from './indexes.ts'
 import { fakeAnswerClient, fakeVector, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
 
@@ -149,10 +160,49 @@ describe('createEngine', () => {
     )
   })
 
-  it('says to sync first when there is no index, and creates no file', async () => {
-    await expect(engine().search({ question: 'q' }, new UsageMeter())).rejects.toThrow(
-      'there is no index for demo yet: run drl sync demo first',
+  it('checks every request field, since an app forwards what a browser sent', async () => {
+    seed(new RecordingProvider())
+    const search = (request: Partial<RetrievalRequest>) =>
+      engine().search({ question: QUESTION, ...request }, new UsageMeter())
+
+    await expect(search({ question: '  ' })).rejects.toThrow(InvalidRequestError)
+    await expect(search({ strategy: 'bm25' as Strategy })).rejects.toThrow(
+      'unknown strategy "bm25" (known: vector, hybrid)',
     )
+    for (const topK of [0, 1.5, MAX_TOP_K + 1]) {
+      await expect(search({ topK })).rejects.toThrow(
+        `top K must be a whole number from 1 to ${String(MAX_TOP_K)}, got ${String(topK)}`,
+      )
+    }
+    await expect(search({ topK: MAX_TOP_K })).resolves.toMatchObject({
+      trace: { params: { topK: MAX_TOP_K } },
+    })
+  })
+
+  it('keeps the usage of an answer that fails part-way, and sends no done event', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const events: AnswerEvent[] = []
+    const meter = new UsageMeter()
+
+    await expect(
+      engine(provider, fakeAnswerClient({ failAfterFirstBlock: true })).ask(
+        { question: QUESTION },
+        { meter, onEvent: (event) => events.push(event) },
+      ),
+    ).rejects.toThrow('connection reset')
+
+    expect(events.map((event) => event.type)).toEqual(['trace', 'text', 'citations'])
+    expect(meter.entries().find(([model]) => model === 'claude-test')?.[1]).toMatchObject({
+      requests: 1,
+      outputTokens: 10,
+    })
+  })
+
+  it('says to sync first when there is no index, and creates no file', async () => {
+    const search = engine().search({ question: 'q' }, new UsageMeter())
+    await expect(search).rejects.toThrow(IndexNotFoundError)
+    await expect(search).rejects.toThrow('there is no index for demo yet: run drl sync demo first')
     expect(existsSync(sourceIndexPath(join(root, settings.dataDir), 'demo'))).toBe(false)
   })
 

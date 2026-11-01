@@ -64,17 +64,24 @@ describe('run', () => {
     expect(out.text()).toContain('usage: no API calls, 0 tokens, $0.0000')
   })
 
-  it('reports a dotenv file it cannot read as a failed command, with the usage line', async () => {
+  it('reports an unexpected failure with a hint, and its stack trace only with DRL_DEBUG', async () => {
+    // A directory where the dotenv file should be: not a usage error.
     mkdirSync(join(root, '.env'))
     const out = capture()
     const err = capture()
 
-    expect(await run(['limits'], { out: out.writer, err: err.writer, root })).toBe(1)
+    expect(await run(['limits'], { out: out.writer, err: err.writer, root, debug: false })).toBe(1)
     expect(err.text()).toContain('drl limits failed:')
+    expect(err.text()).toContain('Set DRL_DEBUG=1')
+    expect(err.text()).not.toMatch(/\n\s+at /)
     expect(out.text()).toContain('usage: no API calls')
+
+    const debug = capture()
+    await run(['limits'], { out: capture().writer, err: debug.writer, root, debug: true })
+    expect(debug.text()).toMatch(/\n\s+at /)
   })
 
-  it('explains an empty index without a stack trace unless DRL_DEBUG is set', async () => {
+  it('says to sync first when there is no index, without a stack trace hint', async () => {
     vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-test')
     const err = capture()
@@ -90,12 +97,7 @@ describe('run', () => {
     expect(err.text()).toContain(
       'there is no index for typescript yet: run drl sync typescript first',
     )
-    expect(err.text()).toContain('Set DRL_DEBUG=1')
-    expect(err.text()).not.toMatch(/\n\s+at /)
-
-    const debug = capture()
-    await run(['ask', 'q'], { out: capture().writer, err: debug.writer, root, debug: true })
-    expect(debug.text()).toMatch(/\n\s+at /)
+    expect(err.text()).not.toContain('DRL_DEBUG')
   })
 
   it('names the configured sources when the source is unknown', async () => {
@@ -138,7 +140,8 @@ describe('run', () => {
       root,
     })
 
-    // It gets as far as the index, past every key and flag check, and creates no index file.
+    // It gets past every flag check to the index, which comes before the Voyage key, and
+    // creates no index file.
     expect(code).toBe(1)
     expect(err.text()).toContain(
       'drl search failed: there is no index for typescript yet: run drl sync typescript first',

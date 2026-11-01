@@ -18,6 +18,14 @@ export function embeddingCachePath(dataDir: string): string {
   return join(dataDir, 'cache.sqlite')
 }
 
+/** There is no index for the source yet. The message says what to run. */
+export class IndexNotFoundError extends Error {
+  constructor(sourceId: string) {
+    super(`there is no index for ${sourceId} yet: run drl sync ${sourceId} first`)
+    this.name = 'IndexNotFoundError'
+  }
+}
+
 export interface OpenIndexes {
   index: SourceIndex
   cache: EmbeddingCache
@@ -42,7 +50,7 @@ export function openIndexes(
   const indexPath = sourceIndexPath(dataDir, sourceId)
   const cachePath = embeddingCachePath(dataDir)
   if (options.create === false && !existsSync(indexPath)) {
-    throw new Error(`there is no index for ${sourceId} yet: run drl sync ${sourceId} first`)
+    throw new IndexNotFoundError(sourceId)
   }
   mkdirSync(dirname(indexPath), { recursive: true })
   mkdirSync(dirname(cachePath), { recursive: true })

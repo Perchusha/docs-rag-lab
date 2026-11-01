@@ -6,7 +6,10 @@ import {
   DOC_TYPES,
   findRepoRoot,
   formatUsage,
+  IndexNotFoundError,
+  InvalidRequestError,
   loadRootEnv,
+  MAX_TOP_K,
   MissingKeyError,
   UnknownSourceError,
   UsageMeter,
@@ -71,9 +74,6 @@ export interface RunOptions {
   debug?: boolean
 }
 
-// More chunks than this would not make a useful answer request; sqlite-vec also caps k at 4096.
-const MAX_TOP_K = 100
-
 function positiveInteger(
   value: string | undefined,
   fallback: number,
@@ -115,7 +115,9 @@ function isUsageError(error: unknown): boolean {
   return (
     error instanceof CliError ||
     error instanceof MissingKeyError ||
-    error instanceof UnknownSourceError
+    error instanceof UnknownSourceError ||
+    error instanceof IndexNotFoundError ||
+    error instanceof InvalidRequestError
   )
 }
 

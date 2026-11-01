@@ -28,7 +28,16 @@ export interface AskOptions extends RetrieveOptions {
 export function usageSummary(meter: UsageMeter, pricing: PricingSettings): UsageSummary {
   const cost = meter.estimateCost(pricing)
   return {
-    models: meter.entries().map(([model, usage]) => ({ model, ...usage })),
+    models: meter.entries().map(([model, u]) => ({
+      model,
+      kind: u.kind,
+      requests: u.requests,
+      inputTokens: u.inputTokens,
+      outputTokens: u.outputTokens,
+      cacheWriteTokens: u.cacheWriteTokens,
+      cacheReadTokens: u.cacheReadTokens,
+      cacheHits: u.cacheHits,
+    })),
     costUsd: cost.total,
     pricesChecked: pricing.checked,
     unpriced: cost.unpriced,

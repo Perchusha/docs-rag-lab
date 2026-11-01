@@ -27,6 +27,7 @@ export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.t
 export { createEmbeddingProvider } from './embeddings/factory.ts'
 export {
   embeddingCachePath,
+  IndexNotFoundError,
   openIndexes,
   sourceIndexPath,
   type OpenIndexes,
@@ -37,6 +38,8 @@ export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
 export { ask, usageSummary, type AskOptions } from './ask.ts'
 export {
   createEngine,
+  InvalidRequestError,
+  MAX_TOP_K,
   UnknownSourceError,
   type AskRun,
   type Engine,

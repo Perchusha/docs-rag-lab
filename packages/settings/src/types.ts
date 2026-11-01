@@ -56,7 +56,7 @@ export interface Settings {
   dataDir: string
   /** Source checkouts, relative to the repository root (gitignored). */
   cacheDir: string
-  /** One entry per source; the first one is the CLI's default. */
+  /** Options per source, keyed by source ID. Hosts build the Source objects (the CLI in sourcesFor). */
   sources: { typescript: SourceSettings }
   embeddings: EmbeddingsSettings
   models: {
