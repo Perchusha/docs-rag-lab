@@ -6,6 +6,7 @@
 - Amended: 2026-10-31, section 5 (permission deny rules), before M1
 - Amended: 2026-10-31, M1: `source-kit-is-leaf` replaces `source-kit-only-db` (ADR-0003); post-edit hook re-measured on real code
 - Amended: 2026-11-01, M3: the contracts and settings rules (ADR-0006, ADR-0007); npm packages are visible to the rules
+- Amended: 2026-11-01, M3: post-edit hook re-measured for ui and ts-docs; next-env.d.ts excluded from the graph (ADR-0008)
 
 ## Context
 
@@ -48,7 +49,7 @@ Known limits, accepted for now:
 
 Open question for M2-M3, closed by ADR-0006: core produces the trace and citation shapes that ui renders, but ui may not import core, not even types. Those shapes need a types-only home, or ui defines its own view types. They now live in `@docs-rag-lab/contracts`.
 
-Fixed in M3: until then the `exclude` option also matched `node_modules` and `dist/`, which removed every npm package from the graph, not only from traversal. `no-non-package-json` could never fire. Now only fixture and generated folders are excluded, `doNotFollow` still stops at `node_modules`, and the real graph holds 20 npm modules with no new violations. A fixture that imports an undeclared package proves the rule fires.
+Fixed in M3: until then the `exclude` option also matched `node_modules` and `dist/`, which removed every npm package from the graph, not only from traversal. `no-non-package-json` could never fire. Now only fixture and generated folders are excluded, `doNotFollow` still stops at `node_modules`, and the real graph holds 20 npm modules with no new violations. A fixture that imports an undeclared package proves the rule fires. The second half of M3 also excludes `next-env.d.ts`, which Next.js generates and which holds only type references that do not resolve as modules.
 
 ### 2. Where the check runs
 
@@ -113,6 +114,15 @@ The hooks are TypeScript in `tooling/claude-hooks`, run as `node <file>.ts` (Nod
   | cli | 3.5-3.6s | 1.0s |
 
   The miss median is about 2.7s and the max 3.6s. One run took 15.6s: the first check of core right after its dependencies were installed. Still well under the budget, so lint stays in PostToolUse. Re-measure in M3.
+- Re-measured in M3 for the two new React packages, the same way, two rounds each:
+
+  | Package | Miss | Hit |
+  |---|---|---|
+  | ui | 8.4-8.5s | 2.0-2.8s |
+  | ts-docs | 6.6-8.0s | 1.7-1.8s |
+
+  The hook's own runs while M3 was built were faster than a forced miss: for ui a median of 4.5s and a max of 12.6s, the slow ones while story tests ran at the same time; for ts-docs 1.6-3.6s. The forced miss of ui sits at the 8s budget, because its lint is type-aware over React code with the hooks rules, and typecheck covers the stories. Lint stays in PostToolUse for now, since a typical edit is well under the budget. If ui's typical run passes 8s (the M4 dashboard adds to it), move ui's lint to the Stop hook first.
+- ts-docs typecheck runs `next typegen` before tsc (ADR-0008), which the timing above includes.
 - With pnpm 12's default `verifyDepsBeforeRun: install`, the hook's own `pnpm turbo` call installs dependencies after a `package.json` edit, so the next check sees the new links.
 
 **Failure modes, shared by post-edit and stop-tests:**

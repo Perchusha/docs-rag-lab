@@ -2,9 +2,75 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
+
+The second M3 PR adds the ui package, Storybook and the Next.js app on top of the engine from the first. `pnpm dev` now opens a TypeScript docs assistant: ask on the left, see on the right how the answer's context was chosen. Decisions are in ADR-0008.
+
+**What exists now:**
+- A streamed answer, rendered as markdown, with numbered citation buttons. A citation opens the Context tab on its chunk and moves focus there.
+- "Search only": the retrieval without a Claude call.
+- The inspector:
+  - **Fusion:** each candidate's rank and score in the vector, keyword and exact lists, its RRF score, what each list added to it, and how far fusion moved it from its vector rank;
+  - **Lists**, **Context** (the chunks as sent, with the cited ones marked) and **Document** (the selected chunk's document, every chunk boundary in order).
+- The app listens on 127.0.0.1 only, and its three routes are one line each over tested handlers.
+
+**The acceptance criterion, "the inspector shows candidates, scores and chunk boundaries",** checked on the real index. For `satisfies`, a banner says BM25 counts twice for 6 of the top 8 chunks, and those rows say "BM25 x2". The vector search's top hit (TypeScript 4.9 > The satisfies Operator) shows "down 2" at fused rank 3. That is the first M4 hypothesis, now visible per question instead of reconstructed from `drl search` output.
+
+**The four conditions from the M3 approval:**
+
+| Condition | How it is met | Checked by |
+|---|---|---|
+| Localhost only | `next dev` and `next start` take `--hostname 127.0.0.1`; Storybook takes `--host 127.0.0.1` | `netstat`: `127.0.0.1:3000` and `127.0.0.1:6006` only |
+| Safe markdown | No rehype-raw; default URL sanitizing; only http(s) links, with `rel="noopener noreferrer"`; images as alt text | 6 unit tests on server-rendered HTML; every citation link in the live app has the rel |
+| Accessibility | A text marker beside the two BM25 shades; a real table with `aria-sort` on button headers; WAI-ARIA tabs; a polite status region instead of a live answer; no animation under reduced motion | 25 stories, each a test in Chromium with axe in light and dark (50 runs, 0 violations); axe on the live app in 5 states, 0 violations |
+| Keyboard play tests | Sorting with Enter and Space; tabs with the arrow keys, Home and End; one tab stop | The KeyboardSorting and KeyboardTabs stories, plus a keyboard-only run of the live app: Tab to an example, Enter, Ctrl+Enter to ask, Tab to the citation, Enter |
+
+**Measured in the app,** over the real index with cached query vectors:
+
+| | |
+|---|---|
+| Retrieval inside the route (trace `totalMs`) | 5.6-7.7 ms for the 4 questions |
+| `POST /api/search` under `next start`, warm | 22 ms |
+| First event (the trace) after the request | 32 ms |
+| First answer text after the request | 3.1 s through the route; 1.5 s in the engine run that recorded the fixture. Claude's latency varies between runs |
+| Whole answer | 4.0-5.2 s |
+| JavaScript on first load (`next start`) | 176 KB transferred, 590 KB decoded, 6 files |
+| `next build` | 5.2 s |
+
+| Question | Sources | Cost |
+|---|---|---|
+| In which version did `satisfies` appear? | 1 | $0.0170 |
+| What does error TS2345 mean? | 4 | $0.0238 |
+| What does the `strict` flag enable? | 3 | $0.0214 |
+| ts-0004, В чём разница между `unknown` и `any`? | 5 | $0.0236 |
+
+Every citation links to a typescriptlang.org page, with the section anchor where the chunk has one.
+
+**What was surprising:**
+- **axe in dark mode caught the test setup, not the components.** The first dark run failed 8 stories: the components drew dark-mode text on Storybook's white canvas. The app paints its own background, so the stories now get the same page colours. Running axe in both schemes is what made the mistake visible.
+- **The first story run with an empty Vite cache failed every story.** Vite discovered react-markdown mid-run and reloaded the page. CI always starts with an empty cache, so `react-markdown` is now pre-bundled.
+- **The Sources list had lost its numbers, and no test noticed.** The items were flex boxes, and a flex box drops its list marker, so the [1] in the answer matched nothing visible. axe has no rule for it. It showed up only on a screenshot of the live app; a story now checks that each source is a numbered list item, and fails without the fix.
+- **A rank cell read "19.16"**: rank 1 and score 9.16 in two block spans have no space between them in the text, which is also what a screen reader gets. Visually hidden text now makes it "1, score 9.16". A keyboard play test caught it.
+- **TypeScript blue fails AA.** `#3178c6` reaches 4.4:1 on white. The theme is now a light and a dark shade (`#235a97`, `#79b8ff`), and the tokens story checks every text colour on its backgrounds in both schemes.
+- **`pnpm dev` through turbo would have hidden shell API keys.** Turbo's strict env mode passes only declared variables to a task, so only the dotenv file would have worked. `pnpm dev` and `pnpm storybook` call pnpm directly.
+
+**Hook timings (ADR-0002).** On a forced cache miss, the post-edit check takes 8.4-8.5 s for ui and 6.6-8.0 s for ts-docs: ui sits at the 8 s budget. The hook's own runs while this PR was built had a median of 4.5 s for ui, so lint stays in PostToolUse. ui's lint moves to the Stop hook first if a typical run passes 8 s.
+
+| | |
+|---|---|
+| Tests | 355 offline in the product packages (232 after the first half): contracts 22 (0), ui 84 (34 unit, 50 story tests: 25 stories in light and dark), ts-docs 17 (0). Tooling: config 20, claude-hooks 85, repo-checks 14 |
+| ui test task | 11.5 s with Chromium; 5.0 s of it is Vitest |
+| Spend | $0.1199: the recorded answer fixture ($0.0171), four asks in the app ($0.0858), one time-to-first-token run ($0.0170). 0 Voyage tokens |
+
+### Open items for M4
+- The eval harness, reports and the dashboard view (a new ui view, with its stories).
+- Check the two hypotheses on the full golden set. The fusion view shows the double counting per question; the eval shows whether removing it helps.
+- Tables in answers render as text, because there is no remark-gfm. Add it if eval answers need tables.
+- ui's post-edit check is at the 8 s budget on a cache miss; re-measure when the dashboard lands.
+
 ## M3, first half - The engine under the app (2026-11-01)
 
-M3 is two PRs. This one prepares the packages the ts-docs app will sit on, and is verified through the CLI and the real index. The second adds the ui package, the Next.js app and the M3 entry proper.
+M3 is two PRs. This one prepares the packages the ts-docs app will sit on, and is verified through the CLI and the real index. The second adds the ui package, the Next.js app and the M3 entry above.
 
 **What exists now:**
 - `@docs-rag-lab/contracts`: the retrieval trace, the answer events and citations, a document's chunks. It imports nothing, so ui may use it (ADR-0006).
