@@ -34,7 +34,8 @@ Superseded in M3 by ADR-0007: the values and their types moved to the leaf packa
 - The 800 budget counts the rendered blocks. The prefix line and the blank lines between blocks come on top. A single code block, or a single line, longer than the budget is never split. In the TypeScript index, 12 of 994 chunks exceed 800: two single code blocks (1,046 and 824) and ten at 802-810 because of the prefix.
 - Chunk text is a `Title > H2 > H3` prefix line, then the rendered blocks. `spans` records each block's character range, so generation can send one citable text block per rendered block.
 - Chunk ID: the first 24 hex characters of `sha256(JSON.stringify([docPath, headingPath, occurrence, ordinal]))`. `occurrence` counts earlier sections with the same heading path in the document; `ordinal` is the pack's position within its section. `text_hash` is `sha256(text)`.
-- `CHUNKER_VERSION` (now 2) is stored in the manifest; changing it forces a full rebuild.
+- `CHUNKER_VERSION` (now 3) is stored in the manifest; changing it forces a full rebuild.
+- Since version 3 (M3), every chunk records `sectionPath`, the heading path of the section it starts in. A pack takes its parent's heading path, which is empty under the document root, so 170 chunks were cited by the document title alone ("TypeScript 5.9" for `#notable-behavioral-changes`) and 73 more by their parent section. Citation titles now use `sectionPath`. The text did not change, so the rebuild embedded nothing.
 
 ### 3. Token counts are estimated locally, billed counts come from the API
 
@@ -91,7 +92,7 @@ Costs are estimates at the list prices in config; a model without a price is nam
 
 ### 10. Answers use search_result blocks
 
-Each retrieved chunk becomes a `search_result` with `source` = canonical URL plus the section anchor and `title` = doc title and heading path, and one text block per span, with citations enabled. The answer model and effort (`low`) come from config. The SDK sends API version `2026-10-21`, so requests carry no sampling parameters. The CLI streams text and prints `[n]` markers when each text block completes, numbering search results in order of first use, then a source list.
+Each retrieved chunk becomes a `search_result` with `source` = canonical URL plus the section anchor and `title` = doc title and the section the chunk starts in (`sectionPath`, since M3), and one text block per span, with citations enabled. The answer model and effort (`low`) come from config. The SDK sends API version `2026-10-21`, so requests carry no sampling parameters. The CLI streams text and prints `[n]` markers when each text block completes, numbering search results in order of first use, then a source list.
 
 ### 11. TypeScript source specifics
 

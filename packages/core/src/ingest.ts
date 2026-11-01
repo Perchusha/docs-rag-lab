@@ -202,7 +202,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
         anchor: chunk.anchor,
         blockTypes: chunk.blockTypes,
         text: chunk.text,
-        metadata: { ...metadata, spans: chunk.spans },
+        metadata: { ...metadata, spans: chunk.spans, sectionPath: chunk.sectionPath },
         tokenCount: chunk.tokenCount,
         textHash: chunk.textHash,
         vector: vectorById.get(chunk.id),

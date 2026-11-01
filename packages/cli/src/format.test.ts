@@ -93,16 +93,19 @@ describe('formatCitations', () => {
 })
 
 describe('formatTrace', () => {
-  const chunk = (title: string, heading: string, docType: string) => ({
+  // headingPath [] is a pack of sections under the document root: the label
+  // comes from sectionPath, the section the chunk starts in.
+  const chunk = (title: string, heading: string, docType: string, headingPath = [heading]) => ({
     docPath: `${title}.md`,
     title,
-    headingPath: [heading],
+    headingPath,
+    sectionPath: [heading],
     anchor: heading.toLowerCase(),
     docType,
     tokenCount: 10,
   })
   const trace: RetrievalTrace = {
-    version: 1,
+    version: 2,
     question: 'What does error TS2345 mean?',
     sourceId: 'typescript',
     strategy: 'hybrid',
@@ -152,7 +155,7 @@ describe('formatTrace', () => {
     },
     chunks: {
       a: chunk('Checks', 'checkJs', 'option'),
-      b: chunk('Everyday Types', 'Literal Inference', 'handbook'),
+      b: chunk('Everyday Types', 'Literal Inference', 'handbook', []),
     },
     context: [
       {

@@ -35,6 +35,7 @@ export {
   buildAnswerRequest,
   citationSource,
   citationTitle,
+  sectionPathOf,
   CitationNumbering,
   createClaudeClient,
   streamAnswer,

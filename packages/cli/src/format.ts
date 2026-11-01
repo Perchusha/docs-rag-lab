@@ -70,7 +70,7 @@ export function formatTrace(trace: RetrievalTrace, limit = 10): string {
   const label = (chunkId: string): string => {
     const chunk = trace.chunks[chunkId]
     if (chunk === undefined) return chunkId
-    return `${[chunk.title, ...chunk.headingPath].join(' > ')}  [${chunk.docType}]`
+    return `${[chunk.title, ...chunk.sectionPath].join(' > ')}  [${chunk.docType}]`
   }
   const { terms, exactTokens } = trace.query
   const lines = [

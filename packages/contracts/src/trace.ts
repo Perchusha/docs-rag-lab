@@ -3,8 +3,11 @@
 // serializable data with a version: core produces it, the CLI prints it, the
 // inspector renders it and eval stores it (ADR-0006). Bump TRACE_VERSION when
 // its shape changes.
+//
+// 1: M2.
+// 2: TraceChunk.sectionPath, the section a chunk starts in (M3).
 
-export const TRACE_VERSION = 1
+export const TRACE_VERSION = 2
 
 export type Strategy = 'vector' | 'hybrid'
 
@@ -60,7 +63,10 @@ export type TraceFusion =
 export interface TraceChunk {
   docPath: string
   title: string
+  /** The section the chunk belongs to; for a pack of sections, their common parent. */
   headingPath: string[]
+  /** The section the chunk starts in, which `anchor` points to. Label chunks with this. */
+  sectionPath: string[]
   anchor: string
   docType: string
   tokenCount: number

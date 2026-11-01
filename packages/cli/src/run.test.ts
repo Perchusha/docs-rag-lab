@@ -212,7 +212,7 @@ describe('run', () => {
 
     expect(code).toBe(0)
     const trace = JSON.parse(out.text()) as RetrievalTrace
-    expect(trace).toMatchObject({ version: 1, strategy: 'hybrid', sourceId: 'typescript' })
+    expect(trace).toMatchObject({ version: 2, strategy: 'hybrid', sourceId: 'typescript' })
     expect(trace.embedding.from).toBe('cache')
     expect(trace.lists.find((list) => list.name === 'exact')?.candidates[0]?.chunkId).toBe('code')
     expect(trace.context.map((c) => c.chunkId)).toEqual(['code', 'near'])

@@ -9,8 +9,10 @@ import {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerRequest,
   citationSource,
+  citationTitle,
   CitationNumbering,
   createClaudeClient,
+  sectionPathOf,
   streamAnswer,
   toSearchResult,
   type AnswerStream,
@@ -42,6 +44,26 @@ const hit: SearchHit = {
   title: 'Everyday Types',
   docType: 'handbook',
 }
+
+describe('citationTitle', () => {
+  it('names the section a pack under the document root starts in, not just the document', () => {
+    // A real case: By Example.md#organizing-types used to be cited as "Declaration Reference".
+    const packed = {
+      title: 'Declaration Reference',
+      headingPath: [],
+      metadata: { sectionPath: ['Organizing Types'] },
+    }
+    expect(citationTitle(packed)).toBe('Declaration Reference > Organizing Types')
+    expect(sectionPathOf(packed)).toEqual(['Organizing Types'])
+  })
+
+  it('falls back to the heading path for chunks from before chunker version 3', () => {
+    expect(citationTitle(hit)).toBe('Everyday Types > Union Types')
+    expect(citationTitle({ ...hit, metadata: { sectionPath: 'not a path' } })).toBe(
+      'Everyday Types > Union Types',
+    )
+  })
+})
 
 describe('createClaudeClient', () => {
   it('reads ANTHROPIC_API_KEY itself, so no caller handles the key', () => {
