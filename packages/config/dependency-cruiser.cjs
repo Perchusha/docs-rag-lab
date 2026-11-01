@@ -87,9 +87,9 @@ module.exports = {
     {
       name: 'contracts-client-safe',
       comment:
-        'contracts imports nothing but its own files: no Node.js built-ins and no npm packages, so it runs in the browser and in Node (ADR-0006).',
+        'contracts imports nothing but its own files: no Node.js built-ins and no npm packages, so it runs in the browser and in Node. Its tests may import vitest (ADR-0006).',
       severity: 'error',
-      from: { path: '^packages/contracts/src/' },
+      from: { path: '^packages/contracts/src/', pathNot: '\\.test\\.ts$' },
       to: { dependencyTypesNot: ['local'] },
     },
     {

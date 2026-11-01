@@ -91,6 +91,10 @@ describe('boundary rules (SPEC section 4)', () => {
       found.filter((edge) => edge.startsWith('packages/contracts/src/imports-npm.ts -> ')),
     ).toHaveLength(1)
     expect(found.every((edge) => /imports-(node|npm)\.ts/.test(edge))).toBe(true)
+    // Its tests may import the test runner.
+    expect(found.some((edge) => edge.startsWith('packages/contracts/src/trace.test.ts'))).toBe(
+      false,
+    )
   })
 
   it('core imports only types from settings', () => {
