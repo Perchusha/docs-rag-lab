@@ -1,0 +1,437 @@
+{
+  "docsSha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
+  "anchors": {
+    "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md#number-string-boolean-symbol-and-object": [
+      {
+        "chunkId": "a049bb8c4f5f307c1a3015d8",
+        "textHash": "8666027fe62615a0bf71bc4be710a053a14953ed38903909392ec5fa54e90ad7"
+      }
+    ],
+    "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md#use-union-types": [
+      {
+        "chunkId": "0d210430a5733b0c6e094e5a",
+        "textHash": "e3fe4e090d5e4937d726b037871338cc3be2b5aa8ecb71bfcf0ea9ae528cf620"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Basics.md#strictness": [
+      {
+        "chunkId": "11f38322cea85ac2792548eb",
+        "textHash": "55b0314252e9a87aeb4eb920f588ef3863528f598ab749e78c3ff0406eb93d69"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Classes.md#caveats": [
+      {
+        "chunkId": "128c2c1e376e18d680376d5c",
+        "textHash": "684753614519fbd9a87790c30f8f3da3a1cc731722c055c3b2ba9f1c0740a154"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Everyday Types.md#differences-between-type-aliases-and-interfaces contains cannot be re-opened": [
+      {
+        "chunkId": "c641285087986f112cdc940c",
+        "textHash": "773c23df2c0fc5ee73b6621eb03d57f3c098c6f56ab7e2d28bbd993b60f61e59"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Everyday Types.md#literal-inference": [
+      {
+        "chunkId": "d85288b5f85ddbd4f03a3501",
+        "textHash": "4f2ed871efc06202a7c3d90b3bb55777ca75ec5af47441758bd909fcb9edf1d0"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Everyday Types.md#the-primitives-string-number-and-boolean": [
+      {
+        "chunkId": "405714f840bd7cfef4c38a1b",
+        "textHash": "b8affc1c2fd19535c0d7d725097e9c3d55c4ed291680c67679773155e1fd40c9"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/More on Functions.md#return-type-void": [
+      {
+        "chunkId": "0e3bb67e0ff1eb64882cddb8",
+        "textHash": "d54ebeebd64652cc3251860257a301e95619f2e007014ec9e1237cd804ab4da6"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/More on Functions.md#unknown": [
+      {
+        "chunkId": "02912d43e35e5916061a8f64",
+        "textHash": "4f5e92aa4b42fde05fd0b72dae1b5a7c45d27ec7257b3d435980074d584e264e"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/More on Functions.md#writing-good-overloads": [
+      {
+        "chunkId": "9dcebd0ba6b8660a39bac029",
+        "textHash": "74acdf891fa650cb092469fcc5befc26e2d8269574833335901dda2e694a7fe6"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Narrowing.md#exhaustiveness-checking": [
+      {
+        "chunkId": "8578bea0c5386985ea717309",
+        "textHash": "1b886d3ccc0aa7a93429ef6946f32208678ec050ffa2132635e0326fd33f49d1"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Object Types.md#excess-property-checks contains @errors: 2345": [
+      {
+        "chunkId": "2b2df1a586232d1d2df4d5c6",
+        "textHash": "7afceb2f24428bf489e22b0231ec47d2c45301b97c3ed3c086ed42171ccb4fda"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Object Types.md#excess-property-checks contains undergo _excess property checking_": [
+      {
+        "chunkId": "2b2df1a586232d1d2df4d5c6",
+        "textHash": "7afceb2f24428bf489e22b0231ec47d2c45301b97c3ed3c086ed42171ccb4fda"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Object Types.md#interface-extension-vs-intersection": [
+      {
+        "chunkId": "c91a52d277a7415b79efac2c",
+        "textHash": "271da064dd3de578ce7f13f57a341ec6e556c032bc67515a1177f49da6e08a52"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Type Manipulation/Conditional Types.md#distributive-conditional-types": [
+      {
+        "chunkId": "1c5689346419b98eedb8ecac",
+        "textHash": "694529fb39c720e08da6c3000b61e5722573aabb39cb3cd0d8f84e6aaff0c07a"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Type Manipulation/Mapped Types.md#key-remapping-via-as": [
+      {
+        "chunkId": "3cf0f296b01c2ee0e635fbc0",
+        "textHash": "b9f2abeb2c7abeeba0083ee22b273250f352e23fa534291a2f32be3b83b33af3"
+      }
+    ],
+    "packages/documentation/copy/en/handbook-v2/Type Manipulation/Mapped Types.md#mapping-modifiers": [
+      {
+        "chunkId": "a0eee8d772af1de3d1cd174d",
+        "textHash": "0687a629c7731437bf38dad2d8f376590f5367318b85c5a7fb3974a08f6abaeb"
+      }
+    ],
+    "packages/documentation/copy/en/javascript/JSDoc Reference.md#satisfies": [
+      {
+        "chunkId": "5047c8a5bd5764c46fdb8d78",
+        "textHash": "912e929222035d8bd513848d97a2cc96f4ebd084429c5a537cdc376ca1324fdb"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/Reference.md#extensionless-relative-paths": [
+      {
+        "chunkId": "dc6309d1229fe3bbcf3ee84f",
+        "textHash": "c2d9799f6763e687d726bf7276a51a3dd30d8c4a8a5bbcacf1e8c59e24e6c51d"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/Reference.md#file-extension-substitution": [
+      {
+        "chunkId": "f7b9679ce537acee16f91bf4",
+        "textHash": "ba885c09bffbe2778474ef06f69facea309a2cc50a85a09562b97cc9f3dabf2a"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/Reference.md#type-only-imports-and-exports": [
+      {
+        "chunkId": "ee494869947a28c833d7b9ec",
+        "textHash": "bfcbcab7efdc093d047aece4b86a8a3b54da703e5f9ac28e320a8eb50339bdd5"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/Theory.md#module-specifiers-are-not-transformed-by-default": [
+      {
+        "chunkId": "d4908a637f1f5dbc5f0e47d6",
+        "textHash": "4ca62bcb7c6e640502c55c66470854e8d34dbfda5a0544687e465d289babe468"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/Theory.md#typescript-imitates-the-hosts-module-resolution-but-with-types": [
+      {
+        "chunkId": "b154955faec998a8fe9305f2",
+        "textHash": "b7ed21dc87776d8587f10708dd763546394ab501e838694645d29dee38f97940"
+      },
+      {
+        "chunkId": "e7136b3323c25bc4f277b203",
+        "textHash": "e6bb04d38564e29dc4e574ac8c4292cddbe759d5c3a8c52a091fdf77c9883b01"
+      }
+    ],
+    "packages/documentation/copy/en/modules-reference/guides/Choosing Compiler Options.md#im-using-a-bundler": [
+      {
+        "chunkId": "ada01f3670a2486685ff4afa",
+        "textHash": "4eca09534bdfb759d4f8454b4ec0f0117b3d3836cd8f18ae1e5a96bc62670dc9"
+      }
+    ],
+    "packages/documentation/copy/en/project-config/Compiler Options.md#compiler-options contains `--alwaysStrict`": [
+      {
+        "chunkId": "acfc1e27c104a002397a353d",
+        "textHash": "8d322a38c252ed57dd0cb115610b9f19ef097622ffc2f54bbef8b2a072a3addc"
+      }
+    ],
+    "packages/documentation/copy/en/project-config/Compiler Options.md#compiler-options contains `--noImplicitAny`": [
+      {
+        "chunkId": "318410ada364d01b89fc73ec",
+        "textHash": "a40173a59e08bcae6fa37a4631d13f8f74213aeb7218b80dd4cacf724f3a9cfb"
+      }
+    ],
+    "packages/documentation/copy/en/project-config/Compiler Options.md#compiler-options contains `--noUncheckedSideEffectImports`": [
+      {
+        "chunkId": "318410ada364d01b89fc73ec",
+        "textHash": "a40173a59e08bcae6fa37a4631d13f8f74213aeb7218b80dd4cacf724f3a9cfb"
+      }
+    ],
+    "packages/documentation/copy/en/project-config/Compiler Options.md#compiler-options contains `--strictNullChecks`": [
+      {
+        "chunkId": "bb400e7c31e507f36a107ceb",
+        "textHash": "d15a0bcbe916861d8c85e65f5ad1b4488e010f6ca0d4e7305a42bcc594940ecd"
+      }
+    ],
+    "packages/documentation/copy/en/project-config/Project References.md#composite": [
+      {
+        "chunkId": "6ea43366a34824c09caff983",
+        "textHash": "313883ab96e4931b635fffcf70f1a389ca1ff68f05306051143cd6abba96fc07"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Declaration Merging.md#merging-interfaces": [
+      {
+        "chunkId": "3d111a972cb4950165226184",
+        "textHash": "1a43db9a1593a56d57a2bf77c009c4dc6d00be7791276cc6ce6cb4cd6ffd34be"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Decorators.md#decorator-composition": [
+      {
+        "chunkId": "282004473c439b26a3532cfb",
+        "textHash": "87763c783a1081130f543e13043c09f225f03426e73aaf6d58dc04cd35e08d5e"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Enums.md#const-enum-pitfalls": [
+      {
+        "chunkId": "1544e73995999c83244eb597",
+        "textHash": "9c9d158609ccef58d1bef9dd590fc011bf8c4d30aabfb6a05e1dec4a6d68068b"
+      },
+      {
+        "chunkId": "2cd14015ea1805bf146f1af6",
+        "textHash": "186a4cedb380be24633b6a89f1da1f3c8fdff222d7318f9414adda4d9096e9d1"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Enums.md#reverse-mappings": [
+      {
+        "chunkId": "1903b6f9647ee75e7ab9d155",
+        "textHash": "4045e503e11f35433a086e9077fb6277e882b31b590c65cf7bfbfc0f45596b2d"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Type Compatibility.md#function-parameter-bivariance": [
+      {
+        "chunkId": "a7f9eacb65d7d4b9142d0a17",
+        "textHash": "34170ba1b7ef4b5ab8144e229ac1b6975950af556ee09782ac0c4e02e11fec57"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Utility Types.md#awaitedtype": [
+      {
+        "chunkId": "87988ab07fce517290428989",
+        "textHash": "64d69d9395e98d08d3330b1fde9496441220c5d9f69e54da142360a0c1f16cb5"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Utility Types.md#noinfertype": [
+      {
+        "chunkId": "253ec942972ce0ec8d51fd21",
+        "textHash": "6ceebb96a1a39c6777ce2d8b47bfea339436a7bdc996414683c612f3bfc92abb"
+      }
+    ],
+    "packages/documentation/copy/en/reference/Utility Types.md#omittype-keys": [
+      {
+        "chunkId": "a4e86c94ff9b1715e1a3c74c",
+        "textHash": "4558dc099dc8c5cde42efb492b4669dd30367581507b29f7d72e2222b7e3e930"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 2.3.md#new---strict-master-option": [
+      {
+        "chunkId": "9c8af53bec604783c7337613",
+        "textHash": "d393409a2cc08b60fef3910d972173986a139f42de806fc7534d2577f6de1574"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 3.0.md#new-unknown-top-type": [
+      {
+        "chunkId": "cbe74b1aa7bd352dbed39acd",
+        "textHash": "2b0b088ebf3afc8e16d531bb1e0123c86276a6a926edfcda0bda73e1784adca3"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 3.5.md#the-omit-helper-type": [
+      {
+        "chunkId": "6f315321ed5cd206ec094c34",
+        "textHash": "94fe1df319bb34e45a11c0216cc1902f489d33a0ef49fba38bfac593ea1c8390"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 3.8.md#which-should-i-use": [
+      {
+        "chunkId": "df4cd9872cba556c279b67d5",
+        "textHash": "c803ba42cecebf5041b9712f41dceccb071c3c0463cbd9d018ba723f7847fd17"
+      },
+      {
+        "chunkId": "a3d542c9c7d162fbf24992a1",
+        "textHash": "4b1e56e81e960b4245d5afc6fb16c98d977ab65ab060077aaddc1e062e6964d7"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.1.md#checked-indexed-accesses---nouncheckedindexedaccess": [
+      {
+        "chunkId": "90f67524a6a6dfae0d8656ae",
+        "textHash": "e7f4b17956c506076c0c548b65759b0251a6842a085e6b0b9a8540a0e9a52da3"
+      },
+      {
+        "chunkId": "ef2f7e4c85b4cdd038c3777b",
+        "textHash": "0fe96efe0f53033efee5b454677c3bd0772438931c6e3d6105b1638c30fe38db"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.1.md#key-remapping-in-mapped-types": [
+      {
+        "chunkId": "ca356ec5b7f0590c959fd3d6",
+        "textHash": "dc65dc7dfda920a011b31e3414cbfb0826b5ba83cdbbbba6184f769e4649a05b"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.4.md#exact-optional-property-types---exactoptionalpropertytypes": [
+      {
+        "chunkId": "e7c14f282b3d050438b9d546",
+        "textHash": "98fa3900d071540858929fd0dc63e3efed4915a3ce2fab50672aae90d8295224"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.5.md#the-awaited-type-and-promise-improvements": [
+      {
+        "chunkId": "d66a042ded46fca80a2cdb80",
+        "textHash": "a47775918fe49cf512cc88fe6d7175b655d0872d737cb1efc9791bfbee3e4e20"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.9.md#the-satisfies-operator contains without changing the resulting type": [
+      {
+        "chunkId": "508c72073790efc407c9498f",
+        "textHash": "66f1b1e8174fba73881fd7589bb6e64c8c2de158d372a4a1217b1a978f23a1b3"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#--verbatimmodulesyntax": [
+      {
+        "chunkId": "475bb29f24fe609bc17c580a",
+        "textHash": "361410de13b88ce4646db2422de994981a23aaeb910e290dbaf553b574c10ad7"
+      },
+      {
+        "chunkId": "bd7b1dbc09ff11c0bd5bd20b",
+        "textHash": "b54ce9ac09eb045c45f94b6b68f5167c5316d81118610d8525cc412710b3342d"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#const-type-parameters contains add a `const` modifier": [
+      {
+        "chunkId": "5e4b2b200ce9c3a8dc22f096",
+        "textHash": "1948b60f4feafabbd857857870027fb3faefc5b503b26db2cd6f524c1d63b67e"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#satisfies-support-in-jsdoc contains new JSDoc tag called `@satisfies`": [
+      {
+        "chunkId": "1ad2284b8bc3c335c9eb8292",
+        "textHash": "daeaed056ed4f56c3c4c3d199bf65fa95c6cc0005300a077e2c7761f9e658825"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.2.md#using-declarations-and-explicit-resource-management contains very end of their containing scope": [
+      {
+        "chunkId": "e7c6b94fb47685ab9b3234aa",
+        "textHash": "23e7c0664781d3626e1f64357e49a8b6c2723cad6456fd3732d598e9cfd44e1a"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.4.md#the-noinfer-utility-type contains introduces a new `NoInfer<T>`": [
+      {
+        "chunkId": "4cdd01360e750843bc865e83",
+        "textHash": "e8ce0828fbffbaf8dbc56913e9aedd5295074e0f5de377c18dba2e7e489ce787"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.5.md#disabling-features-deprecated-in-typescript-50": [
+      {
+        "chunkId": "22f1c21d32c0001f8e7a8abb",
+        "textHash": "ce352f9a5c26887d7c55da545df3f18852eca4e0514c45067f9ed5b9030e6837"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.7.md#typedarrays-are-now-generic-over-arraybufferlike": [
+      {
+        "chunkId": "c0fcaae775db1ff7ad0f4c00",
+        "textHash": "7a51500319ab536583688f8f02efa857a38402457ca920f7e11746a2eb1d250f"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.8.md#the---erasablesyntaxonly-option": [
+      {
+        "chunkId": "9f0edbfeb9fed5d258c59285",
+        "textHash": "296fb6e43857aaabd755b4953e64d1076286eaf6bbbd5b4dced352a4c6a1ea48"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.9.md#libdts-changes": [
+      {
+        "chunkId": "5429f92e46304b8028a95a74",
+        "textHash": "4fe9e3defd02493c6a5f73b66278ebaedc97c8febeb5955c8e87ef7578c89efb"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 5.9.md#support-for-import-defer contains only permits namespace imports": [
+      {
+        "chunkId": "7c6c179bece94801bf1c107f",
+        "textHash": "44b1443873d2cf2c658176cae1d6fcee5925be68aa40f12906ce7d63d49a0b01"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 6.0.md#rootdir-now-defaults-to-": [
+      {
+        "chunkId": "b1b142163c2c98c081035448",
+        "textHash": "417864d3e506fd823472752b20be9944d1a5444a49cba0004105741faf0299d0"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 6.0.md#simple-default-changes": [
+      {
+        "chunkId": "4b9820585cb47cec287973d7",
+        "textHash": "9fced1c787b7f9017e8aed3b696c57d726353ff889bfd935e2b68b019dd14b20"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 6.0.md#types-now-defaults-to- contains will be `[]`": [
+      {
+        "chunkId": "f715ba250a82bec3b068c1bd",
+        "textHash": "27c0da806d140e1ec68608975676dbc69f829cccd2ff3a07cf2a364831b0d6db"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/erasableSyntaxOnly.md": [
+      {
+        "chunkId": "e7989478429737562072d5fd",
+        "textHash": "704cba3d89286ec77a672ff0e23d5a4f83cb1d529e43c352b156bc5b43a54ceb"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/exactOptionalPropertyTypes.md": [
+      {
+        "chunkId": "f27c004ad1c8a4e7cc80408e",
+        "textHash": "da0f684cd6179c4c4e87c04992e5fdddba00ce7231eec2aeb4d77721a0335825"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/importsNotUsedAsValues.md": [
+      {
+        "chunkId": "12dbe6214d1e73f19e1510f9",
+        "textHash": "e0b4fd2292279d523e278b4bbb417e2e07a65132fbfb797acc25921203008a8e"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/isolatedModules.md": [
+      {
+        "chunkId": "e5e1d4cc4d078c94d77b868d",
+        "textHash": "69516232232721b35a9af2578f53e8b7b1f35cd62ef8ea9d136457602edc91bd"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/noUncheckedIndexedAccess.md": [
+      {
+        "chunkId": "75f76c33f68418051c417048",
+        "textHash": "926838a534318b0b55d94cb6ae3043bfa701fbe73b441d9a9bf404f5059fbe45"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/skipLibCheck.md": [
+      {
+        "chunkId": "0208c92a9f5a1e199e7b6a92",
+        "textHash": "59745dc4783550270727a722fd545d043154ad6346c962214b737eaf1b3e04b9"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/strict.md": [
+      {
+        "chunkId": "470e6b120779bd5fc50d0588",
+        "textHash": "df7b1e0c9993dd9d7a79d810a52022d074a47d8c438bc61a769dd5f7456b54c5"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/verbatimModuleSyntax.md": [
+      {
+        "chunkId": "588534de841ccd61359a211d",
+        "textHash": "d70ab34029cd9b12b1e8949c555fb1e8350d0fe400a989b0bb7c5ffcfcaa6854"
+      },
+      {
+        "chunkId": "224cc677b2a5e0f1a5ebbd96",
+        "textHash": "55cf93e33e55bc80615de7d12ef776ca5894e20838a783d4272e8db1f1fbb601"
+      }
+    ],
+    "packages/tsconfig-reference/copy/en/options/verbatimModuleSyntax.md contains are left around": [
+      {
+        "chunkId": "224cc677b2a5e0f1a5ebbd96",
+        "textHash": "55cf93e33e55bc80615de7d12ef776ca5894e20838a783d4272e8db1f1fbb601"
+      }
+    ]
+  }
+}
