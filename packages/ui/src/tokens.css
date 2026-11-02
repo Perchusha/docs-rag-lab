@@ -32,6 +32,7 @@
   --space-hairline: 2px;
 
   --size-control: 2rem;
+  --size-icon: 1.125rem;
   --width-chat: 760px;
   --width-select: 11rem;
   --width-search-field: 16rem;
@@ -94,9 +95,10 @@
   }
 }
 
-/* One visible focus style for every interactive element. */
+/* One visible focus style for every interactive element. useFocusRing sets
+   --focus-ring-style to none after a press: focus shows for the keyboard only. */
 :focus-visible {
-  outline: var(--space-hairline) solid var(--color-focus);
+  outline: var(--space-hairline) var(--focus-ring-style, solid) var(--color-focus);
   outline-offset: var(--space-hairline);
 }
 
@@ -104,9 +106,11 @@
    focused element into view keeps it clear of the input, not hidden behind it
    (WCAG 2.4.11), however tall the input has grown: DocsAssistant sets
    --dock-height to its real height. Short windows do not stick it, see
-   DocsAssistant.module.css. */
+   DocsAssistant.module.css.
+   Not with focus in the input itself, which is always in view. The caret would
+   count as hidden behind the input, and each key would scroll the page down. */
 @media (height >= 30rem) {
-  html {
+  html:not(:has([data-drl-dock] :focus)) {
     scroll-padding-block-end: calc(var(--dock-height, 10rem) + var(--space-2));
   }
 }

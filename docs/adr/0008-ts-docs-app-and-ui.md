@@ -88,10 +88,10 @@ The conditions from the M3 approval, and how each is met:
 - **Reflow at 320 CSS px** (WCAG 1.4.10: 1280 px at 400% zoom). The chat and the inspector stack below 64rem, and nothing scrolls sideways but a table's or code block's box. The tab list wraps. Links and cards break long URLs and anchors. A scroll box is `position: relative`, or the absolutely positioned hidden text in a wide table escapes it and widens the page. Sentences stay outside the boxes, so reading one never needs sideways scrolling. The fusion table uses the same focusable box, because its right-hand columns hold nothing focusable and a keyboard could not otherwise reach them.
 
 Also:
-- each focusable element shows a 2px focus outline (`:focus-visible`);
+- each focusable element shows a 2px focus outline (`:focus-visible`), for the keyboard only. A text field matches `:focus-visible` on a click too, and CSS cannot tell the two apart, so `useFocusRing` sets `--focus-ring-style` to `none` on a press and clears it on any key but typing. With no script yet, the rings stay on;
 - Send and Stop are one button that changes role, so it keeps focus when a run starts or ends, and no button is ever disabled;
 - opening the inspector moves focus into it, and closing it returns focus to what opened it, or to the input if that has gone;
-- the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11);
+- the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11). The padding is off while focus is in the input, because the caret would count as hidden behind it and each key would scroll the page down;
 - the selected chunk is marked with `aria-current` and a visible "selected" label, not only a background. Selecting is not a toggle, so there is no `aria-pressed`;
 - a citation button moves focus to its chunk in the Context tab, once: `useInspectorPanel` clears the request when it is done, so coming back to the tab later leaves focus in the tab list;
 - each rank cell reads "1, score 9.16", not "19.16", through visually hidden text.
@@ -129,7 +129,7 @@ Stories replay recorded fixtures with no network:
 Every excerpt of the docs in them is cut to 300 characters (NOTICE: short excerpts).
 
 Three things were needed to make this stable:
-- **`optimizeDeps.include: ['react-markdown', 'remark-gfm']`.** Vite found them mid-run, reloaded the page, and every running test failed. This happens on every run with an empty cache, as in CI.
+- **`optimizeDeps.include: ['lucide-react', 'react-markdown', 'remark-gfm']`.** Vite found them mid-run, reloaded the page, and every running test failed. This happens on every run with an empty cache, as in CI.
 - **`api: { port: 5199 }`.** Vitest's default browser port, 63315, falls in a range Windows hands to Hyper-V, which changes at each boot. There it fails with `EACCES`, and Vitest only tries another port when one is taken.
 - **`.storybook/preview.css`** gives the canvas the app's page colours. Without it, the dark stories drew light text on Storybook's white canvas, and axe rightly failed them.
 
@@ -146,6 +146,7 @@ Checked on npm on 2026-11-01. Every version was more than a day old.
 | @types/react, @types/react-dom | 19.3.0 | catalog (dev) | |
 | react-markdown | 10.1.0 | ui | Claude answers in markdown. Built on unified and remark, which the parsers already use |
 | remark-gfm | 4.0.1 | ui | Tables in answers. Already used by the TypeScript parser, at the same version |
+| lucide-react | 1.66.0 | ui | Icons on the input's controls, in place of text symbols. Imported by name, so only those icons reach the bundle |
 | storybook, @storybook/react-vite, @storybook/addon-a11y, @storybook/addon-vitest | 10.6.5 | ui (dev) | Storybook (SPEC section 5), axe on every story, stories as tests |
 | @vitest/browser-playwright, playwright | 5.0.5, 1.64.1 | ui (dev) | Run the story tests in Chromium |
 | eslint-plugin-react-hooks | 7.1.1 | config | The rules of hooks and the React Compiler rules, through `createConfig(dir, { react: true })` |

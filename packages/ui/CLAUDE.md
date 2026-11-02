@@ -20,6 +20,7 @@ Client components for the docs assistants: chat, citations and the retrieval ins
 - The answer's markdown: GFM for tables, no raw HTML (no rehype-raw), keep react-markdown's URL sanitizing, http(s) links only, opening in a new tab with `rel="noopener noreferrer"`, images as alt text, task lists as text.
 - Anything a react-markdown component needs goes through context, never into the component map. A new map remounts the whole answer, and a focused citation with it.
 - To override the global focus style, name `:focus-visible` in the selector. CSS comes in a different order in Storybook and in the app, so a tie on specificity can pass every story and still lose in the app.
+- A focus ring of its own reads `var(--focus-ring-style, solid)`, so it shows for the keyboard only (`useFocusRing`). No focus style on `:focus-within` or `:focus`: both match a click.
 - Reflow: at 320 CSS px nothing scrolls sideways but a table or code block, in a `ScrollRegion` (focusable and named). `Reflow320` checks it; a new view goes on that story's tab walk.
 - Accessibility: state is never shown by colour alone; tables are real tables; tabs follow the WAI-ARIA tabs pattern; the streaming answer is not a live region, the polite status region announces state changes; a panel that opens on demand moves focus in, and returns it to what opened it, or to the input if that has gone; animations stop under `prefers-reduced-motion`.
 - Story tests need Chromium once per machine: `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium`.

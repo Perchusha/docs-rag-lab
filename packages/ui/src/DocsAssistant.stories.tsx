@@ -71,9 +71,62 @@ export const ExampleSends: Story = {
       expect(canvas.queryByRole('list', { name: 'Example questions' })).toBeNull(),
     )
     await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveFocus()
+    // A click brought focus here, so there is no ring.
+    await expect(getComputedStyle(canvas.getByRole('form')).outlineStyle).toBe('none')
     await expect(canvas.getByRole('heading', { level: 2, name: question })).toBeVisible()
     exampleGate.open()
     await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+  },
+}
+
+/**
+ * Focus shows for the keyboard only. A text field matches :focus-visible on a click too,
+ * so without help the input would show a ring, or at least a coloured border, on every click.
+ */
+export const FocusShowsOnlyFromTheKeyboard: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    const box = getComputedStyle(canvas.getByRole('form'))
+    const border = box.borderTopColor
+
+    const showsNothing = async () => {
+      await expect(box.outlineStyle).toBe('none')
+      await expect(box.borderTopColor).toBe(border)
+    }
+
+    await userEvent.click(input)
+    await expect(input).toHaveFocus()
+    await showsNothing()
+    await userEvent.keyboard('Typing is not moving focus')
+    await showsNothing()
+    await userEvent.click(canvas.getByRole('button', { name: /^Search in/ }))
+    await showsNothing()
+    await userEvent.keyboard('{Escape}')
+
+    await userEvent.tab({ shift: true })
+    await expect(input).toHaveFocus()
+    await expect(box.outlineStyle).toBe('solid')
+    await userEvent.keyboard(', and the ring stays')
+    await expect(box.outlineStyle).toBe('solid')
+
+    await userEvent.tab()
+    const next = canvas.getByRole('button', { name: /^Search in/ })
+    await expect(next).toHaveFocus()
+    await expect(getComputedStyle(next).outlineStyle).toBe('solid')
+    await expect(box.outlineStyle).toBe('none')
+
+    // A click takes the ring away from what the keyboard gave it to.
+    await userEvent.tab({ shift: true })
+    await expect(box.outlineStyle).toBe('solid')
+    await userEvent.click(input)
+    await showsNothing()
+
+    // A click that moves focus to the input is still a click.
+    await userEvent.clear(input)
+    await userEvent.click(canvas.getByRole('button', { name: 'Send' }))
+    await expect(input).toHaveFocus()
+    await showsNothing()
   },
 }
 
@@ -358,6 +411,39 @@ function panelOf(root: HTMLElement): HTMLElement {
 }
 
 const HOW = { name: 'How was this found?' }
+
+/** The panel's search field is a text field too. */
+export const SearchFieldShowsFocusOnlyFromTheKeyboard: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+
+    const field = canvas.getByRole('textbox', { name: 'Search for' })
+    await userEvent.click(field)
+    await expect(field).toHaveFocus()
+    await expect(getComputedStyle(field).outlineStyle).toBe('none')
+
+    // Tab out of a field that was clicked is the keyboard again.
+    await userEvent.tab()
+    const button = canvas.getByRole('button', { name: 'Search only' })
+    await expect(button).toHaveFocus()
+    await expect(getComputedStyle(button).outlineStyle).toBe('solid')
+    await userEvent.tab({ shift: true })
+    await expect(field).toHaveFocus()
+    await expect(getComputedStyle(field).outlineStyle).toBe('solid')
+
+    // A radio is an input, but an arrow on it moves focus, it does not type.
+    const radio = canvas.getByRole('radio', { name: 'Vector' })
+    await userEvent.click(radio)
+    await expect(radio).toHaveFocus()
+    await expect(getComputedStyle(radio.closest('label') ?? radio).outlineStyle).toBe('none')
+    await userEvent.keyboard('{ArrowLeft}')
+    const moved = document.activeElement
+    await expect(moved).not.toBe(radio)
+    await expect(getComputedStyle(moved?.closest('label') ?? radio).outlineStyle).toBe('solid')
+  },
+}
 
 /** Closed until asked for. Opening moves focus in; Close, Esc and the button return it. */
 export const InspectorOnDemand: Story = {
@@ -964,6 +1050,30 @@ export const NewQuestionAboveStackedPanel: Story = {
 }
 
 /**
+ * The input is always in view, so focus in it leaves the page where it is. With the page's
+ * room for the input in force, the caret counted as hidden behind it, and each real key
+ * scrolled the page down. Keys from userEvent and insertText never bring the caret into
+ * view, so this checks the rule through focus(), which scrolls by the same rule.
+ */
+export const FocusInTheInputKeepsThePageStill: Story = {
+  ...WIDE,
+  args: { transport: replayTransport({ events: tableAnswerFixture.events }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    const page = document.documentElement
+    await expect(page.scrollHeight).toBeGreaterThan(window.innerHeight)
+
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    input.blur()
+    window.scrollTo(0, 0)
+    input.focus()
+    await expect(window.scrollY).toBe(0)
+    await expect(getComputedStyle(page).scrollPaddingBottom).toBe('auto')
+  },
+}
+
+/**
  * WCAG 2.4.11: the input sticks to the bottom and grows with its text, and it never
  * covers what has focus. Tabs through a long answer with ten lines in the input.
  */
@@ -980,8 +1090,9 @@ export const InputNeverCoversFocus: Story = {
     const form = canvas.getByRole('form', { name: 'Ask the docs' })
     // Taller than the padding the page has before it has measured anything.
     await expect(form.getBoundingClientRect().height).toBeGreaterThan(200)
-    const padding = () => parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom)
-    await waitFor(() => expect(padding()).toBeGreaterThan(form.getBoundingClientRect().height))
+    const page = document.documentElement
+    const measured = () => parseFloat(page.style.getPropertyValue('--dock-height'))
+    await waitFor(() => expect(measured()).toBeGreaterThan(form.getBoundingClientRect().height))
 
     const covered: string[] = []
     const first = canvas
@@ -989,6 +1100,10 @@ export const InputNeverCoversFocus: Story = {
       .querySelector<HTMLElement>('a, button, [tabindex="0"]')
     first?.focus()
     await expect(document.activeElement).toBe(first)
+    // Kept clear only with focus out of the input: see FocusInTheInputKeepsThePageStill.
+    await expect(parseFloat(getComputedStyle(page).scrollPaddingBottom)).toBeGreaterThan(
+      form.getBoundingClientRect().height,
+    )
     let stops = 0
     for (let stop = 0; stop < 60 && document.activeElement !== input; stop += 1) {
       stops += 1

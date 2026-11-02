@@ -68,7 +68,7 @@
 
 .on:has(input:focus-visible),
 .off:has(input:focus-visible) {
-  outline: var(--space-hairline) solid var(--color-focus);
+  outline: var(--space-hairline) var(--focus-ring-style, solid) var(--color-focus);
   outline-offset: 1px;
 }
 

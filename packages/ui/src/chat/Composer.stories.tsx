@@ -21,13 +21,54 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/** A button that shows an icon and no text. Its name comes from its label alone. */
+async function expectIconOnly(button: HTMLElement): Promise<void> {
+  await expect(button.textContent).toBe('')
+  await expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+}
+
+/**
+ * The two controls sit in the box's bottom corners with the same gap on every side, and
+ * the select's text starts where the input's does.
+ */
+export const ControlsSitEvenlyInTheBox: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const box = canvas.getByRole('form').getBoundingClientRect()
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    const select = canvas.getByRole('button', { name: /^Search in/ })
+    const send = canvas.getByRole('button', { name: 'Send' })
+    const selectBox = select.getBoundingClientRect()
+    const sendBox = send.getBoundingClientRect()
+
+    const gap = box.right - sendBox.right
+    await expect(gap).toBeGreaterThan(4)
+    for (const other of [
+      box.bottom - sendBox.bottom,
+      selectBox.left - box.left,
+      box.bottom - selectBox.bottom,
+    ]) {
+      await expect(Math.abs(other - gap)).toBeLessThanOrEqual(1)
+    }
+    await expect(selectBox.height).toBe(sendBox.height)
+
+    const textStart = (element: HTMLElement) =>
+      element.getBoundingClientRect().left + parseFloat(getComputedStyle(element).paddingLeft)
+    await expect(Math.abs(textStart(select) - textStart(input))).toBeLessThanOrEqual(1)
+
+    await expectIconOnly(send)
+    await expect(select.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  },
+}
+
 /** Enter sends and clears; Shift+Enter adds a line and sends nothing. */
 export const EnterSends: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     const question = canvas.getByRole('textbox', { name: 'Question' })
 
-    await userEvent.click(question)
+    await userEvent.tab()
+    await expect(question).toHaveFocus()
     // One focus ring, on the box, and none of its own on the input inside it.
     await expect(getComputedStyle(question).outlineStyle).toBe('none')
     await expect(getComputedStyle(canvas.getByRole('form')).outlineStyle).toBe('solid')
@@ -77,6 +118,7 @@ export const Running: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.queryByRole('button', { name: 'Send' })).toBeNull()
+    await expectIconOnly(canvas.getByRole('button', { name: 'Stop' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
     await expect(args.onStop).toHaveBeenCalledOnce()
     await expect(args.onSend).not.toHaveBeenCalled()
@@ -170,8 +212,15 @@ export const SearchInOpen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: /^Search in/ }))
-    await expect(canvas.getByRole('group', { name: 'Search in' })).toBeVisible()
+    const panel = canvas.getByRole('group', { name: 'Search in' })
+    await expect(panel).toBeVisible()
     await expect(canvas.getByRole('checkbox', { name: 'Compiler options' })).toBeVisible()
+
+    // It opens right above the button, lined up with it.
+    const button = canvas.getByRole('button', { name: /^Search in/ }).getBoundingClientRect()
+    const opened = panel.getBoundingClientRect()
+    await expect(Math.abs(opened.left - button.left)).toBeLessThanOrEqual(1)
+    await expect(opened.bottom).toBeLessThanOrEqual(button.top)
   },
 }
 
