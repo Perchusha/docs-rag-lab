@@ -22,7 +22,7 @@ The second M3 PR adds the ui package, Storybook and the Next.js app on top of th
 |---|---|---|
 | Localhost only | `next dev` and `next start` take `--hostname 127.0.0.1`; Storybook takes `--host 127.0.0.1` | `netstat`: `127.0.0.1:3000` and `127.0.0.1:6006` only |
 | Safe markdown | No rehype-raw; default URL sanitizing; only http(s) links, with `rel="noopener noreferrer"`; images as alt text | 6 unit tests on server-rendered HTML; every citation link in the live app has the rel |
-| Accessibility | A text marker beside the two BM25 shades; a real table with `aria-sort` on button headers; WAI-ARIA tabs; a polite status region instead of a live answer; no animation under reduced motion | 26 stories, each a test in Chromium with axe in light and dark (52 runs, 0 violations); axe on the live app in 5 states, 0 violations |
+| Accessibility | A text marker beside the two BM25 shades; a real table with `aria-sort` on button headers; WAI-ARIA tabs; a polite status region instead of a live answer; no animation under reduced motion | 28 stories, each a test in Chromium with axe in light and dark (56 runs, 0 violations); axe on the live app in 15 states, including every tab at 320 px, 0 violations |
 | Keyboard play tests | Sorting with Enter and Space; tabs with the arrow keys, Home and End; one tab stop | The KeyboardSorting and KeyboardTabs stories, plus a keyboard-only run of the live app: Tab to an example, Enter, Ctrl+Enter to ask, Tab to the citation, Enter |
 
 **Measured in the app,** over the real index with cached query vectors:
@@ -64,18 +64,24 @@ It also found:
 - **No test for a new question replacing a running one.** The first version of the story passed even with the abort removed: the reducer drops late events once the search finishes, which hid the leak. With a search slower than the whole stream it fails without the abort.
 - **Smaller fixes:** `ask()` also stops when the response body is cancelled, not only on the request signal; mid-stream failures are logged; the engine builds the source `rag.config.ts` names; chunk locations no longer assume the TypeScript-Website layout; the tab list leaves Alt+Arrow to the browser.
 
+**Three more changes before the merge, after reading the PR:**
+- **Tables.** remark-gfm is on, and each table and code block scrolls in a focusable, named box. Recording one real table answer ($0.0238) paid for itself. axe flagged the empty corner header that comparison tables use, and it raised a marker case no test had: placed after a row's last pipe, a marker becomes an extra cell, which GFM drops along with the citation.
+- **A test that lasted 15 ms was not fixed by making it last 400.** The earlier fix moved the check to a longer delay, which only made the race rarer. A `ReplayGate` now holds each step until the test releases it. It also made the race story stronger: the replay keeps sending after its abort, so removing the check that drops late events now fails in under 300 ms, where the timer version could not catch it at all. All 111 ui tests passed 4 runs in a row with the CPU oversubscribed (32 busy loops on 16 cores), taking 58-85 s against about 5 s.
+- **Reflow at 320 CSS px.** The chat and the inspector already stacked, but the page was 550 px wide. No visible element stuck out: the fusion table's visually hidden text is absolutely positioned, and it escaped its scroll box because the box was not positioned. The new story found that on its first run. A screenshot found what geometry cannot: a sentence in the table's caption that needed sideways scrolling to read.
+
+A restart also turned up something unrelated. Windows reserves port ranges for Hyper-V at each boot, and one of them now covered Vitest's default browser port, so the story tests failed with `EACCES`. They use a fixed port below that range now.
+
 **Hook timings (ADR-0002).** On a forced cache miss, the post-edit check takes 8.4-8.5 s for ui and 6.6-8.0 s for ts-docs: ui is just over the 8 s budget. The hook's own runs while this PR was built had a median of 4.5 s for ui, so lint stays in PostToolUse. ui's lint moves to the Stop hook first if a typical run passes 8 s.
 
 | | |
 |---|---|
-| Tests | 363 offline in the product packages (232 after the first half): contracts 22 (0), ui 89 (37 unit, 52 story tests: 26 stories in light and dark), ts-docs 20 (0). Tooling: config 20, claude-hooks 85, repo-checks 14 |
+| Tests | 385 offline in the product packages (232 after the first half): contracts 22 (0), ui 111 (55 unit, 56 story tests: 28 stories in light and dark), ts-docs 20 (0). Tooling: config 20, claude-hooks 85, repo-checks 14 |
 | ui test task | 11.5 s with Chromium; 5.0 s of it is Vitest |
-| Spend | $0.1199: the recorded answer fixture ($0.0171), four asks in the app ($0.0858), one time-to-first-token run ($0.0170). 0 Voyage tokens |
+| Spend | $0.1437: two recorded answer fixtures ($0.0171 and $0.0238), four asks in the app ($0.0858), one time-to-first-token run ($0.0170). 29 Voyage tokens |
 
 ### Open items for M4
 - The eval harness, reports and the dashboard view (a new ui view, with its stories).
 - Check the two hypotheses on the full golden set. The fusion view shows the double counting per question; the eval shows whether removing it helps.
-- Tables in answers render as text, because there is no remark-gfm. Add it if eval answers need tables.
 - ui's post-edit check is just over the 8 s budget on a forced cache miss; re-measure when the dashboard lands.
 
 ## M3, first half - The engine under the app (2026-11-01)

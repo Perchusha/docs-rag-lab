@@ -14,8 +14,10 @@ Client components for the docs assistants: chat, citations and the retrieval ins
 - Styles are CSS Modules that read the custom properties in `src/tokens.css`. Never hard-code a colour, size or font; add a token, and add any new text colour to the "Foundations/Tokens" story so axe checks its contrast.
 - Logic that can be pure is pure and unit tested in `src/lib/` (the reducer, fusion rows, the answer markdown). Components stay thin.
 - Every component state gets a story. Story tests run each story in headless Chromium, in light and dark, and fail on any axe violation. Interactions get a play function, keyboard first.
+- A story that checks anything but the final state holds the replay with a `ReplayGate` and releases it step by step, never a timer. A state then lasts as long as the test needs, however slow the machine is.
 - Stories replay recorded data through `replayTransport`, never the network. Fixtures in `src/__fixtures__/` are real traces and answers, with every docs excerpt cut to 300 characters (NOTICE). Read them through `src/fixtures.ts`.
-- The answer's markdown: no raw HTML (no rehype-raw), keep react-markdown's URL sanitizing, http(s) links only, opening in a new tab with `rel="noopener noreferrer"`, images as alt text.
+- The answer's markdown: GFM for tables, no raw HTML (no rehype-raw), keep react-markdown's URL sanitizing, http(s) links only, opening in a new tab with `rel="noopener noreferrer"`, images as alt text, task lists as text.
+- Reflow: at 320 CSS px nothing scrolls sideways but a table or code block, in a `ScrollRegion` (focusable and named). `Reflow320` checks it; a new view goes on that story's tab walk.
 - Accessibility: state is never shown by colour alone; tables are real tables; tabs follow the WAI-ARIA tabs pattern; the streaming answer is not a live region, the polite status region announces state changes; animations stop under `prefers-reduced-motion`.
 - Story tests need Chromium once per machine: `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium`.
 - No model IDs, prices or API keys in this package. Model names shown in the usage line come from the data.

@@ -59,7 +59,14 @@ Claude answers in markdown, rendered with react-markdown:
 - **Images render as their alt text,** so an answer cannot load anything from another site.
 - **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). After a closing code fence a marker starts its own line, because text after a closing fence keeps the code block open. The renderer turns them into buttons named after their source.
 
-`AnswerMarkdown.test.tsx` checks each point on server-rendered HTML. There is no `remark-gfm`, so a table in an answer shows as text. Add it if answers need tables.
+- **GFM adds tables, and no way around these rules.** Claude often answers with a table, so `remark-gfm` is on. Task lists render as text, so an answer adds no form controls. Only two tildes strike through, because `singleTilde` would catch version ranges like `~5.0`. Autolinks follow the http(s) rule.
+- **Tables and code blocks scroll in their own box** (`ScrollRegion`), so the page does not: a focusable group with a name, the table's taken from its column headers. The arrow keys scroll it, and axe's scrollable-region rule accepts it. It is a group rather than a region, so several in one answer do not each add a landmark.
+
+Two details came from a real recorded answer with a table:
+- A marker placed after a row's last pipe would be an extra cell, which GFM drops without a trace, and the citation with it. It goes inside the last cell; a marker after a delimiter row goes in the header row.
+- Comparison tables leave the corner header empty, which axe flags (`empty-table-header`). An empty header renders as a plain cell.
+
+`AnswerMarkdown.test.tsx` checks each point on server-rendered HTML.
 
 ### 5. ui
 
@@ -77,6 +84,7 @@ The conditions from the M3 approval, and how each is met:
 - **The inspector tabs follow the WAI-ARIA tabs pattern:** one tab stop, the arrow keys move between tabs and wrap, Home and End go to the first and last, and a tab is selected when it gets focus. Every panel exists in the DOM, hidden, so each `aria-controls` points at an element.
 - **The streaming answer is not a live region.** A screen reader would read every delta. A polite status region announces the state instead: "Searching the docs", "Writing the answer", "Answer ready, with 1 source", "Stopped", and errors.
 - **Animation respects `prefers-reduced-motion`.** `tokens.css` stops every animation and transition under it; the only animation is the progress dots.
+- **Reflow at 320 CSS px** (WCAG 1.4.10: 1280 px at 400% zoom). The chat and the inspector stack below 64rem, and nothing scrolls sideways but a table's or code block's box. The tab list wraps. Links and cards break long URLs and anchors. A scroll box is `position: relative`, or the absolutely positioned hidden text in a wide table escapes it and widens the page. Sentences stay outside the boxes, so reading one never needs sideways scrolling. The fusion table uses the same focusable box, because its right-hand columns hold nothing focusable and a keyboard could not otherwise reach them.
 
 Also:
 - each focusable element shows a 2px focus outline (`:focus-visible`);
@@ -99,17 +107,21 @@ Play functions cover the conditions in section 6:
 - the tabs with the arrow keys, Home and End, and the single tab stop;
 - a citation moving focus to its chunk, and the tab list keeping focus afterwards;
 - a new question replacing one still streaming, with nothing of the first reaching the page;
-- the status texts, and Stop.
+- the status texts, and Stop;
+- reflow at a real 320 by 256 viewport (`Reflow320`): on each tab it walks every element and fails on anything past the page edge, or any sideways scroller but a table's or code block's box. It also checks that a table and a code block really overflow there, so axe's scrollable-region rule has something to check.
+
+**A test controls when a replay moves on.** A story that checks anything but the final state uses a `ReplayGate`, never a timer: each step of the replay waits until the test releases it, so a state lasts as long as the test needs, however slow the machine is. An earlier version checked a state its replay held for 15 ms, and moving that check to a 400 ms delay only made the race rarer. The replay can also keep sending after its abort (`ignoresAbort`), as a real response does with a chunk it has read, which is the only way to test that `useAssistant` drops those events. A story that waits only for a final state may use a delay, which is there to watch it stream in Storybook. Its limit, 10s for `findBy*` and `waitFor`, is a bound on failure, not something a passing test waits for.
 
 Stories replay recorded fixtures with no network:
 - three real traces from `drl search --json` (`satisfies`, TS2345, ts-0004) and a vector-only trace;
-- one recorded answer stream ($0.0171);
+- two recorded answer streams: the `satisfies` answer ($0.0171), and one with a table with cited cells and two code blocks ($0.0238);
 - one document's chunks.
 
 Every excerpt of the docs in them is cut to 300 characters (NOTICE: short excerpts).
 
-Two things were needed to make this stable:
-- **`optimizeDeps.include: ['react-markdown']`.** Vite found it mid-run, reloaded the page, and every running test failed. This happens on every run with an empty cache, as in CI.
+Three things were needed to make this stable:
+- **`optimizeDeps.include: ['react-markdown', 'remark-gfm']`.** Vite found them mid-run, reloaded the page, and every running test failed. This happens on every run with an empty cache, as in CI.
+- **`api: { port: 5199 }`.** Vitest's default browser port, 63315, falls in a range Windows hands to Hyper-V, which changes at each boot. There it fails with `EACCES`, and Vitest only tries another port when one is taken.
 - **`.storybook/preview.css`** gives the canvas the app's page colours. Without it, the dark stories drew light text on Storybook's white canvas, and axe rightly failed them.
 
 CI installs Playwright's headless Chromium, cached per Playwright version, and its system libraries from apt. Locally, run `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium` once.
@@ -124,6 +136,7 @@ Checked on npm on 2026-11-01. Every version was more than a day old.
 | react, react-dom | 19.3.1 | catalog: ts-docs; ui as a peer | |
 | @types/react, @types/react-dom | 19.3.0 | catalog (dev) | |
 | react-markdown | 10.1.0 | ui | Claude answers in markdown. Built on unified and remark, which the parsers already use |
+| remark-gfm | 4.0.1 | ui | Tables in answers. Already used by the TypeScript parser, at the same version |
 | storybook, @storybook/react-vite, @storybook/addon-a11y, @storybook/addon-vitest | 10.6.5 | ui (dev) | Storybook (SPEC section 5), axe on every story, stories as tests |
 | @vitest/browser-playwright, playwright | 5.0.5, 1.64.1 | ui (dev) | Run the story tests in Chromium |
 | eslint-plugin-react-hooks | 7.1.1 | config | The rules of hooks and the React Compiler rules, through `createConfig(dir, { react: true })` |
@@ -134,7 +147,7 @@ pnpm 12 fails an install when a dependency has a build script that `allowBuilds`
 ## Consequences
 
 - One code path serves the CLI and the app. The routes add only parsing, status codes and the stream.
-- The ui test task takes about 11s with Chromium, and it needs the browser installed once. The Stop hook runs it whenever ui changes.
+- The ui test task takes about 11s with Chromium (42s on a CI runner shared with the other tasks), and it needs the browser installed once. The Stop hook runs it whenever ui changes.
 - The ui's post-edit check is the slowest in the repository: 8.4-8.5s on a forced cache miss, just over the 8s budget of ADR-0002. Its own runs during this PR had a median of 4.5s. See ADR-0002.
 - A new docs app (react-docs in M6) is a `rag.config.ts`, a page and three one-line routes.
 - Every new ui state needs a story. axe then checks it in both colour schemes with no further work.

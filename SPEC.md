@@ -117,7 +117,7 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 
 - **Runtime and tooling:** current Node LTS, pnpm, Turborepo, TypeScript strict, ESM, Vitest, ESLint, Prettier, dependency-cruiser, Storybook. Exact versions and the reasons for them (for example TypeScript 6.0 rather than 7) are in ADR-0001.
 - **Apps:** Next.js 16 App Router with streaming route handlers, bound to 127.0.0.1 (ADR-0008).
-- **UI:** React 19 with CSS Modules and design tokens (light and dark), react-markdown for answers (no raw HTML), Storybook 10. Every story runs as a test in headless Chromium through Playwright, with axe, in both colour schemes (ADR-0008).
+- **UI:** React 19 with CSS Modules and design tokens (light and dark), react-markdown with GFM tables for answers (no raw HTML), Storybook 10. Every story runs as a test in headless Chromium through Playwright, with axe, in both colour schemes (ADR-0008).
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
   - Sonnet: answers, the interviewer, the judge.
