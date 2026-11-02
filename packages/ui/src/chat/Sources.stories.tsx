@@ -55,14 +55,14 @@ export const RenderedExcerpts: Story = {
     await expect(code.querySelector('pre code')).toHaveTextContent('type Colors')
 
     // The collapsed code block stops early, and Show more brings the rest.
-    await expect(code).not.toHaveTextContent('const palette')
+    await expect(code).not.toHaveTextContent('The typo is now caught')
     const more = within(fenced).getByRole('button', { name: 'Show more' })
     await expect(more).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(more)
     const less = within(fenced).getByRole('button', { name: 'Show less' })
     await expect(less).toHaveAttribute('aria-expanded', 'true')
     await expect(within(fenced).getByRole('group', { name: 'Code example' })).toHaveTextContent(
-      'const palette',
+      'The typo is now caught',
     )
     await userEvent.click(less)
     await expect(within(fenced).getByRole('button', { name: 'Show more' })).toBeVisible()
