@@ -44,7 +44,7 @@ describe('AnswerMarkdown', () => {
     const out = html(answerMarkdown(answerFixture.parts))
     expect(out.match(/<button/g)).toHaveLength(2)
     expect(out).toContain(
-      'aria-label="Source 1: TypeScript 5.0 &gt; @satisfies Support in JSDoc. Show it in the inspector"',
+      'aria-label="Source 1: TypeScript 5.0 &gt; @satisfies Support in JSDoc (part 1 of 2). Show it in the inspector"',
     )
     expect(out).not.toContain('#cite-1')
   })

@@ -14,6 +14,10 @@
       "sectionPath": [
         "The satisfies Operator"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "the-satisfies-operator",
       "tokenCount": 438,
       "text": "TypeScript 4.9 > The satisfies Operator\n\nTypeScript developers are often faced with a dilemma: we want to ensure that some expression *matches* some type, but also want to keep the *most specific* type of that expression for inference purposes.\n\nFor example:\n\n```ts\n// Each property can be a strin...",
@@ -42,6 +46,10 @@
       "sectionPath": [
         "The satisfies Operator"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "the-satisfies-operator",
       "tokenCount": 542,
       "text": "TypeScript 4.9 > The satisfies Operator\n\n```ts\ntype Colors = \"red\" | \"green\" | \"blue\";\n\ntype RGB = [red: number, green: number, blue: number];\n\nconst palette = {\n    red: [255, 0, 0],\n    green: \"#00ff00\",\n    bleu: [0, 0, 255]\n//  ~~~~ The typo is now caught!\n} satisfies Record<Colors, string | ...",
@@ -62,6 +70,10 @@
       "sectionPath": [
         "Unlisted Property Narrowing with the in Operator"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "unlisted-property-narrowing-with-the-in-operator",
       "tokenCount": 670,
       "text": "TypeScript 4.9 > Unlisted Property Narrowing with the in Operator\n\nAs developers, we often need to deal with values that aren't fully known at runtime.\nIn fact, we often don't know if properties exist, whether we're getting a response from a server or reading a configuration file.\nJavaScript's `i...",
@@ -82,6 +94,10 @@
       "sectionPath": [
         "Unlisted Property Narrowing with the in Operator"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "unlisted-property-narrowing-with-the-in-operator",
       "tokenCount": 484,
       "text": "TypeScript 4.9 > Unlisted Property Narrowing with the in Operator\n\nThis is because while the type of `packageJSON` was narrowed from `unknown` to `object`, the `in` operator strictly narrowed to types that actually defined the property being checked.\nAs a result, the type of `packageJSON` remaine...",
@@ -100,6 +116,7 @@
       "sectionPath": [
         "Auto-Accessors in Classes"
       ],
+      "part": null,
       "anchor": "auto-accessors-in-classes",
       "tokenCount": 784,
       "text": "TypeScript 4.9\n\n## Auto-Accessors in Classes\n\nTypeScript 4.9 supports an upcoming feature in ECMAScript called auto-accessors.\nAuto-accessors are declared just like properties on classes, except that they're declared with the `accessor` keyword.\n\n```ts\nclass Person {\n    accessor name: string;\n\n ...",
@@ -124,6 +141,10 @@
       "sectionPath": [
         "File-Watching Now Uses File System Events"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "file-watching-now-uses-file-system-events",
       "tokenCount": 550,
       "text": "TypeScript 4.9 > File-Watching Now Uses File System Events\n\nIn earlier versions, TypeScript leaned heavily on *polling* for watching individual files.\nUsing a polling strategy meant checking the state of a file periodically for updates.\nOn Node.js, [`fs.watchFile`](https://nodejs.org/docs/latest-...",
@@ -144,6 +165,10 @@
       "sectionPath": [
         "File-Watching Now Uses File System Events"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "file-watching-now-uses-file-system-events",
       "tokenCount": 544,
       "text": "TypeScript 4.9 > File-Watching Now Uses File System Events\n\nAs a result, our default was to pick the lowest common denominator: polling.\nNot always, but most of the time.\n\nOver time, we've provided the means to [choose other file-watching strategies](https://www.typescriptlang.org/docs/handbook/c...",
@@ -166,6 +191,7 @@
       "sectionPath": [
         "\"Remove Unused Imports\" and \"Sort Imports\" Commands for Editors"
       ],
+      "part": null,
       "anchor": "remove-unused-imports-and-sort-imports-commands-for-editors",
       "tokenCount": 731,
       "text": "TypeScript 4.9\n\n## \"Remove Unused Imports\" and \"Sort Imports\" Commands for Editors\n\nPreviously, TypeScript only supported two editor commands to manage imports.\nFor our examples, take the following code:\n\n```ts\nimport { Zebra, Moose, HoneyBadger } from \"./zoo\";\nimport { foo, bar } from \"./helper\"...",
@@ -190,6 +216,7 @@
       "sectionPath": [
         "Performance Improvements"
       ],
+      "part": null,
       "anchor": "performance-improvements",
       "tokenCount": 740,
       "text": "TypeScript 4.9 > Performance Improvements\n\nTypeScript has a few small, but notable, performance improvements.\n\nFirst, TypeScript's `forEachChild` function has been rewritten to use a function table lookup instead of a `switch` statement across all syntax nodes.\n`forEachChild` is a workhorse for t...",
@@ -214,6 +241,7 @@
       "sectionPath": [
         "Correctness Fixes and Breaking Changes"
       ],
+      "part": null,
       "anchor": "correctness-fixes-and-breaking-changes",
       "tokenCount": 752,
       "text": "TypeScript 4.9 > Correctness Fixes and Breaking Changes\n\n### lib.d.ts Updates\n\nWhile TypeScript strives to avoid major breaks, even small changes in the built-in libraries can cause issues.\nWe don't expect major breaks as a result of DOM and `lib.d.ts` updates, but there may be some small ones.\n\n...",
@@ -238,6 +266,7 @@
       "sectionPath": [
         "substitute Replaced With constraint on SubstitutionTypes"
       ],
+      "part": null,
       "anchor": "substitute-replaced-with-constraint-on-substitutiontypes",
       "tokenCount": 136,
       "text": "TypeScript 4.9 > substitute Replaced With constraint on SubstitutionTypes\n\nAs part of an optimization on substitution types, `SubstitutionType` objects no longer contain the `substitute` property representing the effective substitution (usually an intersection of the base type and the implicit co...",

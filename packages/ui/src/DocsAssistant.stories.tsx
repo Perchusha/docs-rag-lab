@@ -96,7 +96,9 @@ export const AskAndInspect: Story = {
       'true',
     )
     await expect(
-      canvas.getByRole('heading', { name: '1. TypeScript 5.0 > @satisfies Support in JSDoc' }),
+      canvas.getByRole('heading', {
+        name: '1. TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2)',
+      }),
     ).toHaveFocus()
 
     // The citation moved focus once. Leaving the Context tab and coming back

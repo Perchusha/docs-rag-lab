@@ -2,6 +2,7 @@
 // and process boundaries (ADR-0006). Client-safe: this package imports nothing,
 // not even Node built-ins, so ui may use it.
 export {
+  chunkLabel,
   LIST_NAMES,
   STRATEGIES,
   TRACE_VERSION,
@@ -9,6 +10,7 @@ export {
   type ExactTokenOrigin,
   type ListName,
   type RetrievalTrace,
+  type SectionPart,
   type Strategy,
   type TraceCandidate,
   type TraceChunk,

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "question": "В чём разница между `unknown` и `any`?",
   "sourceId": "typescript",
   "strategy": "hybrid",
@@ -33,13 +33,13 @@
   "embedding": {
     "provider": "voyage:voyage-4:1024",
     "from": "cache",
-    "ms": 0.549699999999973
+    "ms": 0.45289999999999964
   },
   "lists": [
     {
       "name": "vector",
       "scoring": "cosine-distance",
-      "ms": 3.0674999999999955,
+      "ms": 2.9429000000000087,
       "candidates": [
         {
           "chunkId": "cbe74b1aa7bd352dbed39acd",
@@ -297,7 +297,7 @@
       "name": "keyword",
       "scoring": "bm25",
       "query": "\"чём\" OR \"разница\" OR \"между\" OR \"unknown\" OR \"any\"",
-      "ms": 2.0896000000000186,
+      "ms": 2.0418999999999983,
       "candidates": [
         {
           "chunkId": "b364cef04a521d7131da761a",
@@ -555,7 +555,7 @@
       "name": "exact",
       "scoring": "bm25",
       "query": "\"unknown\" OR \"any\"",
-      "ms": 0.42760000000004084,
+      "ms": 0.472500000000025,
       "candidates": [
         {
           "chunkId": "b364cef04a521d7131da761a",
@@ -813,7 +813,7 @@
   "fusion": {
     "method": "rrf",
     "k": 60,
-    "ms": 0.23959999999999582,
+    "ms": 0.23559999999997672,
     "ranked": [
       {
         "chunkId": "b364cef04a521d7131da761a",
@@ -1572,6 +1572,7 @@
       "sectionPath": [
         "New unknown top type"
       ],
+      "part": null,
       "anchor": "new-unknown-top-type",
       "docType": "release-notes",
       "tokenCount": 119
@@ -1586,6 +1587,7 @@
         "Other Types to Know About",
         "unknown"
       ],
+      "part": null,
       "anchor": "unknown",
       "docType": "handbook",
       "tokenCount": 543
@@ -1601,6 +1603,7 @@
         "New unknown top type",
         "Example"
       ],
+      "part": null,
       "anchor": "example-3",
       "docType": "release-notes",
       "tokenCount": 1046
@@ -1612,6 +1615,7 @@
       "sectionPath": [
         "Advanced Topics"
       ],
+      "part": null,
       "anchor": "advanced-topics",
       "docType": "reference",
       "tokenCount": 707
@@ -1625,6 +1629,7 @@
       "sectionPath": [
         "General Types"
       ],
+      "part": null,
       "anchor": "general-types",
       "docType": "other",
       "tokenCount": 469
@@ -1638,6 +1643,7 @@
       "sectionPath": [
         "unknown on catch Clause Bindings"
       ],
+      "part": null,
       "anchor": "unknown-on-catch-clause-bindings",
       "docType": "release-notes",
       "tokenCount": 472
@@ -1649,6 +1655,7 @@
       "sectionPath": [
         "any"
       ],
+      "part": null,
       "anchor": "any",
       "docType": "handbook",
       "tokenCount": 603
@@ -1660,6 +1667,7 @@
       "sectionPath": [
         "noImplicitAny"
       ],
+      "part": null,
       "anchor": "noimplicitany",
       "docType": "handbook",
       "tokenCount": 334
@@ -1673,6 +1681,7 @@
       "sectionPath": [
         "Defaulting to the unknown Type in Catch Variables (--useUnknownInCatchVariables)"
       ],
+      "part": null,
       "anchor": "defaulting-to-the-unknown-type-in-catch-variables---useunknownincatchvariables",
       "docType": "release-notes",
       "tokenCount": 750
@@ -1682,6 +1691,7 @@
       "title": "TSConfig Option: useUnknownInCatchVariables",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 228
@@ -1695,6 +1705,7 @@
       "sectionPath": [
         "Unspecified type parameters default to any"
       ],
+      "part": null,
       "anchor": "unspecified-type-parameters-default-to-any",
       "docType": "other",
       "tokenCount": 484
@@ -1706,6 +1717,7 @@
       "sectionPath": [
         "Support for --target ES2016, --target ES2017 and --target ESNext"
       ],
+      "part": null,
       "anchor": "support-for---target-es2016---target-es2017-and---target-esnext",
       "docType": "release-notes",
       "tokenCount": 777
@@ -1715,6 +1727,7 @@
       "title": "TSConfig Option: noImplicitAny",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 172
@@ -1728,6 +1741,10 @@
       "sectionPath": [
         "Generic Object Types"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "generic-object-types",
       "docType": "handbook",
       "tokenCount": 734
@@ -1742,6 +1759,7 @@
         "Breaking Changes",
         "lib.d.ts Changes"
       ],
+      "part": null,
       "anchor": "libdts-changes",
       "docType": "release-notes",
       "tokenCount": 798
@@ -1755,6 +1773,10 @@
       "sectionPath": [
         "Improved Intersection Reduction, Union Compatibility, and Narrowing"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "improved-intersection-reduction-union-compatibility-and-narrowing",
       "docType": "release-notes",
       "tokenCount": 469
@@ -1769,6 +1791,7 @@
         "Breaking Changes",
         "Getters/Setters are No Longer Enumerable"
       ],
+      "part": null,
       "anchor": "getterssetters-are-no-longer-enumerable",
       "docType": "release-notes",
       "tokenCount": 440
@@ -1782,6 +1805,10 @@
       "sectionPath": [
         "Hello World of Generics"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "hello-world-of-generics",
       "docType": "handbook",
       "tokenCount": 450
@@ -1795,6 +1822,7 @@
       "sectionPath": [
         "Improved Inference from Binding Patterns"
       ],
+      "part": null,
       "anchor": "improved-inference-from-binding-patterns",
       "docType": "release-notes",
       "tokenCount": 597
@@ -1808,6 +1836,10 @@
       "sectionPath": [
         "Contextual Typing"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "contextual-typing",
       "docType": "reference",
       "tokenCount": 415
@@ -1821,6 +1853,10 @@
       "sectionPath": [
         "Easier Implicit Returns for undefined-Returning Functions"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "easier-implicit-returns-for-undefined-returning-functions",
       "docType": "release-notes",
       "tokenCount": 519
@@ -1834,6 +1870,7 @@
       "sectionPath": [
         "Other Types to Know About"
       ],
+      "part": null,
       "anchor": "other-types-to-know-about",
       "docType": "handbook",
       "tokenCount": 424
@@ -1847,6 +1884,7 @@
       "sectionPath": [
         "Nullable types"
       ],
+      "part": null,
       "anchor": "nullable-types",
       "docType": "reference",
       "tokenCount": 396
@@ -1860,6 +1898,10 @@
       "sectionPath": [
         "The NoInfer Utility Type"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "the-noinfer-utility-type",
       "docType": "release-notes",
       "tokenCount": 463
@@ -1874,6 +1916,7 @@
         "Breaking Changes",
         "Using unknown in Catch Variables"
       ],
+      "part": null,
       "anchor": "using-unknown-in-catch-variables",
       "docType": "release-notes",
       "tokenCount": 588
@@ -1883,6 +1926,7 @@
       "title": "TSConfig Option: strictBuiltinIteratorReturn",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 63
@@ -1896,6 +1940,7 @@
       "sectionPath": [
         "Conditional Types"
       ],
+      "part": null,
       "anchor": "conditional-types",
       "docType": "reference",
       "tokenCount": 706
@@ -1909,6 +1954,7 @@
       "sectionPath": [
         "Granular Checks for Branches in Return Expressions"
       ],
+      "part": null,
       "anchor": "granular-checks-for-branches-in-return-expressions",
       "docType": "release-notes",
       "tokenCount": 593
@@ -1923,6 +1969,7 @@
         "Breaking Changes",
         "Conditional Spreads Create Optional Properties"
       ],
+      "part": null,
       "anchor": "conditional-spreads-create-optional-properties",
       "docType": "release-notes",
       "tokenCount": 764
@@ -1936,6 +1983,10 @@
       "sectionPath": [
         "Improved Intersection Reduction, Union Compatibility, and Narrowing"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "improved-intersection-reduction-union-compatibility-and-narrowing",
       "docType": "release-notes",
       "tokenCount": 420
@@ -1949,6 +2000,7 @@
       "sectionPath": [
         "Conditional Types"
       ],
+      "part": null,
       "anchor": "conditional-types",
       "docType": "release-notes",
       "tokenCount": 753
@@ -1962,6 +2014,10 @@
       "sectionPath": [
         "Hello World of Generics"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "hello-world-of-generics",
       "docType": "handbook",
       "tokenCount": 443
@@ -1973,6 +2029,7 @@
       "sectionPath": [
         "Enums"
       ],
+      "part": null,
       "anchor": "enums",
       "docType": "reference",
       "tokenCount": 736
@@ -1987,6 +2044,7 @@
         "Breaking Changes",
         "lib.d.ts Updates"
       ],
+      "part": null,
       "anchor": "libdts-updates",
       "docType": "release-notes",
       "tokenCount": 301
@@ -1998,6 +2056,7 @@
       "sectionPath": [
         "Null- and undefined-aware types"
       ],
+      "part": null,
       "anchor": "null--and-undefined-aware-types",
       "docType": "release-notes",
       "tokenCount": 786
@@ -2011,6 +2070,7 @@
       "sectionPath": [
         "Correctness Fixes and Breaking Changes"
       ],
+      "part": null,
       "anchor": "correctness-fixes-and-breaking-changes",
       "docType": "release-notes",
       "tokenCount": 782
@@ -2020,6 +2080,7 @@
       "title": "Type Inference",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "reference",
       "tokenCount": 641
@@ -2034,6 +2095,7 @@
         "Notable Behavioral Changes",
         "Name Restrictions on Enum Members"
       ],
+      "part": null,
       "anchor": "name-restrictions-on-enum-members",
       "docType": "release-notes",
       "tokenCount": 510
@@ -2045,6 +2107,7 @@
       "sectionPath": [
         "Better Editor Support for Unresolved Types"
       ],
+      "part": null,
       "anchor": "better-editor-support-for-unresolved-types",
       "docType": "release-notes",
       "tokenCount": 750
@@ -2059,6 +2122,7 @@
         "Notable Behavioral Changes",
         "Creating Index Signatures from Non-Literal Method Names in Classes"
       ],
+      "part": null,
       "anchor": "creating-index-signatures-from-non-literal-method-names-in-classes",
       "docType": "release-notes",
       "tokenCount": 467
@@ -2072,6 +2136,7 @@
       "sectionPath": [
         "Type Assertions"
       ],
+      "part": null,
       "anchor": "type-assertions",
       "docType": "handbook",
       "tokenCount": 461
@@ -2083,6 +2148,7 @@
       "sectionPath": [
         "Type widening"
       ],
+      "part": null,
       "anchor": "type-widening",
       "docType": "release-notes",
       "tokenCount": 525
@@ -2092,6 +2158,7 @@
       "title": "TSConfig Option: strictNullChecks",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 502
@@ -2105,6 +2172,10 @@
       "sectionPath": [
         "Less Context-Sensitivity on this-less Functions"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "less-context-sensitivity-on-this-less-functions",
       "docType": "release-notes",
       "tokenCount": 684
@@ -2118,6 +2189,7 @@
       "sectionPath": [
         "Better inference for literal types"
       ],
+      "part": null,
       "anchor": "better-inference-for-literal-types",
       "docType": "release-notes",
       "tokenCount": 483
@@ -2131,6 +2203,7 @@
       "sectionPath": [
         "Breaking Changes"
       ],
+      "part": null,
       "anchor": "breaking-changes",
       "docType": "release-notes",
       "tokenCount": 650
@@ -2144,6 +2217,7 @@
       "sectionPath": [
         "Relationships Between Classes"
       ],
+      "part": null,
       "anchor": "relationships-between-classes",
       "docType": "handbook",
       "tokenCount": 303
@@ -2157,6 +2231,7 @@
       "sectionPath": [
         "Type inference in conditional types"
       ],
+      "part": null,
       "anchor": "type-inference-in-conditional-types",
       "docType": "reference",
       "tokenCount": 784
@@ -2170,6 +2245,7 @@
       "sectionPath": [
         "Strictness"
       ],
+      "part": null,
       "anchor": "strictness",
       "docType": "handbook",
       "tokenCount": 510
@@ -2183,6 +2259,7 @@
       "sectionPath": [
         "Notable Behavioral Changes"
       ],
+      "part": null,
       "anchor": "notable-behavioral-changes",
       "docType": "release-notes",
       "tokenCount": 600
@@ -2198,6 +2275,7 @@
         "Function Overloads",
         "Ordering"
       ],
+      "part": null,
       "anchor": "ordering",
       "docType": "other",
       "tokenCount": 250
@@ -2211,6 +2289,10 @@
       "sectionPath": [
         "Unlisted Property Narrowing with the in Operator"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "unlisted-property-narrowing-with-the-in-operator",
       "docType": "release-notes",
       "tokenCount": 484
@@ -2226,6 +2308,7 @@
         "Breaking Changes and Correctness Fixes",
         "Consistent Export Checking for Merged Symbols"
       ],
+      "part": null,
       "anchor": "consistent-export-checking-for-merged-symbols",
       "docType": "release-notes",
       "tokenCount": 374
@@ -2235,6 +2318,7 @@
       "title": "Type Checking JavaScript Files",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "other",
       "tokenCount": 686
@@ -2248,6 +2332,10 @@
       "sectionPath": [
         "Index types"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "index-types",
       "docType": "reference",
       "tokenCount": 446
@@ -2257,6 +2345,7 @@
       "title": "TSConfig Option: noUncheckedIndexedAccess",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 334
@@ -2272,6 +2361,10 @@
         "Type Checking",
         "Attribute type checking"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "attribute-type-checking",
       "docType": "reference",
       "tokenCount": 467
@@ -2281,6 +2374,7 @@
       "title": "TSConfig Option: noPropertyAccessFromIndexSignature",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 434
@@ -2294,6 +2388,7 @@
       "sectionPath": [
         "New Types for \"upsert\" Methods (a.k.a. getOrInsert)"
       ],
+      "part": null,
       "anchor": "new-types-for-upsert-methods-aka-getorinsert",
       "docType": "release-notes",
       "tokenCount": 536
@@ -2307,6 +2402,10 @@
       "sectionPath": [
         "Separate Write Types on Properties"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "separate-write-types-on-properties",
       "docType": "release-notes",
       "tokenCount": 606
@@ -2320,6 +2419,7 @@
       "sectionPath": [
         "extends Constraints on infer Type Variables"
       ],
+      "part": null,
       "anchor": "extends-constraints-on-infer-type-variables",
       "docType": "release-notes",
       "tokenCount": 609
@@ -2333,6 +2433,10 @@
       "sectionPath": [
         "Control Flow Analysis of Aliased Conditions and Discriminants"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "control-flow-analysis-of-aliased-conditions-and-discriminants",
       "docType": "release-notes",
       "tokenCount": 632
@@ -2344,6 +2448,7 @@
       "sectionPath": [
         "switch (true) Narrowing"
       ],
+      "part": null,
       "anchor": "switch-true-narrowing",
       "docType": "release-notes",
       "tokenCount": 497
@@ -2357,6 +2462,10 @@
       "sectionPath": [
         "Stricter Generators"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "stricter-generators",
       "docType": "release-notes",
       "tokenCount": 595
@@ -2370,6 +2479,10 @@
       "sectionPath": [
         "Iterator Helper Methods"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "iterator-helper-methods",
       "docType": "release-notes",
       "tokenCount": 586
@@ -2383,6 +2496,10 @@
       "sectionPath": [
         "Symbol and Template String Pattern Index Signatures"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "symbol-and-template-string-pattern-index-signatures",
       "docType": "release-notes",
       "tokenCount": 594
@@ -2396,6 +2513,7 @@
       "sectionPath": [
         "Callback Types"
       ],
+      "part": null,
       "anchor": "callback-types",
       "docType": "other",
       "tokenCount": 604
@@ -2409,6 +2527,10 @@
       "sectionPath": [
         "Variadic Tuple Types"
       ],
+      "part": {
+        "index": 3,
+        "total": 3
+      },
       "anchor": "variadic-tuple-types",
       "docType": "release-notes",
       "tokenCount": 608
@@ -2418,6 +2540,10 @@
       "title": "Conditional Types",
       "headingPath": [],
       "sectionPath": [],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 654
@@ -2431,6 +2557,10 @@
       "sectionPath": [
         "Inferred Type Predicates"
       ],
+      "part": {
+        "index": 2,
+        "total": 3
+      },
       "anchor": "inferred-type-predicates",
       "docType": "release-notes",
       "tokenCount": 620
@@ -2444,6 +2574,7 @@
       "sectionPath": [
         "instanceof Narrowing Through Symbol.hasInstance"
       ],
+      "part": null,
       "anchor": "instanceof-narrowing-through-symbolhasinstance",
       "docType": "release-notes",
       "tokenCount": 630
@@ -2453,6 +2584,7 @@
       "title": "Keyof Type Operator",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 238
@@ -2464,6 +2596,7 @@
       "sectionPath": [
         "ReturnType<Type>"
       ],
+      "part": null,
       "anchor": "returntypetype",
       "docType": "reference",
       "tokenCount": 689
@@ -2477,6 +2610,10 @@
       "sectionPath": [
         "Unlisted Property Narrowing with the in Operator"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "unlisted-property-narrowing-with-the-in-operator",
       "docType": "release-notes",
       "tokenCount": 670
@@ -2490,6 +2627,10 @@
       "sectionPath": [
         "Compiler Options"
       ],
+      "part": {
+        "index": 7,
+        "total": 7
+      },
       "anchor": "compiler-options",
       "docType": "other",
       "tokenCount": 747
@@ -2504,6 +2645,7 @@
         "Comparing two functions",
         "Optional Parameters and Rest Parameters"
       ],
+      "part": null,
       "anchor": "optional-parameters-and-rest-parameters",
       "docType": "reference",
       "tokenCount": 436
@@ -2513,6 +2655,7 @@
       "title": "Typeof Type Operator",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 473
@@ -2528,6 +2671,10 @@
         "Property Modifiers",
         "Optional Properties"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "optional-properties",
       "docType": "handbook",
       "tokenCount": 494
@@ -2541,6 +2688,10 @@
       "sectionPath": [
         "Optional Variance Annotations for Type Parameters"
       ],
+      "part": {
+        "index": 3,
+        "total": 3
+      },
       "anchor": "optional-variance-annotations-for-type-parameters",
       "docType": "release-notes",
       "tokenCount": 493
@@ -2556,6 +2707,10 @@
         "Types",
         "@type"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "type",
       "docType": "other",
       "tokenCount": 533
@@ -2569,6 +2724,7 @@
       "sectionPath": [
         "Improved Inference for infer Types in Template String Types"
       ],
+      "part": null,
       "anchor": "improved-inference-for-infer-types-in-template-string-types",
       "docType": "release-notes",
       "tokenCount": 523
@@ -2582,6 +2738,10 @@
       "sectionPath": [
         "The satisfies Operator"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "the-satisfies-operator",
       "docType": "release-notes",
       "tokenCount": 542
@@ -2595,6 +2755,10 @@
       "sectionPath": [
         "Strict Builtin Iterator Checks (and --strictBuiltinIteratorReturn)"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "strict-builtin-iterator-checks-and---strictbuiltiniteratorreturn",
       "docType": "release-notes",
       "tokenCount": 572
@@ -2610,6 +2774,7 @@
         "Notable Behavioral Changes",
         "New Enum Assignability Restrictions"
       ],
+      "part": null,
       "anchor": "new-enum-assignability-restrictions",
       "docType": "release-notes",
       "tokenCount": 566
@@ -2623,6 +2788,10 @@
       "sectionPath": [
         "Excess Property Checks"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "excess-property-checks",
       "docType": "handbook",
       "tokenCount": 613
@@ -2686,5 +2855,5 @@
       "text": "TypeScript 4.4 > Breaking Changes\n\n### Using unknown in Catch Variables\n\nUsers running with the [`strict`](/tsconfig#strict) flag may see new errors around `catch` variables being `unknown`, especially if the existing code assumes only `Error` values have been caught.\nThis often results in error ..."
     }
   ],
-  "totalMs": 8.545799999999986
+  "totalMs": 8.177099999999996
 }

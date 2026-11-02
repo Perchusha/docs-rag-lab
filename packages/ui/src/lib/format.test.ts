@@ -24,10 +24,14 @@ describe('format', () => {
     const chunk = {
       title: 'TypeScript 4.9',
       sectionPath: ['The satisfies Operator'],
+      part: null,
       docPath: 'packages/documentation/copy/en/release-notes/TypeScript 4.9.md',
       anchor: 'the-satisfies-operator',
     }
     expect(chunkTitle(chunk)).toBe('TypeScript 4.9 > The satisfies Operator')
+    expect(chunkTitle({ ...chunk, part: { index: 2, total: 2 } })).toBe(
+      'TypeScript 4.9 > The satisfies Operator (part 2 of 2)',
+    )
     expect(chunkLocation(chunk)).toBe('release-notes/TypeScript 4.9.md#the-satisfies-operator')
     expect(chunkLocation({ ...chunk, anchor: '' })).toBe('release-notes/TypeScript 4.9.md')
     // No source's folder layout is built in: a react.dev path shortens the same way.

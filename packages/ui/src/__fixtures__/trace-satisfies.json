@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "question": "In which version did `satisfies` appear?",
   "sourceId": "typescript",
   "strategy": "hybrid",
@@ -27,13 +27,13 @@
   "embedding": {
     "provider": "voyage:voyage-4:1024",
     "from": "cache",
-    "ms": 0.475400000000036
+    "ms": 0.5091999999999643
   },
   "lists": [
     {
       "name": "vector",
       "scoring": "cosine-distance",
-      "ms": 3.012200000000007,
+      "ms": 2.9499000000000137,
       "candidates": [
         {
           "chunkId": "508c72073790efc407c9498f",
@@ -291,7 +291,7 @@
       "name": "keyword",
       "scoring": "bm25",
       "query": "\"version\" OR \"satisfies\" OR \"appear\"",
-      "ms": 1.4137000000000057,
+      "ms": 1.4336999999999875,
       "candidates": [
         {
           "chunkId": "1ad2284b8bc3c335c9eb8292",
@@ -549,7 +549,7 @@
       "name": "exact",
       "scoring": "bm25",
       "query": "\"satisfies\"",
-      "ms": 0.11949999999995953,
+      "ms": 0.12270000000000891,
       "candidates": [
         {
           "chunkId": "1ad2284b8bc3c335c9eb8292",
@@ -597,7 +597,7 @@
   "fusion": {
     "method": "rrf",
     "k": 60,
-    "ms": 0.2340000000000373,
+    "ms": 0.24149999999997362,
     "ranked": [
       {
         "chunkId": "1ad2284b8bc3c335c9eb8292",
@@ -1335,6 +1335,10 @@
       "sectionPath": [
         "The satisfies Operator"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "the-satisfies-operator",
       "docType": "release-notes",
       "tokenCount": 438
@@ -1348,6 +1352,10 @@
       "sectionPath": [
         "@satisfies Support in JSDoc"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "satisfies-support-in-jsdoc",
       "docType": "release-notes",
       "tokenCount": 472
@@ -1361,6 +1369,10 @@
       "sectionPath": [
         "The satisfies Operator"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "the-satisfies-operator",
       "docType": "release-notes",
       "tokenCount": 542
@@ -1374,6 +1386,10 @@
       "sectionPath": [
         "@satisfies Support in JSDoc"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "satisfies-support-in-jsdoc",
       "docType": "release-notes",
       "tokenCount": 412
@@ -1385,6 +1401,7 @@
       "sectionPath": [
         "Matching behavior"
       ],
+      "part": null,
       "anchor": "matching-behavior",
       "docType": "other",
       "tokenCount": 474
@@ -1399,6 +1416,7 @@
         "3.7 Breaking Changes",
         "DOM Changes"
       ],
+      "part": null,
       "anchor": "dom-changes",
       "docType": "release-notes",
       "tokenCount": 432
@@ -1412,6 +1430,7 @@
       "sectionPath": [
         "Correctness Fixes and Breaking Changes"
       ],
+      "part": null,
       "anchor": "correctness-fixes-and-breaking-changes",
       "docType": "release-notes",
       "tokenCount": 752
@@ -1426,6 +1445,7 @@
         "Breaking Changes",
         "lib.d.ts Changes"
       ],
+      "part": null,
       "anchor": "libdts-changes",
       "docType": "release-notes",
       "tokenCount": 531
@@ -1440,6 +1460,7 @@
         "Types",
         "@template"
       ],
+      "part": null,
       "anchor": "template",
       "docType": "other",
       "tokenCount": 481
@@ -1458,6 +1479,7 @@
         "package.json \"exports\"",
         "Example: explicit \"types\" condition"
       ],
+      "part": null,
       "anchor": "example-explicit-types-condition",
       "docType": "reference",
       "tokenCount": 768
@@ -1469,6 +1491,7 @@
       "sectionPath": [
         "Support for --module node20"
       ],
+      "part": null,
       "anchor": "support-for---module-node20",
       "docType": "release-notes",
       "tokenCount": 441
@@ -1482,6 +1505,10 @@
       "sectionPath": [
         "High Level libraries"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "",
       "docType": "option",
       "tokenCount": 484
@@ -1501,6 +1528,7 @@
         "package.json \"typesVersions\"",
         "Example: redirect requests for a specific file"
       ],
+      "part": null,
       "anchor": "example-redirect-requests-for-a-specific-file",
       "docType": "reference",
       "tokenCount": 308
@@ -1512,6 +1540,7 @@
       "sectionPath": [
         "Private Field Presence Checks"
       ],
+      "part": null,
       "anchor": "private-field-presence-checks",
       "docType": "release-notes",
       "tokenCount": 731
@@ -1529,6 +1558,7 @@
         "Common features and processes",
         "package.json \"typesVersions\""
       ],
+      "part": null,
       "anchor": "packagejson-typesversions",
       "docType": "reference",
       "tokenCount": 565
@@ -1543,6 +1573,7 @@
         "Breaking Changes",
         "lib.d.ts Changes"
       ],
+      "part": null,
       "anchor": "libdts-changes",
       "docType": "release-notes",
       "tokenCount": 798
@@ -1554,6 +1585,7 @@
       "sectionPath": [
         "Always-Truthy Promise Checks"
       ],
+      "part": null,
       "anchor": "always-truthy-promise-checks",
       "docType": "release-notes",
       "tokenCount": 598
@@ -1567,6 +1599,10 @@
       "sectionPath": [
         "Disallowed Nullish and Truthy Checks"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "disallowed-nullish-and-truthy-checks",
       "docType": "release-notes",
       "tokenCount": 459
@@ -1578,6 +1614,7 @@
       "sectionPath": [
         "Improved handling of structurally identical classes and instanceof expressions"
       ],
+      "part": null,
       "anchor": "improved-handling-of-structurally-identical-classes-and-instanceof-expressions",
       "docType": "release-notes",
       "tokenCount": 554
@@ -1591,6 +1628,10 @@
       "sectionPath": [
         "High Level libraries"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "",
       "docType": "option",
       "tokenCount": 484
@@ -1602,6 +1643,7 @@
       "sectionPath": [
         "--build, --watch, and --incremental Performance Improvements"
       ],
+      "part": null,
       "anchor": "--build---watch-and---incremental-performance-improvements",
       "docType": "release-notes",
       "tokenCount": 636
@@ -1617,6 +1659,10 @@
         "The moduleResolution compiler option",
         "node16, nodenext"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "node16-nodenext",
       "docType": "reference",
       "tokenCount": 588
@@ -1630,6 +1676,7 @@
       "sectionPath": [
         "Notable Behavioral Changes"
       ],
+      "part": null,
       "anchor": "notable-behavioral-changes",
       "docType": "release-notes",
       "tokenCount": 533
@@ -1641,6 +1688,7 @@
       "sectionPath": [
         "Semicolon-Aware Code Edits"
       ],
+      "part": null,
       "anchor": "semicolon-aware-code-edits",
       "docType": "release-notes",
       "tokenCount": 427
@@ -1654,6 +1702,7 @@
       "sectionPath": [
         "Notable Behavioral Changes"
       ],
+      "part": null,
       "anchor": "notable-behavioral-changes",
       "docType": "release-notes",
       "tokenCount": 600
@@ -1667,6 +1716,7 @@
       "sectionPath": [
         "Version selection with typesVersions"
       ],
+      "part": null,
       "anchor": "version-selection-with-typesversions",
       "docType": "other",
       "tokenCount": 664
@@ -1678,6 +1728,7 @@
       "sectionPath": [
         "More Accurate Array Spread"
       ],
+      "part": null,
       "anchor": "more-accurate-array-spread",
       "docType": "release-notes",
       "tokenCount": 768
@@ -1689,6 +1740,7 @@
       "sectionPath": [
         "Properties declarations on functions"
       ],
+      "part": null,
       "anchor": "properties-declarations-on-functions",
       "docType": "release-notes",
       "tokenCount": 542
@@ -1704,6 +1756,7 @@
         "Breaking Changes",
         "ES2020 and Node.js 14.17 as Minimum Runtime Requirements"
       ],
+      "part": null,
       "anchor": "es2020-and-nodejs-1417-as-minimum-runtime-requirements",
       "docType": "release-notes",
       "tokenCount": 513
@@ -1717,6 +1770,7 @@
       "sectionPath": [
         "--module node18"
       ],
+      "part": null,
       "anchor": "--module-node18",
       "docType": "release-notes",
       "tokenCount": 200
@@ -1731,6 +1785,7 @@
         "Breaking Changes and Deprecations",
         "Runtime Requirements"
       ],
+      "part": null,
       "anchor": "runtime-requirements",
       "docType": "release-notes",
       "tokenCount": 726
@@ -1742,6 +1797,7 @@
       "sectionPath": [
         "Abstract properties and accessors"
       ],
+      "part": null,
       "anchor": "abstract-properties-and-accessors",
       "docType": "release-notes",
       "tokenCount": 639
@@ -1753,6 +1809,7 @@
       "sectionPath": [
         "ES7 exponentiation operator"
       ],
+      "part": null,
       "anchor": "es7-exponentiation-operator",
       "docType": "release-notes",
       "tokenCount": 671
@@ -1766,6 +1823,10 @@
       "sectionPath": [
         "Disallowed Nullish and Truthy Checks"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "disallowed-nullish-and-truthy-checks",
       "docType": "release-notes",
       "tokenCount": 560
@@ -1781,6 +1842,7 @@
         "Resolution Customization Flags",
         "customConditions"
       ],
+      "part": null,
       "anchor": "customconditions",
       "docType": "release-notes",
       "tokenCount": 370
@@ -1794,6 +1856,7 @@
       "sectionPath": [
         "Individual library components"
       ],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 355
@@ -1807,6 +1870,7 @@
       "sectionPath": [
         "Support for --target es2024 and --lib es2024"
       ],
+      "part": null,
       "anchor": "support-for---target-es2024-and---lib-es2024",
       "docType": "release-notes",
       "tokenCount": 374
@@ -1820,6 +1884,7 @@
       "sectionPath": [
         "Smarter union type checking"
       ],
+      "part": null,
       "anchor": "smarter-union-type-checking",
       "docType": "release-notes",
       "tokenCount": 513
@@ -1834,6 +1899,7 @@
         "The moduleResolution compiler option",
         "node10 (formerly known as node)"
       ],
+      "part": null,
       "anchor": "node10-formerly-known-as-node",
       "docType": "reference",
       "tokenCount": 285
@@ -1847,6 +1913,7 @@
       "sectionPath": [
         "Regular Expression Syntax Checking"
       ],
+      "part": null,
       "anchor": "regular-expression-syntax-checking",
       "docType": "release-notes",
       "tokenCount": 739
@@ -1856,6 +1923,7 @@
       "title": "TSConfig Option: customConditions",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 393
@@ -1869,6 +1937,7 @@
       "sectionPath": [
         "Editor Improvements"
       ],
+      "part": null,
       "anchor": "editor-improvements",
       "docType": "release-notes",
       "tokenCount": 543
@@ -1883,6 +1952,7 @@
         "Breaking Changes and Deprecations in TypeScript 6.0",
         "Deprecated: asserts Keyword on Imports"
       ],
+      "part": null,
       "anchor": "deprecated-asserts-keyword-on-imports",
       "docType": "release-notes",
       "tokenCount": 715
@@ -1898,6 +1968,7 @@
         "The module compiler option",
         "node16, node18, node20, nodenext"
       ],
+      "part": null,
       "anchor": "node16-node18-node20-nodenext",
       "docType": "reference",
       "tokenCount": 598
@@ -1909,6 +1980,7 @@
       "sectionPath": [
         "Auto-Accessors in Classes"
       ],
+      "part": null,
       "anchor": "auto-accessors-in-classes",
       "docType": "release-notes",
       "tokenCount": 784
@@ -1922,6 +1994,7 @@
       "sectionPath": [
         "Improvements in Inference and Promise.all"
       ],
+      "part": null,
       "anchor": "improvements-in-inference-and-promiseall",
       "docType": "release-notes",
       "tokenCount": 547
@@ -1935,6 +2008,7 @@
       "sectionPath": [
         "substitute Replaced With constraint on SubstitutionTypes"
       ],
+      "part": null,
       "anchor": "substitute-replaced-with-constraint-on-substitutiontypes",
       "docType": "release-notes",
       "tokenCount": 136
@@ -1946,6 +2020,7 @@
       "sectionPath": [
         "--target es2022"
       ],
+      "part": null,
       "anchor": "--target-es2022",
       "docType": "release-notes",
       "tokenCount": 488
@@ -1959,6 +2034,10 @@
       "sectionPath": [
         "Inferred Type Predicates"
       ],
+      "part": {
+        "index": 3,
+        "total": 3
+      },
       "anchor": "inferred-type-predicates",
       "docType": "release-notes",
       "tokenCount": 596
@@ -1970,6 +2049,7 @@
       "sectionPath": [
         "Caveats"
       ],
+      "part": null,
       "anchor": "caveats-1",
       "docType": "release-notes",
       "tokenCount": 519
@@ -1979,6 +2059,7 @@
       "title": "JSDoc Reference",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "other",
       "tokenCount": 490
@@ -1990,6 +2071,7 @@
       "sectionPath": [
         "Function Components in React"
       ],
+      "part": null,
       "anchor": "function-components-in-react",
       "docType": "release-notes",
       "tokenCount": 321
@@ -2005,6 +2087,7 @@
         "Generic Functions",
         "Guidelines for Writing Good Generic Functions"
       ],
+      "part": null,
       "anchor": "guidelines-for-writing-good-generic-functions",
       "docType": "handbook",
       "tokenCount": 759
@@ -2014,6 +2097,7 @@
       "title": "TSConfig Option: force",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 45
@@ -2027,6 +2111,10 @@
       "sectionPath": [
         "// @ts-expect-error Comments"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "-ts-expect-error-comments",
       "docType": "release-notes",
       "tokenCount": 438
@@ -2042,6 +2130,7 @@
         "Support for Mix-in classes",
         "Putting all of the above rules together in an example"
       ],
+      "part": null,
       "anchor": "putting-all-of-the-above-rules-together-in-an-example",
       "docType": "release-notes",
       "tokenCount": 383
@@ -2055,6 +2144,7 @@
       "sectionPath": [
         "Class Heritage"
       ],
+      "part": null,
       "anchor": "class-heritage",
       "docType": "handbook",
       "tokenCount": 460
@@ -2064,6 +2154,7 @@
       "title": "TSConfig Option: preserveValueImports",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 251
@@ -2079,6 +2170,10 @@
         "Interfaces",
         "Differences Between Type Aliases and Interfaces"
       ],
+      "part": {
+        "index": 2,
+        "total": 3
+      },
       "anchor": "differences-between-type-aliases-and-interfaces",
       "docType": "handbook",
       "tokenCount": 807
@@ -2088,6 +2183,7 @@
       "title": "TSConfig Option: types",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 464
@@ -2101,6 +2197,10 @@
       "sectionPath": [
         "Compiler Options"
       ],
+      "part": {
+        "index": 1,
+        "total": 7
+      },
       "anchor": "compiler-options",
       "docType": "other",
       "tokenCount": 736
@@ -2110,6 +2210,7 @@
       "title": "Configuring Watch",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "other",
       "tokenCount": 585
@@ -2123,6 +2224,10 @@
       "sectionPath": [
         "The --stableTypeOrdering Flag"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "the---stabletypeordering-flag",
       "docType": "release-notes",
       "tokenCount": 527
@@ -2138,6 +2243,10 @@
         "Notable Behavioral Changes",
         "Simplified Reference Directive Declaration Emit"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "simplified-reference-directive-declaration-emit",
       "docType": "release-notes",
       "tokenCount": 524
@@ -2152,6 +2261,7 @@
         "Improvements for ReadonlyArray and readonly tuples",
         "readonly mapped type modifiers and readonly arrays"
       ],
+      "part": null,
       "anchor": "readonly-mapped-type-modifiers-and-readonly-arrays",
       "docType": "release-notes",
       "tokenCount": 671
@@ -2161,6 +2271,7 @@
       "title": "Project References",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "other",
       "tokenCount": 556
@@ -2170,6 +2281,7 @@
       "title": "Everyday Types",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 582
@@ -2184,6 +2296,7 @@
         "Breaking Changes",
         "Parsing Differences in Optional Chaining and Non-Null Assertions"
       ],
+      "part": null,
       "anchor": "parsing-differences-in-optional-chaining-and-non-null-assertions",
       "docType": "release-notes",
       "tokenCount": 721
@@ -2193,6 +2306,7 @@
       "title": "TSConfig Option: allowUnreachableCode",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 228
@@ -2206,6 +2320,7 @@
       "sectionPath": [
         "Disabling Import Elision"
       ],
+      "part": null,
       "anchor": "disabling-import-elision",
       "docType": "release-notes",
       "tokenCount": 678
@@ -2219,6 +2334,7 @@
       "sectionPath": [
         "Consulting package.json Dependencies for Declaration File Generation"
       ],
+      "part": null,
       "anchor": "consulting-packagejson-dependencies-for-declaration-file-generation",
       "docType": "release-notes",
       "tokenCount": 278
@@ -2232,6 +2348,10 @@
       "sectionPath": [
         "The --stableTypeOrdering Flag"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "the---stabletypeordering-flag",
       "docType": "release-notes",
       "tokenCount": 797
@@ -2247,6 +2367,7 @@
         "Functions",
         "Anonymous Functions"
       ],
+      "part": null,
       "anchor": "anonymous-functions",
       "docType": "handbook",
       "tokenCount": 352
@@ -2260,6 +2381,7 @@
       "sectionPath": [
         "Improved type inference for object literals"
       ],
+      "part": null,
       "anchor": "improved-type-inference-for-object-literals",
       "docType": "release-notes",
       "tokenCount": 382
@@ -2273,6 +2395,7 @@
       "sectionPath": [
         "Other Types to Know About"
       ],
+      "part": null,
       "anchor": "other-types-to-know-about",
       "docType": "handbook",
       "tokenCount": 424
@@ -2286,6 +2409,10 @@
       "sectionPath": [
         "Improved Intersection Reduction, Union Compatibility, and Narrowing"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "improved-intersection-reduction-union-compatibility-and-narrowing",
       "docType": "release-notes",
       "tokenCount": 420
@@ -2299,6 +2426,10 @@
       "sectionPath": [
         "Improved Recursion Depth Checks"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "improved-recursion-depth-checks",
       "docType": "release-notes",
       "tokenCount": 436
@@ -2313,6 +2444,7 @@
         "3.7 Breaking Changes",
         "Local and Imported Type Declarations Now Conflict"
       ],
+      "part": null,
       "anchor": "local-and-imported-type-declarations-now-conflict",
       "docType": "release-notes",
       "tokenCount": 462
@@ -2327,6 +2459,7 @@
         "Using Project Settings",
         "Debug and Release Builds"
       ],
+      "part": null,
       "anchor": "debug-and-release-builds",
       "docType": "other",
       "tokenCount": 674
@@ -2336,6 +2469,7 @@
       "title": "TSConfig Option: target",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 389
@@ -2349,6 +2483,7 @@
       "sectionPath": [
         "Functions"
       ],
+      "part": null,
       "anchor": "functions",
       "docType": "handbook",
       "tokenCount": 510
@@ -2362,6 +2497,7 @@
       "sectionPath": [
         "Support for V8 Compile Caching in Node.js"
       ],
+      "part": null,
       "anchor": "support-for-v8-compile-caching-in-nodejs",
       "docType": "release-notes",
       "tokenCount": 317
@@ -2379,6 +2515,7 @@
         "Common features and processes",
         "package.json \"exports\""
       ],
+      "part": null,
       "anchor": "packagejson-exports",
       "docType": "reference",
       "tokenCount": 458
@@ -2392,6 +2529,7 @@
       "sectionPath": [
         "Improved Inference for infer Types in Template String Types"
       ],
+      "part": null,
       "anchor": "improved-inference-for-infer-types-in-template-string-types",
       "docType": "release-notes",
       "tokenCount": 523
@@ -2406,6 +2544,7 @@
         "Other Types to Know About",
         "unknown"
       ],
+      "part": null,
       "anchor": "unknown",
       "docType": "handbook",
       "tokenCount": 543
@@ -2419,6 +2558,7 @@
       "sectionPath": [
         "Simple Combinations: One name, multiple meanings"
       ],
+      "part": null,
       "anchor": "simple-combinations-one-name-multiple-meanings",
       "docType": "other",
       "tokenCount": 545
@@ -2432,6 +2572,10 @@
       "sectionPath": [
         "Faster Project Ownership Checks in Editors for Composite Projects"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "faster-project-ownership-checks-in-editors-for-composite-projects",
       "docType": "release-notes",
       "tokenCount": 584
@@ -2441,6 +2585,7 @@
       "title": "TSConfig Option: charset",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 93
@@ -2451,28 +2596,28 @@
       "rank": 1,
       "chunkId": "1ad2284b8bc3c335c9eb8292",
       "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#satisfies-support-in-jsdoc",
-      "title": "TypeScript 5.0 > @satisfies Support in JSDoc",
+      "title": "TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2)",
       "text": "TypeScript 5.0 > @satisfies Support in JSDoc\n\nTypeScript 4.9 introduced the `satisfies` operator.\nIt made sure that the type of an expression was compatible, without affecting the type itself.\nFor example, let's take the following code:\n\n```ts\ninterface CompilerOptions {\n    strict?: boolean;\n   ..."
     },
     {
       "rank": 2,
       "chunkId": "aeb982d14fa0a847ea47358a",
       "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#satisfies-support-in-jsdoc",
-      "title": "TypeScript 5.0 > @satisfies Support in JSDoc",
+      "title": "TypeScript 5.0 > @satisfies Support in JSDoc (part 2 of 2)",
       "text": "TypeScript 5.0 > @satisfies Support in JSDoc\n\nBut it will preserve the original type of our expressions, allowing us to use our values more precisely later on in our code.\n\n```js\n// @ts-check\n\n/**\n * @typedef CompilerOptions\n * @prop {boolean} [strict]\n * @prop {string} [outDir]\n */\n\n/**\n * @type..."
     },
     {
       "rank": 3,
       "chunkId": "508c72073790efc407c9498f",
       "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator",
-      "title": "TypeScript 4.9 > The satisfies Operator",
+      "title": "TypeScript 4.9 > The satisfies Operator (part 1 of 2)",
       "text": "TypeScript 4.9 > The satisfies Operator\n\nTypeScript developers are often faced with a dilemma: we want to ensure that some expression *matches* some type, but also want to keep the *most specific* type of that expression for inference purposes.\n\nFor example:\n\n```ts\n// Each property can be a strin..."
     },
     {
       "rank": 4,
       "chunkId": "2aaa3b8b4d27cbbb97871b3c",
       "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator",
-      "title": "TypeScript 4.9 > The satisfies Operator",
+      "title": "TypeScript 4.9 > The satisfies Operator (part 2 of 2)",
       "text": "TypeScript 4.9 > The satisfies Operator\n\n```ts\ntype Colors = \"red\" | \"green\" | \"blue\";\n\ntype RGB = [red: number, green: number, blue: number];\n\nconst palette = {\n    red: [255, 0, 0],\n    green: \"#00ff00\",\n    bleu: [0, 0, 255]\n//  ~~~~ The typo is now caught!\n} satisfies Record<Colors, string | ..."
     },
     {
@@ -2504,5 +2649,5 @@
       "text": "TypeScript 4.3 > Breaking Changes\n\n### lib.d.ts Changes\n\nAs with every TypeScript version, declarations for `lib.d.ts` (especially the declarations generated for web contexts), have changed.\nIn this release, we leveraged [Mozilla's browser-compat-data](https://github.com/mdn/browser-compat-data) ..."
     }
   ],
-  "totalMs": 6.684200000000033
+  "totalMs": 6.7350999999999885
 }

@@ -1,4 +1,5 @@
 // A document split into its chunks, for the inspector's chunk-boundary view.
+import type { SectionPart } from './trace.ts'
 
 export interface DocumentChunk {
   chunkId: string
@@ -8,6 +9,8 @@ export interface DocumentChunk {
   headingPath: string[]
   /** The section the chunk starts in, which `anchor` points to. */
   sectionPath: string[]
+  /** Which part of its section the chunk is, or null when it is the only one. */
+  part: SectionPart | null
   anchor: string
   tokenCount: number
   /** The heading-path prefix line, then the rendered blocks. */

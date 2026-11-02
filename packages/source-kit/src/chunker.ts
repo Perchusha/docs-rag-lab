@@ -20,10 +20,17 @@ import type { Block, ParsedDoc, Section } from './types.ts'
  * Bump when chunk boundaries or chunk text change: it forces a full rebuild.
  * 2: a fence line with an info string no longer closes a nested fence.
  * 3: every chunk records sectionPath, the section it starts in.
+ * 4: a chunk that shares its section with others records which part it is.
  */
-export const CHUNKER_VERSION = 3
+export const CHUNKER_VERSION = 4
 
 export const DEFAULT_MAX_TOKENS = 800
+
+/** Which of the chunks that start in one section this one is. 1-based. */
+export interface SectionPart {
+  index: number
+  total: number
+}
 
 export interface Chunk {
   /** Stable across syncs: derived from doc path, heading path, occurrence and ordinal. */
@@ -42,6 +49,11 @@ export interface Chunk {
    * ['Organizing Types'].
    */
   sectionPath: string[]
+  /**
+   * Which part of its section the chunk is, or null when it is the only one.
+   * Without it, the chunks of a long section all read the same.
+   */
+  part: SectionPart | null
   /** Block kinds in the chunk, in order of first appearance. */
   blockTypes: string[]
   /** Heading-path prefix line, then the rendered blocks. */
@@ -295,6 +307,7 @@ export function chunkDocument(
       headingPath,
       anchor: start.anchor,
       sectionPath: [...start.path],
+      part: null,
       blockTypes,
       text,
       textHash: sha256Hex(text),
@@ -348,5 +361,21 @@ export function chunkDocument(
   }
 
   chunkNode(buildTree(doc.sections))
+  numberParts(chunks)
   return chunks
+}
+
+/** Numbers the chunks that start in one section, in document order. */
+function numberParts(chunks: readonly Chunk[]): void {
+  const sections = new Map<string, Chunk[]>()
+  for (const chunk of chunks) {
+    const key = JSON.stringify(chunk.sectionPath)
+    sections.set(key, [...(sections.get(key) ?? []), chunk])
+  }
+  for (const section of sections.values()) {
+    if (section.length < 2) continue
+    section.forEach((chunk, i) => {
+      chunk.part = { index: i + 1, total: section.length }
+    })
+  }
 }

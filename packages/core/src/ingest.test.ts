@@ -179,6 +179,8 @@ describe('syncSource', { timeout: 60_000 }, () => {
       [0, [], ['One']],
       [1, [], ['Three']],
     ])
+    // Each starts in a section of its own, so neither is a part of anything.
+    expect(stored?.chunks.map((chunk) => chunk.metadata.part)).toEqual([null, null])
   })
 
   it('embeds nothing when nothing changed', async () => {

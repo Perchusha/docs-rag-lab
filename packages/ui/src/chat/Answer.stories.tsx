@@ -35,7 +35,7 @@ export const Done: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     const citations = canvas.getAllByRole('button', {
-      name: 'Source 1: TypeScript 5.0 > @satisfies Support in JSDoc. Show it in the inspector',
+      name: 'Source 1: TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2). Show it in the inspector',
     })
     await expect(citations).toHaveLength(2)
     await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'false')

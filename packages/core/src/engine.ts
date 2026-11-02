@@ -20,7 +20,13 @@ import { ask } from './ask.ts'
 import { createEmbeddingProvider } from './embeddings/factory.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import { RateLimiter } from './embeddings/rate-limit.ts'
-import { createClaudeClient, sectionPathOf, spansOf, type AnswerClient } from './generate.ts'
+import {
+  createClaudeClient,
+  sectionPartOf,
+  sectionPathOf,
+  spansOf,
+  type AnswerClient,
+} from './generate.ts'
 import { openIndexes, type OpenIndexes } from './indexes.ts'
 import { retrieve, type Retrieval } from './retrieve.ts'
 import type { UsageMeter } from './usage.ts'
@@ -217,6 +223,7 @@ export function createEngine(options: EngineOptions): Engine {
             ordinal: chunk.ordinal,
             headingPath: chunk.headingPath,
             sectionPath: sectionPathOf(chunk),
+            part: sectionPartOf(chunk),
             anchor: chunk.anchor,
             tokenCount: chunk.tokenCount,
             text: chunk.text,

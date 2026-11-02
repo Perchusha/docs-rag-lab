@@ -1,4 +1,4 @@
-import type { DocumentChunks, RetrievalTrace } from '@docs-rag-lab/contracts'
+import { chunkLabel, type DocumentChunks, type RetrievalTrace } from '@docs-rag-lab/contracts'
 import { useEffect, useState } from 'react'
 
 import { ExternalLink } from '../chat/AnswerMarkdown.tsx'
@@ -95,7 +95,7 @@ export function DocumentView({ trace, chunkId, onSelectChunk, transport }: Docum
                     onSelectChunk(chunk.chunkId)
                   }}
                 >
-                  {chunk.sectionPath.length > 0 ? chunk.sectionPath.join(' > ') : document.title}
+                  {chunkLabel({ ...chunk, title: document.title })}
                 </button>
                 {selected && <span className={common.badge}>selected</span>}
                 {rank !== undefined && <span className={common.badge}>candidate #{rank}</span>}
