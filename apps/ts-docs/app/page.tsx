@@ -14,7 +14,9 @@ export default function Page() {
       tagline={config.tagline}
       sourceId={config.source}
       examples={config.examples}
+      placeholder={config.placeholder}
       docTypes={DOC_TYPES}
+      docTypeLabels={config.docTypeLabels}
       defaultStrategy={settings.retrieval.strategy}
       theme={config.theme}
       endpoints={{ ask: '/api/ask', search: '/api/search', documents: '/api/documents' }}

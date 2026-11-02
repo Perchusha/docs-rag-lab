@@ -1,4 +1,9 @@
-import type { Citation, RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
+import {
+  chunkLabel,
+  type Citation,
+  type RetrievalTrace,
+  type TraceList,
+} from '@docs-rag-lab/contracts'
 import type { EmbedProgress, SyncReport } from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
@@ -70,7 +75,7 @@ export function formatTrace(trace: RetrievalTrace, limit = 10): string {
   const label = (chunkId: string): string => {
     const chunk = trace.chunks[chunkId]
     if (chunk === undefined) return chunkId
-    return `${[chunk.title, ...chunk.sectionPath].join(' > ')}  [${chunk.docType}]`
+    return `${chunkLabel(chunk)}  [${chunk.docType}]`
   }
   const { terms, exactTokens } = trace.query
   const lines = [

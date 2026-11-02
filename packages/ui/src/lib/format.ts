@@ -17,15 +17,15 @@ export function formatRrf(score: number): string {
   return score.toFixed(4)
 }
 
-/** A chunk as the citations name it: the document title, then the section it starts in. */
-export function chunkTitle(chunk: Pick<TraceChunk, 'title' | 'sectionPath'>): string {
-  return [chunk.title, ...chunk.sectionPath].join(' > ')
-}
-
 /** The doc's folder and file name, plus the anchor: the same rule for every source's layout. */
 export function chunkLocation(chunk: Pick<TraceChunk, 'docPath' | 'anchor'>): string {
   const path = chunk.docPath.split('/').slice(-2).join('/')
   return chunk.anchor === '' ? path : `${path}#${chunk.anchor}`
+}
+
+/** The message of something thrown. */
+export function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 /** Tokens and cost of one answer or search, from the engine's usage summary. */

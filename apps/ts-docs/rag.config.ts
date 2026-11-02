@@ -10,6 +10,14 @@ export default defineDocsApp({
   tagline: 'Answers from the TypeScript handbook, reference and release notes, with citations',
   // TypeScript blue, darkened for 4.5:1 on white; the lighter shade for dark mode.
   theme: { accent: { light: '#235a97', dark: '#79b8ff' } },
+  placeholder: 'Ask about TypeScript',
+  docTypeLabels: {
+    handbook: 'Handbook',
+    reference: 'Reference',
+    option: 'Compiler options',
+    'release-notes': 'Release notes',
+    other: 'Other',
+  },
   examples: [
     'In which version did `satisfies` appear?',
     'What does error TS2345 mean?',

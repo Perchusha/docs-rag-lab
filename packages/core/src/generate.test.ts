@@ -10,6 +10,7 @@ import {
   citationTitle,
   CitationNumbering,
   createClaudeClient,
+  sectionPartOf,
   sectionPathOf,
   streamAnswer,
   toSearchResult,
@@ -49,6 +50,23 @@ describe('citationTitle', () => {
     }
     expect(citationTitle(packed)).toBe('Declaration Reference > Organizing Types')
     expect(sectionPathOf(packed)).toEqual(['Organizing Types'])
+  })
+
+  it('says which part of its section a chunk is, when the section has several', () => {
+    const part = {
+      title: 'TypeScript 4.9',
+      headingPath: ['The satisfies Operator'],
+      metadata: { sectionPath: ['The satisfies Operator'], part: { index: 2, total: 2 } },
+    }
+    expect(citationTitle(part)).toBe('TypeScript 4.9 > The satisfies Operator (part 2 of 2)')
+    expect(sectionPartOf(part)).toEqual({ index: 2, total: 2 })
+  })
+
+  it('reads no part from chunks before chunker version 4, or from a malformed value', () => {
+    expect(sectionPartOf({ metadata: {} })).toBeNull()
+    expect(sectionPartOf({ metadata: { part: null } })).toBeNull()
+    expect(sectionPartOf({ metadata: { part: 'two' } })).toBeNull()
+    expect(sectionPartOf({ metadata: { part: { index: 1 } } })).toBeNull()
   })
 
   it('falls back to the heading path for chunks from before chunker version 3', () => {

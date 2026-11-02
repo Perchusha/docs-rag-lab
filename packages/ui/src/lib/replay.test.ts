@@ -1,6 +1,7 @@
 import type { AnswerEvent } from '@docs-rag-lab/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
+import { traces } from '../fixtures.ts'
 import { replayGate, replayTransport } from './replay.ts'
 
 const events: AnswerEvent[] = [
@@ -116,6 +117,51 @@ describe('replayTransport with a gate', () => {
     await done
     expect(seen).toEqual(events)
     expect(onAskEnd).toHaveBeenCalledExactlyOnceWith('aborted')
+  })
+
+  it('answers search() per method, and can fail it alone', async () => {
+    const signal = new AbortController().signal
+    const transport = replayTransport({
+      trace: traces.satisfies,
+      searchTraces: { vector: traces.satisfiesVector },
+    })
+    await expect(transport.search({ question: 'q', strategy: 'vector' }, signal)).resolves.toBe(
+      traces.satisfiesVector,
+    )
+    await expect(transport.search({ question: 'q', strategy: 'hybrid' }, signal)).resolves.toBe(
+      traces.satisfies,
+    )
+
+    const failing = replayTransport({ events, searchFailure: 'overloaded' })
+    await expect(failing.search({ question: 'q' }, signal)).rejects.toThrow('overloaded')
+    const { seen, done } = collect(failing.ask({ question: 'q' }, signal))
+    await done
+    expect(seen).toEqual(events)
+  })
+
+  it('holds each method on its own gate, and can ignore an abort', async () => {
+    const older = replayGate()
+    const newer = replayGate()
+    const controller = new AbortController()
+    const transport = replayTransport({
+      trace: traces.satisfies,
+      searchTraces: { vector: traces.satisfiesVector },
+      searchGates: { vector: older, hybrid: newer },
+      ignoresAbort: true,
+    })
+    const finished: string[] = []
+    const search = (strategy: 'vector' | 'hybrid') =>
+      transport.search({ question: 'q', strategy }, controller.signal).then(() => {
+        finished.push(strategy)
+      })
+    const searches = [search('vector'), search('hybrid')]
+    controller.abort()
+    newer.open()
+    await settle()
+    expect(finished).toEqual(['hybrid'])
+    older.open()
+    await Promise.all(searches)
+    expect(finished).toEqual(['hybrid', 'vector'])
   })
 
   it('holds search() on its own gate', async () => {

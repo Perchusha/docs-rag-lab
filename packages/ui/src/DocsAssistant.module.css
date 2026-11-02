@@ -7,65 +7,161 @@
   line-height: var(--leading);
 }
 
-.header {
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.withInspector {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+}
+
+.chat {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--color-border);
+  flex-direction: column;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--width-chat);
+  min-height: 100vh;
+  padding: var(--space-4) var(--space-5) 0;
+  justify-self: center;
+}
+
+.empty {
+  justify-content: center;
+  padding-block-end: 12vh;
 }
 
 .header h1 {
   margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.empty .header {
+  text-align: center;
+}
+
+.empty .header h1 {
   font-size: var(--text-xl);
 }
 
 .tagline {
-  margin: 0;
+  margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: start;
-}
-
-.chat,
-.inspector {
+.transcript {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  min-width: 0;
+  gap: var(--space-6);
 }
 
-.inspector {
-  border-inline-start: 1px solid var(--color-border);
-  background: var(--color-bg);
+/* A new question goes to the top of the page, with room for its answer to grow
+   into view above the input. A first question needs no room: it starts there. */
+.transcript > * {
+  scroll-margin-block-start: var(--space-4);
 }
 
-.inspector h2 {
-  margin: 0;
-  font-size: var(--text-lg);
+.transcript > :last-child:not(:first-child) {
+  min-height: calc(100vh - var(--dock-height, 10rem) - var(--space-4));
+}
+
+.how {
+  align-self: flex-start;
+  padding: var(--space-1) 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: var(--space-hairline);
+  cursor: pointer;
 }
 
 .status {
   margin: 0;
-  min-height: 1.5em;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
 
+/* The input stays in reach as the chat grows. */
+.dock {
+  position: sticky;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block-end: var(--space-4);
+  background: var(--color-bg);
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.example {
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.example:hover {
+  background: var(--color-surface-strong);
+}
+
+.inspector {
+  position: sticky;
+  inset-block-start: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+  border-inline-start: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
 @media (width < 64rem) {
-  .columns {
+  .withInspector {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* The panel comes right after the chat, not a page further down. */
+  .withInspector .chat,
+  .withInspector .transcript > :last-child:not(:first-child) {
+    min-height: 0;
+  }
+
   .inspector {
+    position: static;
+    height: auto;
+    overflow-y: visible;
     border-inline-start: none;
     border-top: 1px solid var(--color-border);
+  }
+}
+
+/* An input that follows the page would cover most of a short window. */
+@media (height < 30rem) {
+  .dock {
+    position: static;
   }
 }

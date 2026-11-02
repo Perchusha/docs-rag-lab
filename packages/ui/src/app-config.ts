@@ -12,6 +12,10 @@ export interface DocsAppConfig {
   tagline?: string | undefined
   theme: Theme
   examples: readonly string[]
+  /** The input's placeholder before the first question. */
+  placeholder?: string | undefined
+  /** Plain-language names for the source's doc types, for "Search in". */
+  docTypeLabels?: Readonly<Record<string, string>> | undefined
 }
 
 /** Checks an app config against DocsAppConfig and returns it as is. */

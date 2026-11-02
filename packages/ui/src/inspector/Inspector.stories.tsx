@@ -1,8 +1,15 @@
+import type { AnswerEvent, RetrievalTrace } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
-import { answerFixture, documentFixture, traces } from '../fixtures.ts'
+import {
+  answerFixture,
+  documentFixture,
+  satisfiesHowFixture,
+  traces,
+  varianceFixture,
+} from '../fixtures.ts'
 import { fusionRows } from '../lib/fusion.ts'
 import { replayTransport } from '../lib/replay.ts'
 import { FUSION_ROWS } from './FusionView.tsx'
@@ -145,6 +152,68 @@ export const ChunkBoundaries: Story = {
   },
 }
 
+function traceOf(events: readonly AnswerEvent[]): RetrievalTrace {
+  const trace = events.flatMap((event) => (event.type === 'trace' ? [event.trace] : [])).at(0)
+  if (trace === undefined) throw new Error('the recording has no trace')
+  return trace
+}
+
+/**
+ * One numbering: citation 2 cites the chunk at context rank 3, and it reads
+ * "Source 2" in every tab, on the row of that chunk and no other.
+ */
+export const OneNumbering: Story = {
+  args: { trace: traceOf(satisfiesHowFixture.events), citations: satisfiesHowFixture.citations },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const cited = satisfiesHowFixture.citations[1]
+    await expect(cited?.number).toBe(2)
+    await expect(cited?.contextRank).toBe(3)
+
+    // Fusion: the row of the cited chunk, whatever its place in the ranking.
+    const row = canvas.getByText('Source 2').closest('tr')
+    await expect(row).toHaveTextContent('TypeScript 4.9 > The satisfies Operator (part 2 of 2)')
+    await expect(canvas.getAllByText('Source 2')).toHaveLength(1)
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Lists' }))
+    await expect(canvas.getAllByText('Source 2').length).toBeGreaterThan(0)
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Context (8)' }))
+    const card = canvas.getByText('Source 2').closest('li')
+    await expect(card).toHaveTextContent('Rank 3 in the context')
+    await expect(within(card ?? canvasElement).getByRole('heading')).toHaveTextContent(
+      /^TypeScript 4\.9 > The satisfies Operator \(part 2 of 2\)$/,
+    )
+
+    await userEvent.click(
+      within(card ?? canvasElement).getByRole('button', { name: 'Select for the Document tab' }),
+    )
+    await userEvent.click(canvas.getByRole('tab', { name: 'Document' }))
+    await expect(await canvas.findByText('Source 2')).toBeVisible()
+  },
+}
+
+/** Three chunks of one section: the labels used to read the same, and now say which part. */
+export const PartsToldApart: Story = {
+  args: { trace: traceOf(varianceFixture.events), citations: [] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const label = 'TypeScript 4.7 > Optional Variance Annotations for Type Parameters'
+    const names = canvas
+      .getAllByRole('button', { name: new RegExp(label) })
+      .map((button) => button.textContent)
+    await expect(names).toHaveLength(3)
+    await expect(new Set(names).size).toBe(3)
+    for (const part of [1, 2, 3]) {
+      await expect(
+        canvas.getByRole('button', {
+          name: new RegExp(`${label} \\(part ${String(part)} of 3\\)`),
+        }),
+      ).toBeVisible()
+    }
+  },
+}
+
 export const Lists: Story = {
   args: { trace: traces.ts2345 },
   play: async ({ canvasElement }) => {
@@ -160,7 +229,8 @@ export const Context: Story = {
     await userEvent.click(canvas.getByRole('tab', { name: 'Context (8)' }))
     const list = canvas.getByRole('list', { name: 'The 8 chunks sent to Claude' })
     await expect(within(list).getAllByRole('listitem')).toHaveLength(8)
-    await expect(within(list).getByText('cited as [1]')).toBeVisible()
+    await expect(within(list).getByText('Source 1')).toBeVisible()
+    await expect(within(list).getByText('Rank 1 in the context')).toBeVisible()
   },
 }
 
@@ -185,4 +255,7 @@ export const VectorOnly: Story = {
 
 export const Empty: Story = {
   args: { trace: undefined, citations: [] },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/no retrieval trace/)).toBeVisible()
+  },
 }

@@ -1,54 +1,44 @@
 import type { RetrievalRequest } from '@docs-rag-lab/contracts'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
-import { assistantReducer, initialState, type AssistantState, type Mode } from '../lib/assistant.ts'
+import { transcriptReducer, type Exchange } from '../lib/assistant.ts'
+import { messageOf } from '../lib/format.ts'
 import type { Transport } from '../lib/transport.ts'
 
 export interface Assistant {
-  state: AssistantState
-  /** Asks (retrieval, then a streamed answer) or searches (retrieval only). Stops any earlier run. */
-  run: (mode: Mode, request: RetrievalRequest) => Promise<void>
+  exchanges: readonly Exchange[]
+  /** Asks a new question, which adds an exchange. Stops one still running. */
+  ask: (request: RetrievalRequest) => Promise<void>
   /** Stops the running question; the app route then stops the Claude stream. */
   stop: () => void
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
-/** One question at a time over a Transport, as AssistantState. */
+/** The chat over a Transport. One question runs at a time. */
 export function useAssistant(transport: Transport): Assistant {
-  const [state, dispatch] = useReducer(assistantReducer, initialState)
-  const running = useRef<AbortController | null>(null)
+  const [exchanges, dispatch] = useReducer(transcriptReducer, [])
+  const running = useRef<{ id: number; controller: AbortController } | null>(null)
+  const nextId = useRef(1)
 
   // Leaving the page stops the stream, so it spends no more tokens.
-  useEffect(() => () => running.current?.abort(), [])
+  useEffect(() => () => running.current?.controller.abort(), [])
 
-  const run = useCallback(
-    async (mode: Mode, request: RetrievalRequest) => {
-      running.current?.abort()
+  const ask = useCallback(
+    async (request: RetrievalRequest) => {
+      running.current?.controller.abort()
       const controller = new AbortController()
-      running.current = controller
-      dispatch({ type: 'start', mode, question: request.question })
+      const id = nextId.current
+      nextId.current += 1
+      running.current = { id, controller }
+      dispatch({ type: 'ask', id, question: request.question })
       try {
-        if (mode === 'search') {
-          const trace = await transport.search(request, controller.signal)
-          if (!controller.signal.aborted) dispatch({ type: 'searched', trace })
-          return
-        }
+        // A response still hands over the events of a chunk it has already read, and
+        // an abort ends in an error: the reducer ignores both, the exchange is stopped.
         for await (const event of transport.ask(request, controller.signal)) {
-          if (controller.signal.aborted) return
-          dispatch({ type: 'event', event })
+          dispatch({ type: 'update', id, action: { type: 'event', event } })
         }
-        if (!controller.signal.aborted) dispatch({ type: 'ended' })
+        dispatch({ type: 'update', id, action: { type: 'ended' } })
       } catch (error) {
-        // An earlier run that a newer one replaced reports nothing.
-        if (running.current !== controller) return
-        dispatch(
-          controller.signal.aborted
-            ? { type: 'stopped' }
-            : { type: 'failed', message: messageOf(error) },
-        )
+        dispatch({ type: 'update', id, action: { type: 'failed', message: messageOf(error) } })
       }
     },
     [transport],
@@ -56,9 +46,10 @@ export function useAssistant(transport: Transport): Assistant {
 
   const stop = useCallback(() => {
     if (running.current === null) return
-    running.current.abort()
-    dispatch({ type: 'stopped' })
+    const { id, controller } = running.current
+    controller.abort()
+    dispatch({ type: 'update', id, action: { type: 'stopped' } })
   }, [])
 
-  return { state, run, stop }
+  return { exchanges, ask, stop }
 }

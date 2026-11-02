@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "question": "What does error TS2345 mean?",
   "sourceId": "typescript",
   "strategy": "hybrid",
@@ -32,13 +32,13 @@
   "embedding": {
     "provider": "voyage:voyage-4:1024",
     "from": "cache",
-    "ms": 0.4732000000000198
+    "ms": 0.4567000000000121
   },
   "lists": [
     {
       "name": "vector",
       "scoring": "cosine-distance",
-      "ms": 2.971900000000005,
+      "ms": 3.0124000000000137,
       "candidates": [
         {
           "chunkId": "a0d5d4d07c7ac7ed002d0aa2",
@@ -296,7 +296,7 @@
       "name": "keyword",
       "scoring": "bm25",
       "query": "\"error\" OR \"ts2345\" OR \"mean\" OR \"2345\"",
-      "ms": 2.2882000000000176,
+      "ms": 2.795099999999991,
       "candidates": [
         {
           "chunkId": "c0fcaae775db1ff7ad0f4c00",
@@ -554,7 +554,7 @@
       "name": "exact",
       "scoring": "bm25",
       "query": "\"TS2345\" OR \"2345\"",
-      "ms": 0.13519999999999754,
+      "ms": 0.19950000000000045,
       "candidates": [
         {
           "chunkId": "c0fcaae775db1ff7ad0f4c00",
@@ -707,7 +707,7 @@
   "fusion": {
     "method": "rrf",
     "k": 60,
-    "ms": 0.24879999999996016,
+    "ms": 0.32909999999998263,
     "ranked": [
       {
         "chunkId": "7247be0941a8f58920b1f269",
@@ -1538,6 +1538,10 @@
         "Localized diagnostics on the command line",
         "Example"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "example-2",
       "docType": "release-notes",
       "tokenCount": 99
@@ -1547,6 +1551,7 @@
       "title": "TSConfig Option: noErrorTruncation",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 344
@@ -1556,6 +1561,7 @@
       "title": "Understanding Errors",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 689
@@ -1565,6 +1571,7 @@
       "title": "TSConfig Option: suppressExcessPropertyErrors",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 192
@@ -1574,6 +1581,7 @@
       "title": "TSConfig Option: noStrictGenericChecks",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 112
@@ -1583,6 +1591,7 @@
       "title": "TSConfig Option: checkJs",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 302
@@ -1594,6 +1603,7 @@
       "sectionPath": [
         "Better Editor Support for Unresolved Types"
       ],
+      "part": null,
       "anchor": "better-editor-support-for-unresolved-types",
       "docType": "release-notes",
       "tokenCount": 750
@@ -1608,6 +1618,7 @@
         "Breaking Changes",
         "Stricter Checks with Template String Expressions"
       ],
+      "part": null,
       "anchor": "stricter-checks-with-template-string-expressions",
       "docType": "release-notes",
       "tokenCount": 744
@@ -1621,6 +1632,10 @@
       "sectionPath": [
         "Tail-Recursion Elimination on Conditional Types"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "tail-recursion-elimination-on-conditional-types",
       "docType": "release-notes",
       "tokenCount": 447
@@ -1634,6 +1649,7 @@
       "sectionPath": [
         "Stricter Checks For The in Operator"
       ],
+      "part": null,
       "anchor": "stricter-checks-for-the-in-operator",
       "docType": "release-notes",
       "tokenCount": 160
@@ -1643,6 +1659,7 @@
       "title": "TSConfig Option: strict",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 180
@@ -1652,6 +1669,7 @@
       "title": "TSConfig Option: strictPropertyInitialization",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 204
@@ -1661,6 +1679,7 @@
       "title": "TSConfig Option: erasableSyntaxOnly",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 634
@@ -1670,6 +1689,7 @@
       "title": "TSConfig Option: alwaysStrict",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 132
@@ -1683,6 +1703,7 @@
       "sectionPath": [
         "Consulting package.json Dependencies for Declaration File Generation"
       ],
+      "part": null,
       "anchor": "consulting-packagejson-dependencies-for-declaration-file-generation",
       "docType": "release-notes",
       "tokenCount": 278
@@ -1696,6 +1717,7 @@
       "sectionPath": [
         "Non-exception Failures"
       ],
+      "part": null,
       "anchor": "non-exception-failures",
       "docType": "handbook",
       "tokenCount": 558
@@ -1705,6 +1727,7 @@
       "title": "TSConfig Option: noImplicitThis",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 187
@@ -1714,6 +1737,7 @@
       "title": "TSConfig Option: stopBuildOnErrors",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 47
@@ -1725,6 +1749,7 @@
       "sectionPath": [
         "JSDoc Name Suggestions"
       ],
+      "part": null,
       "anchor": "jsdoc-name-suggestions",
       "docType": "release-notes",
       "tokenCount": 789
@@ -1734,6 +1759,7 @@
       "title": "TSConfig Option: allowUnusedLabels",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 145
@@ -1743,6 +1769,7 @@
       "title": "TSConfig Option: pretty",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 81
@@ -1757,6 +1784,7 @@
         "Notable Behavioral Changes",
         "More Aggressive Reduction of Intersections Between Type Variables and Primitive Types"
       ],
+      "part": null,
       "anchor": "more-aggressive-reduction-of-intersections-between-type-variables-and-primitive-types",
       "docType": "release-notes",
       "tokenCount": 678
@@ -1768,6 +1796,7 @@
       "sectionPath": [
         "Enhanced --init output"
       ],
+      "part": null,
       "anchor": "enhanced---init-output",
       "docType": "release-notes",
       "tokenCount": 475
@@ -1781,6 +1810,7 @@
       "sectionPath": [
         "Correctness Fixes and Breaking Changes"
       ],
+      "part": null,
       "anchor": "correctness-fixes-and-breaking-changes",
       "docType": "release-notes",
       "tokenCount": 782
@@ -1790,6 +1820,7 @@
       "title": "TSConfig Option: noCheck",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 55
@@ -1799,6 +1830,7 @@
       "title": "TSConfig Option: traceResolution",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 87
@@ -1808,6 +1840,7 @@
       "title": "TSConfig Option: diagnostics",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 135
@@ -1817,6 +1850,10 @@
       "title": "The Basics",
       "headingPath": [],
       "sectionPath": [],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 471
@@ -1832,6 +1869,10 @@
         "Localized diagnostics on the command line",
         "Example"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "example-2",
       "docType": "release-notes",
       "tokenCount": 824
@@ -1841,6 +1882,7 @@
       "title": "TSConfig Option: noImplicitAny",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 172
@@ -1850,6 +1892,7 @@
       "title": "TSConfig Option: noEmitOnError",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 126
@@ -1863,6 +1906,10 @@
       "sectionPath": [
         "Compiler Options"
       ],
+      "part": {
+        "index": 7,
+        "total": 7
+      },
       "anchor": "compiler-options",
       "docType": "other",
       "tokenCount": 747
@@ -1876,6 +1923,7 @@
       "sectionPath": [
         "Emitting with Errors"
       ],
+      "part": null,
       "anchor": "emitting-with-errors",
       "docType": "handbook",
       "tokenCount": 410
@@ -1885,6 +1933,7 @@
       "title": "TSConfig Option: extendedDiagnostics",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 132
@@ -1898,6 +1947,10 @@
       "sectionPath": [
         "Disallowed Nullish and Truthy Checks"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "disallowed-nullish-and-truthy-checks",
       "docType": "release-notes",
       "tokenCount": 459
@@ -1913,6 +1966,7 @@
         "Breaking Changes",
         "ES2020 and Node.js 14.17 as Minimum Runtime Requirements"
       ],
+      "part": null,
       "anchor": "es2020-and-nodejs-1417-as-minimum-runtime-requirements",
       "docType": "release-notes",
       "tokenCount": 513
@@ -1922,6 +1976,7 @@
       "title": "TSConfig Option: isolatedModules",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 777
@@ -1931,6 +1986,7 @@
       "title": "TSConfig Option: noImplicitReturns",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 113
@@ -1940,6 +1996,7 @@
       "title": "TSConfig Option: strictBindCallApply",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 224
@@ -1953,6 +2010,7 @@
       "sectionPath": [
         "TypeScript Trace Analyzer"
       ],
+      "part": null,
       "anchor": "typescript-trace-analyzer",
       "docType": "release-notes",
       "tokenCount": 312
@@ -1966,6 +2024,7 @@
       "sectionPath": [
         "Regular Expression Syntax Checking"
       ],
+      "part": null,
       "anchor": "regular-expression-syntax-checking",
       "docType": "release-notes",
       "tokenCount": 739
@@ -1975,6 +2034,7 @@
       "title": "TSConfig Option: strictNullChecks",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 502
@@ -1990,6 +2050,7 @@
         "Breaking Changes and Correctness Fixes",
         "Consistent Export Checking for Merged Symbols"
       ],
+      "part": null,
       "anchor": "consistent-export-checking-for-merged-symbols",
       "docType": "release-notes",
       "tokenCount": 374
@@ -2004,6 +2065,7 @@
         "Notable Behavioral Changes",
         "Stricter Parsing for Decorators"
       ],
+      "part": null,
       "anchor": "stricter-parsing-for-decorators",
       "docType": "release-notes",
       "tokenCount": 463
@@ -2017,6 +2079,7 @@
       "sectionPath": [
         "Breaking Changes and Correctness Fixes"
       ],
+      "part": null,
       "anchor": "breaking-changes-and-correctness-fixes",
       "docType": "release-notes",
       "tokenCount": 634
@@ -2026,6 +2089,7 @@
       "title": "TSConfig Option: noUnusedLocals",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 85
@@ -2035,6 +2099,7 @@
       "title": "TSConfig Option: disableSizeLimit",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 99
@@ -2048,6 +2113,7 @@
       "sectionPath": [
         "The --erasableSyntaxOnly Option"
       ],
+      "part": null,
       "anchor": "the---erasablesyntaxonly-option",
       "docType": "release-notes",
       "tokenCount": 680
@@ -2057,6 +2123,7 @@
       "title": "TSConfig Option: verbose",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 21
@@ -2066,6 +2133,7 @@
       "title": "TSConfig Option: suppressImplicitAnyIndexErrors",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 202
@@ -2079,6 +2147,7 @@
       "sectionPath": [
         "Notable Behavioral Changes"
       ],
+      "part": null,
       "anchor": "notable-behavioral-changes",
       "docType": "release-notes",
       "tokenCount": 579
@@ -2090,6 +2159,7 @@
       "sectionPath": [
         "Notable Behavioral Changes"
       ],
+      "part": null,
       "anchor": "notable-behavioral-changes",
       "docType": "release-notes",
       "tokenCount": 581
@@ -2107,6 +2177,7 @@
         "private",
         "Caveats"
       ],
+      "part": null,
       "anchor": "caveats",
       "docType": "handbook",
       "tokenCount": 772
@@ -2120,6 +2191,10 @@
       "sectionPath": [
         "Index types"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "index-types",
       "docType": "reference",
       "tokenCount": 446
@@ -2133,6 +2208,10 @@
       "sectionPath": [
         "Excess Property Checks"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "excess-property-checks",
       "docType": "handbook",
       "tokenCount": 708
@@ -2146,6 +2225,10 @@
       "sectionPath": [
         "abstract Construct Signatures"
       ],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "abstract-construct-signatures",
       "docType": "release-notes",
       "tokenCount": 490
@@ -2159,6 +2242,7 @@
       "sectionPath": [
         "Functions"
       ],
+      "part": null,
       "anchor": "functions",
       "docType": "handbook",
       "tokenCount": 510
@@ -2174,6 +2258,7 @@
         "Literal Types",
         "Literal Inference"
       ],
+      "part": null,
       "anchor": "literal-inference",
       "docType": "handbook",
       "tokenCount": 644
@@ -2187,6 +2272,7 @@
       "sectionPath": [
         "Literal Types"
       ],
+      "part": null,
       "anchor": "literal-types",
       "docType": "handbook",
       "tokenCount": 572
@@ -2200,6 +2286,10 @@
       "sectionPath": [
         "Variadic Tuple Types"
       ],
+      "part": {
+        "index": 3,
+        "total": 3
+      },
       "anchor": "variadic-tuple-types",
       "docType": "release-notes",
       "tokenCount": 608
@@ -2213,6 +2303,10 @@
       "sectionPath": [
         "Template Literal Types"
       ],
+      "part": {
+        "index": 2,
+        "total": 3
+      },
       "anchor": "template-literal-types",
       "docType": "release-notes",
       "tokenCount": 678
@@ -2227,6 +2321,7 @@
         "Classes",
         "@extends"
       ],
+      "part": null,
       "anchor": "extends",
       "docType": "other",
       "tokenCount": 621
@@ -2240,6 +2335,7 @@
       "sectionPath": [
         "Union Types"
       ],
+      "part": null,
       "anchor": "union-types",
       "docType": "handbook",
       "tokenCount": 297
@@ -2255,6 +2351,7 @@
         "Generic Object Types",
         "readonly Tuple Types"
       ],
+      "part": null,
       "anchor": "readonly-tuple-types",
       "docType": "handbook",
       "tokenCount": 365
@@ -2268,6 +2365,7 @@
       "sectionPath": [
         "Function Overloads"
       ],
+      "part": null,
       "anchor": "function-overloads",
       "docType": "handbook",
       "tokenCount": 399
@@ -2279,6 +2377,7 @@
       "sectionPath": [
         "Using Type Parameters in Generic Constraints"
       ],
+      "part": null,
       "anchor": "using-type-parameters-in-generic-constraints",
       "docType": "handbook",
       "tokenCount": 445
@@ -2293,6 +2392,7 @@
         "Nullable types",
         "Optional parameters and properties"
       ],
+      "part": null,
       "anchor": "optional-parameters-and-properties",
       "docType": "reference",
       "tokenCount": 498
@@ -2308,6 +2408,7 @@
         "Generic Functions",
         "Constraints"
       ],
+      "part": null,
       "anchor": "constraints",
       "docType": "handbook",
       "tokenCount": 492
@@ -2321,6 +2422,10 @@
       "sectionPath": [
         "String Unions in Types"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "string-unions-in-types",
       "docType": "handbook",
       "tokenCount": 536
@@ -2334,6 +2439,7 @@
       "sectionPath": [
         "Explicit Types"
       ],
+      "part": null,
       "anchor": "explicit-types",
       "docType": "handbook",
       "tokenCount": 549
@@ -2347,6 +2453,7 @@
       "sectionPath": [
         "Generic Constraints"
       ],
+      "part": null,
       "anchor": "generic-constraints",
       "docType": "handbook",
       "tokenCount": 566
@@ -2360,6 +2467,10 @@
       "sectionPath": [
         "Template Literal Types"
       ],
+      "part": {
+        "index": 1,
+        "total": 3
+      },
       "anchor": "template-literal-types",
       "docType": "release-notes",
       "tokenCount": 616
@@ -2369,6 +2480,10 @@
       "title": "Narrowing",
       "headingPath": [],
       "sectionPath": [],
+      "part": {
+        "index": 1,
+        "total": 2
+      },
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 672
@@ -2380,6 +2495,7 @@
       "sectionPath": [
         "Intersection Types"
       ],
+      "part": null,
       "anchor": "intersection-types",
       "docType": "handbook",
       "tokenCount": 716
@@ -2393,6 +2509,7 @@
       "sectionPath": [
         "abstract Classes and Members"
       ],
+      "part": null,
       "anchor": "abstract-classes-and-members",
       "docType": "handbook",
       "tokenCount": 751
@@ -2406,6 +2523,7 @@
       "sectionPath": [
         "User-Defined Type Guards"
       ],
+      "part": null,
       "anchor": "user-defined-type-guards",
       "docType": "reference",
       "tokenCount": 786
@@ -2419,6 +2537,7 @@
       "sectionPath": [
         "this Types"
       ],
+      "part": null,
       "anchor": "this-types",
       "docType": "handbook",
       "tokenCount": 810
@@ -2432,6 +2551,10 @@
       "sectionPath": [
         "Assertion Functions"
       ],
+      "part": {
+        "index": 2,
+        "total": 2
+      },
       "anchor": "assertion-functions",
       "docType": "release-notes",
       "tokenCount": 642
@@ -2443,6 +2566,7 @@
       "sectionPath": [
         "es2020 for target and module"
       ],
+      "part": null,
       "anchor": "es2020-for-target-and-module",
       "docType": "release-notes",
       "tokenCount": 602
@@ -2456,6 +2580,7 @@
       "sectionPath": [
         "Simple Combinations: One name, multiple meanings"
       ],
+      "part": null,
       "anchor": "simple-combinations-one-name-multiple-meanings",
       "docType": "other",
       "tokenCount": 545
@@ -2471,6 +2596,7 @@
         "Advanced Combinations",
         "Adding using a namespace"
       ],
+      "part": null,
       "anchor": "adding-using-a-namespace",
       "docType": "other",
       "tokenCount": 586
@@ -2484,6 +2610,7 @@
       "sectionPath": [
         "Build-Free Editing with Project References"
       ],
+      "part": null,
       "anchor": "build-free-editing-with-project-references",
       "docType": "release-notes",
       "tokenCount": 286
@@ -2497,6 +2624,7 @@
       "sectionPath": [
         "Callback Types"
       ],
+      "part": null,
       "anchor": "callback-types",
       "docType": "other",
       "tokenCount": 604
@@ -2510,6 +2638,7 @@
       "sectionPath": [
         "Classes"
       ],
+      "part": null,
       "anchor": "classes-1",
       "docType": "other",
       "tokenCount": 650
@@ -2523,6 +2652,7 @@
       "sectionPath": [
         "All enums Are Union enums"
       ],
+      "part": null,
       "anchor": "all-enums-are-union-enums",
       "docType": "release-notes",
       "tokenCount": 635
@@ -2536,6 +2666,7 @@
       "sectionPath": [
         "Support for V8 Compile Caching in Node.js"
       ],
+      "part": null,
       "anchor": "support-for-v8-compile-caching-in-nodejs",
       "docType": "release-notes",
       "tokenCount": 317
@@ -2547,6 +2678,7 @@
       "sectionPath": [
         "String enums"
       ],
+      "part": null,
       "anchor": "string-enums",
       "docType": "reference",
       "tokenCount": 340
@@ -2556,6 +2688,7 @@
       "title": "More on Functions",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "handbook",
       "tokenCount": 349
@@ -2571,6 +2704,7 @@
         "Type Checking",
         "The JSX namespace"
       ],
+      "part": null,
       "anchor": "the-jsx-namespace",
       "docType": "reference",
       "tokenCount": 602
@@ -2582,6 +2716,7 @@
       "sectionPath": [
         "Easier Method Usage for Unions of Arrays"
       ],
+      "part": null,
       "anchor": "easier-method-usage-for-unions-of-arrays",
       "docType": "release-notes",
       "tokenCount": 664
@@ -2596,6 +2731,7 @@
         "Breaking Changes",
         "Parsing Differences in Optional Chaining and Non-Null Assertions"
       ],
+      "part": null,
       "anchor": "parsing-differences-in-optional-chaining-and-non-null-assertions",
       "docType": "release-notes",
       "tokenCount": 721
@@ -2609,6 +2745,7 @@
       "sectionPath": [
         "Uncalled Function Checks in Conditional Expressions"
       ],
+      "part": null,
       "anchor": "uncalled-function-checks-in-conditional-expressions",
       "docType": "release-notes",
       "tokenCount": 408
@@ -2622,6 +2759,7 @@
       "sectionPath": [
         "\"Fast and Loose\" Incremental Checking"
       ],
+      "part": null,
       "anchor": "fast-and-loose-incremental-checking",
       "docType": "release-notes",
       "tokenCount": 412
@@ -2631,6 +2769,7 @@
       "title": "TSConfig Option: noFallthroughCasesInSwitch",
       "headingPath": [],
       "sectionPath": [],
+      "part": null,
       "anchor": "",
       "docType": "option",
       "tokenCount": 147
@@ -2642,6 +2781,7 @@
       "sectionPath": [
         "static Blocks in Classes"
       ],
+      "part": null,
       "anchor": "static-blocks-in-classes",
       "docType": "handbook",
       "tokenCount": 451
@@ -2655,6 +2795,7 @@
       "sectionPath": [
         "unknown on catch Clause Bindings"
       ],
+      "part": null,
       "anchor": "unknown-on-catch-clause-bindings",
       "docType": "release-notes",
       "tokenCount": 472
@@ -2666,6 +2807,7 @@
       "sectionPath": [
         "Ambient Classes and Functions Can Merge"
       ],
+      "part": null,
       "anchor": "ambient-classes-and-functions-can-merge",
       "docType": "release-notes",
       "tokenCount": 760
@@ -2677,6 +2819,7 @@
       "sectionPath": [
         "--target es2022"
       ],
+      "part": null,
       "anchor": "--target-es2022",
       "docType": "release-notes",
       "tokenCount": 488
@@ -2722,7 +2865,7 @@
       "rank": 6,
       "chunkId": "2b2df1a586232d1d2df4d5c6",
       "source": "https://www.typescriptlang.org/docs/handbook/2/objects.html#excess-property-checks",
-      "title": "Object Types > Excess Property Checks",
+      "title": "Object Types > Excess Property Checks (part 1 of 2)",
       "text": "Object Types > Excess Property Checks\n\nWhere and how an object is assigned a type can make a difference in the type system.\nOne of the key examples of this is in excess property checking, which validates the object more thoroughly when it is created and assigned to an object type during creation...."
     },
     {
@@ -2736,9 +2879,9 @@
       "rank": 8,
       "chunkId": "98cdd701ede501898cccad60",
       "source": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-0.html#variadic-tuple-types",
-      "title": "TypeScript 4.0 > Variadic Tuple Types",
+      "title": "TypeScript 4.0 > Variadic Tuple Types (part 3 of 3)",
       "text": "TypeScript 4.0 > Variadic Tuple Types\n\nThis functionality on its own is great, but it shines in more sophisticated scenarios too.\nFor example, consider a function to [partially apply arguments](https://en.wikipedia.org/wiki/Partial_application) called `partialCall`.\n`partialCall` takes a function..."
     }
   ],
-  "totalMs": 7.584499999999991
+  "totalMs": 8.767200000000003
 }

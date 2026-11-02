@@ -2,6 +2,75 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M3 follow-up - A UX pass, before M4 (2026-11-02)
+
+Trying the app in Chrome showed that it read like an admin panel: it showed someone asking a question everything it knows about retrieval. Now the chat comes first, and the inspector opens on demand. Five bugs went with it. Decisions are in ADR-0008, section 9.
+
+| | Before | After |
+|---|---|---|
+| Tab stops before the first question | 14 (counted from the old form's markup) | 7 |
+| Inspector on the first view | Always, with a paragraph explaining itself | Closed until asked for |
+| Comparing Hybrid and Vector for one question | Choose in the form, press Search only, and the answer leaves the page | One click on the toggle: one `/api/search`, no `/api/ask`, and the answer stays |
+| Labels shared by chunks of one document | 102, covering 231 of 994 chunks | 0 |
+| Fences and asterisks shown as text in sources | Whole ```` ```ts ```` fences | None in the 4 live answers, and no raw bracket or bold in any preview of the index's 8,115 blocks |
+| Numberings for one chunk | 2: "citation 1" could say "Show chunk 2" | 1: "Source N" in the chat and all four tabs |
+| Lone citation markers | A marker alone after a code block | None in the 4 live answers, and a story on a derived fixture |
+| Stories, each a test in Chromium with axe in light and dark | 28 | 73 |
+
+**Parts came at no cost:** `CHUNKER_VERSION` 4 forced a re-parse of 3.4s and 0 tokens. The keyword index, every embedding and the chunk text stayed byte-identical (`665fa74c8077a848`, `d2f55731ce8a7ba5`), and 20 of 20 M2 searches came back with the same rankings and contexts. The part in the title sent to Claude adds about 7 tokens per split chunk. The recorded answers have 0 to 6 such chunks of 8, against about 8,000 input tokens.
+
+**Still shared:** 2 labels across 4 chunks, because upstream gives two pages the same title: `TSConfig Option: exclude` and `include`, under `options/` and `options/typeAcquisition/`. They are separate documents, with their own locations and links, so this PR leaves them.
+
+**Checked on the live app, over the real index.** The paid run came before the review's fixes; a second run on the final code replayed the recorded answer for each question, with real searches, and gave the same results.
+- The 4 example questions, each with "How was this found?", all four tabs and the toggle. Search only with edited text sent one `/api/search`, and neither it nor the toggle sent an `/api/ask`.
+- axe found nothing in 42 states: empty, Search in open, answers, the panel on each tab, vector, 320 and 390 px wide, and dark.
+- A keyboard-only run from the input to the panel and back, with a visible focus style at every stop.
+- 63 of 64 checks passed. The last was my check for Next's indicator, which matched 3 empty 0 by 0 elements: nothing shows in the screenshots.
+
+| Question | Sources | Cost |
+|---|---|---|
+| In which version did `satisfies` appear? | 1 | about $0.017 (its usage line was not captured; the recorded one is $0.0171) |
+| What does error TS2345 mean? | 5 | $0.0251 |
+| What does the `strict` flag enable? | 4 | $0.0219 |
+| ts-0004, in Russian: what is the difference between `unknown` and `any`? | 4 | $0.0237 |
+
+Total spend for this pass: about $0.21, of which $0.1202 went on 6 recordings while planning.
+
+**What was surprising:**
+- **A citation could not get focus back.** The first story for it failed: focus landed in the input. The markdown component map depended on `onCitation`, so a new callback built a new map, and React remounted the whole answer, citation included. The same thing happened during streaming each time a new citation arrived, and scrolled code boxes lost their place. The map is now a constant, and what a citation needs comes through context.
+- **A double focus ring that no story could see.** `outline: none` on the input ties with the global `:focus-visible` rule, and the later rule wins. Storybook and Next load CSS in a different order, so it only showed on the live app, in a screenshot.
+- **The lone marker was my own fix from the last PR.** It stopped a citation from turning the rest of an answer into code by giving the marker its own line. Five recording attempts could not reproduce the shape, so that one story uses a real answer with one event moved, and the file name says so.
+
+**What the code-reviewer subagent caught.** All checks passed, and every commit typechecked. It drove the live app with intercepted calls, and changed the code to see which tests would notice. Three findings blocked the PR:
+- **Enter on a "Search in" checkbox sent the half-written question,** because the checkboxes sit inside the chat's form. That spends money on a key a disclosure of options invites. Enter now toggles the box.
+- **The input could hide what had focus,** though ADR-0008 said it never did. The page kept a fixed 10rem clear and the input grows further: with ten lines in it, 10 of 45 Tab stops were wholly hidden at 1280 by 800. The page now keeps the input's measured height clear, and a story tabs through a long answer to prove it.
+- **Tests that could not fail.** Of 10 changes it made to the code, 9 survived the whole suite, including every abort in the fresh search. The race story could not see a race: its gate released the older search first, and the replay rejected it on abort anyway. The product behaved correctly in all but the scroll padding above; only the protection was missing. Each of these changes now fails a story, except a guard in `useAssistant` that no test could reach, which is gone: the reducer already does that.
+
+It also found:
+- **Previews on the real index:** of 3,404, 90 showed only a heading, 46 were cut inside a link and 18 ended in an empty or stray code box. My four live answers had shown none of it.
+- **The marker rule counted fence lines,** so a 3-tick block holding a ```` ```ts ```` line still turned the rest of the answer into code, the very bug the rule exists to prevent. Now one scanner reads fences a line at a time, for markers and previews both. It agrees with a real CommonMark parser on every line of the 994 chunks and 5 recorded answers.
+- **A double click on Send stopped the question it had just sent,** and the select stayed open over the input when the keyboard left it.
+- **Streaming got slower with each question,** from 5 ms per event at the first to 50 ms at the sixteenth, because every delta parsed every earlier answer. It is now under 10 ms.
+- **A second question landed low on the page,** with its answer streaming below the input.
+- **Moving between answers kept the sort and "Show all",** although the panel promised a clean start.
+- **Docs that said more than the code:** "never hides", "valid markdown", one numbering (the Document tab still said "in context #3"), and the part wording. The code changed where it could, and the wording where it could not.
+
+It also pointed out that Safari reports `isComposing` as false on the Enter that confirms a word. The input now checks `keyCode` 229 as well.
+
+**A second review, of the fixes.** They added real logic, so the code-reviewer ran again on those commits, with its own mutants and live probes. It found one blocker and more of what the first review had started:
+- **A double click on Stop sent the half-written question.** The first click stopped the answer and made the button a submit. The earlier fix had covered only Send. A second click now does nothing, on either role.
+- **The scanner did not read fences "as CommonMark reads them", as I had written.** It disagreed with a parser on 21 of 41 odd inputs, and on some a marker showed as literal text in code. Three small rules bring that to 9, with no change on real text, and the docs now say what it is: a line scanner.
+- **"This is great!" lost its citation:** the marker made `![1](#cite-1)`, an image, so the reader saw "great1" and no button. That one predates this branch, and an answer can easily end that way.
+- **Previews on the real index, again:** 8 ended in a stray `!...`, and 4 of the 17 tables lost their delimiter row and showed raw pipes. Now none does.
+- **Paths no test covered:** a real fetch rejects when aborted, but every late-result story used a replay that does not. Leaving the page stopping the stream, which guards money, had no test either.
+- **With the panel stacked, a new question still landed low,** because the panel has no height until its trace arrives.
+
+**CI caught what the Windows run could not.** After the walk in `InputNeverCoversFocus` was widened to every stop, it failed on the Linux runner in both schemes and passed here. A table box is 556 px tall there, with wider fonts, and does not fit above an input with ten lines in it. The product was right: WCAG 2.4.11 asks only that it is not entirely hidden. The story now holds what fits to being whole, and a taller box to being partly visible.
+
+The streaming change held up: a citation arriving after its marker turns it into a working button, and a focused marker keeps focus through a stream. So did the claim that the reducer alone drops late events.
+
+Left as they are, because they are rare and do not show on the index: a marker after indented code or a reference definition line, and previews that take `*ptr` or `__dirname` for open emphasis and stop there.
+
 ## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
 
 The second M3 PR adds the ui package, Storybook and the Next.js app on top of the engine from the first. `pnpm dev` now opens a TypeScript docs assistant: ask on the left, see on the right how the answer's context was chosen. Decisions are in ADR-0008.
@@ -42,7 +111,7 @@ The second M3 PR adds the ui package, Storybook and the Next.js app on top of th
 | In which version did `satisfies` appear? | 1 | $0.0170 |
 | What does error TS2345 mean? | 4 | $0.0238 |
 | What does the `strict` flag enable? | 3 | $0.0214 |
-| ts-0004, В чём разница между `unknown` и `any`? | 5 | $0.0236 |
+| ts-0004, in Russian: what is the difference between `unknown` and `any`? | 5 | $0.0236 |
 
 Every citation links to a typescriptlang.org page, with the section anchor where the chunk has one.
 

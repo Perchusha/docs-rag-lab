@@ -11,8 +11,11 @@ import {
   type UsageSummary,
 } from '@docs-rag-lab/contracts'
 
+import citationAfterCodeNdjson from './__fixtures__/answer-first-citation-moved-after-code.derived.ndjson?raw'
+import satisfiesHowNdjson from './__fixtures__/answer-satisfies-how.ndjson?raw'
 import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
 import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
+import varianceNdjson from './__fixtures__/answer-variance.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
 import satisfies from './__fixtures__/trace-satisfies.json'
@@ -64,3 +67,24 @@ export const answerFixture = answer(answerNdjson)
 
 /** A recorded answer with a GFM table with cited cells, then two code blocks. */
 export const tableAnswerFixture = answer(tableAnswerNdjson)
+
+/** "How does the `satisfies` operator work?": two sources from one section, one a whole code fence. */
+export const satisfiesHowFixture = answer(satisfiesHowNdjson)
+
+/** On optional variance annotations: three chunks of one section, and emphasis in an excerpt. */
+export const varianceFixture = answer(varianceNdjson)
+
+/**
+ * The one fixture whose events are not in the order Claude sent them. NDJSON has no
+ * comments, so this says what changed: a real answer about `--strict`, with one event
+ * moved. Like the others, it also has the current trace shape and cut excerpts.
+ *
+ * Which: its first `citations` event (source 1), from index 18, after the text
+ * "...so you can still control them individually.", to index 8, right after the text
+ * event that closes the code block. Nothing else differs.
+ *
+ * Why: the bug this reproduces needs a citation that ends on a closing fence. That
+ * depends on how Claude splits citation blocks: it happened in a live run, but five
+ * recording attempts did not reproduce it.
+ */
+export const citationAfterCodeFixture = answer(citationAfterCodeNdjson)

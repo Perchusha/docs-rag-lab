@@ -24,7 +24,7 @@ import type { DocType, Source } from '@docs-rag-lab/source-kit'
 import { embedWithCache } from './embeddings/cached.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import type { RateLimiter } from './embeddings/rate-limit.ts'
-import { citationSource, citationTitle, sectionPathOf } from './generate.ts'
+import { citationSource, citationTitle, sectionPartOf, sectionPathOf } from './generate.ts'
 import { analyzeQuery } from './query.ts'
 import { fuseRrf } from './rrf.ts'
 import type { UsageMeter } from './usage.ts'
@@ -153,6 +153,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
       title: record.title,
       headingPath: record.headingPath,
       sectionPath: sectionPathOf(record),
+      part: sectionPartOf(record),
       anchor: record.anchor,
       docType: record.docType,
       tokenCount: record.tokenCount,

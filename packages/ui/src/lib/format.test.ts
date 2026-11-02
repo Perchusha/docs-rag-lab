@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { answerFixture } from '../fixtures.ts'
-import {
-  chunkLocation,
-  chunkTitle,
-  formatMs,
-  formatRrf,
-  formatScore,
-  formatUsage,
-} from './format.ts'
+import { chunkLocation, formatMs, formatRrf, formatScore, formatUsage } from './format.ts'
 
 describe('format', () => {
   it('formats times and scores', () => {
@@ -20,14 +13,14 @@ describe('format', () => {
     expect(formatRrf(1 / 61 + 1 / 62)).toBe('0.0325')
   })
 
-  it('names a chunk by its title and the section it starts in, and shortens its path', () => {
+  it('shortens the path of a chunk', () => {
     const chunk = {
       title: 'TypeScript 4.9',
       sectionPath: ['The satisfies Operator'],
+      part: null,
       docPath: 'packages/documentation/copy/en/release-notes/TypeScript 4.9.md',
       anchor: 'the-satisfies-operator',
     }
-    expect(chunkTitle(chunk)).toBe('TypeScript 4.9 > The satisfies Operator')
     expect(chunkLocation(chunk)).toBe('release-notes/TypeScript 4.9.md#the-satisfies-operator')
     expect(chunkLocation({ ...chunk, anchor: '' })).toBe('release-notes/TypeScript 4.9.md')
     // No source's folder layout is built in: a react.dev path shortens the same way.

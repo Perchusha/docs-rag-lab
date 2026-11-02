@@ -5,6 +5,7 @@ import type {
   DocumentChunks,
   RetrievalRequest,
   RetrievalTrace,
+  Strategy,
 } from '@docs-rag-lab/contracts'
 
 import type { Transport } from './transport.ts'
@@ -64,6 +65,10 @@ export interface ReplayOptions {
   events?: readonly AnswerEvent[]
   /** What search() returns; defaults to the trace event in `events`. */
   trace?: RetrievalTrace
+  /** What search() returns for a method, ahead of `trace`. */
+  searchTraces?: Partial<Record<Strategy, RetrievalTrace>>
+  /** search() fails with this message, while ask() works. */
+  searchFailure?: string
   documents?: readonly DocumentChunks[]
   /** The wait before each event and response, for watching a story stream. */
   delayMs?: number
@@ -71,9 +76,11 @@ export interface ReplayOptions {
   gate?: ReplayGate
   /** search() waits for this gate instead of delayMs. */
   searchGate?: ReplayGate
+  /** The same per method, so a newer search can finish before an older one. */
+  searchGates?: Partial<Record<Strategy, ReplayGate>>
   /**
-   * ask() keeps sending after its signal aborts, as a response does with
-   * the events of a chunk it has already read.
+   * ask() and search() go on after their signal aborts, as a response does with
+   * what it has already read.
    */
   ignoresAbort?: boolean
   /** Every call fails with this message instead. */
@@ -82,6 +89,8 @@ export interface ReplayOptions {
   onRequest?: (kind: 'ask' | 'search', request: RetrievalRequest) => void
   /** Called when an ask() ends, with whether its signal had aborted by then. */
   onAskEnd?: (outcome: 'finished' | 'aborted') => void
+  /** The same for a search(). */
+  onSearchEnd?: (outcome: 'finished' | 'aborted') => void
 }
 
 function abortable(wait: Promise<void>, signal: AbortSignal): Promise<void> {
@@ -127,8 +136,19 @@ export function replayTransport(options: ReplayOptions): Transport {
 
     async search(request, signal) {
       options.onRequest?.('search', request)
-      await abortable(searchGate?.pass() ?? sleep(delayMs), signal)
-      if (options.failure !== undefined) throw new Error(options.failure)
+      const own =
+        request.strategy === undefined ? undefined : options.searchGates?.[request.strategy]
+      const step = (own ?? searchGate)?.pass() ?? sleep(delayMs)
+      try {
+        await (options.ignoresAbort === true ? step : abortable(step, signal))
+      } finally {
+        options.onSearchEnd?.(signal.aborted ? 'aborted' : 'finished')
+      }
+      const failure = options.failure ?? options.searchFailure
+      if (failure !== undefined) throw new Error(failure)
+      const found =
+        request.strategy === undefined ? undefined : options.searchTraces?.[request.strategy]
+      if (found !== undefined) return found
       if (trace === undefined) throw new Error('nothing to replay: no trace')
       return trace
     },

@@ -6,8 +6,9 @@
 //
 // 1: M2.
 // 2: TraceChunk.sectionPath, the section a chunk starts in (M3).
+// 3: TraceChunk.part, which part of its section a chunk is (M3).
 
-export const TRACE_VERSION = 2
+export const TRACE_VERSION = 3
 
 export type Strategy = 'vector' | 'hybrid'
 
@@ -59,6 +60,28 @@ export interface TraceFusedCandidate {
 export type TraceFusion =
   { method: 'none' } | { method: 'rrf'; k: number; ms: number; ranked: TraceFusedCandidate[] }
 
+/** Which of the chunks that start in one section this one is. 1-based. */
+export interface SectionPart {
+  index: number
+  total: number
+}
+
+/**
+ * A chunk's label: the document title, the section it starts in, and which part
+ * of that section it is, since the chunks of a long section otherwise read the
+ * same. The CLI, the citations and ui all use this one wording.
+ */
+export function chunkLabel(chunk: {
+  title: string
+  sectionPath: readonly string[]
+  part: SectionPart | null
+}): string {
+  const label = [chunk.title, ...chunk.sectionPath].join(' > ')
+  return chunk.part === null
+    ? label
+    : `${label} (part ${String(chunk.part.index)} of ${String(chunk.part.total)})`
+}
+
 /** What a candidate is, for every chunk that appears in any list. */
 export interface TraceChunk {
   docPath: string
@@ -67,6 +90,8 @@ export interface TraceChunk {
   headingPath: string[]
   /** The section the chunk starts in, which `anchor` points to. Label chunks with this. */
   sectionPath: string[]
+  /** Which part of its section the chunk is, or null when it is the only one. */
+  part: SectionPart | null
   anchor: string
   docType: string
   tokenCount: number

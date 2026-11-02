@@ -224,6 +224,34 @@ describe('chunkDocument', () => {
     ])
   })
 
+  it('numbers the chunks that start in one section, and only those', () => {
+    const chunks = chunkDocument(
+      'a.md',
+      doc(section(['Long'], words(90), words(90), words(90)), section(['Short'], words(30))),
+      { maxTokens: 100 },
+    )
+
+    expect(chunks.map((chunk) => [chunk.sectionPath, chunk.part])).toEqual([
+      [['Long'], { index: 1, total: 3 }],
+      [['Long'], { index: 2, total: 3 }],
+      [['Long'], { index: 3, total: 3 }],
+      [['Short'], null],
+    ])
+  })
+
+  it('counts two subsections with the same path as one label, since they read the same', () => {
+    const chunks = chunkDocument(
+      'a.md',
+      doc(section(['A', 'Example'], words(90)), section(['A', 'Example'], words(90))),
+      { maxTokens: 100 },
+    )
+
+    expect(chunks.map((chunk) => chunk.part)).toEqual([
+      { index: 1, total: 2 },
+      { index: 2, total: 2 },
+    ])
+  })
+
   it('drops sections that have a heading but no content', () => {
     const chunks = chunkDocument('a.md', doc(section(['Empty']), section(['Full'], words(90))), {
       maxTokens: 100,

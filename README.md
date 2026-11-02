@@ -16,8 +16,8 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 **M3 (the ts-docs app) is done.** `pnpm dev` starts a TypeScript docs assistant on http://127.0.0.1:3000:
 
 - a streaming answer with numbered citations to the exact doc sections;
-- a retrieval inspector beside it. It shows every candidate list, the fused ranking with each list's part of the RRF score, the chunks sent to Claude, and where each chunk of a document starts and ends;
-- "Search only", which shows the retrieval without calling Claude.
+- a retrieval inspector that opens on demand, from "How was this found?" under an answer or from a citation. It shows every candidate list, the fused ranking with each list's part of the RRF score, the chunks sent to Claude, and where each chunk of a document starts and ends;
+- a Hybrid/Vector toggle and "Search only" in the inspector's header, which re-run the retrieval without calling Claude.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/ts-docs-dark.png">
@@ -75,7 +75,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl search "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
-| `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Ask spends tokens; Search only makes no Claude call |
+| `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
 Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices.

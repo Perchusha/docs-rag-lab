@@ -29,9 +29,17 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
+  --space-hairline: 2px;
+
+  --size-control: 2rem;
+  --width-chat: 760px;
+  --width-select: 11rem;
+  --width-search-field: 16rem;
+  --height-input-max: 12rem;
 
   --radius-1: 4px;
   --radius-2: 8px;
+  --radius-3: 16px;
   --radius-pill: 999px;
 
   --color-bg: #ffffff;
@@ -88,8 +96,19 @@
 
 /* One visible focus style for every interactive element. */
 :focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: var(--space-hairline) solid var(--color-focus);
+  outline-offset: var(--space-hairline);
+}
+
+/* The chat's input sticks to the bottom of the page. A browser scrolling a
+   focused element into view keeps it clear of the input, not hidden behind it
+   (WCAG 2.4.11), however tall the input has grown: DocsAssistant sets
+   --dock-height to its real height. Short windows do not stick it, see
+   DocsAssistant.module.css. */
+@media (height >= 30rem) {
+  html {
+    scroll-padding-block-end: calc(var(--dock-height, 10rem) + var(--space-2));
+  }
 }
 
 /* No motion for people who asked for none: spinners, pulses and smooth

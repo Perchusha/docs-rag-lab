@@ -53,6 +53,7 @@ export {
   buildAnswerRequest,
   citationSource,
   citationTitle,
+  sectionPartOf,
   sectionPathOf,
   CitationNumbering,
   createClaudeClient,

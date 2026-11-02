@@ -17,6 +17,8 @@ const config: NextConfig = {
   outputFileTracingRoot: root,
   // next dev would write an AGENTS.md into the app (with an em dash in it).
   agentRules: false,
+  // Its badge sits over the bottom-left corner of the page, on top of the content.
+  devIndicators: false,
 }
 
 export default config

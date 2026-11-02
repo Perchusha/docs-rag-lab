@@ -1,4 +1,4 @@
-import type { RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
+import type { Citation, RetrievalTrace, TraceList } from '@docs-rag-lab/contracts'
 import { useId, useState } from 'react'
 
 import common from '../lib/common.module.css'
@@ -12,6 +12,8 @@ const LIST_ROWS = 15
 
 export interface ListsViewProps {
   trace: RetrievalTrace
+  /** The answer's citations, to show their numbers on the rows. */
+  citations?: readonly Citation[] | undefined
   selectedChunkId: string | undefined
   onSelectChunk: (chunkId: string) => void
 }
@@ -23,6 +25,7 @@ const SCORING: Record<TraceList['scoring'], string> = {
 
 function ListColumn({
   trace,
+  citations,
   list,
   selectedChunkId,
   onSelectChunk,
@@ -58,6 +61,7 @@ function ListColumn({
                 chunkId={candidate.chunkId}
                 chunk={trace.chunks[candidate.chunkId]}
                 selected={candidate.chunkId === selectedChunkId}
+                source={citations?.find((c) => c.chunkId === candidate.chunkId)?.number}
                 onSelect={onSelectChunk}
                 className={styles.chunk}
               />

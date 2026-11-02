@@ -36,23 +36,10 @@
   background: var(--color-surface);
 }
 
-.primary {
-  composes: button;
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-weight: 600;
-}
-
-.primary:hover {
-  background: var(--color-accent);
-  filter: brightness(1.1);
-}
-
 /* A link text may be a whole URL, with nowhere to wrap. */
 .link {
   color: var(--color-accent);
-  text-underline-offset: 2px;
+  text-underline-offset: var(--space-hairline);
   overflow-wrap: anywhere;
 }
 

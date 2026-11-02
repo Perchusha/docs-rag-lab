@@ -3,7 +3,7 @@
 // and whose content is one text block per rendered block, so Claude can cite
 // precise passages.
 import Anthropic from '@anthropic-ai/sdk'
-import type { Citation } from '@docs-rag-lab/contracts'
+import { chunkLabel, type Citation, type SectionPart } from '@docs-rag-lab/contracts'
 import type { SearchHit } from '@docs-rag-lab/db'
 import type { Effort } from '@docs-rag-lab/settings'
 
@@ -34,9 +34,24 @@ export function sectionPathOf(hit: Pick<SearchHit, 'headingPath' | 'metadata'>):
     : hit.headingPath
 }
 
-/** The citation title: doc title, then the section the chunk starts in. */
+/**
+ * Which part of its section a chunk is (metadata.part, chunker version 4), or
+ * null when it is the only one, or for an older chunk.
+ */
+export function sectionPartOf(hit: Pick<SearchHit, 'metadata'>): SectionPart | null {
+  const part = hit.metadata.part
+  if (typeof part !== 'object' || part === null) return null
+  const { index, total } = part as Partial<SectionPart>
+  return typeof index === 'number' && typeof total === 'number' ? { index, total } : null
+}
+
+/** The citation title: doc title, the section the chunk starts in, and which part of it. */
 export function citationTitle(hit: Pick<SearchHit, 'title' | 'headingPath' | 'metadata'>): string {
-  return [hit.title, ...sectionPathOf(hit)].join(' > ')
+  return chunkLabel({
+    title: hit.title,
+    sectionPath: sectionPathOf(hit),
+    part: sectionPartOf(hit),
+  })
 }
 
 /** Character ranges of a chunk's rendered blocks (metadata.spans), or one range after the prefix line. */

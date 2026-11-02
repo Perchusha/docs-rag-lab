@@ -1,20 +1,23 @@
 import { NO_CONTEXT, type Citation } from '@docs-rag-lab/contracts'
-import { useId } from 'react'
+import { useId, useMemo, type ReactNode } from 'react'
 
 import { answerMarkdown } from '../lib/answer.ts'
 import { isRunning, type AssistantState } from '../lib/assistant.ts'
-import { formatUsage } from '../lib/format.ts'
 import { AnswerMarkdown } from './AnswerMarkdown.tsx'
 import styles from './Answer.module.css'
+import { Sources } from './Sources.tsx'
 
 export interface AnswerProps {
   state: AssistantState
-  onCitation?: ((citation: Citation) => void) | undefined
+  /** A citation asks to show its chunk; the element is where focus returns to. */
+  onCitation?: ((citation: Citation, trigger: HTMLElement) => void) | undefined
+  /** Goes under the answer, above its sources. */
+  actions?: ReactNode
 }
 
 function note(state: AssistantState): string | undefined {
   if (state.phase === 'stopped') return 'Stopped.'
-  if (state.phase !== 'done' || state.mode !== 'ask') return undefined
+  if (state.phase !== 'done') return undefined
   if (state.stopReason === NO_CONTEXT) return 'No indexed chunks to answer from.'
   if (state.stopReason === 'max_tokens') return 'The answer hit the length limit and is cut off.'
   if (state.stopReason === 'refusal') return 'Claude declined to answer.'
@@ -22,26 +25,21 @@ function note(state: AssistantState): string | undefined {
 }
 
 /**
- * The streamed answer. It is deliberately not a live region: a screen reader
- * would read every delta. The status line announces the state instead.
+ * One exchange: the question as the user's message, then the streamed answer and
+ * its sources. The question is a heading, so a screen reader can jump between
+ * questions. The answer is deliberately not a live region: a screen reader would
+ * read every delta. The status line announces the state instead.
  */
-export function Answer({ state, onCitation }: AnswerProps) {
+export function Answer({ state, onCitation, actions }: AnswerProps) {
   const id = useId()
-  if (state.phase === 'idle') return null
   const streaming = isRunning(state)
-  const markdown = answerMarkdown(state.parts)
+  const markdown = useMemo(() => answerMarkdown(state.parts), [state.parts])
   const message = note(state)
   return (
-    <article className={styles.answer} aria-labelledby={`${id}-heading`} aria-busy={streaming}>
-      <h2 id={`${id}-heading`} className={styles.heading}>
-        {state.mode === 'search' ? 'Search' : 'Answer'}
+    <article className={styles.answer} aria-labelledby={`${id}-question`} aria-busy={streaming}>
+      <h2 id={`${id}-question`} className={styles.question}>
+        {state.question}
       </h2>
-      <p className={styles.question}>{state.question}</p>
-      {state.mode === 'search' && state.phase === 'done' && (
-        <p className={styles.note}>
-          Search only: no answer was generated. The inspector shows the retrieval.
-        </p>
-      )}
       {markdown !== '' && (
         <AnswerMarkdown markdown={markdown} citations={state.citations} onCitation={onCitation} />
       )}
@@ -58,7 +56,8 @@ export function Answer({ state, onCitation }: AnswerProps) {
           <strong>Error:</strong> {state.error}
         </p>
       )}
-      {state.usage !== undefined && <p className={styles.usage}>{formatUsage(state.usage)}</p>}
+      {actions !== undefined && <div>{actions}</div>}
+      <Sources citations={state.citations} onShow={onCitation} />
     </article>
   )
 }

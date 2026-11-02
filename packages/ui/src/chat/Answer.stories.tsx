@@ -2,10 +2,10 @@ import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
-import { answerFixture, tableAnswerFixture, traces } from '../fixtures.ts'
+import { answerFixture, citationAfterCodeFixture, tableAnswerFixture, traces } from '../fixtures.ts'
 import {
   assistantReducer,
-  initialState,
+  startState,
   type AssistantAction,
   type AssistantState,
 } from '../lib/assistant.ts'
@@ -15,11 +15,10 @@ const question = 'In which version did `satisfies` appear?'
 
 function stateAfter(events: readonly AnswerEvent[], extra: AssistantAction[] = []): AssistantState {
   const actions: AssistantAction[] = [
-    { type: 'start', mode: 'ask', question },
     ...events.map((event) => ({ type: 'event', event }) as const),
     ...extra,
   ]
-  return actions.reduce(assistantReducer, initialState)
+  return actions.reduce(assistantReducer, startState(question))
 }
 
 const meta = {
@@ -35,15 +34,19 @@ export const Done: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     const citations = canvas.getAllByRole('button', {
-      name: 'Source 1: TypeScript 5.0 > @satisfies Support in JSDoc. Show it in the inspector',
+      name: 'Source 1: TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2). Show it in the inspector',
     })
     await expect(citations).toHaveLength(2)
     await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'false')
-    await expect(canvas.getByText(/claude-sonnet-5-5 7,927 in, 124 out/)).toBeVisible()
+    // The question is the user's message, a heading to jump to, and the answer does not repeat it.
+    await expect(canvas.getByRole('heading', { level: 2, name: question })).toBeVisible()
+    await expect(canvas.getAllByText(question)).toHaveLength(1)
+    // Tokens and cost are for the inspector; the main view is plain language.
+    await expect(canvasElement).not.toHaveTextContent('claude-sonnet')
 
     citations[1]?.focus()
     await userEvent.keyboard('{Enter}')
-    await expect(args.onCitation).toHaveBeenCalledWith(answerFixture.citations[0])
+    await expect(args.onCitation).toHaveBeenCalledWith(answerFixture.citations[0], citations[1])
   },
 }
 
@@ -65,7 +68,25 @@ export const WithTable: Story = {
     // A citation in a cell works like any other.
     const [citation] = within(table).getAllByRole('button', { name: /^Source 2: / })
     await userEvent.click(citation ?? canvasElement)
-    await expect(args.onCitation).toHaveBeenCalledWith(tableAnswerFixture.citations[1])
+    await expect(args.onCitation).toHaveBeenCalledWith(tableAnswerFixture.citations[1], citation)
+  },
+}
+
+/** A citation right after a code block sits on the text before it, not on a line of its own. */
+export const CitationAfterCodeBlock: Story = {
+  args: { state: stateAfter(citationAfterCodeFixture.events) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const [marker] = canvas.getAllByRole('button', { name: /^Source 1: / })
+    const paragraph = marker?.closest('p')
+    await expect(paragraph).toHaveTextContent(/^Pass --strict and then explicitly set/)
+    await expect(canvas.getByRole('group', { name: 'Code example' })).toHaveTextContent(
+      '--strict --noImplicitThis false',
+    )
+    // No paragraph holds a marker and nothing else.
+    for (const p of canvasElement.querySelectorAll('p')) {
+      await expect(p.textContent.trim()).not.toMatch(/^\d+$/)
+    }
   },
 }
 
@@ -76,19 +97,7 @@ export const Streaming: Story = {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'true')
     await expect(canvas.queryByRole('status')).toBeNull()
-    await expect(canvas.getAllByRole('button')).toHaveLength(1)
-  },
-}
-
-export const SearchOnly: Story = {
-  args: {
-    state: [
-      { type: 'start', mode: 'search', question },
-      { type: 'searched', trace: traces.satisfies },
-    ].reduce<AssistantState>(
-      (state, action) => assistantReducer(state, action as AssistantAction),
-      initialState,
-    ),
+    await expect(canvas.getAllByRole('button', { name: /^Source / })).toHaveLength(1)
   },
 }
 

@@ -1,12 +1,14 @@
-import type { TraceChunk } from '@docs-rag-lab/contracts'
+import { chunkLabel, type TraceChunk } from '@docs-rag-lab/contracts'
 
 import common from '../lib/common.module.css'
-import { chunkLocation, chunkTitle } from '../lib/format.ts'
+import { chunkLocation } from '../lib/format.ts'
 
 export interface ChunkButtonProps {
   chunkId: string
   chunk: TraceChunk | undefined
   selected: boolean
+  /** The answer's citation number for this chunk, if it cited it. */
+  source?: number | undefined
   onSelect: (chunkId: string) => void
   className?: string | undefined
   titleClassName?: string | undefined
@@ -30,11 +32,12 @@ export function ChunkButton(props: ChunkButtonProps) {
       }}
     >
       <span className={props.titleClassName}>
-        {chunk === undefined ? chunkId : chunkTitle(chunk)}
+        {chunk === undefined ? chunkId : chunkLabel(chunk)}
       </span>
       {chunk !== undefined && props.locationClassName !== undefined && (
         <span className={props.locationClassName}>{chunkLocation(chunk)}</span>
       )}
+      {props.source !== undefined && <span className={common.badge}>Source {props.source}</span>}
       {selected && <span className={common.badge}>selected</span>}
     </button>
   )

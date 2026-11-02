@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { answerFixture } from '../fixtures.ts'
+import { answerFixture, citationAfterCodeFixture } from '../fixtures.ts'
 import {
   answerMarkdown,
   appendCitations,
@@ -38,23 +38,65 @@ describe('answerMarkdown', () => {
     )
   })
 
-  it('puts a marker after a closing code fence on its own line', () => {
+  it('puts a marker that follows a code block on the text before the block', () => {
     const fenced: AnswerPart[] = [
       { kind: 'text', text: 'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n' },
       { kind: 'cite', numbers: [1] },
       { kind: 'text', text: '\nAfter the code.' },
     ]
     expect(answerMarkdown(fenced)).toBe(
-      'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n\n[1](#cite-1)\n\nAfter the code.',
+      'Example:[1](#cite-1)\n\n```ts\nconst a = 1 satisfies number\n```\n\nAfter the code.',
     )
   })
 
-  it('treats a bare fence that opens a block as code, not as a closing fence', () => {
-    const open: AnswerPart[] = [
-      { kind: 'text', text: 'Text\n```' },
+  it('goes past several code blocks to the text, and into a table row there', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Two:\n\n```\na\n```\n\n```\nb\n```'))).toBe(
+      'Two:[1](#cite-1)\n\n```\na\n```\n\n```\nb\n```',
+    )
+    expect(answerMarkdown(cited('| a | b |\n\n```\nc\n```'))).toBe(
+      '| a | b[1](#cite-1) |\n\n```\nc\n```',
+    )
+  })
+
+  it('keeps a line of its own only when nothing comes before the code block', () => {
+    const fenced: AnswerPart[] = [
+      { kind: 'text', text: '```ts\nconst a = 1\n```' },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(fenced)).toBe('```ts\nconst a = 1\n```\n\n[1](#cite-1)')
+  })
+
+  it('goes on the text before a block still open, never into the code', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
       { kind: 'cite', numbers: [2] },
     ]
-    expect(answerMarkdown(open)).toBe('Text\n```[2](#cite-2)')
+    expect(answerMarkdown(cited('Text\n```'))).toBe('Text[2](#cite-2)\n```')
+    expect(answerMarkdown(cited('Text\n\n```ts\nconst a = 1'))).toBe(
+      'Text[2](#cite-2)\n\n```ts\nconst a = 1',
+    )
+    expect(answerMarkdown(cited('```ts\nconst a = 1'))).toBe('[2](#cite-2)\n\n```ts\nconst a = 1')
+  })
+
+  it('skips a rule and a heading underline on the way to the text', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Title\n---\n```\na\n```'))).toBe(
+      'Title[1](#cite-1)\n---\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('Title\n===\n```\na\n```'))).toBe(
+      'Title[1](#cite-1)\n===\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('Text\n\n* * *\n\n```\na\n```'))).toBe(
+      'Text[1](#cite-1)\n\n* * *\n\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('---\n```\na\n```'))).toBe('---\n```\na\n```\n\n[1](#cite-1)')
   })
 
   it('keeps a marker inside the table row it follows, where GFM would drop an extra cell', () => {
@@ -78,8 +120,48 @@ describe('answerMarkdown', () => {
     ]
     expect(answerMarkdown(cited('a | b \\|'))).toBe('a | b \\|[1](#cite-1)')
     expect(answerMarkdown(cited('Use a pipe |'))).toBe('Use a pipe |[1](#cite-1)')
-    expect(answerMarkdown(cited('---'))).toBe('---[1](#cite-1)')
-    expect(answerMarkdown(cited('```\n| a | b |'))).toBe('```\n| a | b |[1](#cite-1)')
+    expect(answerMarkdown(cited('---'))).toBe('---\n\n[1](#cite-1)')
+    expect(answerMarkdown(cited('```\n| a | b |'))).toBe('[1](#cite-1)\n\n```\n| a | b |')
+  })
+
+  it('does not let the text before a marker change what the marker is', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    // ![1](#cite-1) would be an image, and a backslash would escape the bracket.
+    expect(answerMarkdown(cited('This is great!'))).toBe('This is great\\![1](#cite-1)')
+    expect(answerMarkdown(cited('Already \\!'))).toBe('Already \\![1](#cite-1)')
+    expect(answerMarkdown(cited('A path C:\\'))).toBe('A path C:\\\\[1](#cite-1)')
+    expect(answerMarkdown(cited('Escaped \\\\'))).toBe('Escaped \\\\[1](#cite-1)')
+    expect(answerMarkdown(cited('| a | great! |'))).toBe('| a | great\\![1](#cite-1) |')
+  })
+
+  it('does not put a marker on a rule or a heading underline at the end of the text', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Text.\n\n---'))).toBe('Text.[1](#cite-1)\n\n---')
+    expect(answerMarkdown(cited('Title\n---'))).toBe('Title[1](#cite-1)\n---')
+  })
+
+  it('puts a marker on the header when a delimiter row has no outer pipes', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('a | b\n---|---'))).toBe('a | b[1](#cite-1)\n---|---')
+  })
+
+  it('finds the moved event where the derived fixture says it is', () => {
+    const { events, parts } = citationAfterCodeFixture
+    const before = events[7]
+    expect(before?.type === 'text' && before.text.endsWith('```')).toBe(true)
+    expect(events[8]?.type).toBe('citations')
+    expect(events.findIndex((event) => event.type === 'citations')).toBe(8)
+    // On the text before the block, and not on a line of its own.
+    expect(answerMarkdown(parts)).toContain('`--noImplicitThis false`:[1](#cite-1)\n\n```sh')
   })
 
   it('renders the recorded answer with both of its markers', () => {

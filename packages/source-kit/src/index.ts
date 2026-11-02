@@ -22,6 +22,7 @@ export {
   renderBlock,
   type Chunk,
   type ChunkOptions,
+  type SectionPart,
 } from './chunker.ts'
 export { listSourceFiles, normalizeText, readSourceFile } from './files.ts'
 export { git, GitError } from './git.ts'

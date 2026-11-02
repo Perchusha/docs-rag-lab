@@ -292,6 +292,7 @@ describe('createEngine', () => {
       ['c0', 0, ['Section c0'], [[0, 11]]],
       ['c1', 1, ['Section c1'], [[0, 12]]],
     ])
+    expect(document?.chunks.map((c) => c.part)).toEqual([null, null])
     expect(engine().documentChunks('demo', 'docs/missing.md')).toBeUndefined()
   })
 })

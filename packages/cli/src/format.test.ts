@@ -102,12 +102,13 @@ describe('formatTrace', () => {
     title,
     headingPath,
     sectionPath: [heading],
+    part: null,
     anchor: heading.toLowerCase(),
     docType,
     tokenCount: 10,
   })
   const trace: RetrievalTrace = {
-    version: 2,
+    version: 3,
     question: 'What does error TS2345 mean?',
     sourceId: 'typescript',
     strategy: 'hybrid',

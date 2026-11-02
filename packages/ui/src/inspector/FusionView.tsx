@@ -3,7 +3,12 @@
 // counting twice is visible. Double counting is never shown by colour alone:
 // the row also says "BM25 x2". The table is a real table, and its sortable
 // headers are buttons inside headers that carry aria-sort.
-import { LIST_NAMES, type ListName, type RetrievalTrace } from '@docs-rag-lab/contracts'
+import {
+  LIST_NAMES,
+  type Citation,
+  type ListName,
+  type RetrievalTrace,
+} from '@docs-rag-lab/contracts'
 import { Fragment, useMemo, useState } from 'react'
 
 import common from '../lib/common.module.css'
@@ -40,6 +45,8 @@ export const LIST_DESCRIPTIONS: Record<ListName, string> = {
 
 export interface FusionViewProps {
   trace: RetrievalTrace
+  /** The answer's citations, to show their numbers on the rows. */
+  citations?: readonly Citation[] | undefined
   selectedChunkId: string | undefined
   onSelectChunk: (chunkId: string) => void
 }
@@ -156,7 +163,7 @@ function SortHeader(props: {
   )
 }
 
-export function FusionView({ trace, selectedChunkId, onSelectChunk }: FusionViewProps) {
+export function FusionView({ trace, citations, selectedChunkId, onSelectChunk }: FusionViewProps) {
   const rows = useMemo(() => fusionRows(trace), [trace])
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'fused',
@@ -246,6 +253,7 @@ export function FusionView({ trace, selectedChunkId, onSelectChunk }: FusionView
                       chunkId={row.chunkId}
                       chunk={row.chunk}
                       selected={row.chunkId === selectedChunkId}
+                      source={citations?.find((c) => c.chunkId === row.chunkId)?.number}
                       onSelect={onSelectChunk}
                       className={styles.chunk}
                       titleClassName={styles.chunkTitle}
