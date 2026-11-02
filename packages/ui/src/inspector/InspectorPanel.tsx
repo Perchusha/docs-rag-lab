@@ -49,7 +49,10 @@ const METHODS: readonly { value: Strategy; label: string }[] = [
 function statusLine(props: InspectorPanelProps): string {
   const { trace, answerTrace, strategy } = props
   if (props.searching) return 'Searching the docs, with no Claude call.'
-  if (props.error !== undefined) return `Error: ${props.error}`
+  if (props.error !== undefined) {
+    const shown = trace === undefined ? '' : ' The trace below is still the earlier one.'
+    return `Error: ${props.error}.${shown}`
+  }
   if (trace === undefined) return ''
   if (trace !== answerTrace) {
     const fresh = `Showing a fresh ${trace.strategy} search, with no Claude call.`
@@ -69,6 +72,7 @@ function statusLine(props: InspectorPanelProps): string {
 export function InspectorPanel(props: InspectorPanelProps) {
   const { query, onQueryChange, onSearch, onClose, focusHeading, onHeadingFocused, usage } = props
   const id = useId()
+  const status = statusLine(props)
   const heading = useRef<HTMLHeadingElement>(null)
   const input = useRef<HTMLInputElement>(null)
 
@@ -143,8 +147,9 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </button>
         </form>
       </div>
-      <p role="status" className={styles.note}>
-        {statusLine(props)}
+      {/* Always there: a region that appears with its first message may go unannounced. */}
+      <p role="status" className={status === '' ? common.srOnly : styles.note}>
+        {status}
       </p>
       {usage !== undefined && <p className={styles.note}>The answer used {formatUsage(usage)}</p>}
       <Inspector

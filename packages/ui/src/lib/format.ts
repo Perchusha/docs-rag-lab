@@ -1,11 +1,6 @@
 // Text for numbers and labels the components show. Pure, so the wording is
 // tested once here.
-import {
-  chunkLabel,
-  type TraceChunk,
-  type TraceList,
-  type UsageSummary,
-} from '@docs-rag-lab/contracts'
+import type { TraceChunk, TraceList, UsageSummary } from '@docs-rag-lab/contracts'
 
 const INTEGER = new Intl.NumberFormat('en-US')
 
@@ -20,11 +15,6 @@ export function formatScore(scoring: TraceList['scoring'], score: number): strin
 
 export function formatRrf(score: number): string {
   return score.toFixed(4)
-}
-
-/** A chunk as the citations name it: the document title, then the section it starts in. */
-export function chunkTitle(chunk: Pick<TraceChunk, 'title' | 'sectionPath' | 'part'>): string {
-  return chunkLabel(chunk)
 }
 
 /** The doc's folder and file name, plus the anchor: the same rule for every source's layout. */

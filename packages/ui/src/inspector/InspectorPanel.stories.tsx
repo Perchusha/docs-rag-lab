@@ -111,8 +111,10 @@ export const SearchFailed: Story = {
   args: { error: 'Voyage is overloaded' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(canvas.getByRole('status')).toHaveTextContent('Error: Voyage is overloaded')
-    // The trace below stays.
+    // The trace below stays, and the line says it is not the new search's.
+    await expect(canvas.getByRole('status')).toHaveTextContent(
+      'Error: Voyage is overloaded. The trace below is still the earlier one.',
+    )
     await expect(canvas.getByRole('tablist')).toBeVisible()
   },
 }
@@ -124,6 +126,8 @@ export const NoTraceYet: Story = {
     const canvas = within(canvasElement)
     await expect(canvas.getByText(/no retrieval trace/)).toBeVisible()
     await expect(canvas.queryByRole('tablist')).toBeNull()
+    // Nothing to say yet, and in the accessibility tree already.
+    await expect(canvas.getByRole('status')).toHaveTextContent(/^$/)
     await expect(canvas.getByRole('button', { name: 'Search only' })).toBeVisible()
   },
 }

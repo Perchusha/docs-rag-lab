@@ -120,9 +120,7 @@ export function DocumentView({
                   ))}
                 {selected && <span className={common.badge}>selected</span>}
                 {rank !== undefined && <span className={common.badge}>candidate #{rank}</span>}
-                {contextRank !== undefined && (
-                  <span className={common.badge}>in context #{contextRank}</span>
-                )}
+                {contextRank !== undefined && <span className={common.badge}>in the context</span>}
               </div>
               <p className={styles.meta}>
                 #{chunk.anchor === '' ? '(no anchor)' : chunk.anchor}, {chunk.tokenCount} tokens,{' '}

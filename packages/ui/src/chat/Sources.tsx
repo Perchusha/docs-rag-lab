@@ -12,7 +12,7 @@ export interface SourcesProps {
 }
 
 /** A cited passage, rendered as markdown like the answer. A long one starts collapsed. */
-function Excerpt({ text }: { text: string }) {
+function Excerpt({ text, source }: { text: string; source: number }) {
   const [open, setOpen] = useState(false)
   const preview = useMemo(() => excerptPreview(text), [text])
   return (
@@ -28,6 +28,7 @@ function Excerpt({ text }: { text: string }) {
           }}
         >
           {open ? 'Show less' : 'Show more'}
+          <span className={common.srOnly}>: source {source}</span>
         </button>
       )}
     </div>
@@ -49,7 +50,7 @@ export function Sources({ citations, onShow }: SourcesProps) {
             <div className={styles.title}>
               <ExternalLink href={citation.source}>{citation.title}</ExternalLink>
             </div>
-            <Excerpt text={citation.citedText} />
+            <Excerpt text={citation.citedText} source={citation.number} />
             {onShow !== undefined && (
               <button
                 type="button"

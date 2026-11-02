@@ -101,7 +101,7 @@ function Facts({ trace }: { trace: RetrievalTrace }) {
 export function Inspector(props: InspectorProps) {
   const { trace, citations, selectedChunkId, onSelectChunk, transport } = props
   if (trace === undefined) {
-    return <p className={styles.empty}>There is no retrieval trace for this question yet.</p>
+    return <p className={styles.empty}>This question has no retrieval trace to show.</p>
   }
   const documentChunk = selectedChunkId ?? trace.context[0]?.chunkId
   const shared = { trace, selectedChunkId, onSelectChunk }

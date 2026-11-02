@@ -97,7 +97,3 @@
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
-
-.note:empty {
-  display: none;
-}
