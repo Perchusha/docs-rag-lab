@@ -120,8 +120,38 @@ describe('answerMarkdown', () => {
     ]
     expect(answerMarkdown(cited('a | b \\|'))).toBe('a | b \\|[1](#cite-1)')
     expect(answerMarkdown(cited('Use a pipe |'))).toBe('Use a pipe |[1](#cite-1)')
-    expect(answerMarkdown(cited('---'))).toBe('---[1](#cite-1)')
+    expect(answerMarkdown(cited('---'))).toBe('---\n\n[1](#cite-1)')
     expect(answerMarkdown(cited('```\n| a | b |'))).toBe('[1](#cite-1)\n\n```\n| a | b |')
+  })
+
+  it('does not let the text before a marker change what the marker is', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    // ![1](#cite-1) would be an image, and a backslash would escape the bracket.
+    expect(answerMarkdown(cited('This is great!'))).toBe('This is great\\![1](#cite-1)')
+    expect(answerMarkdown(cited('Already \\!'))).toBe('Already \\![1](#cite-1)')
+    expect(answerMarkdown(cited('A path C:\\'))).toBe('A path C:\\\\[1](#cite-1)')
+    expect(answerMarkdown(cited('Escaped \\\\'))).toBe('Escaped \\\\[1](#cite-1)')
+    expect(answerMarkdown(cited('| a | great! |'))).toBe('| a | great\\![1](#cite-1) |')
+  })
+
+  it('does not put a marker on a rule or a heading underline at the end of the text', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Text.\n\n---'))).toBe('Text.[1](#cite-1)\n\n---')
+    expect(answerMarkdown(cited('Title\n---'))).toBe('Title[1](#cite-1)\n---')
+  })
+
+  it('puts a marker on the header when a delimiter row has no outer pipes', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('a | b\n---|---'))).toBe('a | b[1](#cite-1)\n---|---')
   })
 
   it('finds the moved event where the derived fixture says it is', () => {

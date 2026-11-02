@@ -167,16 +167,20 @@ describe('AnswerMarkdown', () => {
       'a heading underline before the block': 'Title\n---\n```\nconst a = 1\n```',
       'a rule before the block': 'Intro.\n\n---\n\n```\nconst a = 1\n```',
       'a block still open': 'Intro.\n\n```ts\nconst a = 1',
+      'a quote that ends its block': 'Intro.\n\n> ```ts\n> const a = 1\n\nCited text.',
+      'a list item that ends its block': '1. ```ts\n   const a = 1\n\nCited text.',
+      'a closer indented as code': 'Intro.\n\n```\nconst a = 1\n    ```\nStill code.',
     }
+
+    // A block still open takes all the text after it, so nothing can follow it here.
+    const stillOpen = (text: string) => text.endsWith('const a = 1') || text.endsWith('Still code.')
 
     it.each(Object.entries(shapes))('%s: the marker renders, and code stays code', (_, text) => {
       const out = html(
         answerMarkdown([
           { kind: 'text', text },
           { kind: 'cite', numbers: [1] },
-          ...(text.endsWith('const a = 1')
-            ? []
-            : [{ kind: 'text' as const, text: '\n\nAfter it.' }]),
+          ...(stillOpen(text) ? [] : [{ kind: 'text' as const, text: '\n\nAfter it.' }]),
         ]),
       )
       expect(out.match(/<button/g)).toHaveLength(1)
@@ -187,8 +191,31 @@ describe('AnswerMarkdown', () => {
       expect(code).not.toContain('<button')
       expect(code).not.toContain('After it.')
       expect(out.replace(/<pre>[\s\S]*?<\/pre>/g, '')).toMatch(
-        text.endsWith('const a = 1') ? /<button/ : /After it\./,
+        stillOpen(text) ? /<button/ : /After it\./,
       )
+    })
+
+    it('keeps a marker on the text after a block that a quote or a list item ended', () => {
+      const parts = (text: string) => [
+        { kind: 'text' as const, text },
+        { kind: 'cite' as const, numbers: [1] },
+      ]
+      const quote = html(answerMarkdown(parts('Intro.\n\n> ```ts\n> a\n\nCited text.')))
+      expect(quote).toMatch(/Cited text\.<button/)
+      const item = html(answerMarkdown(parts('1. ```ts\n   a\n\nCited text.')))
+      expect(item).toMatch(/Cited text\.<button/)
+    })
+
+    it('renders a citation after an exclamation mark or a backslash', () => {
+      const parts = (text: string) => [
+        { kind: 'text' as const, text },
+        { kind: 'cite' as const, numbers: [1] },
+      ]
+      const great = html(answerMarkdown(parts('This is great!')))
+      expect(great).toMatch(/This is great!<button/)
+      expect(great).not.toContain('<span>1')
+      const path = html(answerMarkdown(parts('A path C:\\')))
+      expect(path).toMatch(/A path C:\\<button/)
     })
 
     it('keeps a heading a heading, and a rule a rule', () => {

@@ -40,7 +40,7 @@ function isRow(line: string): boolean {
   return ROW_END.test(line) && line.replace(ROW_END, '').includes('|')
 }
 
-function isDelimiterRow(line: string): boolean {
+export function isDelimiterRow(line: string): boolean {
   return line.includes('|') && DELIMITER_ROW.test(line)
 }
 
@@ -53,16 +53,25 @@ function lineBeforeCode(lines: readonly string[], inCode: readonly boolean[]): n
   return -1
 }
 
+/** The markers after this text. A ! before a link makes it an image, and a \\ escapes it. */
+function attach(text: string, links: string): string {
+  const bang = text.endsWith('!')
+  const words = bang ? text.slice(0, -1) : text
+  const escaped = (/\\*$/.exec(words)?.[0].length ?? 0) % 2 === 1
+  if (bang) return escaped ? text + links : `${words}\\!${links}`
+  return (escaped ? `${text}\\` : text) + links
+}
+
 /** The lines with the markers at the end of one of them. */
 function markLine(lines: string[], index: number, links: string): string {
-  const line = lines[index] ?? ''
   // A marker after a row's last pipe would be an extra cell, which GFM drops
   // without a trace. It goes inside the last cell; a delimiter row has no cell
   // to hold it, so it goes in the header row above.
-  const rowIndex = isDelimiterRow(line) ? index - 1 : index
-  const row = lines[rowIndex]
-  if (row !== undefined && isRow(row)) lines[rowIndex] = row.replace(ROW_END, () => `${links} |`)
-  else lines[index] = line.trimEnd() + links
+  const target = index > 0 && isDelimiterRow(lines[index] ?? '') ? index - 1 : index
+  const row = lines[target] ?? ''
+  lines[target] = isRow(row)
+    ? `${attach(row.replace(ROW_END, ''), links)} |`
+    : attach(row.trimEnd(), links)
   return lines.join('\n')
 }
 
@@ -70,7 +79,10 @@ function markLine(lines: string[], index: number, links: string): string {
 function withMarkers(body: string, links: string): string {
   const lines = body.split('\n')
   const { inCode, open } = scanFences(lines)
-  if (inCode.at(-1) !== true) return markLine(lines, lines.length - 1, links)
+  const last = lines.at(-1) ?? ''
+  if (inCode.at(-1) !== true && !RULE_LINE.test(last)) {
+    return markLine(lines, lines.length - 1, links)
+  }
   // In or right after a code block, a marker would be text in the code, or text
   // that keeps the block open and turns the rest of the answer into code. On a
   // line of its own it reads as a lone number. So it goes on the text before.

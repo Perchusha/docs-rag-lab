@@ -46,6 +46,32 @@ describe('scanFences', () => {
     expect(scan('- item\n  ```\n  b\n  ```').open).toBeUndefined()
   })
 
+  it('takes a closer indented 4 spaces or a tab deeper for code', () => {
+    expect(scan('```\na\n    ```\nb').open?.line).toBe(0)
+    expect(scan('```\na\n\t```\nb').open?.line).toBe(0)
+    expect(scan('```\na\n   ```\nb').open).toBeUndefined()
+    expect(scan('- a\n\n    ```\n    b\n       ```').open).toBeUndefined()
+  })
+
+  it('ends a block with the quote it opened in', () => {
+    expect(scan('> ```ts\n> b\n\nAfter').inCode).toEqual([true, true, false, false])
+    expect(scan('> ```ts\n> b\nAfter').open).toBeUndefined()
+    expect(scan('> > ```\n> > b\n> After').open).toBeUndefined()
+    // A closer outside the quote ends it, and opens a block of its own.
+    expect(scan('> ```\n> b\n```\nAfter').open?.line).toBe(2)
+  })
+
+  it('ends a block with the list item it opened on', () => {
+    expect(scan('- ```ts\n  b\n\nAfter').inCode).toEqual([true, true, true, false])
+    expect(scan('1. ```ts\nb\nAfter').inCode).toEqual([true, false, false])
+    // Blank lines do not end it.
+    expect(scan('- ```ts\n  b\n\n  c').open?.line).toBe(0)
+  })
+
+  it('reads a tilde fence that ends with a carriage return', () => {
+    expect(scan('~~~ts\r\ncode\r\n~~~\r\nAfter').inCode).toEqual([true, true, true, false])
+  })
+
   it('leaves other lines alone', () => {
     expect(scan('* * *\n- item\n> quote\n1. one').inCode).toEqual([false, false, false, false])
   })
