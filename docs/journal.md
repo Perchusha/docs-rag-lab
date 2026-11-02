@@ -12,16 +12,16 @@ Trying the app in Chrome showed that it read like an admin panel: it showed some
 | Inspector on the first view | Always, with a paragraph explaining itself | Closed until asked for |
 | Comparing Hybrid and Vector for one question | Choose in the form, press Search only, and the answer leaves the page | One click on the toggle: one `/api/search`, no `/api/ask`, and the answer stays |
 | Labels shared by chunks of one document | 102, covering 231 of 994 chunks | 0 |
-| Fences and asterisks shown as text in sources | Whole ```` ```ts ```` fences | None in the 4 live answers |
+| Fences and asterisks shown as text in sources | Whole ```` ```ts ```` fences | None in the 4 live answers, and no raw bracket or bold in any preview of the index's 8,115 blocks |
 | Numberings for one chunk | 2: "citation 1" could say "Show chunk 2" | 1: "Source N" in the chat and all four tabs |
 | Lone citation markers | A marker alone after a code block | None in the 4 live answers, and a story on a derived fixture |
-| Stories, each a test in Chromium with axe in light and dark | 28 | 58 |
+| Stories, each a test in Chromium with axe in light and dark | 28 | 68 |
 
-**Parts came at no cost:** `CHUNKER_VERSION` 4 forced a re-parse of 3.4s and 0 tokens. The keyword index, every embedding and the chunk text stayed byte-identical (`665fa74c8077a848`, `d2f55731ce8a7ba5`), and 20 of 20 M2 searches came back with the same rankings and contexts. The part in the title sent to Claude adds about 7 tokens per split chunk. The recorded traces have 0 to 4 such chunks of 8, against about 8,000 input tokens.
+**Parts came at no cost:** `CHUNKER_VERSION` 4 forced a re-parse of 3.4s and 0 tokens. The keyword index, every embedding and the chunk text stayed byte-identical (`665fa74c8077a848`, `d2f55731ce8a7ba5`), and 20 of 20 M2 searches came back with the same rankings and contexts. The part in the title sent to Claude adds about 7 tokens per split chunk. The recorded answers have 0 to 6 such chunks of 8, against about 8,000 input tokens.
 
 **Still shared:** 2 labels across 4 chunks, because upstream gives two pages the same title: `TSConfig Option: exclude` and `include`, under `options/` and `options/typeAcquisition/`. They are separate documents, with their own locations and links, so this PR leaves them.
 
-**Checked on the live app, over the real index:**
+**Checked on the live app, over the real index.** The paid run came before the review's fixes; a second run on the final code replayed the recorded answer for each question, with real searches, and gave the same results.
 - The 4 example questions, each with "How was this found?", all four tabs and the toggle. Search only with edited text sent one `/api/search`, and neither it nor the toggle sent an `/api/ask`.
 - axe found nothing in 42 states: empty, Search in open, answers, the panel on each tab, vector, 320 and 390 px wide, and dark.
 - A keyboard-only run from the input to the panel and back, with a visible focus style at every stop.
@@ -40,6 +40,22 @@ Total spend for this pass: about $0.21, of which $0.1202 went on 6 recordings wh
 - **A citation could not get focus back.** The first story for it failed: focus landed in the input. The markdown component map depended on `onCitation`, so a new callback built a new map, and React remounted the whole answer, citation included. The same thing happened during streaming each time a new citation arrived, and scrolled code boxes lost their place. The map is now a constant, and what a citation needs comes through context.
 - **A double focus ring that no story could see.** `outline: none` on the input ties with the global `:focus-visible` rule, and the later rule wins. Storybook and Next load CSS in a different order, so it only showed on the live app, in a screenshot.
 - **The lone marker was my own fix from the last PR.** It stopped a citation from turning the rest of an answer into code by giving the marker its own line. Five recording attempts could not reproduce the shape, so that one story uses a real answer with one event moved, and the file name says so.
+
+**What the code-reviewer subagent caught.** All checks passed, and every commit typechecked. It drove the live app with intercepted calls, and changed the code to see which tests would notice. Three findings blocked the PR:
+- **Enter on a "Search in" checkbox sent the half-written question,** because the checkboxes sit inside the chat's form. That spends money on a key a disclosure of options invites. Enter now toggles the box.
+- **The input could hide what had focus,** though ADR-0008 said it never did. The page kept a fixed 10rem clear and the input grows further: with ten lines in it, 10 of 45 Tab stops were wholly hidden at 1280 by 800. The page now keeps the input's measured height clear, and a story tabs through a long answer to prove it.
+- **Tests that could not fail.** Of 10 changes it made to the code, 9 survived the whole suite, including every abort in the fresh search. The race story could not see a race: its gate released the older search first, and the replay rejected it on abort anyway. The product behaved correctly in all but the scroll padding above; only the protection was missing. Each of these changes now fails a story, except a guard in `useAssistant` that no test could reach, which is gone: the reducer already does that.
+
+It also found:
+- **Previews on the real index:** of 3,404, 90 showed only a heading, 46 were cut inside a link and 18 ended in an empty or stray code box. My four live answers had shown none of it.
+- **The marker rule counted fence lines,** so a 3-tick block holding a ```` ```ts ```` line still turned the rest of the answer into code, the very bug the rule exists to prevent. Now one scanner reads fences as CommonMark does, for markers and previews both. Against a real CommonMark parser, it agrees on every line of the 994 chunks and 5 recorded answers.
+- **A double click on Send stopped the question it had just sent,** and the select stayed open over the input when the keyboard left it.
+- **Streaming got slower with each question,** from 5 ms per event at the first to 50 ms at the sixteenth, because every delta parsed every earlier answer. It is now 7.8 ms.
+- **A second question landed low on the page,** with its answer streaming below the input.
+- **Moving between answers kept the sort and "Show all",** although the panel promised a clean start.
+- **Docs that said more than the code:** "never hides", "valid markdown", one numbering (the Document tab still said "in context #3"), and the part wording. The code changed where it could, and the wording where it could not.
+
+Not changed: Safari may report `isComposing` as false on the Enter that confirms a word. That is from the reviewer's memory, untested, and Chrome is fine.
 
 ## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
 

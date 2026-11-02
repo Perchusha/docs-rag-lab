@@ -36,7 +36,7 @@ Superseded in M3 by ADR-0007: the values and their types moved to the leaf packa
 - Chunk ID: the first 24 hex characters of `sha256(JSON.stringify([docPath, headingPath, occurrence, ordinal]))`. `occurrence` counts earlier sections with the same heading path in the document; `ordinal` is the pack's position within its section. `text_hash` is `sha256(text)`.
 - `CHUNKER_VERSION` (now 4) is stored in the manifest; changing it forces a full rebuild.
 - Since version 3 (M3), every chunk records `sectionPath`, the heading path of the section it starts in. A pack takes its parent's heading path, which is empty under the document root, so 170 chunks were cited by the document title alone ("TypeScript 5.9" for `#notable-behavioral-changes`) and 73 more by their parent section. Citation titles now use `sectionPath`. The text did not change, so the rebuild embedded nothing.
-- Since version 4 (the UX pass before M4), a chunk of a section that split records `part`, `{index, total}`, and its label says "(part 2 of 3)". Inside a document, 102 labels were shared by 231 of the 994 chunks, and no label is now. The text and IDs did not change: the re-parse took 3.4s and 0 tokens, and the keyword index and every embedding stayed byte-identical.
+- Since version 4 (the UX pass before M4), chunks that share a `sectionPath` record `part`, `{index, total}`, and their labels say "(part 2 of 3)". Inside a document, 102 labels were shared by 231 of the 994 chunks, and no label is now. The text and IDs did not change: the re-parse took 3.4s and 0 tokens, and the keyword index and every embedding stayed byte-identical.
 
 ### 3. Token counts are estimated locally, billed counts come from the API
 

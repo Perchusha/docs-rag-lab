@@ -58,7 +58,7 @@ Claude answers in markdown, rendered with react-markdown:
 - **React-markdown's default URL sanitizing stays,** so `javascript:` and other unsafe URLs are dropped.
 - **Only http(s) links render as links.** They open in a new tab with `rel="noopener noreferrer"`, and say so to screen readers. Other links render as their text, so a relative URL cannot point into the app.
 - **Images render as their alt text,** so an answer cannot load anything from another site.
-- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). A marker right after a code block goes on the last line of text before that block: text on the closing fence line would keep the code block open, and a marker on a line of its own reads as a lone number. It keeps its own line only when nothing comes before the block. The renderer turns them into buttons named after their source.
+- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). A marker in or right after a code block goes on the last line of text before that block, past any rule or heading underline: inside the block it would be code, on the closing fence line it would keep the block open, and on a line of its own it reads as a lone number. With no text before the block it does take its own line, after the block or, if the block is still open, before it. Fences are read as CommonMark reads them (`scanFences`): only the same character, at least as long, with nothing after it closes a block, and a block can sit in a list or a quote. The renderer turns them into buttons named after their source.
 
 - **GFM adds tables, and no way around these rules.** Claude often answers with a table, so `remark-gfm` is on. Task lists render as text, so an answer adds no form controls. Only two tildes strike through, because `singleTilde` would catch version ranges like `~5.0`. Autolinks follow the http(s) rule.
 - **Tables and code blocks scroll in their own box** (`ScrollRegion`), so the page does not: a focusable group with a name, the table's taken from its column headers. The arrow keys scroll it, and axe's scrollable-region rule accepts it. It is a group rather than a region, so several in one answer do not each add a landmark.
@@ -91,7 +91,7 @@ Also:
 - each focusable element shows a 2px focus outline (`:focus-visible`);
 - Send and Stop are one button that changes role, so it keeps focus when a run starts or ends, and no button is ever disabled;
 - opening the inspector moves focus into it, and closing it returns focus to what opened it, or to the input if that has gone;
-- the input sticks to the bottom of the page, except in windows under 30rem tall, with `scroll-padding` so it never hides a focused element (WCAG 2.4.11);
+- the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11);
 - the selected chunk is marked with `aria-current` and a visible "selected" label, not only a background. Selecting is not a toggle, so there is no `aria-pressed`;
 - a citation button moves focus to its chunk in the Context tab, once: `useInspectorPanel` clears the request when it is done, so coming back to the tab later leaves focus in the tab list;
 - each rank cell reads "1, score 9.16", not "19.16", through visually hidden text.
@@ -112,10 +112,13 @@ Play functions cover the conditions in section 6:
 - a new question stopping one still streaming, which stays in the chat as it was, with nothing more reaching it;
 - the inspector opening on demand, with focus going in and coming back;
 - the toggle calling `search` and never `ask`, with a spy, and a search beside a streaming answer leaving that answer alone;
+- a search result arriving late, after a newer search, a citation or a new question, and changing nothing;
+- nothing spent by accident: Enter on a doc type or during composition, and a double click on Send;
+- ten lines in the input, and a Tab walk through a long answer with no stop hidden behind it (`InputNeverCoversFocus`);
 - the status texts, and Stop;
 - reflow at a real 320 by 256 viewport (`Reflow320`): in the empty state, with the panel closed, and on each tab with it open, it walks every element and fails on anything past the page edge, or any sideways scroller but a table's or code block's box. It also checks that a table and a code block really overflow there, so axe's scrollable-region rule has something to check.
 
-**A test controls when a replay moves on.** A story that checks anything but the final state uses a `ReplayGate`, never a timer: each step of the replay waits until the test releases it, so a state lasts as long as the test needs, however slow the machine is. An earlier version checked a state its replay held for 15 ms, and moving that check to a 400 ms delay only made the race rarer. The replay can also keep sending after its abort (`ignoresAbort`), as a real response does with a chunk it has read, which is the only way to test that `useAssistant` drops those events. A story that waits only for a final state may use a delay, which is there to watch it stream in Storybook. Its limit, 10s for `findBy*` and `waitFor`, is a bound on failure, not something a passing test waits for.
+**A test controls when a replay moves on.** A story that checks anything but the final state uses a `ReplayGate`, never a timer: each step of the replay waits until the test releases it, so a state lasts as long as the test needs, however slow the machine is. An earlier version checked a state its replay held for 15 ms, and moving that check to a 400 ms delay only made the race rarer. The replay can also keep going after its abort (`ignoresAbort`), as a real response does with what it has read, and each search method can have its own gate. That is the only way to test that a late result reaches nothing: a replay that rejects on abort, or finishes in order, passes without the check. Such a story has no state to wait for, so it gives the result 50 ms to land; on a slow machine that can only miss a bug, not fail a correct build. A story that waits only for a final state may use a delay, which is there to watch it stream in Storybook. Its limit, 10s for `findBy*` and `waitFor`, is a bound on failure, not something a passing test waits for.
 
 Stories replay recorded fixtures with no network:
 - three real traces from `drl search --json` (`satisfies`, TS2345, ts-0004) and a vector-only trace;
@@ -157,9 +160,9 @@ Trying the app showed that it read like an admin panel. It serves someone asking
 **The default view:**
 - A centered column, 760px at most, with one input and its button inside it. Enter sends and Shift+Enter adds a line; Enter that confirms a word in an input method does neither.
 - The examples show only before the first question, and send at once.
-- The question becomes the user's message, as an `<h2>`, so a screen reader can jump between questions.
+- The question becomes the user's message, as an `<h2>`, so a screen reader can jump between questions. A new question goes to the top of the page, with room for its answer above the input.
 - "Search in: All docs" replaces the fieldset of checkboxes: a disclosure button over native checkboxes, with names from `rag.config.ts`. Esc or a click elsewhere closes it. A multi-select listbox would have more keys to learn and nothing to gain.
-- Tokens and cost move into the inspector with the other jargon. The status region stays, and its text is hidden visually once nothing is running.
+- Tokens and cost move into the inspector with the other jargon. The status region stays, and its text is hidden visually once nothing is running. An error shows in the answer itself.
 
 **The inspector:**
 - `InspectorPanel` opens from "How was this found?" under each finished answer, or from a citation, which opens it on that chunk. From 64rem up it sits beside the chat with its own scroll; under that it stacks below the chat.
@@ -174,16 +177,18 @@ Trying the app showed that it read like an admin panel. It serves someone asking
 - **A consequence we accepted:** the inspector opens only from an answer, so a fresh page cannot reach Search only until one answer has been paid for, about $0.02.
 
 **The bugs:**
-- **One numbering, the citation's.** Rows for a cited chunk carry a "Source N" badge in all four tabs, and the button says "Show in the inspector". The context rank stays as plain text in the Context tab, where it means something else.
-- **Parts.** Sections that split gave their chunks identical labels. `CHUNKER_VERSION` 4 records `part` (ADR-0004), `TRACE_VERSION` 3 carries it, and `chunkLabel` in contracts is the one wording, for the title sent to Claude, the CLI and ui. Titles are not searched, so rankings cannot change, and 20 of 20 M2 searches came back identical.
-- **Excerpts render as markdown,** with the same renderer as the answer. Their headings render as bold text, so they do not join the page's outline. `excerptPreview` cuts a long one at a line boundary and closes an open fence, so the preview is still valid markdown.
+- **One numbering, the citation's.** Rows for a cited chunk carry a "Source N" badge in all four tabs, and the button says "Show in the inspector". The context rank stays as plain text in the Context tab, where it means something else. The Document tab says "in the context", with no number.
+- **Parts.** Sections that split gave their chunks identical labels, and so did two sections with one heading path, which are numbered together. `CHUNKER_VERSION` 4 records `part` (ADR-0004), `TRACE_VERSION` 3 carries it, and `chunkLabel` in contracts is the one wording, for the title sent to Claude, the CLI and ui. Titles are not searched, so rankings cannot change, and 20 of 20 M2 searches came back identical.
+- **Excerpts render as markdown,** with the same renderer as the answer. Their headings render as bold text, so they do not join the page's outline. `excerptPreview` keeps up to 5 lines of text and 260 characters. It closes a code block it cuts through with the opener's indent, leaves out an empty code box, and cuts a long line at a word, backing up to before a link or emphasis it would leave open. Over the index's 8,115 rendered blocks, no preview shows a raw bracket or bold, an empty code box or an open fence.
 
 **What a citation needs goes through context,** not into react-markdown's component map. A new map remounted the whole answer on every new callback or citation, which took focus off a citation. The map is now constant.
+
+**Parsing is memoized on the text.** Earlier answers stay on the page, and the page renders on every delta of the newest one. Without this, a stream event cost 50 ms at the sixteenth question in a dev build, with 27 long tasks. It now costs 7.8 ms, with none.
 
 ## Consequences
 
 - One code path serves the CLI and the app. The routes add only parsing, status codes and the stream.
-- The ui test task takes about 11s with Chromium (42s on a CI runner shared with the other tasks), and it needs the browser installed once. The Stop hook runs it whenever ui changes.
+- The ui test task takes about 18s with Chromium, and it needs the browser installed once. The Stop hook runs it whenever ui changes.
 - The ui's post-edit check is the slowest in the repository: 8.4-8.5s on a forced cache miss, just over the 8s budget of ADR-0002. Its own runs during this PR had a median of 4.5s. See ADR-0002.
 - A new docs app (react-docs in M6) is a `rag.config.ts`, a page and three one-line routes.
 - Every new ui state needs a story. axe then checks it in both colour schemes with no further work.
