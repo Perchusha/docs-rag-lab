@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 
 import styles from './Composer.module.css'
@@ -84,7 +85,7 @@ export function DocTypeSelect({ docTypes, labels, selected, onChange }: DocTypeS
         }}
       >
         Search in: {docTypeSummary(docTypes, selected, labels)}
-        <span aria-hidden="true"> ▾</span>
+        <ChevronDown />
       </button>
       <div
         id={id}

@@ -28,7 +28,7 @@ export default defineConfig({
         // Pre-bundled up front: found mid-run, Vite reloads the page and the
         // tests that were running fail (it happens on every run with an empty
         // cache, as in CI).
-        optimizeDeps: { include: ['react-markdown', 'remark-gfm'] },
+        optimizeDeps: { include: ['lucide-react', 'react-markdown', 'remark-gfm'] },
         test: {
           name: 'stories',
           // Vitest's default, 63315, is in the range Windows hands to Hyper-V,

@@ -1,4 +1,5 @@
 import { MAX_QUESTION_LENGTH } from '@docs-rag-lab/contracts'
+import { ArrowUp, Square } from 'lucide-react'
 import {
   useId,
   useImperativeHandle,
@@ -134,7 +135,7 @@ export function Composer({
             onStop()
           }}
         >
-          <span aria-hidden="true">{running ? '■' : '↑'}</span>
+          {running ? <Square fill="currentColor" strokeWidth={0} /> : <ArrowUp />}
         </button>
       </div>
     </form>

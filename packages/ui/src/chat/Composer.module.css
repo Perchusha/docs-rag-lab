@@ -47,12 +47,12 @@
 
 .send,
 .stop {
+  display: grid;
+  place-items: center;
   flex: none;
   width: var(--size-control);
   height: var(--size-control);
-  font: inherit;
-  font-weight: 700;
-  line-height: 1;
+  padding: 0;
   border: none;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
@@ -63,6 +63,14 @@
 .stop {
   background: var(--color-text);
   color: var(--color-bg);
+}
+
+.send svg,
+.stop svg,
+.selectButton svg {
+  flex: none;
+  width: var(--size-icon);
+  height: var(--size-icon);
 }
 
 .select {

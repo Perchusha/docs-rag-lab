@@ -21,6 +21,12 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+/** A button that shows an icon and no text. Its name comes from its label alone. */
+async function expectIconOnly(button: HTMLElement): Promise<void> {
+  await expect(button.textContent).toBe('')
+  await expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+}
+
 /**
  * The two controls sit in the box's bottom corners with the same gap on every side, and
  * the select's text starts where the input's does.
@@ -49,6 +55,9 @@ export const ControlsSitEvenlyInTheBox: Story = {
     const textStart = (element: HTMLElement) =>
       element.getBoundingClientRect().left + parseFloat(getComputedStyle(element).paddingLeft)
     await expect(Math.abs(textStart(select) - textStart(input))).toBeLessThanOrEqual(1)
+
+    await expectIconOnly(send)
+    await expect(select.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
   },
 }
 
@@ -109,6 +118,7 @@ export const Running: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.queryByRole('button', { name: 'Send' })).toBeNull()
+    await expectIconOnly(canvas.getByRole('button', { name: 'Stop' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
     await expect(args.onStop).toHaveBeenCalledOnce()
     await expect(args.onSend).not.toHaveBeenCalled()
