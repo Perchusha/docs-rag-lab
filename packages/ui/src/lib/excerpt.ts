@@ -1,6 +1,8 @@
 // Cited excerpts can run long: a whole code example, for one. The preview is the
-// start of the excerpt, cut so that it is still valid markdown: no empty code box,
-// and no raw bracket or asterisk from a link or emphasis the cut went through.
+// start of the excerpt, cut so that it is still valid markdown: no empty code box, no
+// table without its delimiter row, and no raw bracket or asterisk from a link or
+// emphasis the cut went through.
+import { isDelimiterRow } from './answer.ts'
 import { scanFences } from './fences.ts'
 
 /** Blank lines do not count: two headings and their gaps would use it all up. */
@@ -11,18 +13,28 @@ const SHORTEST_CUT = 40
 
 // An emphasis marker that opens at the start of a word.
 const EMPHASIS = /(?<![\w*_\\])(\*{1,2}|_{1,2})(?=[^\s*_])/g
+// Nothing but a list marker, and nothing worth a preview on its own.
+const NO_WORDS = /^\s*(?:[-*+]|\d{1,9}[.)])?\s*$/
 
-/** Code spans as plain letters, at the same length, so markup inside one does not count. */
-function withoutCode(text: string): string {
-  return text.replace(/`[^`]*`/g, (span) => 'x'.repeat(span.length))
+/** Code spans and link targets as plain letters, so markup inside them does not count. */
+function withoutLiterals(text: string): string {
+  return text
+    .replace(/`[^`]*`/g, (span) => 'x'.repeat(span.length))
+    .replace(/\]\([^)]*\)/g, (target) => `]${'x'.repeat(target.length - 1)}`)
 }
 
-/** Where a link or emphasis left open by the cut starts, and how long its opening is. */
+/** Where a link, an image or emphasis left open by the cut starts, and how long its opening is. */
 function openInline(text: string): { index: number; length: number } | undefined {
-  const plain = withoutCode(text)
+  const plain = withoutLiterals(text)
   const bracket = plain.lastIndexOf('[')
-  if (bracket !== -1 && !/\]\([^)]*\)/.test(plain.slice(bracket))) {
-    return { index: bracket, length: 1 }
+  if (bracket !== -1) {
+    // number[] and [text][1] are closed; only a target can still be open.
+    const after = plain.slice(bracket)
+    if (!after.includes(']') || after.includes('](')) {
+      return plain[bracket - 1] === '!'
+        ? { index: bracket - 1, length: 2 }
+        : { index: bracket, length: 1 }
+    }
   }
   for (const match of [...plain.matchAll(EMPHASIS)].reverse()) {
     const marker = match[1] ?? ''
@@ -37,9 +49,11 @@ function openInline(text: string): { index: number; length: number } | undefined
 function cutProse(line: string, room: number): string {
   const cut = line.slice(0, room)
   const word = cut.lastIndexOf(' ')
-  let kept = word > 0 ? cut.slice(0, word) : cut
+  let kept = word > 0 && !NO_WORDS.test(cut.slice(0, word)) ? cut.slice(0, word) : cut
   for (let open = openInline(kept); open !== undefined; open = openInline(kept)) {
-    kept = open.index === 0 ? kept.slice(open.length) : kept.slice(0, open.index).trimEnd()
+    const before = kept.slice(0, open.index)
+    // With nothing to go back to, the opening goes and the words stay.
+    kept = NO_WORDS.test(before) ? before + kept.slice(open.index + open.length) : before.trimEnd()
   }
   const inCodeSpan = (kept.match(/`/g)?.length ?? 0) % 2 === 1
   return `${kept}${inCodeSpan ? '`' : ''}...`
@@ -54,14 +68,26 @@ export function excerptPreview(text: string): string | undefined {
 
   const kept: string[] = []
   let room = PREVIEW_CHARACTERS
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? ''
     if (count(kept) >= PREVIEW_LINES) break
+    const open = scanFences(kept).open
+    const delimiter = lines[index + 1]
+    if (open === undefined && delimiter !== undefined && isDelimiterRow(delimiter)) {
+      // A table needs its first two rows whole: without them it is raw pipes.
+      const size = line.length + delimiter.length + 1
+      const fits = size < room && count(kept) + 2 <= PREVIEW_LINES
+      if (!fits && kept.length > 0) break
+      kept.push(line, delimiter)
+      room -= size + 1
+      index += 1
+      continue
+    }
     if (line.length >= room) {
-      const open = scanFences(kept).open
       // Code is left whole, unless a block would otherwise show no line at all.
       if (open === undefined && (room >= SHORTEST_CUT || kept.length === 0)) {
         kept.push(cutProse(line, room))
-      } else if (open?.line === kept.length - 1) {
+      } else if (open?.line === kept.length - 1 && room >= SHORTEST_CUT) {
         kept.push(`${line.slice(0, room)}...`)
       }
       break
@@ -79,5 +105,5 @@ export function excerptPreview(text: string): string | undefined {
     kept.push(open.closer)
   }
   const preview = kept.join('\n').trimEnd()
-  return preview === trimmed ? undefined : preview
+  return preview === trimmed || preview === '' ? undefined : preview
 }

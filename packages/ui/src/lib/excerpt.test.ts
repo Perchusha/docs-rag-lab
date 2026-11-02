@@ -28,7 +28,7 @@ describe('excerptPreview', () => {
   })
 
   it('cuts one long line at a word, closing an open code span', () => {
-    const line = `Use \`${'x'.repeat(PREVIEW_CHARACTERS - 20)} and\` more ${'y '.repeat(200)}`
+    const line = `Use \`${'x y '.repeat(200)}\` more`
     const preview = excerptPreview(line)
     expect(preview?.length).toBeLessThanOrEqual(PREVIEW_CHARACTERS + 4)
     expect(preview?.endsWith('...')).toBe(true)
@@ -92,6 +92,62 @@ describe('excerptPreview', () => {
     const start = excerptPreview(`[${'long words '.repeat(30)}](https://a.b/c)`)
     expect(start?.startsWith('long words')).toBe(true)
     expect(start).not.toContain('[')
+  })
+
+  it('leaves no stray exclamation mark from an image it cut', () => {
+    const pad = 'word '.repeat(48)
+    expect(excerptPreview(`${pad}See ![a long description of the picture here](a.png) now`)).toBe(
+      `${pad}See...`,
+    )
+    expect(excerptPreview(`![${'long words '.repeat(30)}](a.png)`)?.startsWith('long words')).toBe(
+      true,
+    )
+  })
+
+  it('does not take brackets or a link target for open markup', () => {
+    const pad = 'word '.repeat(30)
+    const tail = 'and more '.repeat(30)
+    expect(excerptPreview(`${pad}Arrays like number[] ${tail}`)).toContain('number[]')
+    expect(excerptPreview(`${pad}See the [handbook][1] ${tail}`)).toContain('[handbook][1]')
+    const target = excerptPreview(`${pad}See [the doc](https://a.b/_private/x) ${tail}`)
+    expect(target).toContain('[the doc](https://a.b/_private/x)')
+  })
+
+  it('never cuts a table before its delimiter row is whole', () => {
+    const row = `| Name | ${'Contents '.repeat(5)}|`
+    const delimiter = `| ${'-'.repeat(30)} | ${'-'.repeat(40)} |`
+    // Not enough room for both: the preview stops before the table.
+    const lead = 'x'.repeat(PREVIEW_CHARACTERS - 60)
+    expect(excerptPreview(`${lead}\n\n${row}\n${delimiter}\n| a | b |`)).toBe(lead)
+    // Past the line limit too.
+    const four = 'One\nTwo\nThree\nFour'
+    expect(excerptPreview(`${four}\n\n${row}\n${delimiter}\n| a | b |`)).toBe(four)
+    // Room for both: the rows are whole.
+    const whole = excerptPreview(`${row}\n${delimiter}\n${'| a | b |\n'.repeat(9)}`)
+    expect(whole?.split('\n').slice(0, 2)).toEqual([row, delimiter])
+    // A table too wide for any preview still keeps its first two rows.
+    const wide = `| ${'wide '.repeat(60)} |`
+    const rule = `| ${'-'.repeat(300)} |`
+    const start = excerptPreview(`${wide}\n${rule}\n| a |`)
+    expect(start?.split('\n').slice(0, 2)).toEqual([wide, rule])
+  })
+
+  it('leaves no bare list marker, in front of a long word or of open markup', () => {
+    expect(excerptPreview(`- ${'x'.repeat(400)}`)?.startsWith('- xxx')).toBe(true)
+    expect(excerptPreview(`- **${'long words '.repeat(40)}**`)?.startsWith('- long words')).toBe(
+      true,
+    )
+  })
+
+  it('does not leave a code box with next to nothing in it', () => {
+    const lead = 'x'.repeat(PREVIEW_CHARACTERS - 25)
+    expect(excerptPreview(`${lead}\n\`\`\`\n${'y'.repeat(100)}\n\`\`\``)).toBe(lead)
+  })
+
+  it('shows a block whole when there is no preview to give', () => {
+    expect(excerptPreview(`~~~${'x'.repeat(300)}\ncode\n~~~`)).toBeUndefined()
+    // Six lines, and the five kept with their closer make the same text.
+    expect(excerptPreview('```\na\nb\nc\nd\n```')).toBeUndefined()
   })
 
   it('leaves what is closed alone, and what only looks like markup in code', () => {
