@@ -139,6 +139,31 @@ describe('replayTransport with a gate', () => {
     expect(seen).toEqual(events)
   })
 
+  it('holds each method on its own gate, and can ignore an abort', async () => {
+    const older = replayGate()
+    const newer = replayGate()
+    const controller = new AbortController()
+    const transport = replayTransport({
+      trace: traces.satisfies,
+      searchTraces: { vector: traces.satisfiesVector },
+      searchGates: { vector: older, hybrid: newer },
+      ignoresAbort: true,
+    })
+    const finished: string[] = []
+    const search = (strategy: 'vector' | 'hybrid') =>
+      transport.search({ question: 'q', strategy }, controller.signal).then(() => {
+        finished.push(strategy)
+      })
+    const searches = [search('vector'), search('hybrid')]
+    controller.abort()
+    newer.open()
+    await settle()
+    expect(finished).toEqual(['hybrid'])
+    older.open()
+    await Promise.all(searches)
+    expect(finished).toEqual(['hybrid', 'vector'])
+  })
+
   it('holds search() on its own gate', async () => {
     const searchGate = replayGate()
     const trace = { question: 'q' } as never

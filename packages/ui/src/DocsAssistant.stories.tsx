@@ -508,22 +508,33 @@ export const SearchOnlyWithEditedText: Story = {
   },
 }
 
-const raceGate = replayGate()
-const onRaceRequest = fn()
+/**
+ * What a dropped result looks like is nothing happening, so there is no state to
+ * wait for: this gives one the time to land, if it were not dropped.
+ */
+async function landed(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 50))
+}
 
-/** A newer search replaces an older one, whichever would finish first. */
+const olderSearch = replayGate()
+const newerSearch = replayGate()
+
+/**
+ * A newer search replaces an older one, even when the older one finishes last and
+ * its response ignores the abort.
+ */
 export const NewerSearchReplacesOlder: Story = {
   args: {
     transport: replayTransport({
       events: answerFixture.events,
       searchTraces: { hybrid: traces.ts2345, vector: traces.satisfiesVector },
-      searchGate: raceGate,
-      onRequest: onRaceRequest,
+      searchGates: { vector: olderSearch, hybrid: newerSearch },
+      ignoresAbort: true,
     }),
   },
   play: async ({ canvasElement }) => {
-    raceGate.reset()
-    onRaceRequest.mockClear()
+    olderSearch.reset()
+    newerSearch.reset()
     const canvas = within(canvasElement)
     await askAndWait(canvasElement, question)
     await userEvent.click(canvas.getByRole('button', HOW))
@@ -531,14 +542,86 @@ export const NewerSearchReplacesOlder: Story = {
 
     await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
     await userEvent.click(panel.getByRole('radio', { name: 'Hybrid' }))
-    await expect(onRaceRequest.mock.calls.filter(([kind]) => kind === 'search')).toHaveLength(2)
 
-    raceGate.open()
-    await waitFor(() =>
-      expect(panel.getByRole('status')).toHaveTextContent('Showing a fresh hybrid search'),
-    )
+    newerSearch.open()
+    const status = panel.getByRole('status')
+    await waitFor(() => expect(status).toHaveTextContent('Showing a fresh hybrid search'))
+    await expect(panel.getByText('ts2345')).toBeVisible()
+
+    olderSearch.open()
+    await landed()
+    await expect(status).toHaveTextContent('Showing a fresh hybrid search')
+    await expect(panel.getByText('ts2345')).toBeVisible()
     await expect(panel.getByRole('radio', { name: 'Hybrid' })).toBeChecked()
-    await expect(panel.getByRole('tab', { name: 'Fusion' })).toHaveAttribute(
+  },
+}
+
+const citedSearch = replayGate()
+
+/** A citation goes back to the answer's own trace, and a search still running stays out of it. */
+export const CitationDropsARunningSearch: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { vector: traces.satisfiesVector },
+      searchGate: citedSearch,
+      ignoresAbort: true,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    citedSearch.reset()
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
+    const status = panel.getByRole('status')
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+
+    const [marker] = canvas.getAllByRole('button', { name: /^Source 1: / })
+    await userEvent.click(marker ?? canvasElement)
+    await waitFor(() => expect(status).toHaveTextContent('The answer came from hybrid search.'))
+
+    citedSearch.open()
+    await landed()
+    await expect(status).not.toHaveTextContent('Showing a fresh')
+    await expect(panel.getByRole('tab', { name: 'Context (8)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  },
+}
+
+const followedSearch = replayGate()
+
+/** A new question starts the panel clean, and a search still running stays out of that too. */
+export const NewQuestionDropsARunningSearch: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { vector: traces.satisfiesVector },
+      searchGate: followedSearch,
+      ignoresAbort: true,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    followedSearch.reset()
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
+    await waitFor(() => expect(panel.getByRole('status')).toHaveTextContent('Searching the docs'))
+
+    await askAndWait(canvasElement, 'A second question')
+    const followed = within(panelOf(canvasElement))
+    await expect(followed.getByRole('textbox', { name: 'Search for' })).toHaveValue(
+      'A second question',
+    )
+    followedSearch.open()
+    await landed()
+    await expect(followed.getByRole('status')).not.toHaveTextContent('Showing a fresh')
+    await expect(followed.getByRole('tab', { name: 'Fusion' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
@@ -566,8 +649,7 @@ export const SearchBesideStreamingAnswer: Story = {
     await askAndWait(canvasElement, 'First question')
     const how = canvas.getByRole('button', HOW)
     await userEvent.click(how)
-    const panel = within(panelOf(canvasElement))
-    const field = panel.getByRole('textbox', { name: 'Search for' })
+    const field = within(panelOf(canvasElement)).getByRole('textbox', { name: 'Search for' })
     await userEvent.clear(field)
     await userEvent.type(field, 'edited text')
 
@@ -578,8 +660,9 @@ export const SearchBesideStreamingAnswer: Story = {
     await userEvent.keyboard('Second question{Enter}')
     await waitFor(() => expect(canvas.getAllByRole('article')).toHaveLength(2))
     await expect(input).toHaveFocus()
+    const panel = within(panelOf(canvasElement))
     await expect(panel.getByText(/no retrieval trace/)).toBeVisible()
-    await expect(field).toHaveValue('Second question')
+    await expect(panel.getByRole('textbox', { name: 'Search for' })).toHaveValue('Second question')
     await expect(how).toHaveAttribute('aria-expanded', 'false')
 
     // Its trace and some text have arrived, and the answer is still busy.
@@ -616,16 +699,45 @@ export const EachAnswerHasItsOwn: Story = {
     await askAndWait(canvasElement, 'Second question')
     const [first, second] = canvas.getAllByRole('button', HOW)
     await userEvent.click(second ?? canvasElement)
-    const panel = within(panelOf(canvasElement))
-    await expect(panel.getByRole('textbox', { name: 'Search for' })).toHaveValue('Second question')
+    const onSecond = within(panelOf(canvasElement))
+    await expect(onSecond.getByRole('textbox', { name: 'Search for' })).toHaveValue(
+      'Second question',
+    )
+
+    // The sort and the rows stay with their answer's panel.
+    await userEvent.click(onSecond.getByRole('button', { name: /^Vector/ }))
+    await expect(onSecond.getByRole('columnheader', { name: /^Vector/ })).toHaveAttribute(
+      'aria-sort',
+    )
+    await userEvent.click(onSecond.getByRole('button', { name: /^Show all/ }))
 
     await userEvent.click(first ?? canvasElement)
-    await expect(panel.getByRole('textbox', { name: 'Search for' })).toHaveValue('First question')
     await expect(first).toHaveAttribute('aria-expanded', 'true')
     await expect(second).toHaveAttribute('aria-expanded', 'false')
+    const onFirst = within(panelOf(canvasElement))
+    await expect(onFirst.getByRole('textbox', { name: 'Search for' })).toHaveValue('First question')
     await waitFor(() =>
-      expect(panel.getByRole('heading', { level: 2, name: 'Retrieval inspector' })).toHaveFocus(),
+      expect(onFirst.getByRole('heading', { level: 2, name: 'Retrieval inspector' })).toHaveFocus(),
     )
+    await expect(onFirst.getByRole('columnheader', { name: /^Fused/ })).toHaveAttribute(
+      'aria-sort',
+      'ascending',
+    )
+    await expect(onFirst.getByRole('button', { name: /^Show all/ })).toBeVisible()
+
+    // So do the tab and the selection.
+    await userEvent.click(onFirst.getByRole('tab', { name: /^Context/ }))
+    const [select] = onFirst.getAllByRole('button', { name: 'Select for the Document tab' })
+    await userEvent.click(select ?? canvasElement)
+    await expect(onFirst.getByText('selected')).toBeVisible()
+
+    await userEvent.click(second ?? canvasElement)
+    const backOnSecond = within(panelOf(canvasElement))
+    await expect(backOnSecond.getByRole('tab', { name: 'Fusion' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(backOnSecond.queryByText('selected')).toBeNull()
   },
 }
 

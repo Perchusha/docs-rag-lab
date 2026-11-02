@@ -31,14 +31,13 @@ export function useAssistant(transport: Transport): Assistant {
       running.current = { id, controller }
       dispatch({ type: 'ask', id, question: request.question })
       try {
+        // A response still hands over the events of a chunk it has already read, and
+        // an abort ends in an error: the reducer ignores both, the exchange is stopped.
         for await (const event of transport.ask(request, controller.signal)) {
-          // A response still hands over the events of a chunk it has already read.
-          if (controller.signal.aborted) return
           dispatch({ type: 'update', id, action: { type: 'event', event } })
         }
-        if (!controller.signal.aborted) dispatch({ type: 'update', id, action: { type: 'ended' } })
+        dispatch({ type: 'update', id, action: { type: 'ended' } })
       } catch (error) {
-        if (controller.signal.aborted) return
         dispatch({ type: 'update', id, action: { type: 'failed', message: messageOf(error) } })
       }
     },

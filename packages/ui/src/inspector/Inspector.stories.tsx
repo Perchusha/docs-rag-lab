@@ -184,6 +184,12 @@ export const OneNumbering: Story = {
     await expect(within(card ?? canvasElement).getByRole('heading')).toHaveTextContent(
       /^TypeScript 4\.9 > The satisfies Operator \(part 2 of 2\)$/,
     )
+
+    await userEvent.click(
+      within(card ?? canvasElement).getByRole('button', { name: 'Select for the Document tab' }),
+    )
+    await userEvent.click(canvas.getByRole('tab', { name: 'Document' }))
+    await expect(await canvas.findByText('Source 2')).toBeVisible()
   },
 }
 

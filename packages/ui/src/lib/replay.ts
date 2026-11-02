@@ -76,9 +76,11 @@ export interface ReplayOptions {
   gate?: ReplayGate
   /** search() waits for this gate instead of delayMs. */
   searchGate?: ReplayGate
+  /** The same per method, so a newer search can finish before an older one. */
+  searchGates?: Partial<Record<Strategy, ReplayGate>>
   /**
-   * ask() keeps sending after its signal aborts, as a response does with
-   * the events of a chunk it has already read.
+   * ask() and search() go on after their signal aborts, as a response does with
+   * what it has already read.
    */
   ignoresAbort?: boolean
   /** Every call fails with this message instead. */
@@ -132,7 +134,10 @@ export function replayTransport(options: ReplayOptions): Transport {
 
     async search(request, signal) {
       options.onRequest?.('search', request)
-      await abortable(searchGate?.pass() ?? sleep(delayMs), signal)
+      const own =
+        request.strategy === undefined ? undefined : options.searchGates?.[request.strategy]
+      const step = (own ?? searchGate)?.pass() ?? sleep(delayMs)
+      await (options.ignoresAbort === true ? step : abortable(step, signal))
       const failure = options.failure ?? options.searchFailure
       if (failure !== undefined) throw new Error(failure)
       const found =

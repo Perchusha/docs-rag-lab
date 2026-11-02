@@ -192,7 +192,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
         </main>
         {panel !== undefined && (
           <div className={styles.inspector}>
-            <InspectorPanel {...panel} />
+            <InspectorPanel key={inspector.shown?.id} {...panel} />
           </div>
         )}
       </div>
