@@ -1,4 +1,4 @@
-// drl sync | ask | search | limits. Each command records its API usage in the
+// drl sync | ask | search | limits | eval check. Each command records its API usage in the
 // shared meter; run() prints the usage line afterwards, also when a command
 // fails. ask and search go through the engine, the same code path as the apps.
 import { join } from 'node:path'
@@ -11,9 +11,11 @@ import {
 } from '@docs-rag-lab/contracts'
 import {
   createEmbeddingProvider,
+  GoldenSetError,
   openIndexes,
   RateLimiter,
   syncSource,
+  type AnchorIndex,
   type DocType,
   type Engine,
   type Source,
@@ -27,9 +29,11 @@ import {
   formatDuration,
   formatEmbedProgress,
   formatEstimateRatio,
+  formatGoldenCheck,
   formatSyncReport,
   formatTrace,
 } from './format.ts'
+import { checkGoldenFiles, goldenSetPath, writeGoldenLock } from './golden.ts'
 
 export interface Writer {
   write(text: string): unknown
@@ -107,6 +111,57 @@ export async function syncCommand(
     const billed = ctx.meter.entries().find(([model]) => model === provider.model)?.[1].inputTokens
     const ratio = formatEstimateRatio(billed ?? 0, report.estimatedTokens)
     if (ratio !== undefined) out.write(`${ratio}\n`)
+    reportGoldenSet(ctx, source.id, index)
+  } finally {
+    indexes.close()
+  }
+}
+
+/**
+ * SPEC section 9, step 6: says which golden questions a sync made stale. The
+ * sync itself has succeeded by now, so a broken golden set does not fail it.
+ */
+function reportGoldenSet(ctx: CommandContext, sourceId: string, index: AnchorIndex): void {
+  try {
+    const check = checkGoldenFiles(ctx.root, sourceId, index)
+    if (check !== undefined) ctx.out.write(`\n${formatGoldenCheck(check)}\n`)
+  } catch (error) {
+    if (!(error instanceof GoldenSetError)) throw error
+    ctx.out.write(`\n${error.message}\n`)
+  }
+}
+
+/** `drl eval check`: the golden set against the index. No API calls. */
+export function evalCheckCommand(
+  ctx: CommandContext,
+  args: { source: string; accept: boolean },
+): void {
+  const { out, root } = ctx
+  const source = findSource(ctx.sources, args.source)
+  const indexes = openIndexes(join(root, ctx.settings.dataDir), source.id, { create: false })
+  try {
+    const check = checkGoldenFiles(root, source.id, indexes.index)
+    if (check === undefined) {
+      throw new CliError(
+        `${source.id} has no golden set: ${goldenSetPath(root, source.id)} does not exist`,
+      )
+    }
+    out.write(`${formatGoldenCheck(check)}\n`)
+    if (args.accept) {
+      if (check.stale.length > 0) {
+        throw new CliError(
+          'stale questions cannot be accepted: fix their anchors or drop them first',
+        )
+      }
+      writeGoldenLock(root, source.id, check.lock)
+      out.write(
+        `the lock now records ${String(check.anchors)} anchors at ${check.docsSha.slice(0, 8)}\n`,
+      )
+    } else if (check.findings.length > 0) {
+      throw new CliError(
+        'the golden set needs a review: fix what is listed, then record it with drl eval check --accept',
+      )
+    }
   } finally {
     indexes.close()
   }

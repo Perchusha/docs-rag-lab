@@ -7,9 +7,67 @@ import {
   formatDuration,
   formatEmbedProgress,
   formatEstimateRatio,
+  formatGoldenCheck,
   formatSyncReport,
   formatTrace,
 } from './format.ts'
+
+describe('formatGoldenCheck', () => {
+  const clean = {
+    docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015',
+    questions: 45,
+    unanswerable: 5,
+    anchors: 66,
+    stale: [],
+    review: [],
+    findings: [],
+    lock: { docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015', anchors: {} },
+  }
+
+  it('says so when everything matches', () => {
+    expect(formatGoldenCheck(clean).split('\n')).toEqual([
+      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'every anchor resolves and matches the lock',
+    ])
+  })
+
+  it('separates what metrics leave out from what a human should read, with the reason', () => {
+    const check = {
+      ...clean,
+      stale: ['ts-0001'],
+      review: ['ts-0002', 'ts-0003'],
+      findings: [
+        {
+          questionId: 'ts-0001',
+          role: 'primary' as const,
+          anchor: { at: 'a.md#s', contains: 'words' },
+          problem: 'no-passage' as const,
+        },
+        {
+          questionId: 'ts-0002',
+          role: 'acceptable' as const,
+          anchor: { at: 'b.md' },
+          problem: 'no-document' as const,
+        },
+        {
+          questionId: 'ts-0003',
+          role: 'primary' as const,
+          anchor: { at: 'c.md#s' },
+          problem: 'changed' as const,
+        },
+      ],
+    }
+
+    expect(formatGoldenCheck(check).split('\n')).toEqual([
+      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'stale, left out of metrics: ts-0001',
+      'to review: ts-0002, ts-0003',
+      '  ts-0001 primary a.md#s contains words: the pinned passage is gone',
+      '  ts-0002 acceptable b.md: no such document',
+      '  ts-0003 primary c.md#s: the text changed since the lock',
+    ])
+  })
+})
 
 describe('formatDuration', () => {
   it('uses seconds, then minutes, then hours', () => {

@@ -6,6 +6,7 @@ import {
   DOC_TYPES,
   findRepoRoot,
   formatUsage,
+  GoldenSetError,
   IndexNotFoundError,
   InvalidRequestError,
   loadRootEnv,
@@ -21,6 +22,7 @@ import { typescriptSource } from '@docs-rag-lab/source-typescript'
 
 import {
   askCommand,
+  evalCheckCommand,
   limitsCommand,
   searchCommand,
   syncCommand,
@@ -40,6 +42,9 @@ Commands:
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the embedding API's rate-limit headers (one tiny request)
+  eval check [--source <id>]  Check the golden set against the index (no API calls): which
+                              questions are stale, and which anchors changed since the lock
+      [--accept]              After reviewing them, record what the anchors resolve to now
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
@@ -126,7 +131,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof MissingKeyError ||
     error instanceof UnknownSourceError ||
     error instanceof IndexNotFoundError ||
-    error instanceof InvalidRequestError
+    error instanceof InvalidRequestError ||
+    error instanceof GoldenSetError
   )
 }
 
@@ -147,6 +153,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       options: {
         full: { type: 'boolean', default: false },
         at: { type: 'string' },
+        accept: { type: 'boolean', default: false },
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
@@ -166,7 +173,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     out.write(USAGE)
     return command === undefined && !values.help ? 2 : 0
   }
-  if (!['sync', 'ask', 'search', 'limits'].includes(command)) {
+  if (!['sync', 'ask', 'search', 'limits', 'eval'].includes(command)) {
     err.write(`drl: unknown command "${command}"\n\n${USAGE}`)
     return 2
   }
@@ -176,6 +183,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   if (values.at !== undefined && command !== 'sync') {
     err.write(`drl: --at works only with sync\n\n${USAGE}`)
+    return 2
+  }
+  if (values.accept && command !== 'eval') {
+    err.write(`drl: --accept works only with eval check\n\n${USAGE}`)
     return 2
   }
 
@@ -207,6 +218,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       }
       if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
       else await searchCommand(ctx, { ...retrieval, json: values.json })
+    } else if (command === 'eval') {
+      if (rest[0] !== 'check') throw new CliError('eval needs a subcommand: drl eval check')
+      evalCheckCommand(ctx, { source: values.source, accept: values.accept })
     } else {
       await limitsCommand(ctx)
     }
