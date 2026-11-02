@@ -211,6 +211,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
           spans: chunk.spans,
           sectionPath: chunk.sectionPath,
           part: chunk.part,
+          anchors: chunk.anchors,
         },
         tokenCount: chunk.tokenCount,
         textHash: chunk.textHash,

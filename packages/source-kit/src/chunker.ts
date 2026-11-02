@@ -21,8 +21,9 @@ import type { Block, ParsedDoc, Section } from './types.ts'
  * 2: a fence line with an info string no longer closes a nested fence.
  * 3: every chunk records sectionPath, the section it starts in.
  * 4: a chunk that shares its section with others records which part it is.
+ * 5: every chunk records the anchors of all the sections it contains.
  */
-export const CHUNKER_VERSION = 4
+export const CHUNKER_VERSION = 5
 
 export const DEFAULT_MAX_TOKENS = 800
 
@@ -42,6 +43,12 @@ export interface Chunk {
   headingPath: string[]
   /** URL fragment of the first section in the chunk, '' for none. */
   anchor: string
+  /**
+   * URL fragments of every section the chunk contains, in order: `anchor`, then
+   * each nested heading. Golden-set anchors resolve through this (SPEC section
+   * 10), so they need no slug rules and cannot match a `# comment` in code.
+   */
+  anchors: string[]
   /**
    * Heading path of the section the chunk starts in, the one `anchor` points to.
    * It differs from headingPath when a pack starts at a child section: a pack
@@ -74,6 +81,8 @@ interface Piece {
   kind: PieceKind
   text: string
   tokens: number
+  /** The URL fragment of the section a heading piece opens. */
+  anchor?: string
 }
 
 interface Node {
@@ -219,7 +228,10 @@ function ownPieces(node: Node, max: number): Piece[] {
 
 function headingPiece(node: Node): Piece {
   const title = node.section.headingPath.at(-1) ?? ''
-  return piece('heading', `${'#'.repeat(Math.min(6, node.depth + 1))} ${title}`)
+  return {
+    ...piece('heading', `${'#'.repeat(Math.min(6, node.depth + 1))} ${title}`),
+    anchor: node.section.anchor,
+  }
 }
 
 function subtreePieces(node: Node, max: number): Piece[] {
@@ -289,23 +301,27 @@ export function chunkDocument(
     let headingStart: number | undefined
     for (const p of pieces) {
       text += '\n\n'
-      const start = text.length
+      const offset = text.length
       text += p.text
       if (p.kind === 'heading') {
-        headingStart ??= start
+        headingStart ??= offset
         continue
       }
-      spans.push([headingStart ?? start, text.length])
+      spans.push([headingStart ?? offset, text.length])
       headingStart = undefined
     }
     if (headingStart !== undefined) spans.push([headingStart, text.length])
     const blockTypes = [...new Set(pieces.filter((p) => p.kind !== 'heading').map((p) => p.kind))]
+    const anchors = [
+      ...new Set([start.anchor, ...pieces.flatMap((p) => p.anchor ?? [])].filter((a) => a !== '')),
+    ]
     chunks.push({
       id: chunkId(docPath, headingPath, node.occurrence, ordinal),
       docPath,
       ordinal: chunks.length,
       headingPath,
       anchor: start.anchor,
+      anchors,
       sectionPath: [...start.path],
       part: null,
       blockTypes,

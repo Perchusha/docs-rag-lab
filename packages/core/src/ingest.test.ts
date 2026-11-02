@@ -97,6 +97,16 @@ afterEach(() => {
 })
 
 describe('syncSource', { timeout: 60_000 }, () => {
+  it('stores the anchors of every section a chunk contains', async () => {
+    write('docs/nested.md', '# Nested\n\n## One\n\nFirst.\n\n## Two\n\nSecond.\n')
+    await commit('initial')
+
+    await sync(new RecordingProvider())
+
+    const doc = indexes().index.documentChunks('docs/nested.md')
+    expect(doc?.chunks.map((chunk) => chunk.metadata.anchors)).toEqual([['one', 'two']])
+  })
+
   it('indexes a pinned commit instead of the head of the branch, and records it', async () => {
     const provider = new RecordingProvider()
     const pinned = await commit('initial')

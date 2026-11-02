@@ -252,6 +252,66 @@ describe('chunkDocument', () => {
     ])
   })
 
+  describe('anchors', () => {
+    it('lists every section a chunk contains, starting with its own', () => {
+      const [chunk] = chunkDocument(
+        'a.md',
+        doc(
+          section([], prose('Intro.')),
+          section(['A'], prose('About A.')),
+          section(['A', 'A1'], prose('About A1.')),
+          section(['B'], prose('About B.')),
+        ),
+      )
+
+      expect(chunk).toMatchObject({ anchor: '', anchors: ['a', 'a1', 'b'] })
+    })
+
+    it('starts with the section a pack starts in, and lists only what is in that pack', () => {
+      const chunks = chunkDocument(
+        'a.md',
+        doc(section(['A'], words(500)), section(['B'], words(500)), section(['C'], words(100))),
+      )
+
+      expect(chunks.map((c) => c.anchors)).toEqual([['a'], ['b', 'c']])
+    })
+
+    it('gives every part of a split section that section', () => {
+      const chunks = chunkDocument('a.md', doc(section(['Long'], words(700), words(700))))
+
+      expect(chunks.map((c) => c.anchors)).toEqual([['long'], ['long']])
+    })
+
+    it('takes fragments from the parser, so duplicate headings stay apart', () => {
+      const example = (anchor: string): Section => ({
+        headingPath: ['Parent', 'Example'],
+        anchor,
+        blocks: [words(500)],
+      })
+      const chunks = chunkDocument('a.md', doc(example('example'), example('example-1')))
+
+      expect(chunks.flatMap((c) => c.anchors)).toEqual(['example', 'example-1'])
+    })
+
+    it('does not take a heading-shaped line in code for a section', () => {
+      const [chunk] = chunkDocument(
+        'a.md',
+        doc(section(['A'], code('# not a heading\n## Nor this', 'sh'))),
+      )
+
+      expect(chunk?.anchors).toEqual(['a'])
+    })
+
+    it('is empty for a document whose sections have no anchors', () => {
+      const [chunk] = chunkDocument(
+        'a.md',
+        doc({ headingPath: ['No anchor'], anchor: '', blocks: [prose('Text.')] }),
+      )
+
+      expect(chunk?.anchors).toEqual([])
+    })
+  })
+
   it('drops sections that have a heading but no content', () => {
     const chunks = chunkDocument('a.md', doc(section(['Empty']), section(['Full'], words(90))), {
       maxTokens: 100,
