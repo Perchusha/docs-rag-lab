@@ -15,7 +15,7 @@ Trying the app in Chrome showed that it read like an admin panel: it showed some
 | Fences and asterisks shown as text in sources | Whole ```` ```ts ```` fences | None in the 4 live answers, and no raw bracket or bold in any preview of the index's 8,115 blocks |
 | Numberings for one chunk | 2: "citation 1" could say "Show chunk 2" | 1: "Source N" in the chat and all four tabs |
 | Lone citation markers | A marker alone after a code block | None in the 4 live answers, and a story on a derived fixture |
-| Stories, each a test in Chromium with axe in light and dark | 28 | 68 |
+| Stories, each a test in Chromium with axe in light and dark | 28 | 73 |
 
 **Parts came at no cost:** `CHUNKER_VERSION` 4 forced a re-parse of 3.4s and 0 tokens. The keyword index, every embedding and the chunk text stayed byte-identical (`665fa74c8077a848`, `d2f55731ce8a7ba5`), and 20 of 20 M2 searches came back with the same rankings and contexts. The part in the title sent to Claude adds about 7 tokens per split chunk. The recorded answers have 0 to 6 such chunks of 8, against about 8,000 input tokens.
 
@@ -48,14 +48,26 @@ Total spend for this pass: about $0.21, of which $0.1202 went on 6 recordings wh
 
 It also found:
 - **Previews on the real index:** of 3,404, 90 showed only a heading, 46 were cut inside a link and 18 ended in an empty or stray code box. My four live answers had shown none of it.
-- **The marker rule counted fence lines,** so a 3-tick block holding a ```` ```ts ```` line still turned the rest of the answer into code, the very bug the rule exists to prevent. Now one scanner reads fences as CommonMark does, for markers and previews both. Against a real CommonMark parser, it agrees on every line of the 994 chunks and 5 recorded answers.
+- **The marker rule counted fence lines,** so a 3-tick block holding a ```` ```ts ```` line still turned the rest of the answer into code, the very bug the rule exists to prevent. Now one scanner reads fences a line at a time, for markers and previews both. It agrees with a real CommonMark parser on every line of the 994 chunks and 5 recorded answers.
 - **A double click on Send stopped the question it had just sent,** and the select stayed open over the input when the keyboard left it.
-- **Streaming got slower with each question,** from 5 ms per event at the first to 50 ms at the sixteenth, because every delta parsed every earlier answer. It is now 7.8 ms.
+- **Streaming got slower with each question,** from 5 ms per event at the first to 50 ms at the sixteenth, because every delta parsed every earlier answer. It is now under 10 ms.
 - **A second question landed low on the page,** with its answer streaming below the input.
 - **Moving between answers kept the sort and "Show all",** although the panel promised a clean start.
 - **Docs that said more than the code:** "never hides", "valid markdown", one numbering (the Document tab still said "in context #3"), and the part wording. The code changed where it could, and the wording where it could not.
 
 It also pointed out that Safari reports `isComposing` as false on the Enter that confirms a word. The input now checks `keyCode` 229 as well.
+
+**A second review, of the fixes.** They added real logic, so the code-reviewer ran again on those commits, with its own mutants and live probes. It found one blocker and more of what the first review had started:
+- **A double click on Stop sent the half-written question.** The first click stopped the answer and made the button a submit. The earlier fix had covered only Send. A second click now does nothing, on either role.
+- **The scanner did not read fences "as CommonMark reads them", as I had written.** It disagreed with a parser on 21 of 41 odd inputs, and on some a marker showed as literal text in code. Three small rules bring that to 9, with no change on real text, and the docs now say what it is: a line scanner.
+- **"This is great!" lost its citation:** the marker made `![1](#cite-1)`, an image, so the reader saw "great1" and no button. That one predates this branch, and an answer can easily end that way.
+- **Previews on the real index, again:** 8 ended in a stray `!...`, and 4 of the 17 tables lost their delimiter row and showed raw pipes. Now none does.
+- **Paths no test covered:** a real fetch rejects when aborted, but every late-result story used a replay that does not. Leaving the page stopping the stream, which guards money, had no test either.
+- **With the panel stacked, a new question still landed low,** because the panel has no height until its trace arrives.
+
+The streaming change held up: a citation arriving after its marker turns it into a working button, and a focused marker keeps focus through a stream. So did the claim that the reducer alone drops late events.
+
+Left as they are, because they are rare and do not show on the index: a marker after indented code or a reference definition line, and previews that take `*ptr` or `__dirname` for open emphasis and stop there.
 
 ## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
 

@@ -58,7 +58,7 @@ Claude answers in markdown, rendered with react-markdown:
 - **React-markdown's default URL sanitizing stays,** so `javascript:` and other unsafe URLs are dropped.
 - **Only http(s) links render as links.** They open in a new tab with `rel="noopener noreferrer"`, and say so to screen readers. Other links render as their text, so a relative URL cannot point into the app.
 - **Images render as their alt text,** so an answer cannot load anything from another site.
-- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). A marker in or right after a code block goes on the last line of text before that block, past any rule or heading underline: inside the block it would be code, on the closing fence line it would keep the block open, and on a line of its own it reads as a lone number. With no text before the block it does take its own line, after the block or, if the block is still open, before it. Fences are read as CommonMark reads them (`scanFences`): only the same character, at least as long, with nothing after it closes a block, and a block can sit in a list or a quote. The renderer turns them into buttons named after their source.
+- **Citation markers** become links to `#cite-<n>` in the markdown, placed right after the text they cite (before trailing whitespace, so a marker never starts a paragraph). A marker in or right after a code block goes on the last line of text before that block, past any rule or heading underline: inside the block it would be code, on the closing fence line it would keep the block open, and on a line of its own it reads as a lone number. With no text before the block it does take its own line, after the block or, if the block is still open, before it. `scanFences` reads fences a line at a time: only the same character, at least as long, at most 3 spaces deeper, with nothing after it closes a block, and a block ends with the quote or list item it opened on. It builds no document tree, so an odd shape can still read differently from CommonMark (9 of 41 adversarial inputs), but it agrees with a parser on every line of the index and the recorded answers. A marker also escapes a `!` or a `\` right before it: `![1](#cite-1)` would be an image, and `\[` no link at all. The renderer turns them into buttons named after their source.
 
 - **GFM adds tables, and no way around these rules.** Claude often answers with a table, so `remark-gfm` is on. Task lists render as text, so an answer adds no form controls. Only two tildes strike through, because `singleTilde` would catch version ranges like `~5.0`. Autolinks follow the http(s) rule.
 - **Tables and code blocks scroll in their own box** (`ScrollRegion`), so the page does not: a focusable group with a name, the table's taken from its column headers. The arrow keys scroll it, and axe's scrollable-region rule accepts it. It is a group rather than a region, so several in one answer do not each add a landmark.
@@ -112,8 +112,8 @@ Play functions cover the conditions in section 6:
 - a new question stopping one still streaming, which stays in the chat as it was, with nothing more reaching it;
 - the inspector opening on demand, with focus going in and coming back;
 - the toggle calling `search` and never `ask`, with a spy, and a search beside a streaming answer leaving that answer alone;
-- a search result arriving late, after a newer search, a citation or a new question, and changing nothing;
-- nothing spent by accident: Enter on a doc type or during composition, and a double click on Send;
+- a search result arriving late, after a newer search, a citation or a new question, and changing nothing; and an aborted search rejecting, as a real fetch does, with no error shown;
+- nothing spent by accident: Enter on a doc type or during composition, a double click on Send or Stop, and leaving the page, which stops the stream;
 - ten lines in the input, and a Tab walk through a long answer with no stop hidden behind it (`InputNeverCoversFocus`);
 - the status texts, and Stop;
 - reflow at a real 320 by 256 viewport (`Reflow320`): in the empty state, with the panel closed, and on each tab with it open, it walks every element and fails on anything past the page edge, or any sideways scroller but a table's or code block's box. It also checks that a table and a code block really overflow there, so axe's scrollable-region rule has something to check.
@@ -123,7 +123,7 @@ Play functions cover the conditions in section 6:
 Stories replay recorded fixtures with no network:
 - three real traces from `drl search --json` (`satisfies`, TS2345, ts-0004) and a vector-only trace;
 - four recorded answer streams: the `satisfies` answer ($0.0171), one with a table with cited cells and two code blocks ($0.0238), and two with long and fenced excerpts for the sources ($0.0234, $0.0248);
-- one derived answer stream, the only fixture that is not verbatim, and its file name says so: `answer-first-citation-moved-after-code.derived.ndjson`, a real answer about `--strict` ($0.0185) with its first `citations` event moved from index 18 to right after the text that closes its code block. That shape depends on how Claude splits citation blocks. It happened in a live run, but five recording attempts did not reproduce it;
+- one derived answer stream, the only fixture whose events are not in the order Claude sent them, and its file name says so: `answer-first-citation-moved-after-code.derived.ndjson`, a real answer about `--strict` ($0.0185) with its first `citations` event moved from index 18 to right after the text that closes its code block. That shape depends on how Claude splits citation blocks. It happened in a live run, but five recording attempts did not reproduce it;
 - one document's chunks.
 
 Every excerpt of the docs in them is cut to 300 characters (NOTICE: short excerpts).
@@ -179,16 +179,16 @@ Trying the app showed that it read like an admin panel. It serves someone asking
 **The bugs:**
 - **One numbering, the citation's.** Rows for a cited chunk carry a "Source N" badge in all four tabs, and the button says "Show in the inspector". The context rank stays as plain text in the Context tab, where it means something else. The Document tab says "in the context", with no number.
 - **Parts.** Sections that split gave their chunks identical labels, and so did two sections with one heading path, which are numbered together. `CHUNKER_VERSION` 4 records `part` (ADR-0004), `TRACE_VERSION` 3 carries it, and `chunkLabel` in contracts is the one wording, for the title sent to Claude, the CLI and ui. Titles are not searched, so rankings cannot change, and 20 of 20 M2 searches came back identical.
-- **Excerpts render as markdown,** with the same renderer as the answer. Their headings render as bold text, so they do not join the page's outline. `excerptPreview` keeps up to 5 lines of text and 260 characters. It closes a code block it cuts through with the opener's indent, leaves out an empty code box, and cuts a long line at a word, backing up to before a link or emphasis it would leave open. Over the index's 8,115 rendered blocks, no preview shows a raw bracket or bold, an empty code box or an open fence.
+- **Excerpts render as markdown,** with the same renderer as the answer. Their headings render as bold text, so they do not join the page's outline. `excerptPreview` keeps up to 5 lines of text and 260 characters. It closes a code block it cuts through with the opener's indent, leaves out an empty code box, keeps a table's first two rows whole or stops before the table, and cuts a long line at a word, backing up to before a link, image or emphasis it would leave open. Over the index's 8,115 rendered blocks, no preview shows a raw bracket or bold, an empty code box or an open fence, and all 17 tables stay tables.
 
 **What a citation needs goes through context,** not into react-markdown's component map. A new map remounted the whole answer on every new callback or citation, which took focus off a citation. The map is now constant.
 
-**Parsing is memoized on the text.** Earlier answers stay on the page, and the page renders on every delta of the newest one. Without this, a stream event cost 50 ms at the sixteenth question in a dev build, with 27 long tasks. It now costs 7.8 ms, with none.
+**Parsing is memoized on the text.** Earlier answers stay on the page, and the page renders on every delta of the newest one. Without this, a stream event cost 50 ms at the sixteenth question in a dev build, with 27 long tasks. It now costs under 10 ms, with at most one.
 
 ## Consequences
 
 - One code path serves the CLI and the app. The routes add only parsing, status codes and the stream.
-- The ui test task takes about 18s with Chromium, and it needs the browser installed once. The Stop hook runs it whenever ui changes.
+- The ui test task takes about 19s with Chromium, and it needs the browser installed once. The Stop hook runs it whenever ui changes.
 - The ui's post-edit check is the slowest in the repository: 8.4-8.5s on a forced cache miss, just over the 8s budget of ADR-0002. Its own runs during this PR had a median of 4.5s. See ADR-0002.
 - A new docs app (react-docs in M6) is a `rag.config.ts`, a page and three one-line routes.
 - Every new ui state needs a story. axe then checks it in both colour schemes with no further work.
