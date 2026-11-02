@@ -97,6 +97,29 @@ afterEach(() => {
 })
 
 describe('syncSource', { timeout: 60_000 }, () => {
+  it('indexes a pinned commit instead of the head of the branch, and records it', async () => {
+    const provider = new RecordingProvider()
+    const pinned = await commit('initial')
+    write('docs/a.md', docA('echo'))
+    await commit('edit A')
+    const { index, cache } = indexes()
+
+    const report = await syncSource({
+      source,
+      provider,
+      index,
+      cache,
+      checkoutDir,
+      meter: new UsageMeter(),
+      at: pinned,
+    })
+
+    expect(report.headSha).toBe(pinned)
+    expect(index.getManifest()?.commitSha).toBe(pinned)
+    expect(provider.embedded.join(' ')).toContain('delta')
+    expect(provider.embedded.join(' ')).not.toContain('echo')
+  })
+
   it('re-embeds only new and changed chunks on an incremental sync', async () => {
     const provider = new RecordingProvider()
     await commit('initial')

@@ -13,6 +13,8 @@ export interface SyncRepoOptions {
   previousSha?: string | undefined
   /** Skip the diff and report a full build. */
   full?: boolean | undefined
+  /** Check out this commit instead of the head of the branch. A full SHA: git fetches it by name. */
+  at?: string | undefined
 }
 
 export type SyncRepoResult =
@@ -66,9 +68,14 @@ async function originOf(checkoutDir: string): Promise<string | undefined> {
   }
 }
 
-async function cloneOrUpdate(source: Source, checkoutDir: string): Promise<void> {
+async function cloneOrUpdate(
+  source: Source,
+  checkoutDir: string,
+  at: string | undefined,
+): Promise<void> {
   const origin = await originOf(checkoutDir)
-  if (origin !== source.repo) {
+  const cloned = origin !== source.repo
+  if (cloned) {
     // No checkout yet, or one of another repository: start from a fresh clone.
     rmSync(checkoutDir, { recursive: true, force: true })
     mkdirSync(dirname(checkoutDir), { recursive: true })
@@ -89,8 +96,12 @@ async function cloneOrUpdate(source: Source, checkoutDir: string): Promise<void>
       source.repo,
       checkoutDir,
     ])
-  } else {
-    await git(['fetch', '--quiet', '--depth', '1', 'origin', source.branch], { cwd: checkoutDir })
+  }
+  // A fresh clone already has the head of the branch.
+  if (!cloned || at !== undefined) {
+    await git(['fetch', '--quiet', '--depth', '1', 'origin', at ?? source.branch], {
+      cwd: checkoutDir,
+    })
     await git(['checkout', '--quiet', '--force', '--detach', 'FETCH_HEAD'], { cwd: checkoutDir })
   }
   // Re-applied every time, so a changed include list takes effect.
@@ -98,13 +109,14 @@ async function cloneOrUpdate(source: Source, checkoutDir: string): Promise<void>
 }
 
 /**
- * Brings the checkout to the head of the source branch and reports what
- * changed since `previousSha`: the changed and deleted files under the include
- * paths that `source.match` accepts, or a full build with the reason.
+ * Brings the checkout to the head of the source branch, or to the commit named
+ * by `at`, and reports what changed since `previousSha`: the changed and deleted
+ * files under the include paths that `source.match` accepts, or a full build
+ * with the reason.
  */
 export async function syncRepo(source: Source, options: SyncRepoOptions): Promise<SyncRepoResult> {
   const { checkoutDir, previousSha } = options
-  await cloneOrUpdate(source, checkoutDir)
+  await cloneOrUpdate(source, checkoutDir, options.at)
   const headSha = (await git(['rev-parse', 'HEAD'], { cwd: checkoutDir })).trim()
 
   if (options.full === true) return { headSha, mode: 'full', reason: 'requested' }

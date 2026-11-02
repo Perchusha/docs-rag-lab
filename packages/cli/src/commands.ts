@@ -68,7 +68,7 @@ function embeddingsFor(settings: Settings) {
 
 export async function syncCommand(
   ctx: CommandContext,
-  args: { source: string; full: boolean },
+  args: { source: string; full: boolean; at: string | undefined },
 ): Promise<void> {
   const { settings, out } = ctx
   const source = findSource(ctx.sources, args.source)
@@ -87,6 +87,7 @@ export async function syncCommand(
       meter: ctx.meter,
       limiter,
       full: args.full,
+      at: args.at,
       onProgress: (event) => {
         const elapsed = ctx.now() - start
         if (event.phase === 'git') out.write(`${event.message}\n`)

@@ -34,6 +34,7 @@ export const USAGE = `Usage: drl <command> [options]
 
 Commands:
   sync <source> [--full]      Sync, parse, chunk and embed a source (incremental by default)
+      [--at <sha>]            Index this commit (a full SHA) instead of the head of the branch
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -88,6 +89,14 @@ function positiveInteger(
   return n
 }
 
+/** git fetches a commit by its full name only; a short SHA would fail with a less useful message. */
+function commitOf(value: string | undefined): string | undefined {
+  if (value !== undefined && !/^[0-9a-f]{40}$/.test(value)) {
+    throw new CliError(`--at must be a full 40-character commit SHA, got "${value}"`)
+  }
+  return value
+}
+
 function strategyOf(value: string | undefined, fallback: Strategy): Strategy {
   if (value === undefined) return fallback
   const strategy = STRATEGIES.find((s) => s === value)
@@ -137,6 +146,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       strict: true,
       options: {
         full: { type: 'boolean', default: false },
+        at: { type: 'string' },
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
@@ -164,6 +174,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --json works only with search\n\n${USAGE}`)
     return 2
   }
+  if (values.at !== undefined && command !== 'sync') {
+    err.write(`drl: --at works only with sync\n\n${USAGE}`)
+    return 2
+  }
 
   const meter = new UsageMeter()
   const start = now()
@@ -176,7 +190,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const source = rest[0]
       if (source === undefined)
         throw new CliError('sync needs a source id, for example: drl sync typescript')
-      await syncCommand(ctx, { source, full: values.full })
+      await syncCommand(ctx, { source, full: values.full, at: commitOf(values.at) })
     } else if (command === 'ask' || command === 'search') {
       const question = rest.join(' ').trim()
       if (question === '') {

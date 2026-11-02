@@ -260,6 +260,28 @@ describe('run', () => {
     expect(err.text()).not.toContain('k value in knn query')
   })
 
+  it('accepts --at only with sync, and only as a full commit SHA, before calling any API', async () => {
+    const err = capture()
+    expect(
+      await run(['search', 'q', '--at', 'a'.repeat(40)], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(2)
+    expect(err.text()).toContain('--at works only with sync')
+
+    expect(
+      await run(['sync', 'typescript', '--at', '205122bb'], {
+        out: capture().writer,
+        err: err.writer,
+        root,
+      }),
+    ).toBe(1)
+    expect(err.text()).toContain('--at must be a full 40-character commit SHA, got "205122bb"')
+    expect(err.text()).not.toContain('VOYAGE_API_KEY')
+  })
+
   it('accepts --json only with search', async () => {
     const err = capture()
     expect(
