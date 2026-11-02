@@ -8,4 +8,6 @@ pnpm-lock.yaml
 .turbo/
 .next/
 dist/
+storybook-static/
+next-env.d.ts
 coverage/

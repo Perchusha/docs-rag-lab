@@ -170,9 +170,15 @@ module.exports = {
   options: {
     // npm packages stay in the graph, so rules can see them, but are not followed.
     doNotFollow: { path: 'node_modules' },
-    // Fixture and generated folders. Not node_modules or dist/: excluding those
+    // Fixture and generated folders and files (next-env.d.ts is written by Next.js
+    // and holds only type references). Not node_modules or dist/: excluding those
     // dropped every npm package from the graph (packages have no build step, ADR-0001).
-    exclude: { path: '(^|/)(__fixtures__|\\.next|\\.turbo|coverage)/' },
+    exclude: {
+      path: [
+        '(^|/)(__fixtures__|\\.next|\\.turbo|coverage|storybook-static)/',
+        '(^|/)next-env\\.d\\.ts$',
+      ],
+    },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {
       exportsFields: ['exports'],

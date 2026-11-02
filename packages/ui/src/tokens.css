@@ -1,0 +1,106 @@
+/*
+ * Design tokens for every ui component: colours, spacing, radii and fonts.
+ * Components read these custom properties from their CSS Modules and never
+ * hard-code a value. Light and dark follow the system setting
+ * (prefers-color-scheme). Text colours meet WCAG AA (4.5:1) on every
+ * background they are used on; the story tests check that with axe in both
+ * schemes.
+ *
+ * The accent comes from the app (rag.config.ts): DocsAssistant sets
+ * --accent-light and --accent-dark on its root, which carries data-drl-theme.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --leading: 1.55;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-1: 4px;
+  --radius-2: 8px;
+  --radius-pill: 999px;
+
+  --color-bg: #ffffff;
+  --color-surface: #f6f8fa;
+  --color-surface-strong: #eaeef2;
+  --color-border: #d1d9e0;
+  --color-border-strong: #818b98;
+  --color-text: #1f2328;
+  --color-text-muted: #59636e;
+  --color-danger: #b42318;
+  --color-danger-surface: #fff1f0;
+  --color-success: #1a7f37;
+  --color-highlight: #fff8c5;
+
+  /* The three retrieval lists. The two BM25 lists share one hue in two
+     shades, so a chunk BM25 counts twice shows two bars of the same colour. */
+  --color-list-vector: #8250df;
+  --color-list-keyword: #a04100;
+  --color-list-exact: #f0883e;
+}
+
+:root,
+[data-drl-theme] {
+  --color-accent: var(--accent-light, #235a97);
+  --color-on-accent: #ffffff;
+  --color-focus: var(--color-accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0d1117;
+    --color-surface: #151b23;
+    --color-surface-strong: #212830;
+    --color-border: #3d444d;
+    --color-border-strong: #656c76;
+    --color-text: #e6edf3;
+    --color-text-muted: #9198a1;
+    --color-danger: #ff8182;
+    --color-danger-surface: #2d1214;
+    --color-success: #3fb950;
+    --color-highlight: #3b2e00;
+
+    --color-list-vector: #a371f7;
+    --color-list-keyword: #db6d28;
+    --color-list-exact: #ffb77c;
+  }
+
+  :root,
+  [data-drl-theme] {
+    --color-accent: var(--accent-dark, #79b8ff);
+    --color-on-accent: #0d1117;
+  }
+}
+
+/* One visible focus style for every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* No motion for people who asked for none: spinners, pulses and smooth
+   scrolling all stop. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

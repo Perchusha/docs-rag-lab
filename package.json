@@ -9,9 +9,11 @@
   },
   "scripts": {
     "depcruise": "depcruise apps packages tooling --config .dependency-cruiser.cjs --output-type err-long",
+    "dev": "pnpm --filter @docs-rag-lab/ts-docs dev",
     "drl": "node packages/cli/src/bin.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check . && node tooling/repo-checks/src/no-em-dash.ts",
+    "storybook": "pnpm --filter @docs-rag-lab/ui storybook",
     "test:network": "pnpm --filter @docs-rag-lab/cli run test:network"
   },
   "devDependencies": {

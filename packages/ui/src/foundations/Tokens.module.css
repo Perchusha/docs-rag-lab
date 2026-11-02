@@ -1,0 +1,31 @@
+.page {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  padding: var(--space-5);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.swatch {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.name {
+  font-family: var(--font-mono);
+}
+
+.bar {
+  height: var(--space-3);
+  border-radius: var(--radius-1);
+  margin-top: var(--space-2);
+}

@@ -26,3 +26,11 @@ export {
   type UsageSummary,
 } from './answer.ts'
 export type { DocumentChunk, DocumentChunks } from './document.ts'
+export {
+  encodeEvent,
+  EventDecoder,
+  NDJSON_CONTENT_TYPE,
+  parseEvent,
+  StreamFormatError,
+} from './ndjson.ts'
+export { MAX_QUESTION_LENGTH, parseRetrievalRequest, type Parsed } from './requests.ts'

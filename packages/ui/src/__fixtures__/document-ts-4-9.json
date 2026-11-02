@@ -1,0 +1,253 @@
+{
+  "sourceId": "typescript",
+  "path": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md",
+  "url": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html",
+  "title": "TypeScript 4.9",
+  "docType": "release-notes",
+  "chunks": [
+    {
+      "chunkId": "508c72073790efc407c9498f",
+      "ordinal": 0,
+      "headingPath": [
+        "The satisfies Operator"
+      ],
+      "sectionPath": [
+        "The satisfies Operator"
+      ],
+      "anchor": "the-satisfies-operator",
+      "tokenCount": 438,
+      "text": "TypeScript 4.9 > The satisfies Operator\n\nTypeScript developers are often faced with a dilemma: we want to ensure that some expression *matches* some type, but also want to keep the *most specific* type of that expression for inference purposes.\n\nFor example:\n\n```ts\n// Each property can be a strin...",
+      "spans": [
+        [
+          41,
+          244
+        ],
+        [
+          246,
+          258
+        ],
+        [
+          260,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "2aaa3b8b4d27cbbb97871b3c",
+      "ordinal": 1,
+      "headingPath": [
+        "The satisfies Operator"
+      ],
+      "sectionPath": [
+        "The satisfies Operator"
+      ],
+      "anchor": "the-satisfies-operator",
+      "tokenCount": 542,
+      "text": "TypeScript 4.9 > The satisfies Operator\n\n```ts\ntype Colors = \"red\" | \"green\" | \"blue\";\n\ntype RGB = [red: number, green: number, blue: number];\n\nconst palette = {\n    red: [255, 0, 0],\n    green: \"#00ff00\",\n    bleu: [0, 0, 255]\n//  ~~~~ The typo is now caught!\n} satisfies Record<Colors, string | ...",
+      "spans": [
+        [
+          41,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "f0cb5425e02c4530858a132e",
+      "ordinal": 2,
+      "headingPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "sectionPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "anchor": "unlisted-property-narrowing-with-the-in-operator",
+      "tokenCount": 670,
+      "text": "TypeScript 4.9 > Unlisted Property Narrowing with the in Operator\n\nAs developers, we often need to deal with values that aren't fully known at runtime.\nIn fact, we often don't know if properties exist, whether we're getting a response from a server or reading a configuration file.\nJavaScript's `i...",
+      "spans": [
+        [
+          67,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "7f77ac65832258a484f0f186",
+      "ordinal": 3,
+      "headingPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "sectionPath": [
+        "Unlisted Property Narrowing with the in Operator"
+      ],
+      "anchor": "unlisted-property-narrowing-with-the-in-operator",
+      "tokenCount": 484,
+      "text": "TypeScript 4.9 > Unlisted Property Narrowing with the in Operator\n\nThis is because while the type of `packageJSON` was narrowed from `unknown` to `object`, the `in` operator strictly narrowed to types that actually defined the property being checked.\nAs a result, the type of `packageJSON` remaine...",
+      "spans": [
+        [
+          67,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "fa7c9ebff4973c08eb0552f2",
+      "ordinal": 4,
+      "headingPath": [],
+      "sectionPath": [
+        "Auto-Accessors in Classes"
+      ],
+      "anchor": "auto-accessors-in-classes",
+      "tokenCount": 784,
+      "text": "TypeScript 4.9\n\n## Auto-Accessors in Classes\n\nTypeScript 4.9 supports an upcoming feature in ECMAScript called auto-accessors.\nAuto-accessors are declared just like properties on classes, except that they're declared with the `accessor` keyword.\n\n```ts\nclass Person {\n    accessor name: string;\n\n ...",
+      "spans": [
+        [
+          16,
+          245
+        ],
+        [
+          247,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "054da187ab56246cbcc1799f",
+      "ordinal": 5,
+      "headingPath": [
+        "File-Watching Now Uses File System Events"
+      ],
+      "sectionPath": [
+        "File-Watching Now Uses File System Events"
+      ],
+      "anchor": "file-watching-now-uses-file-system-events",
+      "tokenCount": 550,
+      "text": "TypeScript 4.9 > File-Watching Now Uses File System Events\n\nIn earlier versions, TypeScript leaned heavily on *polling* for watching individual files.\nUsing a polling strategy meant checking the state of a file periodically for updates.\nOn Node.js, [`fs.watchFile`](https://nodejs.org/docs/latest-...",
+      "spans": [
+        [
+          60,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "a3243c91b5888ed2160e2cd5",
+      "ordinal": 6,
+      "headingPath": [
+        "File-Watching Now Uses File System Events"
+      ],
+      "sectionPath": [
+        "File-Watching Now Uses File System Events"
+      ],
+      "anchor": "file-watching-now-uses-file-system-events",
+      "tokenCount": 544,
+      "text": "TypeScript 4.9 > File-Watching Now Uses File System Events\n\nAs a result, our default was to pick the lowest common denominator: polling.\nNot always, but most of the time.\n\nOver time, we've provided the means to [choose other file-watching strategies](https://www.typescriptlang.org/docs/handbook/c...",
+      "spans": [
+        [
+          60,
+          170
+        ],
+        [
+          172,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "7e0f8237fcc94ce1b54ed134",
+      "ordinal": 7,
+      "headingPath": [],
+      "sectionPath": [
+        "\"Remove Unused Imports\" and \"Sort Imports\" Commands for Editors"
+      ],
+      "anchor": "remove-unused-imports-and-sort-imports-commands-for-editors",
+      "tokenCount": 731,
+      "text": "TypeScript 4.9\n\n## \"Remove Unused Imports\" and \"Sort Imports\" Commands for Editors\n\nPreviously, TypeScript only supported two editor commands to manage imports.\nFor our examples, take the following code:\n\n```ts\nimport { Zebra, Moose, HoneyBadger } from \"./zoo\";\nimport { foo, bar } from \"./helper\"...",
+      "spans": [
+        [
+          16,
+          203
+        ],
+        [
+          205,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "6ba511ad2b17edd5c91a1f33",
+      "ordinal": 8,
+      "headingPath": [
+        "Performance Improvements"
+      ],
+      "sectionPath": [
+        "Performance Improvements"
+      ],
+      "anchor": "performance-improvements",
+      "tokenCount": 740,
+      "text": "TypeScript 4.9 > Performance Improvements\n\nTypeScript has a few small, but notable, performance improvements.\n\nFirst, TypeScript's `forEachChild` function has been rewritten to use a function table lookup instead of a `switch` statement across all syntax nodes.\n`forEachChild` is a workhorse for t...",
+      "spans": [
+        [
+          43,
+          109
+        ],
+        [
+          111,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "37221569e314c5432e323635",
+      "ordinal": 9,
+      "headingPath": [
+        "Correctness Fixes and Breaking Changes"
+      ],
+      "sectionPath": [
+        "Correctness Fixes and Breaking Changes"
+      ],
+      "anchor": "correctness-fixes-and-breaking-changes",
+      "tokenCount": 752,
+      "text": "TypeScript 4.9 > Correctness Fixes and Breaking Changes\n\n### lib.d.ts Updates\n\nWhile TypeScript strives to avoid major breaks, even small changes in the built-in libraries can cause issues.\nWe don't expect major breaks as a result of DOM and `lib.d.ts` updates, but there may be some small ones.\n\n...",
+      "spans": [
+        [
+          57,
+          295
+        ],
+        [
+          297,
+          300
+        ]
+      ],
+      "context": null
+    },
+    {
+      "chunkId": "53342dbdba2697e5a7205e84",
+      "ordinal": 10,
+      "headingPath": [
+        "substitute Replaced With constraint on SubstitutionTypes"
+      ],
+      "sectionPath": [
+        "substitute Replaced With constraint on SubstitutionTypes"
+      ],
+      "anchor": "substitute-replaced-with-constraint-on-substitutiontypes",
+      "tokenCount": 136,
+      "text": "TypeScript 4.9 > substitute Replaced With constraint on SubstitutionTypes\n\nAs part of an optimization on substitution types, `SubstitutionType` objects no longer contain the `substitute` property representing the effective substitution (usually an intersection of the base type and the implicit co...",
+      "spans": [
+        [
+          75,
+          300
+        ]
+      ],
+      "context": null
+    }
+  ]
+}

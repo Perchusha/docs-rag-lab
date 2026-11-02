@@ -1,0 +1,8 @@
+/* The page the app gives its components: background, text colour and font
+   from the tokens, so the dark stories are dark and axe checks real pairs. */
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: var(--leading);
+}

@@ -1,4 +1,7 @@
 {
   "extends": "@docs-rag-lab/config/tsconfig/react.json",
-  "include": ["src"]
+  "compilerOptions": {
+    "types": ["vite/client"]
+  },
+  "include": ["src", ".storybook/*.ts", "vitest.config.ts"]
 }

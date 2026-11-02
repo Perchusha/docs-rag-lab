@@ -10,14 +10,15 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M3 - ts-docs app (see SPEC.md section 13). M0, M1 and M2 are done. Update this line when a milestone is done.
+M4 - Eval harness (see SPEC.md section 13). M0 to M3 are done. Update this line when a milestone is done.
 
 ## Commands
 
 Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not been run successfully.
 
 - Install: `pnpm install`
-- All checks, as CI runs them: `pnpm format:check` and `pnpm turbo run lint typecheck test`
+- All checks, as CI runs them: `pnpm format:check` and `pnpm turbo run lint typecheck test build` (`build` is the app's `next build`)
+- Once per machine, for the ui story tests: `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium`
 - One package: `pnpm turbo run test --filter=@docs-rag-lab/core` (also works with `lint` and `typecheck`)
 - Changed packages and their dependents: `pnpm turbo run test "--filter=...[HEAD]"`
 - Typecheck every commit of the branch: `git rebase --exec "pnpm install --frozen-lockfile --offline && pnpm turbo run typecheck" $(git merge-base HEAD origin/main)` (needs a clean tree; it replays the commits on their own base, so nothing is rewritten, and stops at the first commit that fails: fix it, `git commit --amend`, then `git rebase --continue`, or `git rebase --abort` to give up)
@@ -28,8 +29,10 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
+- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; Search only makes no Claude call)
+- Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
-`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. There is no app dev server until M3.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.
 
 ## Hooks
 

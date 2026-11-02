@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
+  "globalPassThroughEnv": ["NEXT_TELEMETRY_DISABLED"],
   "tasks": {
     "transit": {
       "dependsOn": ["^transit"]
@@ -16,6 +17,10 @@
     },
     "test": {
       "dependsOn": ["transit", "//#depcruise"]
+    },
+    "build": {
+      "dependsOn": ["transit"],
+      "outputs": [".next/**", "!.next/cache/**"]
     }
   }
 }
