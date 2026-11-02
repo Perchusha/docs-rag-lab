@@ -123,10 +123,15 @@ export function Composer({
           className={running ? styles.stop : styles.send}
           aria-label={running ? 'Stop' : 'Send'}
           onClick={(event) => {
+            // The button changes role under the pointer. The second click of a double
+            // click must not stop what the first sent, or send what is half written.
+            if (event.detail > 1) {
+              event.preventDefault()
+              return
+            }
             if (!running) return
             event.preventDefault()
-            // The second click of a double click on Send must not stop what the first sent.
-            if (event.detail <= 1) onStop()
+            onStop()
           }}
         >
           <span aria-hidden="true">{running ? '■' : '↑'}</span>

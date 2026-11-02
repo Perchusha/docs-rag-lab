@@ -89,6 +89,8 @@ export interface ReplayOptions {
   onRequest?: (kind: 'ask' | 'search', request: RetrievalRequest) => void
   /** Called when an ask() ends, with whether its signal had aborted by then. */
   onAskEnd?: (outcome: 'finished' | 'aborted') => void
+  /** The same for a search(). */
+  onSearchEnd?: (outcome: 'finished' | 'aborted') => void
 }
 
 function abortable(wait: Promise<void>, signal: AbortSignal): Promise<void> {
@@ -137,7 +139,11 @@ export function replayTransport(options: ReplayOptions): Transport {
       const own =
         request.strategy === undefined ? undefined : options.searchGates?.[request.strategy]
       const step = (own ?? searchGate)?.pass() ?? sleep(delayMs)
-      await (options.ignoresAbort === true ? step : abortable(step, signal))
+      try {
+        await (options.ignoresAbort === true ? step : abortable(step, signal))
+      } finally {
+        options.onSearchEnd?.(signal.aborted ? 'aborted' : 'finished')
+      }
       const failure = options.failure ?? options.searchFailure
       if (failure !== undefined) throw new Error(failure)
       const found =

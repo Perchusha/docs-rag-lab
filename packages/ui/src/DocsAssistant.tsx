@@ -84,10 +84,12 @@ export function DocsAssistant(props: DocsAssistantProps) {
   }
 
   // A new question comes into view; the answer then grows below it at its own pace.
+  // A panel stacked below has no height until the trace arrives, so that scrolls again.
   const count = exchanges.length
+  const traced = latest?.state.trace !== undefined
   useEffect(() => {
     if (count > 0) latestAnswer.current?.scrollIntoView({ block: 'start' })
-  }, [count])
+  }, [count, traced])
 
   // The input's real height, which grows with its text: the page keeps that much
   // clear when it scrolls something into view (tokens.css).

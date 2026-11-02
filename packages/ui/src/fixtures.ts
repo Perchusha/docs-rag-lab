@@ -75,8 +75,9 @@ export const satisfiesHowFixture = answer(satisfiesHowNdjson)
 export const varianceFixture = answer(varianceNdjson)
 
 /**
- * NOT a verbatim recording, unlike the others here. NDJSON has no comments, so this
- * one says what changed: a real answer about `--strict`, with one event moved.
+ * The one fixture whose events are not in the order Claude sent them. NDJSON has no
+ * comments, so this says what changed: a real answer about `--strict`, with one event
+ * moved. Like the others, it also has the current trace shape and cut excerpts.
  *
  * Which: its first `citations` event (source 1), from index 18, after the text
  * "...so you can still control them individually.", to index 8, right after the text

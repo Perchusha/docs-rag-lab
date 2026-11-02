@@ -51,7 +51,7 @@ function statusLine(props: InspectorPanelProps): string {
   if (props.searching) return 'Searching the docs, with no Claude call.'
   if (props.error !== undefined) {
     const shown = trace === undefined ? '' : ' The trace below is still the earlier one.'
-    return `Error: ${props.error}.${shown}`
+    return `Error: ${props.error.replace(/\.$/, '')}.${shown}`
   }
   if (trace === undefined) return ''
   if (trace !== answerTrace) {

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { useState, type ComponentProps } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { DocsAssistant } from './DocsAssistant.tsx'
@@ -145,6 +146,36 @@ export const DoubleClickOnSend: Story = {
     doubleGate.open()
     await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
     await expect(onDoubleAskEnd).toHaveBeenCalledWith('finished')
+  },
+}
+
+const stoppedTwiceGate = replayGate()
+const onStoppedTwiceRequest = fn()
+
+/** Stop becomes Send under the pointer, and the second click must not send what is half written. */
+export const DoubleClickOnStop: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      gate: stoppedTwiceGate,
+      onRequest: onStoppedTwiceRequest,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    stoppedTwiceGate.reset()
+    onStoppedTwiceRequest.mockClear()
+    const canvas = within(canvasElement)
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    await userEvent.click(input)
+    await userEvent.keyboard(`${question}{Enter}`)
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Stop' })).toBeVisible())
+    await userEvent.type(input, 'A half written follow-up')
+
+    await userEvent.dblClick(canvas.getByRole('button', { name: 'Stop' }))
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Send' })).toBeVisible())
+    await expect(canvas.getByRole('article')).toHaveTextContent('Stopped.')
+    await expect(onStoppedTwiceRequest).toHaveBeenCalledOnce()
+    await expect(input).toHaveValue('A half written follow-up')
   },
 }
 
@@ -556,6 +587,109 @@ export const NewerSearchReplacesOlder: Story = {
   },
 }
 
+const rejectedOlder = replayGate()
+const rejectedNewer = replayGate()
+
+/** A real fetch rejects when it is aborted, and that is not an error to show. */
+export const AbortedSearchShowsNoError: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { hybrid: traces.ts2345, vector: traces.satisfiesVector },
+      searchGates: { vector: rejectedOlder, hybrid: rejectedNewer },
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    rejectedOlder.reset()
+    rejectedNewer.reset()
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    const status = panel.getByRole('status')
+
+    await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+    await userEvent.click(panel.getByRole('radio', { name: 'Hybrid' }))
+    await landed()
+    await expect(status).toHaveTextContent('Searching the docs')
+
+    rejectedNewer.open()
+    await waitFor(() => expect(status).toHaveTextContent('Showing a fresh hybrid search'))
+
+    // A citation drops a search still running the same way.
+    rejectedNewer.reset()
+    await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+    const [marker] = canvas.getAllByRole('button', { name: /^Source 1: / })
+    await userEvent.click(marker ?? canvasElement)
+    await landed()
+    await expect(status).not.toHaveTextContent('Error')
+  },
+}
+
+const leftGate = replayGate()
+const leftSearchGate = replayGate()
+const onLeftAskEnd = fn()
+const onLeftSearchEnd = fn()
+
+/** The assistant with a way to take it off the page, as leaving does. */
+function Leaving(props: ComponentProps<typeof DocsAssistant>) {
+  const [here, setHere] = useState(true)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setHere(false)
+        }}
+      >
+        Leave
+      </button>
+      {here && <DocsAssistant {...props} />}
+    </>
+  )
+}
+
+/** Leaving the page stops the Claude stream, so it spends no more tokens, and any search. */
+export const LeavingStopsWhatRuns: Story = {
+  render: (args) => <Leaving {...args} />,
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { vector: traces.satisfiesVector },
+      gate: leftGate,
+      searchGate: leftSearchGate,
+      onAskEnd: onLeftAskEnd,
+      onSearchEnd: onLeftSearchEnd,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    leftGate.reset()
+    leftSearchGate.reset()
+    onLeftAskEnd.mockClear()
+    onLeftSearchEnd.mockClear()
+    const canvas = within(canvasElement)
+    leftGate.open()
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    await expect(onLeftAskEnd).toHaveBeenCalledWith('finished')
+
+    // A second answer held mid-stream, and a search held beside it.
+    leftGate.reset()
+    await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
+    await userEvent.keyboard('A second question{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('article')).toHaveLength(2))
+    await userEvent.click(within(panelOf(canvasElement)).getByRole('radio', { name: 'Vector' }))
+    await expect(onLeftSearchEnd).not.toHaveBeenCalled()
+    onLeftAskEnd.mockClear()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Leave' }))
+    await waitFor(() => expect(onLeftAskEnd).toHaveBeenCalledWith('aborted'))
+    await waitFor(() => expect(onLeftSearchEnd).toHaveBeenCalledWith('aborted'))
+  },
+}
+
 const citedSearch = replayGate()
 
 /** A citation goes back to the answer's own trace, and a search still running stays out of it. */
@@ -790,6 +924,45 @@ export const NewQuestionComesIntoView: Story = {
   },
 }
 
+const stackedGate = replayGate()
+
+/** With the panel stacked, the page has no room until the trace fills it, so it scrolls again then. */
+export const NewQuestionAboveStackedPanel: Story = {
+  parameters: {
+    viewport: {
+      options: {
+        stacked: {
+          name: '800 CSS px',
+          type: 'tablet',
+          styles: { width: '800px', height: '600px' },
+        },
+      },
+    },
+  },
+  globals: { viewport: { value: 'stacked' } },
+  args: { transport: replayTransport({ events: answerFixture.events, gate: stackedGate }) },
+  play: async ({ canvasElement }) => {
+    stackedGate.reset()
+    stackedGate.open()
+    const canvas = within(canvasElement)
+    await expect(window.innerWidth).toBe(800)
+    await askAndWait(canvasElement, 'First question')
+    await userEvent.click(canvas.getByRole('button', HOW))
+
+    stackedGate.reset()
+    await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
+    await userEvent.keyboard('Second question{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('article')).toHaveLength(2))
+    stackedGate.release(1)
+    await waitFor(() =>
+      expect(panelOf(canvasElement).querySelector('[role="tablist"]')).not.toBeNull(),
+    )
+    const heading = canvas.getByRole('heading', { level: 2, name: 'Second question' })
+    await waitFor(() => expect(heading.getBoundingClientRect().top).toBeLessThan(80))
+    stackedGate.open()
+  },
+}
+
 /**
  * WCAG 2.4.11: the input sticks to the bottom and grows with its text, and it never
  * covers what has focus. Tabs through a long answer with ten lines in the input.
@@ -811,8 +984,14 @@ export const InputNeverCoversFocus: Story = {
     await waitFor(() => expect(padding()).toBeGreaterThan(form.getBoundingClientRect().height))
 
     const covered: string[] = []
-    canvas.getAllByRole('link').at(0)?.focus()
+    const first = canvas
+      .getByRole('article')
+      .querySelector<HTMLElement>('a, button, [tabindex="0"]')
+    first?.focus()
+    await expect(document.activeElement).toBe(first)
+    let stops = 0
     for (let stop = 0; stop < 60 && document.activeElement !== input; stop += 1) {
+      stops += 1
       const element = document.activeElement
       if (element !== null) {
         const { top, bottom } = element.getBoundingClientRect()
@@ -823,6 +1002,8 @@ export const InputNeverCoversFocus: Story = {
       await userEvent.tab()
     }
     await expect(document.activeElement).toBe(input)
+    // Citations, the table's and the code's boxes, and the sources below them.
+    await expect(stops).toBeGreaterThan(20)
     await expect(covered).toEqual([])
   },
 }
