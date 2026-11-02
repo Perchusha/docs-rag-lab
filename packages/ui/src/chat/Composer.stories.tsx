@@ -106,6 +106,68 @@ export const SearchIn: Story = {
   },
 }
 
+/** Enter on an option toggles it. In a form it would submit, and send a half-written question. */
+export const EnterOnAnOptionDoesNotSend: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), 'Still writing')
+    canvas.getByRole('button', { name: /^Search in/ }).focus()
+    await userEvent.keyboard('{Enter}')
+    await userEvent.tab()
+    await expect(canvas.getByRole('checkbox', { name: 'Handbook' })).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith(['handbook'])
+    await expect(args.onSend).not.toHaveBeenCalled()
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveValue('Still writing')
+  },
+}
+
+/** Open, so axe checks this state too: story tests run it on the state a story ends in. */
+export const SearchInOpen: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: /^Search in/ }))
+    await expect(canvas.getByRole('group', { name: 'Search in' })).toBeVisible()
+    await expect(canvas.getByRole('checkbox', { name: 'Compiler options' })).toBeVisible()
+  },
+}
+
+/** Focus moving away closes it, either way out, so it does not sit over the input. */
+export const SearchInClosesWhenFocusLeaves: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button', { name: /^Search in/ })
+    button.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.tab({ shift: true })
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveFocus()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+
+    await userEvent.click(button)
+    for (const name of ['Handbook', 'Reference', 'Compiler options', 'Release notes', 'Other']) {
+      await userEvent.tab()
+      await expect(canvas.getByRole('checkbox', { name })).toHaveFocus()
+      await expect(button).toHaveAttribute('aria-expanded', 'true')
+    }
+    await userEvent.tab()
+    await expect(canvas.getByRole('button', { name: 'Send' })).toHaveFocus()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+  },
+}
+
+/** A press on a label takes focus off what had it, and must not close the select on the way. */
+export const SearchInStaysOpenOnALabel: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = canvas.getByRole('button', { name: /^Search in/ })
+    await userEvent.click(button)
+    await userEvent.click(canvas.getByText('Handbook'))
+    await expect(args.onFilterChange).toHaveBeenLastCalledWith(['handbook'])
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
+  },
+}
+
 /** A click elsewhere closes it too. */
 export const SearchInClosesOnOutsideClick: Story = {
   play: async ({ canvasElement }) => {

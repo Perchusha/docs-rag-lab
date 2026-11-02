@@ -32,7 +32,8 @@ export function docTypeSummary(
 /**
  * "Search in: All docs": a disclosure button over native checkboxes, which gives
  * keyboards and screen readers everything a custom listbox would have to rebuild.
- * Esc closes it and returns focus to the button; so does a click elsewhere.
+ * Esc closes it and returns focus to the button. A click elsewhere, or focus
+ * moving elsewhere, closes it too.
  */
 export function DocTypeSelect({ docTypes, labels, selected, onChange }: DocTypeSelectProps) {
   const id = useId()
@@ -62,7 +63,16 @@ export function DocTypeSelect({ docTypes, labels, selected, onChange }: DocTypeS
   }
 
   return (
-    <div className={styles.select} ref={root} onKeyDown={onKeyDown}>
+    <div
+      className={styles.select}
+      ref={root}
+      onKeyDown={onKeyDown}
+      onBlur={(event) => {
+        // No relatedTarget: a press on a label, which gives focus to its checkbox.
+        const next = event.relatedTarget
+        if (next instanceof Node && !event.currentTarget.contains(next)) setOpen(false)
+      }}
+    >
       <button
         ref={button}
         type="button"
@@ -88,6 +98,12 @@ export function DocTypeSelect({ docTypes, labels, selected, onChange }: DocTypeS
             <input
               type="checkbox"
               checked={selected.includes(docType)}
+              onKeyDown={(event) => {
+                // Enter in a form submits it, which here would send a half-written question.
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                event.currentTarget.click()
+              }}
               onChange={(event) => {
                 onChange(
                   event.target.checked
