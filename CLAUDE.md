@@ -24,7 +24,8 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Typecheck every commit of the branch: `git rebase --exec "pnpm install --frozen-lockfile --prefer-offline && pnpm turbo run typecheck" $(git merge-base HEAD origin/main)` (needs a clean tree; it replays the commits on their own base, so nothing is rewritten, and stops at the first commit that fails: fix it, `git commit --amend`, then `git rebase --continue`, or `git rebase --abort` to give up)
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
-- Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded)
+- Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch)
+- Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set)
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`

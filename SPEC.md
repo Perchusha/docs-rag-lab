@@ -111,6 +111,7 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 - The index belongs to the source, not to the app: `data/sources/<source-id>.sqlite`. Apps open the source indexes they need, so `interview-prep` reads the TS and React indexes without duplicating them.
 - App-specific state lives in its own file, for example `data/apps/interview-prep.sqlite` (progress, sessions).
 - The embedding cache is shared: `data/cache.sqlite`.
+- Eval answers and judge verdicts are cached in `data/eval-cache.sqlite`, so a rerun does not pay twice (ADR-0009).
 - `data/` and `.cache/` are gitignored.
 
 ## 5. Tech stack
@@ -141,15 +142,15 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 | `chunks` | pk, id, doc_id, ordinal, heading_path, anchor, block_types (json), text, context, metadata (json), token_count, text_hash |
 | `chunks_fts` | FTS5 table over heading_path, context, text with the trigram tokenizer; external content on `chunks`, kept in sync by triggers (ADR-0005) |
 | `chunks_vec` | sqlite-vec `vec0` virtual table with cosine distance: rowid = chunks.pk, doc_type (metadata column, for filters inside the KNN query), embedding |
-| `eval_runs` | id, commit_sha, strategy (json), models (json), created_at, metrics (json) |
-| `eval_results` | run_id, question_id, retrieved_ids (json), answer, scores (json), trace (json) |
-| `questions` | id, chunk_id, type, prompt, answer, verified_by (compiler, judge or human), commit_sha, status (active or stale) |
+| `questions` | The question bank (M8): id, chunk_id, type, prompt, answer, verified_by (compiler, judge or human), commit_sha, status (active or stale) |
+
+The index is generated and can be rebuilt, so eval results are not in it: golden sets and named reports are committed files (section 10, ADR-0009).
 
 Notes on the chunk columns:
 - `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
 - `ordinal` is the chunk's 0-based place in its document; the inspector orders chunk boundaries by it. The chunk ID uses a different number, the pack's place within its section.
 - `context` is the contextual retrieval prefix.
-- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`, `sectionPath`, the heading path of the section the chunk starts in (the one its anchor points to), and `part`, `{index, total}`, when several chunks share that path. For a pack of sections, `heading_path` is their common parent, which is empty under the document root.
+- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`, `sectionPath`, the heading path of the section the chunk starts in (the one its anchor points to), `part`, `{index, total}`, when several chunks share that path, and `anchors`, the fragments of every section the chunk contains. For a pack of sections, `heading_path` is their common parent, which is empty under the document root.
 
 `manifest.include_paths`, `embed_model` (provider, model and dimensions), `chunker_version` and `parser_version` decide when a sync must rebuild everything (ADR-0004, ADR-0005). A rebuild re-parses every file but embeds only changed text.
 
@@ -252,7 +253,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 ## 9. Pipeline
 
 ### Sync (`drl sync <source>`)
-1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings.
+1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings. The checkout is the head of the branch, or with `--at <sha>` that commit, so a report can be reproduced after upstream moves.
 2. Find changes:
    - if the manifest has a previous SHA, run `git diff --name-status -z --no-renames <old> <new> -- <include paths>`, fetching the old commit by SHA if the shallow clone lacks it;
    - otherwise, or if the old commit is unreachable, or the chunker version, parser version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
@@ -261,7 +262,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
    - added or modified files: parse, chunk, and compare chunk hashes.
 4. Only new or changed chunks go through contextualization and embedding. Everything else comes from the cache. Embedding requests are batched and kept under the provider's rate limits (ADR-0004).
 5. Update FTS and vector tables in one transaction, then write the manifest.
-6. Mark eval questions and question-bank items whose anchor chunks changed or disappeared as `stale` (from M4, when those tables exist).
+6. Report the golden questions whose anchors disappeared (stale) or whose anchored text changed since the lock (to review), the same check as `drl eval check` (section 10). Question-bank items whose chunks changed are marked `stale` from M8, when that table exists.
 
 Every `drl` command that calls an API ends with the tokens it used and their estimated cost at list prices.
 
@@ -278,7 +279,7 @@ Every `drl` command that calls an API ends with the tokens it used and their est
 
 ### Retrieval
 1. Vector search top 50 plus FTS5 BM25 top 50 over the question's terms, plus BM25 top 50 over its exact tokens: code in backticks, camelCase identifiers, `--flags` and source tokens (ADR-0005).
-2. Reciprocal Rank Fusion (k=60, equal weights; M4 tunes them).
+2. Reciprocal Rank Fusion (k=60, equal weights). These are not tuned: a sweep over 40 questions would fit noise (ADR-0009).
 3. `rerank-3` over the top 20 (M5).
 4. Top K (default 8) goes to generation.
 
@@ -305,19 +306,33 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
-{"id":"ts-0001","question":"...","answer":"...","anchors":["packages/documentation/copy/en/handbook-v2/Everyday Types.md#union-types"],"tags":["basic"]}
+{"id":"ts-0001","question":"...","answer":"...","primary":[{"at":"packages/documentation/copy/en/handbook-v2/Everyday Types.md#differences-between-type-aliases-and-interfaces","contains":"cannot be re-opened"}],"tags":["basic"]}
 ```
-- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`, `cross-lingual` (a question in another language than the docs).
-- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document when the chunk's own anchor is the fragment, or when the chunk contains that section (a heading inside the chunk text slugs to the fragment). Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches.
-- Start with 40 questions per source, written or reviewed by a human. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
+- Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`, `cross-lingual` (a question in another language than the docs), `unanswerable` (the docs do not cover it, or its premise is false).
+- `primary` anchors are the passages the answer was written from. The answer needs all of them, unless `"primaryMatch": "any"` says each one is enough on its own. `acceptable` anchors are other passages that also support the answer, and are never required. An unanswerable question has neither. An optional `note` says why a question is graded as it is.
+- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that contains the section, which the chunker records in `metadata.anchors`. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
+- A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
+- Start with 40 questions per source, written or reviewed by a human, plus a few unanswerable ones. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
+- `eval/questions.lock.json` records what each anchor resolved to when a human last reviewed the set. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
 
-**Metrics:**
-- retrieval recall@5 and recall@10 (is the anchor chunk among the retrieved ones?);
-- MRR;
-- answer correctness: a Claude judge scores 0-2 against a rubric;
-- citation accuracy: do the cited sources include the anchor?
+**Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
+- hit@k, for k = 1, 3, 5 and 8: a primary anchor is in the top k. With `primaryMatch: all`, the best-ranked one counts;
+- recall@8: the share of primary anchors in the top 8. With `primaryMatch: any`, one is enough. The top 8 is what reaches the answer;
+- MRR: the reciprocal rank of the first primary anchor, or 0 if no candidate list has it.
+
+hit@k and MRR are also reported counting acceptable anchors.
+
+**Answer metrics,** only on request, with the estimated cost printed first:
+- correctness: a Claude judge scores 0-2 against the expected answer, grading only what the question asks;
+- citation support: does each cited passage support the claim next to it? A judge decides;
+- citation accuracy: do the cited chunks include a primary or acceptable anchor? This takes no judge;
+- refusals. On an unanswerable question, a correct answer says the docs do not cover it or, for a false premise, rejects it, and cites nothing as support for an answer. Naming a version, describing a made-up option, or presenting outside knowledge as coming from the docs is a hallucination, reported separately from a plain wrong answer. On an answerable question, saying the docs do not cover it is a false refusal;
 - latency;
 - tokens and cost per question.
+
+Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by question, context, model and request settings.
+
+**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall, and mark a difference of one or two questions or p >= 0.05 as noise. A tag with 5 questions or fewer cannot reach significance at all, so it is reported as a count.
 
 **Strategy ladder.** Each strategy is one row of the README table:
 0. Claude without RAG
@@ -328,9 +343,9 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
 
-**Reports:** `eval/reports/<source>/<date>-<sha>.md` plus JSON. The dashboard reads the JSON. Every report records the docs commit SHA and the models used, so results are reproducible.
+**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs stay local and ignored. The dashboard reads the JSON. Every report records the repository and docs commit SHAs and the models used, so results are reproducible.
 
-**Judge calibration:** in each milestone that touches eval, spot-check 20 judgments by hand and record the agreement rate.
+**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree. The judge is a different model from the one that answers.
 
 ## 11. Interview-prep app
 
@@ -404,17 +419,17 @@ Every milestone ends with:
 | M1 | TS ingest + CLI | `source-kit` sync, TS parser (no twoslash compile yet), chunker, Voyage embeddings with cache, vector search, `drl ask` with `search_result` citations | Conformance suite passes. A test proves incremental sync re-embeds only changed chunks |
 | M2 | Hybrid + trace | FTS5, RRF, retrieval trace object | Trace has every candidate list with scores |
 | M3 | ts-docs app | Streaming chat with citations, inspector panel, Storybook for `ui` | Inspector shows candidates, scores and chunk boundaries |
-| M4 | Eval harness | 40 TS questions, metrics, ladder rows 0, 2 and 3, reports, dashboard view | Report is reproducible from SHA + config |
+| M4 | Eval harness | 40 TS questions plus 5 unanswerable, metrics, ladder rows 0, 2 and 3, reports, dashboard view | Report is reproducible from SHA + config |
 | M5 | Rerank + contextual | Ladder rows 4 and 5, prompt caching, cost tracking | README table has measured rows |
 | M6 | React via `/add-source` | `react-docs` app, 40 questions | Done through the skill; the PR links the session |
-| M7 | Twoslash compile | Compiler output inlined, exact-token metadata | `exact-token` questions improve and are measured |
+| M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text | `exact-token` questions improve and are measured |
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
 | M10 | MCP + more sources | Docs RAG Lab MCP server, dogfooding via `.mcp.json`. Optional: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD) | Claude Code uses Docs RAG Lab while working on Docs RAG Lab |
 
 ### M4 retrieval targets from M2
 
-Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer.
+Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer. The four questions are in the golden set as ts-0033, ts-0027, ts-0004 and ts-0040.
 
 | Question | M1 (vector) | M2 (hybrid) | M4 target |
 |---|---|---|---|
@@ -437,7 +452,7 @@ If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the
 - Secrets only come from `.env` (`ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`). `.env.example` is committed.
 - Model IDs and prices live in `packages/settings` only (ADR-0007).
 - Conventional commits. Every non-obvious decision gets an ADR: `docs/adr/NNNN-title.md`.
-- Generated data (`data/`, `.cache/`) is gitignored. Eval reports are committed.
+- Generated data (`data/`, `.cache/`) is gitignored. Named eval reports are committed; development runs stay local.
 - Writing style in docs and comments: never use em dashes, use plain hyphens.
 
 **Costs:**

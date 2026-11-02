@@ -29,7 +29,7 @@ export const settings = defineSettings({
   },
   answer: { effort: 'low', maxTokens: 16_000 },
   // Hybrid = vector + BM25 + exact tokens, fused by RRF (ADR-0005). k=60 and 50 candidates
-  // per list are the usual defaults, not tuned; M4 tunes them on the full golden set.
+  // per list are the usual defaults, not tuned: a sweep over 40 questions would fit noise (ADR-0009).
   retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
   pricing: {
     checked: '2026-10-31',

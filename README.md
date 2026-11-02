@@ -70,10 +70,11 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm depcruise` | Boundary check only |
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
-| `pnpm drl sync typescript [--full]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`. Re-embeds only new or changed chunks |
+| `pnpm drl sync typescript [--full] [--at <sha>]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`, at the head of the branch or at that commit. Re-embeds only new or changed chunks |
 | `pnpm drl ask "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
 | `pnpm drl search "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |
+| `pnpm drl eval check [--accept]` | Check the golden set against the index, with no API calls: which questions are stale, and which anchors changed since the lock |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
@@ -111,7 +112,7 @@ Enforced by dependency-cruiser on every `lint` run, locally, in CI and in the Cl
 - `ui` is client-safe: of the internal packages it imports only `contracts`, and no Node.js built-ins.
 - A package is imported only through its public `src/index.ts`.
 
-Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md). Why the chunker lives in source-kit and the embedding cache in core is in [ADR-0003](docs/adr/0003-source-kit-and-core-split.md). The ingest design (chunk IDs, incremental sync, rate limits, cost reporting) is in [ADR-0004](docs/adr/0004-ingest-design.md). Hybrid retrieval and the trace are in [ADR-0005](docs/adr/0005-hybrid-retrieval-and-trace.md), the contracts package and the answer events in [ADR-0006](docs/adr/0006-contracts-package.md), the settings package in [ADR-0007](docs/adr/0007-settings-package.md), and the app and ui stack (localhost binding, safe markdown, accessibility, stories as tests) in [ADR-0008](docs/adr/0008-ts-docs-app-and-ui.md).
+Each rule is tested against a fixture tree of deliberate violations: [packages/config/test/dependency-cruiser.test.ts](packages/config/test/dependency-cruiser.test.ts). The reasons behind the rules are in [ADR-0002](docs/adr/0002-boundaries-and-hooks.md). The stack choices, such as TypeScript 6.0 rather than 7, are in [ADR-0001](docs/adr/0001-stack.md). Why the chunker lives in source-kit and the embedding cache in core is in [ADR-0003](docs/adr/0003-source-kit-and-core-split.md). The ingest design (chunk IDs, incremental sync, rate limits, cost reporting) is in [ADR-0004](docs/adr/0004-ingest-design.md). Hybrid retrieval and the trace are in [ADR-0005](docs/adr/0005-hybrid-retrieval-and-trace.md), the contracts package and the answer events in [ADR-0006](docs/adr/0006-contracts-package.md), the settings package in [ADR-0007](docs/adr/0007-settings-package.md), the app and ui stack (localhost binding, safe markdown, accessibility, stories as tests) in [ADR-0008](docs/adr/0008-ts-docs-app-and-ui.md), and golden sets and their anchors in [ADR-0009](docs/adr/0009-golden-sets-and-anchors.md).
 
 ## How this repo is built with Claude Code
 
