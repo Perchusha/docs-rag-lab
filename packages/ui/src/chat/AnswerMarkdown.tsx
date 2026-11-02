@@ -157,16 +157,19 @@ export function AnswerMarkdown({
   quoted = false,
 }: AnswerMarkdownProps) {
   const context = useMemo(() => ({ citations, onCitation }), [citations, onCitation])
+  // Parsing is the costly part, and the page renders on every delta of the newest
+  // answer. Earlier answers keep their text, so they do not parse again.
+  const content = useMemo(
+    () => (
+      <Markdown remarkPlugins={REMARK_PLUGINS} components={quoted ? QUOTED_COMPONENTS : COMPONENTS}>
+        {markdown}
+      </Markdown>
+    ),
+    [markdown, quoted],
+  )
   return (
     <div className={styles.markdown}>
-      <CitationContext.Provider value={context}>
-        <Markdown
-          remarkPlugins={REMARK_PLUGINS}
-          components={quoted ? QUOTED_COMPONENTS : COMPONENTS}
-        >
-          {markdown}
-        </Markdown>
-      </CitationContext.Provider>
+      <CitationContext.Provider value={context}>{content}</CitationContext.Provider>
     </div>
   )
 }

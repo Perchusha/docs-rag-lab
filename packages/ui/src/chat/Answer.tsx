@@ -1,5 +1,5 @@
 import { NO_CONTEXT, type Citation } from '@docs-rag-lab/contracts'
-import { useId, type ReactNode } from 'react'
+import { useId, useMemo, type ReactNode } from 'react'
 
 import { answerMarkdown } from '../lib/answer.ts'
 import { isRunning, type AssistantState } from '../lib/assistant.ts'
@@ -33,7 +33,7 @@ function note(state: AssistantState): string | undefined {
 export function Answer({ state, onCitation, actions }: AnswerProps) {
   const id = useId()
   const streaming = isRunning(state)
-  const markdown = answerMarkdown(state.parts)
+  const markdown = useMemo(() => answerMarkdown(state.parts), [state.parts])
   const message = note(state)
   return (
     <article className={styles.answer} aria-labelledby={`${id}-question`} aria-busy={streaming}>

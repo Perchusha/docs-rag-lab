@@ -1,5 +1,5 @@
 import type { Citation } from '@docs-rag-lab/contracts'
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 
 import common from '../lib/common.module.css'
 import { excerptPreview } from '../lib/excerpt.ts'
@@ -14,7 +14,7 @@ export interface SourcesProps {
 /** A cited passage, rendered as markdown like the answer. A long one starts collapsed. */
 function Excerpt({ text }: { text: string }) {
   const [open, setOpen] = useState(false)
-  const preview = excerptPreview(text)
+  const preview = useMemo(() => excerptPreview(text), [text])
   return (
     <div className={styles.excerpt}>
       <AnswerMarkdown markdown={open || preview === undefined ? text : preview} quoted />
