@@ -65,6 +65,8 @@ It also pointed out that Safari reports `isComposing` as false on the Enter that
 - **Paths no test covered:** a real fetch rejects when aborted, but every late-result story used a replay that does not. Leaving the page stopping the stream, which guards money, had no test either.
 - **With the panel stacked, a new question still landed low,** because the panel has no height until its trace arrives.
 
+**CI caught what the Windows run could not.** After the walk in `InputNeverCoversFocus` was widened to every stop, it failed on the Linux runner in both schemes and passed here. A table box is 556 px tall there, with wider fonts, and does not fit above an input with ten lines in it. The product was right: WCAG 2.4.11 asks only that it is not entirely hidden. The story now holds what fits to being whole, and a taller box to being partly visible.
+
 The streaming change held up: a citation arriving after its marker turns it into a working button, and a focused marker keeps focus through a stream. So did the claim that the reducer alone drops late events.
 
 Left as they are, because they are rare and do not show on the index: a marker after indented code or a reference definition line, and previews that take `*ptr` or `__dirname` for open emphasis and stop there.

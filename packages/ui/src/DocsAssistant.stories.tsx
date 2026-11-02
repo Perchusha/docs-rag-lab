@@ -995,7 +995,11 @@ export const InputNeverCoversFocus: Story = {
       const element = document.activeElement
       if (element !== null) {
         const { top, bottom } = element.getBoundingClientRect()
-        const inView = top >= 0 && bottom <= form.getBoundingClientRect().top
+        const free = form.getBoundingClientRect().top
+        // What fits above the input is whole. A taller box, like a table with wider fonts
+        // than here, cannot be, and 2.4.11 asks only that it is not entirely hidden.
+        const inView =
+          bottom - top <= free ? top >= -1 && bottom <= free + 1 : top < free && bottom > 0
         if (!inView)
           covered.push(`${describeElement(element)}: ${top.toFixed(0)} to ${bottom.toFixed(0)}`)
       }

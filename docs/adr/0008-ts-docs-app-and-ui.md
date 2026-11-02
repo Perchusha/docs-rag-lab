@@ -114,7 +114,7 @@ Play functions cover the conditions in section 6:
 - the toggle calling `search` and never `ask`, with a spy, and a search beside a streaming answer leaving that answer alone;
 - a search result arriving late, after a newer search, a citation or a new question, and changing nothing; and an aborted search rejecting, as a real fetch does, with no error shown;
 - nothing spent by accident: Enter on a doc type or during composition, a double click on Send or Stop, and leaving the page, which stops the stream;
-- ten lines in the input, and a Tab walk through a long answer with no stop hidden behind it (`InputNeverCoversFocus`);
+- ten lines in the input, and a Tab walk through a long answer: what fits above the input is whole, and a box too tall to fit is not entirely hidden (`InputNeverCoversFocus`);
 - the status texts, and Stop;
 - reflow at a real 320 by 256 viewport (`Reflow320`): in the empty state, with the panel closed, and on each tab with it open, it walks every element and fails on anything past the page edge, or any sideways scroller but a table's or code block's box. It also checks that a table and a code block really overflow there, so axe's scrollable-region rule has something to check.
 
