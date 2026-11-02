@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { listSourceFiles } from './files.ts'
-import { git } from './git.ts'
+import { git, GitError } from './git.ts'
 import { parseNameStatus, syncRepo } from './sync.ts'
 import type { Source } from './types.ts'
 
@@ -176,6 +176,70 @@ describe('syncRepo', { timeout: 30_000 }, () => {
       '# From the other repo\n',
     )
     expect((await git(['remote', 'get-url', 'origin'], { cwd: checkout })).trim()).toBe(moved.repo)
+  })
+
+  describe('with a pinned commit', () => {
+    it('checks out that commit on a fresh clone, not the head of the branch', async () => {
+      await commit('initial')
+      write('docs/notes/1.0.md', '# 1.0, pinned\n')
+      const pinned = await commit('pinned')
+      write('docs/notes/1.0.md', '# 1.0, edited\n')
+      await commit('edit')
+
+      const result = await syncRepo(source(), { checkoutDir: checkout, at: pinned })
+
+      expect(result).toEqual({ headSha: pinned, mode: 'full', reason: 'no previous sync' })
+      expect(readFileSync(join(checkout, 'docs/notes/1.0.md'), 'utf8')).toBe('# 1.0, pinned\n')
+      expect(existsSync(join(checkout, 'docs/other'))).toBe(false)
+      // Still shallow: a pin does not pull in the history behind the commit.
+      expect((await git(['rev-list', '--count', 'HEAD'], { cwd: checkout })).trim()).toBe('1')
+    })
+
+    it('goes back to an older commit and reports what that changes', async () => {
+      const pinned = await commit('initial')
+      write('docs/notes/1.0.md', '# 1.0, edited\n')
+      write('docs/notes/2.0.md', '# 2.0\n')
+      const head = await commit('edit, add')
+      await syncRepo(source(), { checkoutDir: checkout })
+
+      const result = await syncRepo(source(), {
+        checkoutDir: checkout,
+        previousSha: head,
+        at: pinned,
+      })
+
+      expect(result).toEqual({
+        headSha: pinned,
+        mode: 'incremental',
+        changed: ['docs/notes/1.0.md'],
+        deleted: ['docs/notes/2.0.md'],
+      })
+      expect(readFileSync(join(checkout, 'docs/notes/1.0.md'), 'utf8')).toBe('# 1.0\n')
+    })
+
+    it('returns to the head of the branch on the next sync without a pin', async () => {
+      const pinned = await commit('initial')
+      write('docs/notes/1.0.md', '# 1.0, edited\n')
+      const head = await commit('edit')
+      await syncRepo(source(), { checkoutDir: checkout, at: pinned })
+
+      const result = await syncRepo(source(), { checkoutDir: checkout, previousSha: pinned })
+
+      expect(result).toEqual({
+        headSha: head,
+        mode: 'incremental',
+        changed: ['docs/notes/1.0.md'],
+        deleted: [],
+      })
+    })
+
+    it('fails with a git error for a commit the repository does not have', async () => {
+      await commit('initial')
+
+      await expect(
+        syncRepo(source(), { checkoutDir: checkout, at: 'f'.repeat(40) }),
+      ).rejects.toThrow(GitError)
+    })
   })
 
   it('keeps LF line endings even when the user config sets core.autocrlf=true', async () => {

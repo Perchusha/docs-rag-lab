@@ -38,6 +38,8 @@ export interface SyncSourceOptions {
   limiter?: RateLimiter | undefined
   /** Re-parse every file even if git reports no change. */
   full?: boolean | undefined
+  /** Index this commit instead of the head of the branch, for example to reproduce a report. */
+  at?: string | undefined
   onProgress?: ((event: SyncProgress) => void) | undefined
   now?: () => Date
 }
@@ -101,11 +103,13 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
   // No manifest also means no vectors yet: every chunk needs one.
   const resetVectors = manifest?.embedModel !== provider.id || !index.hasVectorTable()
 
-  options.onProgress?.({ phase: 'git', message: `syncing ${source.repo} (${source.branch})` })
+  const target = options.at ?? source.branch
+  options.onProgress?.({ phase: 'git', message: `syncing ${source.repo} (${target})` })
   const repo = await syncRepo(source, {
     checkoutDir: options.checkoutDir,
     previousSha: manifest?.commitSha,
     full: rebuildReason !== undefined,
+    at: options.at,
   })
   const mode = repo.mode
   const reason = rebuildReason ?? (repo.mode === 'full' ? repo.reason : undefined)
@@ -207,6 +211,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
           spans: chunk.spans,
           sectionPath: chunk.sectionPath,
           part: chunk.part,
+          anchors: chunk.anchors,
         },
         tokenCount: chunk.tokenCount,
         textHash: chunk.textHash,

@@ -1,0 +1,426 @@
+import { openSourceIndex, type ChunkWrite, type SourceIndex } from '@docs-rag-lab/db'
+import {
+  CHUNKER_VERSION,
+  chunkDocument,
+  type Block,
+  type ParsedDoc,
+  type Section,
+} from '@docs-rag-lab/source-kit'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { fakeVector, paragraph } from '../test-helpers.ts'
+import {
+  checkGoldenSet,
+  parseGoldenLock,
+  resolveAnchor,
+  sectionAnchorsOf,
+  type CheckGoldenSetOptions,
+  type GoldenLock,
+} from './anchors.ts'
+import { GoldenSetError, parseGoldenSet, type GoldenQuestion } from './golden.ts'
+
+const prose = (text: string): Block => ({ kind: 'prose', text })
+const section = (heading: string, ...blocks: Block[]): Section => ({
+  headingPath: [heading],
+  anchor: heading.toLowerCase(),
+  blocks,
+})
+
+const open: SourceIndex[] = []
+
+/** An in-memory index holding what the real chunker makes of these documents. */
+function indexOf(documents: Record<string, Section[]>, chunkerVersion = CHUNKER_VERSION) {
+  const index = openSourceIndex(':memory:')
+  open.push(index)
+  const parsed = (sections: Section[]): ParsedDoc => ({
+    title: 'Doc',
+    url: 'https://x.dev/doc',
+    docType: 'handbook',
+    sections,
+    metadata: {},
+  })
+  index.applyChanges({
+    documents: Object.entries(documents).map(([path, sections]) => ({
+      path,
+      url: `https://x.dev/${path}`,
+      title: path,
+      docType: 'handbook',
+      contentHash: path,
+      lastChangedSha: 's',
+      chunks: chunkDocument(path, parsed(sections)).map((chunk): ChunkWrite => ({
+        id: chunk.id,
+        ordinal: chunk.ordinal,
+        headingPath: chunk.headingPath,
+        anchor: chunk.anchor,
+        blockTypes: chunk.blockTypes,
+        text: chunk.text,
+        metadata: { anchors: chunk.anchors },
+        tokenCount: chunk.tokenCount,
+        textHash: chunk.textHash,
+        vector: fakeVector(chunk.text, 8),
+      })),
+    })),
+    deletePaths: [],
+    manifest: {
+      sourceId: 'demo',
+      repo: 'r',
+      branch: 'main',
+      includePaths: [],
+      commitSha: 'docs-sha',
+      syncedAt: '2026-11-02T00:00:00.000Z',
+      embedModel: 'fake:hash:8',
+      embedDimensions: 8,
+      contextModel: null,
+      chunkerVersion,
+      parserVersion: 1,
+    },
+  })
+  return index
+}
+
+afterEach(() => {
+  for (const index of open.splice(0)) index.close()
+})
+
+function question(fields: Record<string, unknown>): GoldenQuestion {
+  const row = { id: 'ts-0001', question: 'Q?', answer: 'A.', tags: ['basic'], ...fields }
+  const [parsed] = parseGoldenSet(JSON.stringify(row))
+  if (parsed === undefined) throw new Error('no question')
+  return parsed
+}
+
+// Three chunks: `long` is split in two, and `packed` shares one chunk with `nested`.
+const DOC = {
+  'a.md': [
+    section(
+      'Long',
+      prose(`${paragraph(700, 'alpha')} first`),
+      prose(`${paragraph(700, 'beta')} second`),
+    ),
+    section('Packed', prose('Packed text.')),
+    { headingPath: ['Packed', 'Nested'], anchor: 'nested', blocks: [prose('Nested text.')] },
+  ],
+}
+
+describe('resolveAnchor', () => {
+  it('matches every part of a section by its own anchor, in document order', () => {
+    const index = indexOf(DOC)
+    const chunks = index.documentChunks('a.md')?.chunks ?? []
+
+    expect(resolveAnchor({ at: 'a.md#long' }, index).chunks?.map((c) => c.chunkId)).toEqual(
+      chunks.slice(0, 2).map((c) => c.chunkId),
+    )
+  })
+
+  it('matches a section inside a chunk that starts elsewhere', () => {
+    const index = indexOf(DOC)
+    const packed = resolveAnchor({ at: 'a.md#packed' }, index).chunks
+    const nested = resolveAnchor({ at: 'a.md#nested' }, index).chunks
+
+    expect(packed).toHaveLength(1)
+    expect(nested).toEqual(packed)
+  })
+
+  it('matches any chunk of the document without a fragment', () => {
+    expect(resolveAnchor({ at: 'a.md' }, indexOf(DOC)).chunks).toHaveLength(3)
+  })
+
+  it('narrows a section to the part that holds a pinned passage', () => {
+    const index = indexOf(DOC)
+    const parts = resolveAnchor({ at: 'a.md#long' }, index).chunks
+    const pinned = resolveAnchor({ at: 'a.md#long', contains: 'second' }, index).chunks
+
+    expect(pinned).toEqual([parts?.[1]])
+  })
+
+  it('applies a pin to a whole document too', () => {
+    const pinned = resolveAnchor({ at: 'a.md', contains: 'Nested text.' }, indexOf(DOC))
+
+    expect(pinned.chunks).toHaveLength(1)
+  })
+
+  it('reports the hash of the chunk text, which changes when the text does', () => {
+    const before = resolveAnchor({ at: 'a.md#packed' }, indexOf(DOC)).chunks
+    const after = resolveAnchor(
+      { at: 'a.md#packed' },
+      indexOf({ 'a.md': [section('Packed', prose('Other text.'))] }),
+    ).chunks
+
+    expect(before?.[0]?.textHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(after?.[0]?.textHash).not.toBe(before?.[0]?.textHash)
+  })
+
+  it.each([
+    ['no-document', { at: 'missing.md' }],
+    ['no-section', { at: 'a.md#missing' }],
+    ['no-passage', { at: 'a.md#packed', contains: 'not there' }],
+  ])('reports %s', (problem, ref) => {
+    expect(resolveAnchor(ref, indexOf(DOC))).toEqual({ problem })
+  })
+
+  it('does not take a heading-shaped line in code for a section', () => {
+    const index = indexOf({
+      'c.md': [section('Shell', { kind: 'code', lang: 'sh', code: '# not-a-section' })],
+    })
+
+    expect(resolveAnchor({ at: 'c.md#not-a-section' }, index)).toEqual({ problem: 'no-section' })
+    expect(resolveAnchor({ at: 'c.md#shell' }, index).chunks).toHaveLength(1)
+  })
+})
+
+describe('sectionAnchorsOf', () => {
+  it('reads recorded anchors and treats anything else as none', () => {
+    expect(sectionAnchorsOf({ metadata: { anchors: ['a', 'b'] } })).toEqual(['a', 'b'])
+    expect(sectionAnchorsOf({ metadata: { anchors: [1] } })).toEqual([])
+    expect(sectionAnchorsOf({ metadata: {} })).toEqual([])
+  })
+})
+
+const checkSet = (options: Omit<CheckGoldenSetOptions, 'setHash'>) =>
+  checkGoldenSet({ setHash: 'set-hash', ...options })
+
+describe('checkGoldenSet', () => {
+  const lockOf = (index: SourceIndex, questions: GoldenQuestion[]): GoldenLock =>
+    checkSet({ questions, index, lock: undefined }).lock
+
+  it('reports nothing for a golden set that matches its lock', () => {
+    const index = indexOf(DOC)
+    const questions = [
+      question({ primary: ['a.md#long'], acceptable: ['a.md#packed'] }),
+      question({ id: 'ts-0002', tags: ['unanswerable'] }),
+    ]
+
+    const check = checkSet({ questions, index, lock: lockOf(index, questions) })
+
+    expect(check).toMatchObject({
+      docsSha: 'docs-sha',
+      questions: 2,
+      unanswerable: 1,
+      anchors: 2,
+      stale: [],
+      review: [],
+      findings: [],
+    })
+  })
+
+  it('says every anchor needs reviewing before there is a lock', () => {
+    const questions = [question({ primary: ['a.md#long'] })]
+
+    const check = checkSet({ questions, index: indexOf(DOC), lock: undefined })
+
+    expect(check.review).toEqual(['ts-0001'])
+    expect(check.findings).toMatchObject([{ role: 'primary', problem: 'not-locked' }])
+  })
+
+  it('marks a question stale when a primary anchor is gone', () => {
+    const questions = [question({ primary: ['a.md#long', 'a.md#missing'] })]
+
+    const check = checkSet({ questions, index: indexOf(DOC), lock: undefined })
+
+    expect(check.stale).toEqual(['ts-0001'])
+    expect(check.review).toEqual([])
+    expect(check.findings).toContainEqual({
+      questionId: 'ts-0001',
+      role: 'primary',
+      anchor: { at: 'a.md#missing' },
+      problem: 'no-section',
+    })
+  })
+
+  it('keeps a question with primaryMatch any while one of its anchors is left', () => {
+    const one = question({ primary: ['a.md#long', 'a.md#missing'], primaryMatch: 'any' })
+    const none = question({
+      id: 'ts-0002',
+      primary: ['b.md', 'a.md#missing'],
+      primaryMatch: 'any',
+    })
+
+    const check = checkSet({ questions: [one, none], index: indexOf(DOC), lock: undefined })
+
+    expect(check.stale).toEqual(['ts-0002'])
+    expect(check.review).toEqual(['ts-0001'])
+  })
+
+  it('asks for a review, not stale, when only an acceptable anchor is gone', () => {
+    const index = indexOf(DOC)
+    const questions = [question({ primary: ['a.md#long'], acceptable: ['a.md#missing'] })]
+
+    const check = checkSet({ questions, index, lock: lockOf(index, questions) })
+
+    expect(check.stale).toEqual([])
+    expect(check.review).toEqual(['ts-0001'])
+    expect(check.findings).toMatchObject([{ role: 'acceptable', problem: 'no-section' }])
+  })
+
+  it('notices text that changed under an anchor that still resolves', () => {
+    const questions = [question({ primary: ['a.md#packed'] })]
+    const lock = lockOf(indexOf({ 'a.md': [section('Packed', prose('Old text.'))] }), questions)
+
+    const check = checkSet({
+      questions,
+      index: indexOf({ 'a.md': [section('Packed', prose('New text.'))] }),
+      lock,
+    })
+
+    expect(check.stale).toEqual([])
+    expect(check.review).toEqual(['ts-0001'])
+    expect(check.findings).toMatchObject([{ problem: 'changed' }])
+  })
+
+  describe('the freeze', () => {
+    const questions = [question({ primary: ['a.md#long'] })]
+
+    it('starts at version 1, and records the hash of the file', () => {
+      const check = checkGoldenSet({
+        questions,
+        setHash: 'hash-1',
+        index: indexOf(DOC),
+        lock: undefined,
+      })
+
+      expect(check).toMatchObject({ setVersion: 1, setChanged: false })
+      expect(check.lock).toMatchObject({ setVersion: 1, setHash: 'hash-1' })
+    })
+
+    it('reports a file that differs from the lock, and keeps the version', () => {
+      const index = indexOf(DOC)
+      const lock = { ...lockOf(index, questions), setVersion: 3, setHash: 'hash-3' }
+
+      const same = checkGoldenSet({ questions, setHash: 'hash-3', index, lock })
+      const changed = checkGoldenSet({ questions, setHash: 'edited', index, lock })
+
+      expect(same).toMatchObject({ setVersion: 3, setChanged: false })
+      expect(changed).toMatchObject({ setVersion: 3, setChanged: true })
+      expect(changed.lock).toMatchObject({ setVersion: 3, setHash: 'edited' })
+    })
+  })
+
+  it('notices a change in a later part of a section, not only the first', () => {
+    const questions = [question({ primary: ['a.md#long'] })]
+    const parts = (second: string) => ({
+      'a.md': [section('Long', prose(paragraph(700, 'alpha')), prose(paragraph(700, second)))],
+    })
+    const lock = lockOf(indexOf(parts('beta')), questions)
+
+    const check = checkSet({ questions, index: indexOf(parts('gamma')), lock })
+
+    expect(check.findings).toMatchObject([{ problem: 'changed' }])
+  })
+
+  it('notices the same text under a new chunk ID', () => {
+    const index = indexOf(DOC)
+    const questions = [question({ primary: ['a.md#packed'] })]
+    const lock = lockOf(index, questions)
+    const [locked] = lock.anchors['a.md#packed'] ?? []
+    if (locked === undefined) throw new Error('nothing locked')
+
+    const check = checkSet({
+      questions,
+      index,
+      lock: { ...lock, anchors: { 'a.md#packed': [{ ...locked, chunkId: 'another-id' }] } },
+    })
+
+    expect(check.findings).toMatchObject([{ problem: 'changed' }])
+  })
+
+  it('says the docs moved, and asks to re-read what has no anchors, when the lock is from another commit', () => {
+    const index = indexOf(DOC)
+    const questions = [
+      question({ primary: ['a.md#long'] }),
+      question({ id: 'ts-0002', tags: ['unanswerable'] }),
+    ]
+    const lock = { ...lockOf(index, questions), docsSha: 'older-sha' }
+
+    const check = checkSet({ questions, index, lock })
+
+    expect(check.docsMovedFrom).toBe('older-sha')
+    expect(check.review).toEqual(['ts-0002'])
+    expect(check.findings).toEqual([])
+    expect(check.lock.docsSha).toBe('docs-sha')
+    expect(check.docsSha).toBe('docs-sha')
+  })
+
+  it('says nothing about moved docs when the lock is from this commit, or there is none', () => {
+    const index = indexOf(DOC)
+    const questions = [question({ tags: ['unanswerable'] })]
+
+    expect(checkSet({ questions, index, lock: undefined }).docsMovedFrom).toBeUndefined()
+    const same = checkSet({ questions, index, lock: lockOf(index, questions) })
+    expect(same.docsMovedFrom).toBeUndefined()
+    expect(same.review).toEqual([])
+  })
+
+  it('notices a pin that no longer matches', () => {
+    const questions = [question({ primary: [{ at: 'a.md#packed', contains: 'Old text' }] })]
+    const old = indexOf({ 'a.md': [section('Packed', prose('Old text.'))] })
+
+    const check = checkSet({
+      questions,
+      index: indexOf({ 'a.md': [section('Packed', prose('New text.'))] }),
+      lock: lockOf(old, questions),
+    })
+
+    expect(check.stale).toEqual(['ts-0001'])
+    expect(check.findings).toMatchObject([{ problem: 'no-passage' }])
+  })
+
+  it('writes a lock of the resolved anchors only, sorted, so it diffs cleanly', () => {
+    const questions = [
+      question({ primary: ['a.md#packed', 'a.md#long', 'a.md#missing'] }),
+      question({ id: 'ts-0002', primary: ['a.md#long'] }),
+    ]
+
+    const { lock, anchors } = checkSet({ questions, index: indexOf(DOC), lock: undefined })
+
+    expect(anchors).toBe(3)
+    expect(lock.docsSha).toBe('docs-sha')
+    expect(Object.keys(lock.anchors)).toEqual(['a.md#long', 'a.md#packed'])
+  })
+
+  it('refuses an index built by another chunker, whose anchors it cannot trust', () => {
+    const index = indexOf(DOC, CHUNKER_VERSION - 1)
+
+    expect(() => checkSet({ questions: [], index, lock: undefined })).toThrow(
+      `the index was built with chunker version ${String(CHUNKER_VERSION - 1)} and this code has ${String(CHUNKER_VERSION)}: run drl sync demo --at docs-sha`,
+    )
+  })
+
+  it('refuses an empty index', () => {
+    const index = openSourceIndex(':memory:')
+    open.push(index)
+
+    expect(() => checkSet({ questions: [], index, lock: undefined })).toThrow('the index is empty')
+  })
+})
+
+const VALID_LOCK = { setVersion: 1, setHash: 'h', docsSha: 's', anchors: {} }
+const MALFORMED = 'setVersion, setHash, docsSha and anchors'
+
+describe('parseGoldenLock', () => {
+  it('reads what checkGoldenSet wrote', () => {
+    const index = indexOf(DOC)
+    const { lock } = checkSet({
+      questions: [question({ primary: ['a.md#long'] })],
+      index,
+      lock: undefined,
+    })
+
+    expect(parseGoldenLock(JSON.stringify(lock))).toEqual(lock)
+  })
+
+  it.each([
+    ['text that is not JSON', '{nope', 'not valid JSON'],
+    ['a missing SHA', { ...VALID_LOCK, docsSha: undefined }, MALFORMED],
+    ['missing anchors', { ...VALID_LOCK, anchors: undefined }, MALFORMED],
+    ['a missing set version', { ...VALID_LOCK, setVersion: undefined }, MALFORMED],
+    ['a set version of 0', { ...VALID_LOCK, setVersion: 0 }, MALFORMED],
+    ['a fractional set version', { ...VALID_LOCK, setVersion: 1.5 }, MALFORMED],
+    ['a missing set hash', { ...VALID_LOCK, setHash: undefined }, MALFORMED],
+    ['a malformed entry', { ...VALID_LOCK, anchors: { a: [{ chunkId: 1 }] } }, MALFORMED],
+    ['an empty entry', { ...VALID_LOCK, anchors: { a: [] } }, MALFORMED],
+  ])('refuses %s', (_name, value, message) => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value)
+    expect(() => parseGoldenLock(text)).toThrow(GoldenSetError)
+    expect(() => parseGoldenLock(text)).toThrow(message)
+  })
+})

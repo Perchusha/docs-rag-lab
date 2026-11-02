@@ -6,6 +6,7 @@ import {
   DOC_TYPES,
   findRepoRoot,
   formatUsage,
+  GoldenSetError,
   IndexNotFoundError,
   InvalidRequestError,
   loadRootEnv,
@@ -21,6 +22,7 @@ import { typescriptSource } from '@docs-rag-lab/source-typescript'
 
 import {
   askCommand,
+  evalCheckCommand,
   limitsCommand,
   searchCommand,
   syncCommand,
@@ -34,11 +36,17 @@ export const USAGE = `Usage: drl <command> [options]
 
 Commands:
   sync <source> [--full]      Sync, parse, chunk and embed a source (incremental by default)
+      [--at <sha>]            Index this commit (a full SHA) instead of the head of the branch;
+                              the next sync without it returns to the head
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the embedding API's rate-limit headers (one tiny request)
+  eval check [--source <id>]  Check the golden set against the index (no API calls): which
+                              questions are stale, and which anchors changed since the lock
+      [--accept]              After reviewing them, record what the anchors resolve to now
+      [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
@@ -55,6 +63,9 @@ API keys come from the environment or from .env at the repository root.
 Every command that calls an API ends with its token usage and estimated cost.
 Set DRL_DEBUG=1 to print stack traces of failures.
 `
+
+/** More than any golden set will reach; it only keeps the flag's error message sensible. */
+const MAX_SET_VERSION = 9999
 
 /** The Source objects for the configured sources. Settings hold their options as data. */
 export function sourcesFor(settings: Settings): Source[] {
@@ -88,6 +99,14 @@ function positiveInteger(
   return n
 }
 
+/** git fetches a commit by its full name only; a short SHA would fail with a less useful message. */
+function commitOf(value: string | undefined): string | undefined {
+  if (value !== undefined && !/^[0-9a-f]{40}$/.test(value)) {
+    throw new CliError(`--at must be a full 40-character commit SHA, got "${value}"`)
+  }
+  return value
+}
+
 function strategyOf(value: string | undefined, fallback: Strategy): Strategy {
   if (value === undefined) return fallback
   const strategy = STRATEGIES.find((s) => s === value)
@@ -117,7 +136,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof MissingKeyError ||
     error instanceof UnknownSourceError ||
     error instanceof IndexNotFoundError ||
-    error instanceof InvalidRequestError
+    error instanceof InvalidRequestError ||
+    error instanceof GoldenSetError
   )
 }
 
@@ -137,6 +157,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       strict: true,
       options: {
         full: { type: 'boolean', default: false },
+        at: { type: 'string' },
+        accept: { type: 'boolean', default: false },
+        'set-version': { type: 'string' },
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
@@ -156,12 +179,24 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     out.write(USAGE)
     return command === undefined && !values.help ? 2 : 0
   }
-  if (!['sync', 'ask', 'search', 'limits'].includes(command)) {
+  if (!['sync', 'ask', 'search', 'limits', 'eval'].includes(command)) {
     err.write(`drl: unknown command "${command}"\n\n${USAGE}`)
     return 2
   }
   if (values.json && command !== 'search') {
     err.write(`drl: --json works only with search\n\n${USAGE}`)
+    return 2
+  }
+  if (values.at !== undefined && command !== 'sync') {
+    err.write(`drl: --at works only with sync\n\n${USAGE}`)
+    return 2
+  }
+  if (values.accept && command !== 'eval') {
+    err.write(`drl: --accept works only with eval check\n\n${USAGE}`)
+    return 2
+  }
+  if (values['set-version'] !== undefined && !values.accept) {
+    err.write(`drl: --set-version works only with eval check --accept\n\n${USAGE}`)
     return 2
   }
 
@@ -176,7 +211,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const source = rest[0]
       if (source === undefined)
         throw new CliError('sync needs a source id, for example: drl sync typescript')
-      await syncCommand(ctx, { source, full: values.full })
+      await syncCommand(ctx, { source, full: values.full, at: commitOf(values.at) })
     } else if (command === 'ask' || command === 'search') {
       const question = rest.join(' ').trim()
       if (question === '') {
@@ -193,6 +228,18 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       }
       if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
       else await searchCommand(ctx, { ...retrieval, json: values.json })
+    } else if (command === 'eval') {
+      if (rest[0] !== 'check') throw new CliError('eval needs a subcommand: drl eval check')
+      if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
+      const setVersion = values['set-version']
+      evalCheckCommand(ctx, {
+        source: values.source,
+        accept: values.accept,
+        setVersion:
+          setVersion === undefined
+            ? undefined
+            : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
+      })
     } else {
       await limitsCommand(ctx)
     }

@@ -1,5 +1,5 @@
-// Public entry of @docs-rag-lab/core: embeddings, ingest, retrieval and
-// generation (SPEC section 9). Sources are passed in; core never imports one.
+// Public entry of @docs-rag-lab/core: embeddings, ingest, retrieval, generation
+// and eval (SPEC sections 9 and 10). Sources are passed in; core never imports one.
 export { findRepoRoot, loadRootEnv, MissingKeyError, requireKey, type KeyName } from './env.ts'
 export {
   formatUsage,
@@ -46,6 +46,30 @@ export {
   type EngineOptions,
   type EngineSettings,
 } from './engine.ts'
+export {
+  anchorKey,
+  goldenSetHash,
+  GOLDEN_TAGS,
+  GoldenSetError,
+  parseGoldenSet,
+  type AnchorRef,
+  type GoldenQuestion,
+  type GoldenTag,
+} from './eval/golden.ts'
+export {
+  checkGoldenSet,
+  parseGoldenLock,
+  resolveAnchor,
+  sectionAnchorsOf,
+  type AnchorChunk,
+  type AnchorFinding,
+  type AnchorIndex,
+  type AnchorProblem,
+  type AnchorResolution,
+  type CheckGoldenSetOptions,
+  type GoldenCheck,
+  type GoldenLock,
+} from './eval/anchors.ts'
 export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
 export {
@@ -65,4 +89,4 @@ export {
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
-export { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'
+export { CHUNKER_VERSION, DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'

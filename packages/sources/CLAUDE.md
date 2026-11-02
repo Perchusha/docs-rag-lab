@@ -15,5 +15,7 @@ One package per documentation source, named `@docs-rag-lab/source-<id>`. A sourc
 - Fixtures in `__fixtures__/` are byte-for-byte copies of upstream files. Never reformat them; Prettier and the em-dash check skip them.
 - `ParsedDoc.url` is the absolute canonical public URL used in citations.
 - Code blocks are preserved byte-for-byte and never split.
-- Golden eval questions live in `eval/questions.jsonl`, and a human approves every one. Drafts that no human has approved yet live in `eval/questions.draft.jsonl`.
+- Golden eval questions live in `eval/questions.jsonl`, and a human approves every one. Drafts that no human has approved yet live in `eval/questions.draft.jsonl`. The format is in SPEC section 10.
+- `eval/questions.lock.json` records what the anchors resolve to, and `drl eval check --accept` writes it. A test fails when it does not cover exactly the anchors of the file.
+- A reviewed golden set is frozen: a change needs a reason from the docs text, never a ranking, plus a new version and a changelog entry (ADR-0009, section 9).
 - New sources are scaffolded with `turbo gen source` (from M6), not by copying a folder.

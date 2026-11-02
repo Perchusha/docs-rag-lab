@@ -4,7 +4,13 @@ import {
   type RetrievalTrace,
   type TraceList,
 } from '@docs-rag-lab/contracts'
-import type { EmbedProgress, SyncReport } from '@docs-rag-lab/core'
+import {
+  anchorKey,
+  type AnchorFinding,
+  type EmbedProgress,
+  type GoldenCheck,
+  type SyncReport,
+} from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
 
@@ -46,6 +52,47 @@ export function formatSyncReport(report: SyncReport, elapsedMs: number, waitedMs
     ),
     `time: ${formatDuration(elapsedMs)}, of which ${formatDuration(waitedMs)} waiting on rate limits`,
   ]
+  return lines.join('\n')
+}
+
+const FINDING_LABEL: Record<AnchorFinding['problem'], string> = {
+  'no-document': 'no such document',
+  'no-section': 'no such section',
+  'no-passage': 'the pinned passage is gone',
+  changed: 'the text changed since the lock',
+  'not-locked': 'not in the lock',
+}
+
+/** The golden set against the index: what is usable, and what needs a human. */
+export function formatGoldenCheck(check: GoldenCheck): string {
+  const lines = [
+    `golden set v${String(check.setVersion)}: ${count(check.questions)} questions (${count(check.unanswerable)} unanswerable), ` +
+      `${count(check.anchors)} anchors, docs ${check.docsSha.slice(0, 8)}`,
+  ]
+  if (check.setChanged) {
+    lines.push(
+      'the set changed since the lock, and it is frozen: a change needs a reason from the docs text, ' +
+        `a changelog entry in ADR-0009 and a new version, ${String(check.setVersion + 1)}`,
+    )
+  }
+  if (check.docsMovedFrom !== undefined) {
+    lines.push(
+      `the docs moved since the lock, from ${check.docsMovedFrom.slice(0, 8)}: only anchored text is compared, ` +
+        'so text added elsewhere can still change an answer',
+    )
+  }
+  if (check.findings.length === 0 && check.docsMovedFrom === undefined && !check.setChanged) {
+    lines.push('every anchor resolves and matches the lock')
+  }
+  if (check.stale.length > 0) {
+    lines.push(`stale, an anchor it needs is gone: ${check.stale.join(', ')}`)
+  }
+  if (check.review.length > 0) lines.push(`to review: ${check.review.join(', ')}`)
+  for (const finding of check.findings) {
+    lines.push(
+      `  ${finding.questionId} ${finding.role} ${anchorKey(finding.anchor)}: ${FINDING_LABEL[finding.problem]}`,
+    )
+  }
   return lines.join('\n')
 }
 

@@ -97,6 +97,77 @@ afterEach(() => {
 })
 
 describe('syncSource', { timeout: 60_000 }, () => {
+  it('stores the anchors of every section a chunk contains', async () => {
+    write('docs/nested.md', '# Nested\n\n## One\n\nFirst.\n\n## Two\n\nSecond.\n')
+    await commit('initial')
+
+    await sync(new RecordingProvider())
+
+    const doc = indexes().index.documentChunks('docs/nested.md')
+    expect(doc?.chunks.map((chunk) => chunk.metadata.anchors)).toEqual([['one', 'two']])
+  })
+
+  it('indexes a pinned commit instead of the head of the branch, and records it', async () => {
+    const provider = new RecordingProvider()
+    const pinned = await commit('initial')
+    write('docs/a.md', docA('echo'))
+    await commit('edit A')
+    const { index, cache } = indexes()
+
+    const report = await syncSource({
+      source,
+      provider,
+      index,
+      cache,
+      checkoutDir,
+      meter: new UsageMeter(),
+      at: pinned,
+    })
+
+    expect(report.headSha).toBe(pinned)
+    expect(index.getManifest()?.commitSha).toBe(pinned)
+    expect(provider.embedded.join(' ')).toContain('delta')
+    expect(provider.embedded.join(' ')).not.toContain('echo')
+  })
+
+  it('goes back to a pinned commit and returns to the head for free', async () => {
+    const provider = new RecordingProvider()
+    const pinned = await commit('initial')
+    write('docs/a.md', docA('echo'))
+    const head = await commit('edit A')
+    await sync(provider)
+    const { index, cache } = indexes()
+    const textOfA = () =>
+      index
+        .documentChunks('docs/a.md')
+        ?.chunks.map((chunk) => chunk.text)
+        .join(' ') ?? ''
+
+    const back = await syncSource({
+      source,
+      provider,
+      index,
+      cache,
+      checkoutDir,
+      meter: new UsageMeter(),
+      at: pinned,
+    })
+
+    expect(back).toMatchObject({ mode: 'incremental', previousSha: head, headSha: pinned })
+    expect(back.chunks.changed).toBe(1)
+    expect(index.getManifest()?.commitSha).toBe(pinned)
+    expect(textOfA()).toContain('delta')
+    expect(textOfA()).not.toContain('echo')
+
+    // Both versions of the chunk have been embedded by now: the way back costs nothing.
+    provider.calls.length = 0
+    const forward = await sync(provider)
+
+    expect(forward).toMatchObject({ previousSha: pinned, headSha: head })
+    expect(provider.embedded).toEqual([])
+    expect(textOfA()).toContain('echo')
+  })
+
   it('re-embeds only new and changed chunks on an incremental sync', async () => {
     const provider = new RecordingProvider()
     await commit('initial')
