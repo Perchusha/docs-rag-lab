@@ -123,7 +123,7 @@ Play functions cover the conditions in section 6:
 Stories replay recorded fixtures with no network:
 - three real traces from `drl search --json` (`satisfies`, TS2345, ts-0004) and a vector-only trace;
 - four recorded answer streams: the `satisfies` answer ($0.0171), one with a table with cited cells and two code blocks ($0.0238), and two with long and fenced excerpts for the sources ($0.0234, $0.0248);
-- one derived answer stream, the only fixture that is not verbatim, and its file name says so: a real answer about `--strict` ($0.0185) with its first citation event moved to right after its code block. That shape depends on how Claude splits citation blocks. It happened in a live run, but five recording attempts did not reproduce it;
+- one derived answer stream, the only fixture that is not verbatim, and its file name says so: `answer-first-citation-moved-after-code.derived.ndjson`, a real answer about `--strict` ($0.0185) with its first `citations` event moved from index 18 to right after the text that closes its code block. That shape depends on how Claude splits citation blocks. It happened in a live run, but five recording attempts did not reproduce it;
 - one document's chunks.
 
 Every excerpt of the docs in them is cut to 300 characters (NOTICE: short excerpts).
@@ -158,7 +158,7 @@ pnpm 12 fails an install when a dependency has a build script that `allowBuilds`
 Trying the app showed that it read like an admin panel. It serves someone asking a question and someone exploring how retrieval works, and it showed both everything at once. The default view now serves the first, and the inspector opens on demand for the second.
 
 **The default view:**
-- A centered column, 760px at most, with one input and its button inside it. Enter sends and Shift+Enter adds a line; Enter that confirms a word in an input method does neither.
+- A centered column, 760px at most, with one input and its button inside it. Enter sends and Shift+Enter adds a line. Enter that confirms a word in an input method does neither: `isComposing` tells, or `keyCode` 229 in Safari, which ends the composition before that keydown.
 - The examples show only before the first question, and send at once.
 - The question becomes the user's message, as an `<h2>`, so a screen reader can jump between questions. A new question goes to the top of the page, with room for its answer above the input.
 - "Search in: All docs" replaces the fieldset of checkboxes: a disclosure button over native checkboxes, with names from `rag.config.ts`. Esc or a click elsewhere closes it. A multi-select listbox would have more keys to learn and nothing to gain.

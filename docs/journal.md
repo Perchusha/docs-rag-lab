@@ -32,7 +32,7 @@ Trying the app in Chrome showed that it read like an admin panel: it showed some
 | In which version did `satisfies` appear? | 1 | about $0.017 (its usage line was not captured; the recorded one is $0.0171) |
 | What does error TS2345 mean? | 5 | $0.0251 |
 | What does the `strict` flag enable? | 4 | $0.0219 |
-| ts-0004, В чём разница между `unknown` и `any`? | 4 | $0.0237 |
+| ts-0004, in Russian: what is the difference between `unknown` and `any`? | 4 | $0.0237 |
 
 Total spend for this pass: about $0.21, of which $0.1202 went on 6 recordings while planning.
 
@@ -55,7 +55,7 @@ It also found:
 - **Moving between answers kept the sort and "Show all",** although the panel promised a clean start.
 - **Docs that said more than the code:** "never hides", "valid markdown", one numbering (the Document tab still said "in context #3"), and the part wording. The code changed where it could, and the wording where it could not.
 
-Not changed: Safari may report `isComposing` as false on the Enter that confirms a word. That is from the reviewer's memory, untested, and Chrome is fine.
+It also pointed out that Safari reports `isComposing` as false on the Enter that confirms a word. The input now checks `keyCode` 229 as well.
 
 ## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
 
@@ -97,7 +97,7 @@ The second M3 PR adds the ui package, Storybook and the Next.js app on top of th
 | In which version did `satisfies` appear? | 1 | $0.0170 |
 | What does error TS2345 mean? | 4 | $0.0238 |
 | What does the `strict` flag enable? | 3 | $0.0214 |
-| ts-0004, В чём разница между `unknown` и `any`? | 5 | $0.0236 |
+| ts-0004, in Russian: what is the difference between `unknown` and `any`? | 5 | $0.0236 |
 
 Every citation links to a typescriptlang.org page, with the section anchor where the chunk has one.
 
