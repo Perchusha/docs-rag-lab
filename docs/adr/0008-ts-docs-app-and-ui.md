@@ -91,7 +91,7 @@ Also:
 - each focusable element shows a 2px focus outline (`:focus-visible`), for the keyboard only. A text field matches `:focus-visible` on a click too, and CSS cannot tell the two apart, so `useFocusRing` sets `--focus-ring-style` to `none` on a press and clears it on any key but typing. With no script yet, the rings stay on;
 - Send and Stop are one button that changes role, so it keeps focus when a run starts or ends, and no button is ever disabled;
 - opening the inspector moves focus into it, and closing it returns focus to what opened it, or to the input if that has gone;
-- the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11);
+- the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11). The padding is off while focus is in the input, because the caret would count as hidden behind it and each key would scroll the page down;
 - the selected chunk is marked with `aria-current` and a visible "selected" label, not only a background. Selecting is not a toggle, so there is no `aria-pressed`;
 - a citation button moves focus to its chunk in the Context tab, once: `useInspectorPanel` clears the request when it is done, so coming back to the tab later leaves focus in the tab list;
 - each rank cell reads "1, score 9.16", not "19.16", through visually hidden text.

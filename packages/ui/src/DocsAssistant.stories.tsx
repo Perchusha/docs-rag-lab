@@ -1050,6 +1050,30 @@ export const NewQuestionAboveStackedPanel: Story = {
 }
 
 /**
+ * The input is always in view, so focus in it leaves the page where it is. With the page's
+ * room for the input in force, the caret counted as hidden behind it, and each real key
+ * scrolled the page down. Keys from userEvent and insertText never bring the caret into
+ * view, so this checks the rule through focus(), which scrolls by the same rule.
+ */
+export const FocusInTheInputKeepsThePageStill: Story = {
+  ...WIDE,
+  args: { transport: replayTransport({ events: tableAnswerFixture.events }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    const page = document.documentElement
+    await expect(page.scrollHeight).toBeGreaterThan(window.innerHeight)
+
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    input.blur()
+    window.scrollTo(0, 0)
+    input.focus()
+    await expect(window.scrollY).toBe(0)
+    await expect(getComputedStyle(page).scrollPaddingBottom).toBe('auto')
+  },
+}
+
+/**
  * WCAG 2.4.11: the input sticks to the bottom and grows with its text, and it never
  * covers what has focus. Tabs through a long answer with ten lines in the input.
  */
@@ -1066,8 +1090,9 @@ export const InputNeverCoversFocus: Story = {
     const form = canvas.getByRole('form', { name: 'Ask the docs' })
     // Taller than the padding the page has before it has measured anything.
     await expect(form.getBoundingClientRect().height).toBeGreaterThan(200)
-    const padding = () => parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom)
-    await waitFor(() => expect(padding()).toBeGreaterThan(form.getBoundingClientRect().height))
+    const page = document.documentElement
+    const measured = () => parseFloat(page.style.getPropertyValue('--dock-height'))
+    await waitFor(() => expect(measured()).toBeGreaterThan(form.getBoundingClientRect().height))
 
     const covered: string[] = []
     const first = canvas
@@ -1075,6 +1100,10 @@ export const InputNeverCoversFocus: Story = {
       .querySelector<HTMLElement>('a, button, [tabindex="0"]')
     first?.focus()
     await expect(document.activeElement).toBe(first)
+    // Kept clear only with focus out of the input: see FocusInTheInputKeepsThePageStill.
+    await expect(parseFloat(getComputedStyle(page).scrollPaddingBottom)).toBeGreaterThan(
+      form.getBoundingClientRect().height,
+    )
     let stops = 0
     for (let stop = 0; stop < 60 && document.activeElement !== input; stop += 1) {
       stops += 1

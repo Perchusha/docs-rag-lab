@@ -159,7 +159,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
               ))}
             </div>
           )}
-          <div ref={dock} className={styles.dock}>
+          <div ref={dock} className={styles.dock} data-drl-dock="">
             {/* Announced in every state, but only worth seeing while something runs. */}
             <p role="status" className={running ? styles.status : common.srOnly}>
               {statusText(latest?.state)}
