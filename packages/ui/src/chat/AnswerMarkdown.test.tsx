@@ -152,6 +152,57 @@ describe('AnswerMarkdown', () => {
     })
   })
 
+  describe('a citation that ends on a code block', () => {
+    const shapes: Record<string, string> = {
+      'a plain block': 'Intro.\n\n```ts\nconst a = 1\n```',
+      'a 3-tick block holding a line with an info string': 'Intro.\n\n```\n```ts\nconst a = 1\n```',
+      'a 4-tick block holding one 3-tick line': 'Intro.\n\n````\n```\nconst a = 1\n````',
+      'a 4-tick block holding a closed 3-tick block': 'Intro.\n\n````\n```\nconst a = 1\n```\n````',
+      'a tilde block holding a backtick line': 'Intro.\n\n~~~\n```\nconst a = 1\n~~~',
+      'inline code at the start of a line, then a block':
+        'Intro.\n\n```x``` is inline.\n\n```\nconst a = 1\n```',
+      'a block in a nested list': '- One\n  - Two\n\n    ```ts\n    const a = 1\n    ```',
+      'a block on a list marker line': '1. ```ts\n   const a = 1\n   ```',
+      'a block in a quote': 'Intro.\n\n> ```ts\n> const a = 1\n> ```',
+      'a heading underline before the block': 'Title\n---\n```\nconst a = 1\n```',
+      'a rule before the block': 'Intro.\n\n---\n\n```\nconst a = 1\n```',
+      'a block still open': 'Intro.\n\n```ts\nconst a = 1',
+    }
+
+    it.each(Object.entries(shapes))('%s: the marker renders, and code stays code', (_, text) => {
+      const out = html(
+        answerMarkdown([
+          { kind: 'text', text },
+          { kind: 'cite', numbers: [1] },
+          ...(text.endsWith('const a = 1')
+            ? []
+            : [{ kind: 'text' as const, text: '\n\nAfter it.' }]),
+        ]),
+      )
+      expect(out.match(/<button/g)).toHaveLength(1)
+      expect(out).not.toContain('#cite-1')
+      expect(out).toMatch(/<pre>/)
+      // The code holds no marker, and the text after it is not code.
+      const code = out.match(/<pre>[\s\S]*?<\/pre>/g)?.join('') ?? ''
+      expect(code).not.toContain('<button')
+      expect(code).not.toContain('After it.')
+      expect(out.replace(/<pre>[\s\S]*?<\/pre>/g, '')).toMatch(
+        text.endsWith('const a = 1') ? /<button/ : /After it\./,
+      )
+    })
+
+    it('keeps a heading a heading, and a rule a rule', () => {
+      const parts = (text: string) => [
+        { kind: 'text' as const, text },
+        { kind: 'cite' as const, numbers: [1] },
+      ]
+      expect(
+        html(answerMarkdown(parts(shapes['a heading underline before the block'] ?? ''))),
+      ).toMatch(/<h2>Title<button/)
+      expect(html(answerMarkdown(parts(shapes['a rule before the block'] ?? '')))).toContain('<hr')
+    })
+  })
+
   it('shows a marker with no known citation as plain text', () => {
     const out = html('Claim[7](#cite-7)')
     expect(out).toMatch(/Claim<span[^>]*>\[7\]<\/span>/)

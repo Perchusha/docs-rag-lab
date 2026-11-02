@@ -70,12 +70,33 @@ describe('answerMarkdown', () => {
     expect(answerMarkdown(fenced)).toBe('```ts\nconst a = 1\n```\n\n[1](#cite-1)')
   })
 
-  it('treats a bare fence that opens a block as code, not as a closing fence', () => {
-    const open: AnswerPart[] = [
-      { kind: 'text', text: 'Text\n```' },
+  it('goes on the text before a block still open, never into the code', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
       { kind: 'cite', numbers: [2] },
     ]
-    expect(answerMarkdown(open)).toBe('Text\n```[2](#cite-2)')
+    expect(answerMarkdown(cited('Text\n```'))).toBe('Text[2](#cite-2)\n```')
+    expect(answerMarkdown(cited('Text\n\n```ts\nconst a = 1'))).toBe(
+      'Text[2](#cite-2)\n\n```ts\nconst a = 1',
+    )
+    expect(answerMarkdown(cited('```ts\nconst a = 1'))).toBe('[2](#cite-2)\n\n```ts\nconst a = 1')
+  })
+
+  it('skips a rule and a heading underline on the way to the text', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Title\n---\n```\na\n```'))).toBe(
+      'Title[1](#cite-1)\n---\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('Title\n===\n```\na\n```'))).toBe(
+      'Title[1](#cite-1)\n===\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('Text\n\n* * *\n\n```\na\n```'))).toBe(
+      'Text[1](#cite-1)\n\n* * *\n\n```\na\n```',
+    )
+    expect(answerMarkdown(cited('---\n```\na\n```'))).toBe('---\n```\na\n```\n\n[1](#cite-1)')
   })
 
   it('keeps a marker inside the table row it follows, where GFM would drop an extra cell', () => {
@@ -100,7 +121,7 @@ describe('answerMarkdown', () => {
     expect(answerMarkdown(cited('a | b \\|'))).toBe('a | b \\|[1](#cite-1)')
     expect(answerMarkdown(cited('Use a pipe |'))).toBe('Use a pipe |[1](#cite-1)')
     expect(answerMarkdown(cited('---'))).toBe('---[1](#cite-1)')
-    expect(answerMarkdown(cited('```\n| a | b |'))).toBe('```\n| a | b |[1](#cite-1)')
+    expect(answerMarkdown(cited('```\n| a | b |'))).toBe('[1](#cite-1)\n\n```\n| a | b |')
   })
 
   it('renders the recorded answer with both of its markers', () => {

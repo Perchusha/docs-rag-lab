@@ -1,5 +1,6 @@
 // The streamed answer as data: text deltas and citation markers in the order
 // they arrived (AnswerEvent, ADR-0006), and the markdown that renders them.
+import { scanFences } from './fences.ts'
 
 export type AnswerPart = { kind: 'text'; text: string } | { kind: 'cite'; numbers: number[] }
 
@@ -26,10 +27,9 @@ export function citationNumber(href: string | undefined): number | undefined {
   return /^[1-9]\d*$/.test(rest) ? Number(rest) : undefined
 }
 
-// A code fence line: up to 3 spaces, then 3 or more backticks or tildes.
-const FENCE = /^ {0,3}(`{3,}|~{3,})/
-// A closing fence has nothing after the fence but spaces.
-const CLOSING_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
+// A thematic break, or the underline that makes the line above it a heading. A
+// marker on one would turn it into text, so the line above takes the marker.
+const RULE_LINE = /^ {0,3}(?:=+|-+|(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})[ \t]*$/
 
 // The last pipe of a table row, and any space around it; an escaped pipe is text.
 const ROW_END = /[ \t]*(?<!\\)\|[ \t]*$/
@@ -45,12 +45,10 @@ function isDelimiterRow(line: string): boolean {
 }
 
 /** The last line of text before the code blocks that end the text, or -1 if there is none. */
-function lineBeforeCode(lines: readonly string[]): number {
-  let inCode = false
+function lineBeforeCode(lines: readonly string[], inCode: readonly boolean[]): number {
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i] ?? ''
-    if (FENCE.test(line)) inCode = !inCode
-    else if (!inCode && line.trim() !== '') return i
+    if (inCode[i] !== true && line.trim() !== '' && !RULE_LINE.test(line)) return i
   }
   return -1
 }
@@ -71,19 +69,15 @@ function markLine(lines: string[], index: number, links: string): string {
 /** The text with the markers placed where they will render. */
 function withMarkers(body: string, links: string): string {
   const lines = body.split('\n')
-  const fences = lines.filter((line) => FENCE.test(line)).length
-  const last = lines.at(-1) ?? ''
-  // After a closing fence, text would keep the block open and turn the rest of
-  // the answer into code, and a line of its own reads as a lone marker. So it
-  // goes on the text before the code. An even number of fence lines means the
-  // last one closes a block.
-  if (CLOSING_FENCE.test(last) && fences % 2 === 0) {
-    const before = lineBeforeCode(lines)
-    return before === -1 ? `${body}\n\n${links}` : markLine(lines, before, links)
-  }
-  // Inside a code block there is no better place than the end.
-  if (fences % 2 === 1) return body + links
-  return markLine(lines, lines.length - 1, links)
+  const { inCode, open } = scanFences(lines)
+  if (inCode.at(-1) !== true) return markLine(lines, lines.length - 1, links)
+  // In or right after a code block, a marker would be text in the code, or text
+  // that keeps the block open and turns the rest of the answer into code. On a
+  // line of its own it reads as a lone number. So it goes on the text before.
+  const before = lineBeforeCode(lines, inCode)
+  if (before !== -1) return markLine(lines, before, links)
+  // No text before: its own line after the block, or before one still open.
+  return open === undefined ? `${body}\n\n${links}` : `${links}\n\n${body}`
 }
 
 /**
