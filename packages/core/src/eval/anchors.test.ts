@@ -104,8 +104,11 @@ const DOC = {
 describe('resolveAnchor', () => {
   it('matches every part of a section by its own anchor, in document order', () => {
     const index = indexOf(DOC)
+    const chunks = index.documentChunks('a.md')?.chunks ?? []
 
-    expect(resolveAnchor({ at: 'a.md#long' }, index).chunks).toHaveLength(2)
+    expect(resolveAnchor({ at: 'a.md#long' }, index).chunks?.map((c) => c.chunkId)).toEqual(
+      chunks.slice(0, 2).map((c) => c.chunkId),
+    )
   })
 
   it('matches a section inside a chunk that starts elsewhere', () => {
@@ -260,6 +263,61 @@ describe('checkGoldenSet', () => {
     expect(check.findings).toMatchObject([{ problem: 'changed' }])
   })
 
+  it('notices a change in a later part of a section, not only the first', () => {
+    const questions = [question({ primary: ['a.md#long'] })]
+    const parts = (second: string) => ({
+      'a.md': [section('Long', prose(paragraph(700, 'alpha')), prose(paragraph(700, second)))],
+    })
+    const lock = lockOf(indexOf(parts('beta')), questions)
+
+    const check = checkGoldenSet({ questions, index: indexOf(parts('gamma')), lock })
+
+    expect(check.findings).toMatchObject([{ problem: 'changed' }])
+  })
+
+  it('notices the same text under a new chunk ID', () => {
+    const index = indexOf(DOC)
+    const questions = [question({ primary: ['a.md#packed'] })]
+    const lock = lockOf(index, questions)
+    const [locked] = lock.anchors['a.md#packed'] ?? []
+    if (locked === undefined) throw new Error('nothing locked')
+
+    const check = checkGoldenSet({
+      questions,
+      index,
+      lock: { ...lock, anchors: { 'a.md#packed': [{ ...locked, chunkId: 'another-id' }] } },
+    })
+
+    expect(check.findings).toMatchObject([{ problem: 'changed' }])
+  })
+
+  it('says the docs moved, and asks to re-read what has no anchors, when the lock is from another commit', () => {
+    const index = indexOf(DOC)
+    const questions = [
+      question({ primary: ['a.md#long'] }),
+      question({ id: 'ts-0002', tags: ['unanswerable'] }),
+    ]
+    const lock = { ...lockOf(index, questions), docsSha: 'older-sha' }
+
+    const check = checkGoldenSet({ questions, index, lock })
+
+    expect(check.docsMovedFrom).toBe('older-sha')
+    expect(check.review).toEqual(['ts-0002'])
+    expect(check.findings).toEqual([])
+    expect(check.lock.docsSha).toBe('docs-sha')
+    expect(check.docsSha).toBe('docs-sha')
+  })
+
+  it('says nothing about moved docs when the lock is from this commit, or there is none', () => {
+    const index = indexOf(DOC)
+    const questions = [question({ tags: ['unanswerable'] })]
+
+    expect(checkGoldenSet({ questions, index, lock: undefined }).docsMovedFrom).toBeUndefined()
+    const same = checkGoldenSet({ questions, index, lock: lockOf(index, questions) })
+    expect(same.docsMovedFrom).toBeUndefined()
+    expect(same.review).toEqual([])
+  })
+
   it('notices a pin that no longer matches', () => {
     const questions = [question({ primary: [{ at: 'a.md#packed', contains: 'Old text' }] })]
     const old = indexOf({ 'a.md': [section('Packed', prose('Old text.'))] })
@@ -291,7 +349,7 @@ describe('checkGoldenSet', () => {
     const index = indexOf(DOC, CHUNKER_VERSION - 1)
 
     expect(() => checkGoldenSet({ questions: [], index, lock: undefined })).toThrow(
-      `the index was built with chunker version ${String(CHUNKER_VERSION - 1)} and this code has ${String(CHUNKER_VERSION)}: run drl sync demo`,
+      `the index was built with chunker version ${String(CHUNKER_VERSION - 1)} and this code has ${String(CHUNKER_VERSION)}: run drl sync demo --at docs-sha`,
     )
   })
 

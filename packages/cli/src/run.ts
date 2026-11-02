@@ -36,7 +36,8 @@ export const USAGE = `Usage: drl <command> [options]
 
 Commands:
   sync <source> [--full]      Sync, parse, chunk and embed a source (incremental by default)
-      [--at <sha>]            Index this commit (a full SHA) instead of the head of the branch
+      [--at <sha>]            Index this commit (a full SHA) instead of the head of the branch;
+                              the next sync without it returns to the head
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -220,6 +221,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else if (command === 'eval') {
       if (rest[0] !== 'check') throw new CliError('eval needs a subcommand: drl eval check')
+      if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
       evalCheckCommand(ctx, { source: values.source, accept: values.accept })
     } else {
       await limitsCommand(ctx)

@@ -81,6 +81,12 @@ export interface GoldenCheck {
   /** Questions a human should read again. They are still scored. */
   review: string[]
   findings: AnchorFinding[]
+  /**
+   * The commit the lock was written from, when the index is at another one. The
+   * anchors say nothing about text added elsewhere, which can still change an
+   * answer. Unanswerable questions have no anchors at all, so they go to review.
+   */
+  docsMovedFrom: string | undefined
   /** What the anchors resolve to now: the lock to write once a human has reviewed them. */
   lock: GoldenLock
 }
@@ -100,7 +106,7 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
   }
   if (manifest.chunkerVersion !== CHUNKER_VERSION) {
     throw new GoldenSetError([
-      `the index was built with chunker version ${String(manifest.chunkerVersion)} and this code has ${String(CHUNKER_VERSION)}: run drl sync ${manifest.sourceId}`,
+      `the index was built with chunker version ${String(manifest.chunkerVersion)} and this code has ${String(CHUNKER_VERSION)}: run drl sync ${manifest.sourceId} --at ${manifest.commitSha}`,
     ])
   }
 
@@ -114,6 +120,7 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
     return resolution
   }
 
+  const docsMoved = lock !== undefined && lock.docsSha !== manifest.commitSha
   const findings: AnchorFinding[] = []
   const stale: string[] = []
   const review: string[] = []
@@ -136,9 +143,10 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
     const missing = question.primary.filter((anchor) => !inspect('primary', anchor)).length
     for (const anchor of question.acceptable) inspect('acceptable', anchor)
 
-    const needed = question.primaryMatch === 'all' ? 1 : question.primary.length
-    if (missing >= needed) stale.push(question.id)
-    else if (findings.length > before) review.push(question.id)
+    const goneForStale = question.primaryMatch === 'all' ? 1 : question.primary.length
+    const anchorless = question.primary.length === 0
+    if (missing >= goneForStale) stale.push(question.id)
+    else if (findings.length > before || (anchorless && docsMoved)) review.push(question.id)
   }
 
   const entries = [...resolved.entries()].flatMap(([key, { chunks }]): [string, AnchorChunk[]][] =>
@@ -152,6 +160,7 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
     stale,
     review,
     findings,
+    docsMovedFrom: docsMoved ? lock.docsSha : undefined,
     lock: {
       docsSha: manifest.commitSha,
       anchors: Object.fromEntries(entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),

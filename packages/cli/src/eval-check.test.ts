@@ -159,6 +159,36 @@ describe('drl eval check', () => {
     expect(out).toContain('the text changed since the lock')
   })
 
+  it('will not accept an acceptable anchor that is gone, which would leave a lock short of an anchor', async () => {
+    seedIndex('A > Sec\n\nThe text.')
+    writeGoldenSet({ ...answerable, acceptable: ['docs/a.md#gone'] })
+
+    const { code, err } = await drl('eval', 'check', '--accept')
+
+    expect(code).toBe(1)
+    expect(err).toContain('anchors that do not resolve cannot be accepted')
+    expect(existsSync(goldenLockPath(root, 'typescript'))).toBe(false)
+  })
+
+  it('fails once the docs moved, until a human has read the set again and accepted it', async () => {
+    seedIndex('A > Sec\n\nThe text.')
+    writeGoldenSet(answerable, unanswerable)
+    await drl('eval', 'check', '--accept')
+    const lockPath = goldenLockPath(root, 'typescript')
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { docsSha: string }
+    writeFileSync(lockPath, JSON.stringify({ ...lock, docsSha: 'a'.repeat(40) }))
+
+    const moved = await drl('eval', 'check')
+
+    expect(moved.code).toBe(1)
+    expect(moved.out).toContain('the docs moved since the lock, from aaaaaaaa')
+    expect(moved.out).toContain('to review: ts-0002')
+    expect(moved.out).not.toContain('every anchor resolves')
+
+    expect((await drl('eval', 'check', '--accept')).code).toBe(0)
+    expect((await drl('eval', 'check')).code).toBe(0)
+  })
+
   it('names a question whose anchor is gone, and will not accept it', async () => {
     seedIndex('A > Sec\n\nThe text.')
     writeGoldenSet(answerable)
@@ -169,13 +199,13 @@ describe('drl eval check', () => {
     const { code, out } = await drl('eval', 'check')
 
     expect(code).toBe(1)
-    expect(out).toContain('stale, left out of metrics: ts-0001')
+    expect(out).toContain('stale, an anchor it needs is gone: ts-0001')
     expect(out).toContain('  ts-0001 primary docs/a.md#sec: no such section')
 
     const accepted = await drl('eval', 'check', '--accept')
 
     expect(accepted.code).toBe(1)
-    expect(accepted.err).toContain('stale questions cannot be accepted')
+    expect(accepted.err).toContain('anchors that do not resolve cannot be accepted')
     expect(readFileSync(goldenLockPath(root, 'typescript'), 'utf8')).toBe(lock)
   })
 
@@ -198,7 +228,7 @@ describe('drl eval check', () => {
 
     expect(code).toBe(1)
     expect(err).toContain(`chunker version ${String(CHUNKER_VERSION - 1)}`)
-    expect(err).toContain('run drl sync typescript')
+    expect(err).toContain('run drl sync typescript --at 205122bb73dcbf6f3b373de5bdb0d9fa5434d015')
   })
 
   it('says so when the source has no golden set, and when there is no index', async () => {
@@ -217,6 +247,10 @@ describe('drl eval check', () => {
     expect(bare.code).toBe(1)
     expect(bare.err).toContain('eval needs a subcommand: drl eval check')
 
+    const extra = await drl('eval', 'check', 'react')
+    expect(extra.code).toBe(1)
+    expect(extra.err).toContain('eval check takes no arguments: use --source <id>')
+
     const misplaced = await drl('search', 'q', '--accept')
     expect(misplaced.code).toBe(2)
     expect(misplaced.err).toContain('--accept works only with eval check')
@@ -225,7 +259,7 @@ describe('drl eval check', () => {
 
 describe('drl sync', () => {
   // A repository with no matching files: a real sync that embeds nothing.
-  async function syncEmptyRepo() {
+  async function syncEmptyRepo(...flags: string[]) {
     const upstream = join(root, 'upstream')
     const gitConfig = join(root, 'gitconfig')
     writeFileSync(gitConfig, '[user]\n\tname = Test\n\temail = test@example.com\n')
@@ -242,7 +276,7 @@ describe('drl sync', () => {
 
     const out = capture()
     const err = capture()
-    const code = await run(['sync', 'typescript'], {
+    const code = await run(['sync', 'typescript', ...flags], {
       out: out.writer,
       err: err.writer,
       root,
@@ -261,10 +295,41 @@ describe('drl sync', () => {
       const { code, out } = await syncEmptyRepo()
 
       expect(code).toBe(0)
-      expect(out).toContain('stale, left out of metrics: ts-0001')
+      expect(out).toContain('stale, an anchor it needs is gone: ts-0001')
       expect(out).toContain('  ts-0001 primary docs/a.md#sec: no such document')
     },
   )
+
+  it('indexes the commit named by --at', { timeout: 30_000 }, async () => {
+    const upstream = join(root, 'upstream')
+    const first = await syncEmptyRepo()
+    expect(first.code).toBe(0)
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: upstream, stdio: 'pipe', encoding: 'utf8' }).trim()
+    const pinned = git('rev-parse', 'HEAD')
+    git('commit', '--quiet', '--allow-empty', '-m', 'second')
+    expect(git('rev-parse', 'HEAD')).not.toBe(pinned)
+    rmSync(join(root, settings.dataDir), { recursive: true, force: true })
+    rmSync(join(root, settings.cacheDir), { recursive: true, force: true })
+    git('config', 'uploadpack.allowAnySHA1InWant', 'true')
+
+    const [typescript] = sourcesFor(settings)
+    if (typescript === undefined) throw new Error('no source')
+    const out = capture()
+    const err = capture()
+    const code = await run(['sync', 'typescript', '--at', pinned], {
+      out: out.writer,
+      err: err.writer,
+      root,
+      sources: [{ ...typescript, repo: pathToFileURL(upstream).href, include: ['docs'] }],
+      debug: false,
+    })
+
+    expect(code).toBe(0)
+    const indexes = openIndexes(join(root, settings.dataDir), 'typescript', { create: false })
+    expect(indexes.index.getManifest()?.commitSha).toBe(pinned)
+    indexes.close()
+  })
 
   it('reports a broken golden set without failing', { timeout: 30_000 }, async () => {
     writeGoldenSet({ ...answerable, tags: [] })

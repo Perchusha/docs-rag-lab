@@ -21,6 +21,7 @@ describe('formatGoldenCheck', () => {
     stale: [],
     review: [],
     findings: [],
+    docsMovedFrom: undefined,
     lock: { docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015', anchors: {} },
   }
 
@@ -31,7 +32,17 @@ describe('formatGoldenCheck', () => {
     ])
   })
 
-  it('separates what metrics leave out from what a human should read, with the reason', () => {
+  it('says the docs moved, and does not claim the lock still matches', () => {
+    const check = { ...clean, docsMovedFrom: 'aaaaaaaaaaaaaaaa', review: ['ts-0041'] }
+
+    expect(formatGoldenCheck(check).split('\n')).toEqual([
+      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'the docs moved since the lock, from aaaaaaaa: only anchored text is compared, so text added elsewhere can still change an answer',
+      'to review: ts-0041',
+    ])
+  })
+
+  it('separates what cannot be scored from what a human should read, with the reason', () => {
     const check = {
       ...clean,
       stale: ['ts-0001'],
@@ -60,7 +71,7 @@ describe('formatGoldenCheck', () => {
 
     expect(formatGoldenCheck(check).split('\n')).toEqual([
       'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
-      'stale, left out of metrics: ts-0001',
+      'stale, an anchor it needs is gone: ts-0001',
       'to review: ts-0002, ts-0003',
       '  ts-0001 primary a.md#s contains words: the pinned passage is gone',
       '  ts-0002 acceptable b.md: no such document',

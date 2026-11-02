@@ -69,8 +69,18 @@ export function formatGoldenCheck(check: GoldenCheck): string {
     `golden set: ${count(check.questions)} questions (${count(check.unanswerable)} unanswerable), ` +
       `${count(check.anchors)} anchors, docs ${check.docsSha.slice(0, 8)}`,
   ]
-  if (check.findings.length === 0) lines.push('every anchor resolves and matches the lock')
-  if (check.stale.length > 0) lines.push(`stale, left out of metrics: ${check.stale.join(', ')}`)
+  if (check.docsMovedFrom !== undefined) {
+    lines.push(
+      `the docs moved since the lock, from ${check.docsMovedFrom.slice(0, 8)}: only anchored text is compared, ` +
+        'so text added elsewhere can still change an answer',
+    )
+  }
+  if (check.findings.length === 0 && check.docsMovedFrom === undefined) {
+    lines.push('every anchor resolves and matches the lock')
+  }
+  if (check.stale.length > 0) {
+    lines.push(`stale, an anchor it needs is gone: ${check.stale.join(', ')}`)
+  }
   if (check.review.length > 0) lines.push(`to review: ${check.review.join(', ')}`)
   for (const finding of check.findings) {
     lines.push(

@@ -282,6 +282,24 @@ describe('run', () => {
     expect(err.text()).not.toContain('VOYAGE_API_KEY')
   })
 
+  it.each([
+    ['upper case', 'A'.repeat(40)],
+    ['too long', 'a'.repeat(41)],
+    ['with text before it', `x${'a'.repeat(40)}`],
+    ['with text after it', `${'a'.repeat(40)}x`],
+  ])('refuses --at %s', async (_name, sha) => {
+    const err = capture()
+
+    const code = await run(['sync', 'typescript', '--at', sha], {
+      out: capture().writer,
+      err: err.writer,
+      root,
+    })
+
+    expect(code).toBe(1)
+    expect(err.text()).toContain('--at must be a full 40-character commit SHA')
+  })
+
   it('accepts --json only with search', async () => {
     const err = capture()
     expect(

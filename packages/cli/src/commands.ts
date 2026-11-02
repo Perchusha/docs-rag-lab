@@ -148,16 +148,19 @@ export function evalCheckCommand(
     }
     out.write(`${formatGoldenCheck(check)}\n`)
     if (args.accept) {
-      if (check.stale.length > 0) {
+      const unresolved = check.findings.filter(
+        ({ problem }) => problem !== 'changed' && problem !== 'not-locked',
+      )
+      if (unresolved.length > 0) {
         throw new CliError(
-          'stale questions cannot be accepted: fix their anchors or drop them first',
+          'anchors that do not resolve cannot be accepted: fix or remove them first',
         )
       }
       writeGoldenLock(root, source.id, check.lock)
       out.write(
         `the lock now records ${String(check.anchors)} anchors at ${check.docsSha.slice(0, 8)}\n`,
       )
-    } else if (check.findings.length > 0) {
+    } else if (check.findings.length > 0 || check.docsMovedFrom !== undefined) {
       throw new CliError(
         'the golden set needs a review: fix what is listed, then record it with drl eval check --accept',
       )

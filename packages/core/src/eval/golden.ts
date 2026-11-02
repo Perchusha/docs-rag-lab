@@ -48,7 +48,7 @@ export class GoldenSetError extends Error {
   readonly problems: readonly string[]
 
   constructor(problems: readonly string[]) {
-    super(`the golden set has problems:\n${problems.map((p) => `  ${p}`).join('\n')}`)
+    super(`the golden set cannot be used:\n${problems.map((p) => `  ${p}`).join('\n')}`)
     this.name = 'GoldenSetError'
     this.problems = problems
   }

@@ -180,15 +180,19 @@ describe('syncRepo', { timeout: 30_000 }, () => {
 
   describe('with a pinned commit', () => {
     it('checks out that commit on a fresh clone, not the head of the branch', async () => {
-      const pinned = await commit('initial')
+      await commit('initial')
+      write('docs/notes/1.0.md', '# 1.0, pinned\n')
+      const pinned = await commit('pinned')
       write('docs/notes/1.0.md', '# 1.0, edited\n')
       await commit('edit')
 
       const result = await syncRepo(source(), { checkoutDir: checkout, at: pinned })
 
       expect(result).toEqual({ headSha: pinned, mode: 'full', reason: 'no previous sync' })
-      expect(readFileSync(join(checkout, 'docs/notes/1.0.md'), 'utf8')).toBe('# 1.0\n')
+      expect(readFileSync(join(checkout, 'docs/notes/1.0.md'), 'utf8')).toBe('# 1.0, pinned\n')
       expect(existsSync(join(checkout, 'docs/other'))).toBe(false)
+      // Still shallow: a pin does not pull in the history behind the commit.
+      expect((await git(['rev-list', '--count', 'HEAD'], { cwd: checkout })).trim()).toBe('1')
     })
 
     it('goes back to an older commit and reports what that changes', async () => {
