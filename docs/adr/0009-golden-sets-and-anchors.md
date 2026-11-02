@@ -35,7 +35,8 @@ ts-0040's primary anchors are the release notes because only they state the erro
 | ts-0001 | 1, 1 | 4, 2 |
 | ts-0034 | 1, 2 | 1, 3 |
 | ts-0035 | 2, 1 | 17, 1 |
-| ts-0037 | 1, 1 | 2, 2 |
+
+A pin is only for a section whose answer is in one of its parts. A second reading removed the pins from ts-0026 and ts-0037, where more than one part answers: the ts-0037 pin had moved a correct rank 1 to rank 2.
 
 ### 3. The chunker records which sections a chunk contains
 
@@ -83,19 +84,19 @@ The same retrieval over the same index, on the 40 questions with anchors. Only t
 | | hit@1 | hit@8 | MRR |
 |---|---|---|---|
 | Vector, draft anchors, any part | 29 | 38 | 0.817 |
-| Vector, primary | 25 | 36 | 0.738 |
-| Vector, primary or acceptable | 31 | 36 | 0.828 |
+| Vector, primary | 26 | 36 | 0.751 |
+| Vector, primary or acceptable | 32 | 36 | 0.851 |
 | Hybrid, draft anchors, any part | 23 | 37 | 0.730 |
-| Hybrid, primary | 18 | 36 | 0.645 |
-| Hybrid, primary or acceptable | 25 | 36 | 0.752 |
+| Hybrid, primary | 19 | 36 | 0.657 |
+| Hybrid, primary or acceptable | 27 | 37 | 0.787 |
 
-The old rule flattered hit@8 and undercounted hit@1. On primary anchors, vector search does better on 14 questions and hybrid on 7, with 19 tied: an exact sign test gives p = 0.19, so 40 questions do not show that either is better.
+The old rule flattered hit@8, and it counted correct chunks it had no anchor for as misses. On primary anchors, vector search does better on 14 questions and hybrid on 7, with 19 tied: an exact sign test gives p = 0.19, so 40 questions do not show that either is better.
 
 ## Consequences
 
 - ts-0039 is now a miss in both strategies. That is the honest result: the context that reaches Claude does not hold the answer.
 - A docs sync that touches anchored text, or moves to another commit at all, now asks for a human review. Text added elsewhere still needs that review to be read with care, because no check can say what it contradicts.
-- The lock is 437 lines of hashes, committed and rewritten only by `--accept`.
+- The lock is a few hundred lines of hashes, committed and rewritten only by `--accept`.
 - Pins are one more thing to review, so they are used only where a section spans several chunks and the answer is in one of them.
 
 ## Alternatives considered

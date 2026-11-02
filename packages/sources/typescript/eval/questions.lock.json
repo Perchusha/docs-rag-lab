@@ -31,6 +31,12 @@
         "textHash": "773c23df2c0fc5ee73b6621eb03d57f3c098c6f56ab7e2d28bbd993b60f61e59"
       }
     ],
+    "packages/documentation/copy/en/handbook-v2/Everyday Types.md#differences-between-type-aliases-and-interfaces contains may not participate": [
+      {
+        "chunkId": "5d1431e47b07b5e50ad22513",
+        "textHash": "c696e041c16a08b7cded4ba04a92ec5f49c61a62d717b13367da8d6b862ba4e6"
+      }
+    ],
     "packages/documentation/copy/en/handbook-v2/Everyday Types.md#literal-inference": [
       {
         "chunkId": "d85288b5f85ddbd4f03a3501",
@@ -133,11 +139,7 @@
         "textHash": "4ca62bcb7c6e640502c55c66470854e8d34dbfda5a0544687e465d289babe468"
       }
     ],
-    "packages/documentation/copy/en/modules-reference/Theory.md#typescript-imitates-the-hosts-module-resolution-but-with-types": [
-      {
-        "chunkId": "b154955faec998a8fe9305f2",
-        "textHash": "b7ed21dc87776d8587f10708dd763546394ab501e838694645d29dee38f97940"
-      },
+    "packages/documentation/copy/en/modules-reference/Theory.md#typescript-imitates-the-hosts-module-resolution-but-with-types contains requires relative paths to include file extensions": [
       {
         "chunkId": "e7136b3323c25bc4f277b203",
         "textHash": "e6bb04d38564e29dc4e574ac8c4292cddbe759d5c3a8c52a091fdf77c9883b01"
@@ -191,14 +193,10 @@
         "textHash": "87763c783a1081130f543e13043c09f225f03426e73aaf6d58dc04cd35e08d5e"
       }
     ],
-    "packages/documentation/copy/en/reference/Enums.md#const-enum-pitfalls": [
+    "packages/documentation/copy/en/reference/Enums.md#const-enum-pitfalls contains do not guarantee that runtime": [
       {
         "chunkId": "1544e73995999c83244eb597",
         "textHash": "9c9d158609ccef58d1bef9dd590fc011bf8c4d30aabfb6a05e1dec4a6d68068b"
-      },
-      {
-        "chunkId": "2cd14015ea1805bf146f1af6",
-        "textHash": "186a4cedb380be24633b6a89f1da1f3c8fdff222d7318f9414adda4d9096e9d1"
       }
     ],
     "packages/documentation/copy/en/reference/Enums.md#reverse-mappings": [
@@ -237,6 +235,12 @@
         "textHash": "d393409a2cc08b60fef3910d972173986a139f42de806fc7534d2577f6de1574"
       }
     ],
+    "packages/documentation/copy/en/release-notes/TypeScript 2.8.md#improved-control-over-mapped-type-modifiers": [
+      {
+        "chunkId": "73dc7cdc352a0f4eaab59b46",
+        "textHash": "0609cec2c3f21376400439ad0c312af023ca3c2c88d1a5d0a2d0e8300ba49079"
+      }
+    ],
     "packages/documentation/copy/en/release-notes/TypeScript 3.0.md#new-unknown-top-type": [
       {
         "chunkId": "cbe74b1aa7bd352dbed39acd",
@@ -249,24 +253,22 @@
         "textHash": "94fe1df319bb34e45a11c0216cc1902f489d33a0ef49fba38bfac593ea1c8390"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 3.8.md#which-should-i-use": [
+    "packages/documentation/copy/en/release-notes/TypeScript 3.8.md#type-only-imports-and-export": [
+      {
+        "chunkId": "dfb3d2bccc71813872ba2c8b",
+        "textHash": "7d3e1db97e44e283221cacd19f12103ec3a1ac9c2eb69ae4af5bf2a055f4736d"
+      }
+    ],
+    "packages/documentation/copy/en/release-notes/TypeScript 3.8.md#which-should-i-use contains soft privacy": [
       {
         "chunkId": "df4cd9872cba556c279b67d5",
         "textHash": "c803ba42cecebf5041b9712f41dceccb071c3c0463cbd9d018ba723f7847fd17"
-      },
-      {
-        "chunkId": "a3d542c9c7d162fbf24992a1",
-        "textHash": "4b1e56e81e960b4245d5afc6fb16c98d977ab65ab060077aaddc1e062e6964d7"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 4.1.md#checked-indexed-accesses---nouncheckedindexedaccess": [
+    "packages/documentation/copy/en/release-notes/TypeScript 4.1.md#checked-indexed-accesses---nouncheckedindexedaccess contains potentially undefined": [
       {
         "chunkId": "90f67524a6a6dfae0d8656ae",
         "textHash": "e7f4b17956c506076c0c548b65759b0251a6842a085e6b0b9a8540a0e9a52da3"
-      },
-      {
-        "chunkId": "ef2f7e4c85b4cdd038c3777b",
-        "textHash": "0fe96efe0f53033efee5b454677c3bd0772438931c6e3d6105b1638c30fe38db"
       }
     ],
     "packages/documentation/copy/en/release-notes/TypeScript 4.1.md#key-remapping-in-mapped-types": [
@@ -287,17 +289,19 @@
         "textHash": "a47775918fe49cf512cc88fe6d7175b655d0872d737cb1efc9791bfbee3e4e20"
       }
     ],
+    "packages/documentation/copy/en/release-notes/TypeScript 4.7.md#type-in-packagejson-and-new-extensions": [
+      {
+        "chunkId": "07cea8c281757fecae4b2389",
+        "textHash": "8fccc28bc763b5aa6d880f83d6c69250341f6d3a45623cf92846342e3b420e5a"
+      }
+    ],
     "packages/documentation/copy/en/release-notes/TypeScript 4.9.md#the-satisfies-operator contains without changing the resulting type": [
       {
         "chunkId": "508c72073790efc407c9498f",
         "textHash": "66f1b1e8174fba73881fd7589bb6e64c8c2de158d372a4a1217b1a978f23a1b3"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#--verbatimmodulesyntax": [
-      {
-        "chunkId": "475bb29f24fe609bc17c580a",
-        "textHash": "361410de13b88ce4646db2422de994981a23aaeb910e290dbaf553b574c10ad7"
-      },
+    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#--verbatimmodulesyntax contains are left around": [
       {
         "chunkId": "bd7b1dbc09ff11c0bd5bd20b",
         "textHash": "b54ce9ac09eb045c45f94b6b68f5167c5316d81118610d8525cc412710b3342d"
@@ -309,10 +313,14 @@
         "textHash": "1948b60f4feafabbd857857870027fb3faefc5b503b26db2cd6f524c1d63b67e"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#satisfies-support-in-jsdoc contains new JSDoc tag called `@satisfies`": [
+    "packages/documentation/copy/en/release-notes/TypeScript 5.0.md#satisfies-support-in-jsdoc": [
       {
         "chunkId": "1ad2284b8bc3c335c9eb8292",
         "textHash": "daeaed056ed4f56c3c4c3d199bf65fa95c6cc0005300a077e2c7761f9e658825"
+      },
+      {
+        "chunkId": "aeb982d14fa0a847ea47358a",
+        "textHash": "b46a42d495074a225af707131686c9b71bd413799bbd8a82c293004fc0b9f111"
       }
     ],
     "packages/documentation/copy/en/release-notes/TypeScript 5.2.md#using-declarations-and-explicit-resource-management contains very end of their containing scope": [
@@ -327,10 +335,10 @@
         "textHash": "e8ce0828fbffbaf8dbc56913e9aedd5295074e0f5de377c18dba2e7e489ce787"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 5.5.md#disabling-features-deprecated-in-typescript-50": [
+    "packages/documentation/copy/en/release-notes/TypeScript 5.7.md#path-rewriting-for-relative-paths contains the output file": [
       {
-        "chunkId": "22f1c21d32c0001f8e7a8abb",
-        "textHash": "ce352f9a5c26887d7c55da545df3f18852eca4e0514c45067f9ed5b9030e6837"
+        "chunkId": "d294ce65bad1892aab1e1359",
+        "textHash": "fc75df7f1598cce641de407a52f1ad5f4c1a3414c073d6ed55c6e524176145a8"
       }
     ],
     "packages/documentation/copy/en/release-notes/TypeScript 5.7.md#typedarrays-are-now-generic-over-arraybufferlike": [
@@ -351,10 +359,14 @@
         "textHash": "4fe9e3defd02493c6a5f73b66278ebaedc97c8febeb5955c8e87ef7578c89efb"
       }
     ],
-    "packages/documentation/copy/en/release-notes/TypeScript 5.9.md#support-for-import-defer contains only permits namespace imports": [
+    "packages/documentation/copy/en/release-notes/TypeScript 5.9.md#support-for-import-defer": [
       {
         "chunkId": "7c6c179bece94801bf1c107f",
         "textHash": "44b1443873d2cf2c658176cae1d6fcee5925be68aa40f12906ce7d63d49a0b01"
+      },
+      {
+        "chunkId": "7e3fc0f38078dd40f2048179",
+        "textHash": "9f4784fc5431db72e28f0d2bf4b2c9fa54b45ef30f79bfdc85f2cf6b45e86cfd"
       }
     ],
     "packages/documentation/copy/en/release-notes/TypeScript 6.0.md#rootdir-now-defaults-to-": [
@@ -375,6 +387,12 @@
         "textHash": "27c0da806d140e1ec68608975676dbc69f829cccd2ff3a07cf2a364831b0d6db"
       }
     ],
+    "packages/tsconfig-reference/copy/en/options/composite.md": [
+      {
+        "chunkId": "d35d55e1ab4209496699b84e",
+        "textHash": "eab62ab001e5dcfdacb118b169da871add947a998bf4e5d2b3efb116f8bd6a90"
+      }
+    ],
     "packages/tsconfig-reference/copy/en/options/erasableSyntaxOnly.md": [
       {
         "chunkId": "e7989478429737562072d5fd",
@@ -385,12 +403,6 @@
       {
         "chunkId": "f27c004ad1c8a4e7cc80408e",
         "textHash": "da0f684cd6179c4c4e87c04992e5fdddba00ce7231eec2aeb4d77721a0335825"
-      }
-    ],
-    "packages/tsconfig-reference/copy/en/options/importsNotUsedAsValues.md": [
-      {
-        "chunkId": "12dbe6214d1e73f19e1510f9",
-        "textHash": "e0b4fd2292279d523e278b4bbb417e2e07a65132fbfb797acc25921203008a8e"
       }
     ],
     "packages/tsconfig-reference/copy/en/options/isolatedModules.md": [
