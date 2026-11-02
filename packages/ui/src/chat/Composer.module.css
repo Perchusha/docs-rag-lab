@@ -1,0 +1,116 @@
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-3);
+  background: var(--color-bg);
+}
+
+.composer:focus-within {
+  border-color: var(--color-accent);
+}
+
+/* The box shows focus for the input inside it. */
+.input {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  field-sizing: content;
+  min-height: 2lh;
+  max-height: 12rem;
+  resize: none;
+  padding: var(--space-1) 0;
+  border: none;
+  outline: none;
+  background: none;
+  color: var(--color-text);
+}
+
+.composer:has(.input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.send,
+.stop {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+
+.stop {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.select {
+  position: relative;
+  min-width: 0;
+}
+
+.selectButton {
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-2);
+  margin-inline-start: calc(-1 * var(--space-2));
+  border: none;
+  border-radius: var(--radius-1);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: start;
+}
+
+.selectButton:hover {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+/* It opens upward: the input sits at the bottom of the page. */
+.selectPanel {
+  position: absolute;
+  inset-block-end: calc(100% + var(--space-1));
+  inset-inline-start: calc(-1 * var(--space-2));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 11rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-2);
+  background: var(--color-bg);
+  font-size: var(--text-sm);
+}
+
+.selectPanel[hidden] {
+  display: none;
+}
+
+.selectItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

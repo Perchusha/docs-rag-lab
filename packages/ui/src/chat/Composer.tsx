@@ -1,0 +1,129 @@
+import { MAX_QUESTION_LENGTH } from '@docs-rag-lab/contracts'
+import {
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+  type SubmitEvent,
+} from 'react'
+
+import common from '../lib/common.module.css'
+import styles from './Composer.module.css'
+import { DocTypeSelect } from './DocTypeSelect.tsx'
+
+/** What the page can do with the input. */
+export interface ComposerHandle {
+  focus: () => void
+}
+
+export interface ComposerProps {
+  ref?: Ref<ComposerHandle> | undefined
+  placeholder: string
+  docTypes: readonly string[]
+  docTypeLabels?: Readonly<Record<string, string>> | undefined
+  /** The doc types to search in; empty means all of them. */
+  filter: readonly string[]
+  onFilterChange: (filter: string[]) => void
+  running: boolean
+  onSend: (question: string) => void
+  onStop: () => void
+}
+
+/**
+ * One input with its button inside it. Enter sends and Shift+Enter adds a line.
+ * Sending clears the input: the question becomes a message in the chat.
+ */
+export function Composer({
+  ref,
+  placeholder,
+  docTypes,
+  docTypeLabels,
+  filter,
+  onFilterChange,
+  running,
+  onSend,
+  onStop,
+}: ComposerProps) {
+  const id = useId()
+  const textarea = useRef<HTMLTextAreaElement>(null)
+  const [question, setQuestion] = useState('')
+
+  useImperativeHandle(ref, () => ({ focus: () => textarea.current?.focus() }), [])
+
+  const send = () => {
+    const text = question.trim()
+    if (text === '') {
+      textarea.current?.focus()
+      return
+    }
+    onSend(text)
+    setQuestion('')
+  }
+
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // isComposing: Enter confirms a word in an input method, it does not send yet.
+    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+      event.preventDefault()
+      send()
+    }
+  }
+
+  return (
+    <form
+      className={styles.composer}
+      aria-label="Ask the docs"
+      onSubmit={(event: SubmitEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        send()
+      }}
+    >
+      <label className={common.srOnly} htmlFor={id}>
+        Question
+      </label>
+      <textarea
+        ref={textarea}
+        id={id}
+        className={styles.input}
+        rows={2}
+        placeholder={placeholder}
+        maxLength={MAX_QUESTION_LENGTH}
+        value={question}
+        onChange={(event) => {
+          setQuestion(event.target.value)
+        }}
+        onKeyDown={onKeyDown}
+        aria-describedby={`${id}-hint`}
+      />
+      <p id={`${id}-hint`} className={common.srOnly}>
+        Enter sends. Shift+Enter adds a new line.
+      </p>
+      <div className={styles.row}>
+        {docTypes.length > 0 ? (
+          <DocTypeSelect
+            docTypes={docTypes}
+            labels={docTypeLabels}
+            selected={filter}
+            onChange={onFilterChange}
+          />
+        ) : (
+          <span />
+        )}
+        {/* One button that changes role, so it keeps focus when a run starts or ends. */}
+        <button
+          type={running ? 'button' : 'submit'}
+          className={running ? styles.stop : styles.send}
+          aria-label={running ? 'Stop' : 'Send'}
+          onClick={(event) => {
+            if (!running) return
+            event.preventDefault()
+            onStop()
+          }}
+        >
+          <span aria-hidden="true">{running ? '■' : '↑'}</span>
+        </button>
+      </div>
+    </form>
+  )
+}

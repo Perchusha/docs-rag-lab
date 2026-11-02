@@ -6,7 +6,9 @@
 
 .heading {
   margin: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .list {
@@ -29,6 +31,7 @@
 }
 
 .title {
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -43,6 +46,10 @@
 .more {
   display: block;
   margin-top: var(--space-1);
+}
+
+.more,
+.show {
   padding: 0;
   border: none;
   background: none;

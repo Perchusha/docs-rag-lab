@@ -34,7 +34,7 @@ export const Default: Story = {
     const show = canvas.getByRole('button', { name: /^Show in the inspector\s*: source 1$/ })
     await expect(canvasElement).not.toHaveTextContent(/chunk \d/i)
     await userEvent.click(show)
-    await expect(args.onShow).toHaveBeenCalledWith(answerFixture.citations[0])
+    await expect(args.onShow).toHaveBeenCalledWith(answerFixture.citations[0], show)
   },
 }
 

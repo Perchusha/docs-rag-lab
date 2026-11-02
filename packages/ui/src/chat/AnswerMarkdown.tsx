@@ -24,7 +24,7 @@ export interface AnswerMarkdownProps {
   markdown: string
   /** The answer's citations; an excerpt from the docs has none. */
   citations?: readonly Citation[] | undefined
-  onCitation?: ((citation: Citation) => void) | undefined
+  onCitation?: ((citation: Citation, trigger: HTMLElement) => void) | undefined
   /**
    * For an excerpt quoted inside the page: its headings render as bold text, so
    * they do not become headings of the page.
@@ -113,7 +113,7 @@ export function AnswerMarkdown({
               className={styles.citation}
               aria-label={`Source ${String(n)}: ${citation.title}. Show it in the inspector`}
               title={citation.title}
-              onClick={() => onCitation?.(citation)}
+              onClick={(event) => onCitation?.(citation, event.currentTarget)}
             >
               {n}
             </button>

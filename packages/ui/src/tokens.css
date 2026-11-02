@@ -32,6 +32,7 @@
 
   --radius-1: 4px;
   --radius-2: 8px;
+  --radius-3: 16px;
   --radius-pill: 999px;
 
   --color-bg: #ffffff;
@@ -90,6 +91,15 @@
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* The chat's input sticks to the bottom of the page. A browser scrolling a
+   focused element into view keeps it clear of the input, not hidden behind it
+   (WCAG 2.4.11). Short windows do not stick it, see DocsAssistant.module.css. */
+@media (height >= 30rem) {
+  html {
+    scroll-padding-block-end: 10rem;
+  }
 }
 
 /* No motion for people who asked for none: spinners, pulses and smooth

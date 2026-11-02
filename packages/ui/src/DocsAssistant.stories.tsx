@@ -32,7 +32,92 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Idle: Story = {}
+/** Before the first question: the input and the examples, and nothing else. */
+export const EmptyState: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(
+      canvas.getByRole('heading', { level: 1, name: 'TypeScript docs assistant' }),
+    ).toBeVisible()
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toBeVisible()
+    await expect(canvas.getByRole('button', { name: 'Send' })).toBeVisible()
+    await expect(canvas.getByRole('list', { name: 'Example questions' })).toBeVisible()
+    await expect(canvas.getByRole('button', { name: /^Search in: All docs/ })).toBeVisible()
+    await expect(canvas.queryByRole('group', { name: /Doc types/ })).toBeNull()
+    await expect(canvas.queryByRole('tablist')).toBeNull()
+    await expect(canvas.queryByRole('button', { name: 'Stop' })).toBeNull()
+    await expect(canvas.getByRole('status')).toHaveTextContent('')
+  },
+}
+
+const exampleGate = replayGate()
+
+/** An example sends at once and goes away, and focus moves on to the input. */
+export const ExampleSends: Story = {
+  args: {
+    transport: replayTransport({ events: answerFixture.events, gate: exampleGate, onRequest }),
+  },
+  play: async ({ canvasElement }) => {
+    exampleGate.reset()
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: question }))
+    await expect(onRequest).toHaveBeenLastCalledWith('ask', {
+      question,
+      strategy: 'hybrid',
+      docTypes: [],
+    })
+    await waitFor(() =>
+      expect(canvas.queryByRole('list', { name: 'Example questions' })).toBeNull(),
+    )
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveFocus()
+    await expect(canvas.getByRole('heading', { level: 2, name: question })).toBeVisible()
+    exampleGate.open()
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+  },
+}
+
+/** Earlier questions stay in the chat, and the input stops promising a continuation. */
+export const EarlierQuestionsStay: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    await userEvent.click(input)
+    await userEvent.keyboard('First question{Enter}')
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+    await expect(input).toHaveAttribute('placeholder', 'Ask a new question')
+
+    await userEvent.click(input)
+    await userEvent.keyboard('Second question{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('article')).toHaveLength(2))
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+    const [first, second] = canvas.getAllByRole('article')
+    await expect(first).toHaveAccessibleName('First question')
+    await expect(second).toHaveAccessibleName('Second question')
+    await expect(first).toHaveAttribute('aria-busy', 'false')
+  },
+}
+
+const buttonGate = replayGate()
+
+/** Stop takes the place of Send while an answer streams, and it is the same button, so focus stays. */
+export const StopReplacesSend: Story = {
+  args: { transport: replayTransport({ events: answerFixture.events, gate: buttonGate }) },
+  play: async ({ canvasElement }) => {
+    buttonGate.reset()
+    const canvas = within(canvasElement)
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    const send = canvas.getByRole('button', { name: 'Send' })
+    await userEvent.click(send)
+    await waitFor(() => expect(send).toHaveAccessibleName('Stop'))
+    await expect(send).toHaveFocus()
+    await expect(canvas.queryByRole('button', { name: 'Send' })).toBeNull()
+
+    buttonGate.open()
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+    await expect(send).toHaveAccessibleName('Send')
+    await expect(send).toHaveFocus()
+  },
+}
 
 const answerGate = replayGate()
 
@@ -54,8 +139,10 @@ export const AskAndInspect: Story = {
     answerGate.reset()
     const canvas = within(canvasElement)
     const status = canvas.getByRole('status')
-    await userEvent.click(canvas.getByRole('button', { name: question }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    await userEvent.click(input)
+    await userEvent.keyboard(`${question}{Enter}`)
+    await expect(input).toHaveValue('')
     await expect(onRequest).toHaveBeenLastCalledWith('ask', {
       question,
       strategy: 'hybrid',
@@ -65,6 +152,7 @@ export const AskAndInspect: Story = {
     // Nothing released: retrieval has not answered, so this state cannot pass.
     await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
     await expect(canvas.queryByRole('tab', { name: 'Fusion' })).toBeNull()
+    await expect(canvas.queryByRole('list', { name: 'Example questions' })).toBeNull()
 
     // The trace: the inspector fills in before any answer text.
     answerGate.release(1)
@@ -113,73 +201,58 @@ export const AskAndInspect: Story = {
   },
 }
 
-export const SearchOnly: Story = {
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
-    await userEvent.click(canvas.getByRole('radio', { name: 'Vector only' }))
-    await userEvent.click(canvas.getByRole('button', { name: 'Search only' }))
-    await expect(onRequest).toHaveBeenLastCalledWith('search', {
-      question,
-      strategy: 'vector',
-      docTypes: [],
-    })
-    await canvas.findByText('Search done: 8 chunks in the context')
-    await expect(canvas.queryByRole('heading', { name: 'Sources' })).toBeNull()
-  },
-}
-
 const replacedAskGate = replayGate()
-const replacingSearchGate = replayGate()
 const onReplacedAskEnd = fn()
 
 /**
- * A new question replaces one still running, and nothing of the first reaches
- * the page. The replay keeps sending after its abort, as a real response does
- * with a chunk it has read, so both guards in useAssistant are under test: the
- * abort, and dropping what arrives after it.
+ * A new question stops one still running. The first stays in the chat, stopped,
+ * and nothing more reaches it: the replay keeps sending after its abort, as a
+ * real response does with a chunk it has read.
  */
 export const NewQuestionReplacesRunning: Story = {
   args: {
     transport: replayTransport({
       events: answerFixture.events,
       gate: replacedAskGate,
-      searchGate: replacingSearchGate,
       ignoresAbort: true,
       onAskEnd: onReplacedAskEnd,
     }),
   },
   play: async ({ canvasElement }) => {
     replacedAskGate.reset()
-    replacingSearchGate.reset()
     onReplacedAskEnd.mockClear()
     const canvas = within(canvasElement)
-    const status = canvas.getByRole('status')
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    const input = canvas.getByRole('textbox', { name: 'Question' })
 
     // The first question is mid-answer: its trace and some text are on the page.
-    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    await userEvent.click(input)
+    await userEvent.keyboard('First question{Enter}')
     replacedAskGate.release(3)
     await waitFor(() => expect(canvasElement).toHaveTextContent('operator was introduced'))
 
-    // The new question clears it, and stays searching until the test says so.
-    await userEvent.click(canvas.getByRole('button', { name: 'Search only' }))
-    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
-    await expect(canvasElement).not.toHaveTextContent('operator was introduced')
+    // Enter sends the new one, while the button still says Stop.
+    await userEvent.keyboard('Second question{Enter}')
+    await waitFor(() => expect(canvas.getAllByRole('article')).toHaveLength(2))
+    const [first, second] = canvas.getAllByRole('article')
+    await expect(first).toHaveAttribute('aria-busy', 'false')
+    await expect(first).toHaveTextContent('Stopped.')
 
-    // Everything the first question still has to send, sent into the new
-    // question's searching state, before it has an answer of its own.
+    // Everything left is released, to both the old question and the new one.
     replacedAskGate.open()
-    await waitFor(() => expect(onReplacedAskEnd).toHaveBeenCalledWith('aborted'))
-    await expect(onReplacedAskEnd).toHaveBeenCalledOnce()
-    await expect(status).toHaveTextContent('Searching the docs')
-    await expect(canvasElement).not.toHaveTextContent('operator was introduced')
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+    await waitFor(() => expect(onReplacedAskEnd).toHaveBeenCalledTimes(2))
+    await expect(onReplacedAskEnd).toHaveBeenCalledWith('aborted')
 
-    replacingSearchGate.open()
-    await waitFor(() => expect(status).toHaveTextContent('Search done: 8 chunks in the context'))
-    await expect(canvas.getByRole('heading', { name: 'Search' })).toBeVisible()
-    await expect(canvas.queryByRole('heading', { name: 'Sources' })).toBeNull()
-    await expect(canvas.queryAllByRole('button', { name: /^Source / })).toHaveLength(0)
+    // The first answer never grew, and has no sources; the second is whole.
+    await expect(first).toHaveTextContent('operator was introduced')
+    await expect(first).not.toHaveTextContent('TypeScript 4.9')
+    await expect(
+      within(first ?? canvasElement).queryByRole('heading', { name: 'Sources' }),
+    ).toBeNull()
+    await expect(second).toHaveTextContent('TypeScript 4.9')
+    await expect(
+      within(second ?? canvasElement).getByRole('heading', { name: 'Sources' }),
+    ).toBeVisible()
   },
 }
 
@@ -199,16 +272,15 @@ export const Stop: Story = {
     stoppedAskGate.reset()
     onStoppedAskEnd.mockClear()
     const canvas = within(canvasElement)
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
-    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
+    await userEvent.keyboard(`${question}{Enter}`)
     const status = canvas.getByRole('status')
     await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
 
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
     await waitFor(() => expect(status).toHaveTextContent('Stopped'))
-    await waitFor(() =>
-      expect(canvas.getByRole('button', { name: 'Stop' })).toHaveAttribute('aria-disabled', 'true'),
-    )
+    await expect(canvas.getByRole('button', { name: 'Send' })).toBeVisible()
+    await expect(canvas.queryByRole('button', { name: 'Stop' })).toBeNull()
     // The abort reached the transport, which is what stops the Claude stream.
     await waitFor(() => expect(onStoppedAskEnd).toHaveBeenCalledWith('aborted'))
     await expect(onStoppedAskEnd).toHaveBeenCalledOnce()
@@ -292,7 +364,7 @@ export const Reflow320: Story = {
     await expect(reflowProblems(canvasElement)).toEqual([])
 
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
-    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Send' }))
     await waitFor(() =>
       expect(canvas.getByRole('status')).toHaveTextContent('Answer ready, with 4 sources'),
     )
@@ -331,7 +403,7 @@ export const Failure: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
-    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Send' }))
     await expect(
       await canvas.findByText(
         'Error: there is no index for typescript yet: run drl sync typescript first',

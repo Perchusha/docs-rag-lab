@@ -1,18 +1,19 @@
 'use client'
-// A docs assistant: ask on the left, see how the answer's context was chosen on
-// the right (SPEC section 13, M3). An app renders this from a server component
-// with its config: serializable props only, so the transport is built here
-// from the endpoints unless a story or test passes its own.
-import type { Citation, RetrievalRequest, Strategy } from '@docs-rag-lab/contracts'
-import { useCallback, useId, useMemo, useState, type CSSProperties } from 'react'
+// A docs assistant: a chat column for someone asking a question, with the
+// retrieval inspector beside it for someone exploring how it was found (SPEC
+// section 13, M3). An app renders this from a server component with its config:
+// serializable props only, so the transport is built here from the endpoints
+// unless a story or test passes its own.
+import type { Citation, Strategy } from '@docs-rag-lab/contracts'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import { Answer } from './chat/Answer.tsx'
-import { QuestionForm, type QuestionRequest } from './chat/QuestionForm.tsx'
-import { Sources } from './chat/Sources.tsx'
+import { Composer, type ComposerHandle } from './chat/Composer.tsx'
 import { useAssistant } from './chat/useAssistant.ts'
 import styles from './DocsAssistant.module.css'
 import { Inspector, type InspectorTab } from './inspector/Inspector.tsx'
-import { isRunning, statusText, type Mode } from './lib/assistant.ts'
+import { isRunning, statusText } from './lib/assistant.ts'
+import common from './lib/common.module.css'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
 import './tokens.css'
 
@@ -27,8 +28,12 @@ export interface DocsAssistantProps {
   /** The source to ask; the engine's default when missing. */
   sourceId?: string | undefined
   examples: readonly string[]
+  /** The input's placeholder before the first question. */
+  placeholder?: string | undefined
   /** The source's doc types, for the filter. */
   docTypes: readonly string[]
+  /** Plain-language names for the doc types, for the filter. */
+  docTypeLabels?: Readonly<Record<string, string>> | undefined
   defaultStrategy: Strategy
   theme?: Theme | undefined
   endpoints: Endpoints
@@ -43,22 +48,44 @@ export function DocsAssistant(props: DocsAssistantProps) {
     () => props.transport ?? fetchTransport(endpoints),
     [props.transport, endpoints],
   )
-  const { state, run, stop } = useAssistant(transport)
+  const { exchanges, ask, stop } = useAssistant(transport)
+  const composer = useRef<ComposerHandle>(null)
+  const latestAnswer = useRef<HTMLDivElement>(null)
+  const [filter, setFilter] = useState<string[]>([])
   const [selected, setSelected] = useState<string | undefined>(undefined)
   const [tab, setTab] = useState<InspectorTab | undefined>(undefined)
   const [reveal, setReveal] = useState<string | undefined>(undefined)
 
-  const submit = useCallback(
-    (mode: Mode, request: QuestionRequest) => {
+  const latest = exchanges.at(-1)
+  const empty = latest === undefined
+  const running = latest !== undefined && isRunning(latest.state)
+
+  const send = useCallback(
+    (question: string) => {
       setSelected(undefined)
       setTab(undefined)
       setReveal(undefined)
-      const full: RetrievalRequest =
-        sourceId === undefined ? request : { ...request, source: sourceId }
-      void run(mode, full)
+      void ask({
+        question,
+        strategy: props.defaultStrategy,
+        docTypes: filter,
+        ...(sourceId === undefined ? {} : { source: sourceId }),
+      })
     },
-    [run, sourceId],
+    [ask, filter, props.defaultStrategy, sourceId],
   )
+
+  // An example disappears as it sends, so focus moves on to the input.
+  const sendExample = (question: string) => {
+    send(question)
+    composer.current?.focus()
+  }
+
+  // A new question comes into view; the answer then grows below it at its own pace.
+  const count = exchanges.length
+  useEffect(() => {
+    if (count > 0) latestAnswer.current?.scrollIntoView({ block: 'start' })
+  }, [count])
 
   // A citation shows its chunk: selected, in the Context tab, with focus on it.
   const showCitation = useCallback((citation: Citation) => {
@@ -78,42 +105,79 @@ export function DocsAssistant(props: DocsAssistantProps) {
           '--accent-dark': theme.accent.dark,
         } as CSSProperties)
 
+  const trace = latest?.state.trace
+  const layout = [styles.layout, trace === undefined ? undefined : styles.withInspector]
+  const chat = [styles.chat, empty ? styles.empty : undefined]
   return (
     <div className={styles.root} data-drl-theme="" style={style}>
-      <header className={styles.header}>
-        <h1>{title}</h1>
-        {props.tagline !== undefined && <p className={styles.tagline}>{props.tagline}</p>}
-      </header>
-      <main className={styles.columns}>
-        <div className={styles.chat}>
-          <QuestionForm
-            examples={props.examples}
-            docTypes={props.docTypes}
-            defaultStrategy={props.defaultStrategy}
-            running={isRunning(state)}
-            onSubmit={submit}
-            onStop={stop}
-          />
-          <p role="status" className={styles.status}>
-            {statusText(state)}
-          </p>
-          <Answer state={state} onCitation={showCitation} />
-          <Sources citations={state.citations} onShow={showCitation} />
+      <main className={layout.filter(Boolean).join(' ')}>
+        <div className={chat.filter(Boolean).join(' ')}>
+          <header className={styles.header}>
+            <h1>{title}</h1>
+            {empty && props.tagline !== undefined && (
+              <p className={styles.tagline}>{props.tagline}</p>
+            )}
+          </header>
+          {!empty && (
+            <div className={styles.transcript}>
+              {exchanges.map((exchange) => (
+                <div key={exchange.id} ref={exchange.id === latest.id ? latestAnswer : undefined}>
+                  <Answer state={exchange.state} onCitation={showCitation} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className={styles.dock}>
+            {/* Announced in every state, but only worth seeing while something runs. */}
+            <p role="status" className={running ? styles.status : common.srOnly}>
+              {statusText(latest?.state)}
+            </p>
+            <Composer
+              ref={composer}
+              placeholder={empty ? (props.placeholder ?? 'Ask a question') : 'Ask a new question'}
+              docTypes={props.docTypes}
+              docTypeLabels={props.docTypeLabels}
+              filter={filter}
+              onFilterChange={setFilter}
+              running={running}
+              onSend={send}
+              onStop={stop}
+            />
+            {empty && props.examples.length > 0 && (
+              <ul className={styles.examples} aria-label="Example questions">
+                {props.examples.map((example) => (
+                  <li key={example}>
+                    <button
+                      type="button"
+                      className={styles.example}
+                      onClick={() => {
+                        sendExample(example)
+                      }}
+                    >
+                      {example}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-        <section className={styles.inspector} aria-labelledby={`${id}-inspector`}>
-          <h2 id={`${id}-inspector`}>Retrieval inspector</h2>
-          <Inspector
-            trace={state.trace}
-            citations={state.citations}
-            selectedChunkId={selected}
-            onSelectChunk={setSelected}
-            tab={tab}
-            onTabChange={setTab}
-            reveal={reveal}
-            onRevealed={revealed}
-            transport={transport}
-          />
-        </section>
+        {trace !== undefined && (
+          <section className={styles.inspector} aria-labelledby={`${id}-inspector`}>
+            <h2 id={`${id}-inspector`}>Retrieval inspector</h2>
+            <Inspector
+              trace={trace}
+              citations={latest?.state.citations ?? []}
+              selectedChunkId={selected}
+              onSelectChunk={setSelected}
+              tab={tab}
+              onTabChange={setTab}
+              reveal={reveal}
+              onRevealed={revealed}
+              transport={transport}
+            />
+          </section>
+        )}
       </main>
     </div>
   )

@@ -8,7 +8,7 @@ import styles from './Sources.module.css'
 
 export interface SourcesProps {
   citations: readonly Citation[]
-  onShow?: ((citation: Citation) => void) | undefined
+  onShow?: ((citation: Citation, trigger: HTMLElement) => void) | undefined
 }
 
 /** A cited passage, rendered as markdown like the answer. A long one starts collapsed. */
@@ -39,11 +39,11 @@ export function Sources({ citations, onShow }: SourcesProps) {
   const id = useId()
   if (citations.length === 0) return null
   return (
-    <section className={styles.sources} aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`} className={styles.heading}>
+    <div className={styles.sources}>
+      <h3 id={`${id}-heading`} className={styles.heading}>
         Sources
-      </h2>
-      <ol className={styles.list}>
+      </h3>
+      <ol className={styles.list} aria-labelledby={`${id}-heading`}>
         {citations.map((citation) => (
           <li key={citation.number} className={styles.item} value={citation.number}>
             <div className={styles.title}>
@@ -53,9 +53,9 @@ export function Sources({ citations, onShow }: SourcesProps) {
             {onShow !== undefined && (
               <button
                 type="button"
-                className={common.button}
-                onClick={() => {
-                  onShow(citation)
+                className={styles.show}
+                onClick={(event) => {
+                  onShow(citation, event.currentTarget)
                 }}
               >
                 Show in the inspector
@@ -65,6 +65,6 @@ export function Sources({ citations, onShow }: SourcesProps) {
           </li>
         ))}
       </ol>
-    </section>
+    </div>
   )
 }
