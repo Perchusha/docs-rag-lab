@@ -70,7 +70,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm depcruise` | Boundary check only |
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
-| `pnpm drl sync typescript [--full] [--at <sha>]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`, at the head of the branch or at that commit. Re-embeds only new or changed chunks |
+| `pnpm drl sync typescript [--full] [--at <sha>]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`, at the head of the branch or at that commit (the next sync without `--at` returns to the head). Re-embeds only new or changed chunks |
 | `pnpm drl ask "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
 | `pnpm drl search "<question>" [--strategy vector|hybrid] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |

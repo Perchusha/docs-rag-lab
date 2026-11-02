@@ -8,7 +8,7 @@
 
 M4 measures every retrieval and answer change against a golden set, so the set decides what the numbers mean. A human reviewed the 40 draft questions against the index at `205122bb`. Every one of the 52 anchors resolved under the rule SPEC section 10 had then: a chunk matched when its anchor was the fragment or a heading inside it slugged to the fragment. The review still found that this rule let the metrics claim things that were not true:
 
-- **ts-0039:** the option page ranked 1 in both strategies and counted as a hit, but it says the opposite of the expected answer. The answer is only in the 6.0 release notes, ranked 36 by vector search and 13 by hybrid.
+- **ts-0039:** the option page ranked 1 in both strategies and counted as a hit, but it says the opposite of the expected answer. The answer is in the 6.0 release notes, ranked 36 by vector search and 13 by hybrid, and the options table has the new default as a bare value.
 - **ts-0035:** vector search counted rank 2, which is part 6 of 6 of the section, about `DisposableStack`. The part with the answer ranks 17.
 - **ts-0001:** rank 1 was the last part of the section. The key sentence is in the first part, at rank 4 and 2.
 - **ts-0027:** `Compiler Options.md#compiler-options` matched 7 chunks, and 4 of them name no strict option. No single chunk holds the answer.
@@ -22,7 +22,7 @@ SPEC section 6 also planned `eval_runs` and `eval_results` tables in the per-sou
 
 A question has `primary` anchors, the passages its answer was written from, and `acceptable` anchors, other passages that also support the answer and are never required. Metrics are reported both ways: primary only, and counting acceptable ones. Primary anchors are all required by default, since ts-0038 needs three sections for one answer. `"primaryMatch": "any"` says each one is enough on its own; ts-0040 is the only such question, because the 5.7 and 5.9 notes show the same error text.
 
-Acceptable anchors came from reading what vector and hybrid search return in their top 8, the usual way to judge relevance when no one can read 994 chunks per question. That favours chunks these two strategies can find, so a later strategy that surfaces a new correct chunk needs a new judgment before its numbers are compared.
+An acceptable anchor supports the answer itself, if less fully than a primary one: the handbook chunks of ts-0040 show the error on an example, without its text. A chunk that backs only a caveat, or cannot answer half of a two-part question, is not one, since a hit on it would count with the answer missing from the context. Most acceptable anchors came from reading what vector and hybrid search return in their top 8, the usual way to judge relevance when no one can read 994 chunks per question. That favours chunks these two strategies can find, so a later strategy that surfaces a new correct chunk needs a new judgment before its numbers are compared.
 
 ts-0040's primary anchors are the release notes because only they state the error text: until M7 compiles the examples, the handbook chunks have just `// @errors: 2345`. Its `note` says to revisit this after M7.
 
@@ -56,11 +56,13 @@ SPEC section 9 asks a sync to flag questions whose anchor chunks changed or disa
 - **stale:** an anchor the question needs is gone. Metrics leave the question out.
 - **review:** the text changed, or an anchor it does not need is gone. It is still scored.
 
-`--accept` rewrites the lock, and refuses while anything is stale. `drl sync` prints the same summary but does not fail on it. A test in the CLI checks in CI, with no index, that the lock covers exactly the anchors of the file, so a question cannot be added without a real check.
+The lock compares anchored text only, and that is its limit: text added elsewhere is invisible to it. A new option page would make ts-0044 wrong, and new release notes can contradict an anchored page, the way the 6.0 notes contradict the option page in ts-0039. So the lock also records the docs commit, and when the index is at another one, the check says so, sends the unanswerable questions to review and fails until a human accepts. It cannot say which answered question a new page contradicts; that takes the re-read.
+
+`--accept` rewrites the lock, and refuses while any anchor does not resolve. `drl sync` prints the same summary but does not fail on it. A test in the CLI checks in CI, with no index, that the lock covers exactly the anchors of the file, so an anchor cannot be added without a real check.
 
 ### 5. A sync can pin a commit
 
-`drl sync` always moved to the head of the branch, so any re-parse during M4 could have changed the corpus under the golden set, and no report could be reproduced after upstream moved. `drl sync <source> --at <sha>` indexes that commit. It takes a full SHA, because git fetches a commit by its full name only.
+`drl sync` always moved to the head of the branch, so any re-parse during M4 could have changed the corpus under the golden set, and no report could be reproduced after upstream moved. `drl sync <source> --at <sha>` indexes that commit. It takes a full SHA, because git fetches a commit by its full name only, and it does not check that the commit is on the source's branch. The pin is not stored: the next sync without `--at` returns to the head, which is why a chunker mismatch tells you to re-sync at the index's own commit.
 
 ### 6. Results live in committed reports, not in the index
 
@@ -76,7 +78,7 @@ SPEC section 9 and the settings said M4 would tune k and the list weights. A swe
 
 ## Measured before and after
 
-The same retrieval over the same index, on the 40 questions with anchors. Only the golden set and its grading changed.
+The same retrieval over the same index, on the 40 questions with anchors. Only the golden set changed: its grading, and the wording of six questions (ts-0007, 0013, 0014, 0019, 0027, 0033). The draft rows use the draft questions.
 
 | | hit@1 | hit@8 | MRR |
 |---|---|---|---|
@@ -92,7 +94,7 @@ The old rule flattered hit@8 and undercounted hit@1. On primary anchors, vector 
 ## Consequences
 
 - ts-0039 is now a miss in both strategies. That is the honest result: the context that reaches Claude does not hold the answer.
-- A changed upstream doc can no longer quietly change what a question measures, but a sync that touches anchored text now asks for a human review.
+- A docs sync that touches anchored text, or moves to another commit at all, now asks for a human review. Text added elsewhere still needs that review to be read with care, because no check can say what it contradicts.
 - The lock is 437 lines of hashes, committed and rewritten only by `--accept`.
 - Pins are one more thing to review, so they are used only where a section spans several chunks and the answer is in one of them.
 

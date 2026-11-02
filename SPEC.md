@@ -121,7 +121,8 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 - **UI:** React 19 with CSS Modules and design tokens (light and dark), react-markdown with GFM tables for answers (no raw HTML), Storybook 10. Every story runs as a test in headless Chromium through Playwright, with axe, in both colour schemes (ADR-0008).
 - **LLM:** Claude through the official `@anthropic-ai/sdk`, used directly (no third-party wrapper) so `search_result` blocks and citations are available.
   - Haiku: contextualization and question generation (cheap, with prompt caching).
-  - Sonnet: answers, the interviewer, the judge.
+  - Sonnet: answers, the interviewer.
+  - Opus: the eval judge, so the model that answers does not grade its own answers.
   - Model IDs live in `packages/settings` only (ADR-0007).
 - **Storage:** SQLite through `better-sqlite3`, with `sqlite-vec` for vectors and FTS5 for keyword search (BM25). One file per source.
 - **Embeddings and reranking:** Voyage AI. Default embedding model `voyage-4`, reranker `rerank-3`.
@@ -253,7 +254,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 ## 9. Pipeline
 
 ### Sync (`drl sync <source>`)
-1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings. The checkout is the head of the branch, or with `--at <sha>` that commit, so a report can be reproduced after upstream moves.
+1. Shallow, sparse, blob-less clone, or fetch, into `.cache/sources/<id>`, with `core.autocrlf=false`. Files are read with LF line endings. The checkout is the head of the branch, or with `--at <sha>` that commit, so a report can be reproduced after upstream moves. The pin is not stored: the next sync without `--at` returns to the head.
 2. Find changes:
    - if the manifest has a previous SHA, run `git diff --name-status -z --no-renames <old> <new> -- <include paths>`, fetching the old commit by SHA if the shallow clone lacks it;
    - otherwise, or if the old commit is unreachable, or the chunker version, parser version, embedding model, repository, branch or include paths changed, do a full build. A full build still compares chunk hashes, so unchanged text costs nothing.
@@ -304,13 +305,15 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
+M4 builds this in stages. So far: the golden set format, anchors, the lock and `drl eval check`. The metrics, reports, judge and dashboard below are coming in the later M4 PRs.
+
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
 {"id":"ts-0001","question":"...","answer":"...","primary":[{"at":"packages/documentation/copy/en/handbook-v2/Everyday Types.md#differences-between-type-aliases-and-interfaces","contains":"cannot be re-opened"}],"tags":["basic"]}
 ```
 - Tags: `basic`, `version`, `edge`, `fresh`, `exact-token`, `cross-lingual` (a question in another language than the docs), `unanswerable` (the docs do not cover it, or its premise is false).
 - `primary` anchors are the passages the answer was written from. The answer needs all of them, unless `"primaryMatch": "any"` says each one is enough on its own. `acceptable` anchors are other passages that also support the answer, and are never required. An unanswerable question has neither. An optional `note` says why a question is graded as it is.
-- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that contains the section, which the chunker records in `metadata.anchors`. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
+- An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that starts in the section or holds its heading, which the chunker records in `metadata.anchors`. Subsections packed into other chunks do not count for their parent, and a heading with no text of its own, whose subsections are all in other chunks, matches nothing. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
 - Start with 40 questions per source, written or reviewed by a human, plus a few unanswerable ones. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
 - `eval/questions.lock.json` records what each anchor resolved to when a human last reviewed the set. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
@@ -434,7 +437,7 @@ Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, 
 | Question | M1 (vector) | M2 (hybrid) | M4 target |
 |---|---|---|---|
 | "In which version did `satisfies` appear?" | 1 | 3 | 1 |
-| "What does the `strict` flag enable?", the `Compiler Options.md#compiler-options` anchor | 6 | 9 | 6 or better |
+| "What does the `strict` flag enable?", the `Compiler Options.md#compiler-options` anchor pinned to `--strictNullChecks`, the part with the `--strict` row | 6 | 9 | 6 or better |
 | ts-0004, "В чём разница между `unknown` и `any`?" | 2 | 7 | 2 or better |
 | ts-0040, "What does error TS2345 mean?" (vector: not in top 50) | - | 6 (handbook), 3 (release notes) | stays in the top 8 |
 
