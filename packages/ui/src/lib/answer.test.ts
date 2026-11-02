@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { answerFixture } from '../fixtures.ts'
+import { answerFixture, citationAfterCodeFixture } from '../fixtures.ts'
 import {
   answerMarkdown,
   appendCitations,
@@ -122,6 +122,16 @@ describe('answerMarkdown', () => {
     expect(answerMarkdown(cited('Use a pipe |'))).toBe('Use a pipe |[1](#cite-1)')
     expect(answerMarkdown(cited('---'))).toBe('---[1](#cite-1)')
     expect(answerMarkdown(cited('```\n| a | b |'))).toBe('[1](#cite-1)\n\n```\n| a | b |')
+  })
+
+  it('finds the moved event where the derived fixture says it is', () => {
+    const { events, parts } = citationAfterCodeFixture
+    const before = events[7]
+    expect(before?.type === 'text' && before.text.endsWith('```')).toBe(true)
+    expect(events[8]?.type).toBe('citations')
+    expect(events.findIndex((event) => event.type === 'citations')).toBe(8)
+    // On the text before the block, and not on a line of its own.
+    expect(answerMarkdown(parts)).toContain('`--noImplicitThis false`:[1](#cite-1)\n\n```sh')
   })
 
   it('renders the recorded answer with both of its markers', () => {
