@@ -2,6 +2,7 @@
 // reviewed by a human. This module reads and checks the file. It knows nothing
 // about the index: anchors.ts resolves the anchors. A misspelled field or tag
 // would silently change what gets measured, so anything unknown is refused.
+import { sha256Hex } from '@docs-rag-lab/source-kit'
 
 export const GOLDEN_TAGS = [
   'basic',
@@ -52,6 +53,11 @@ export class GoldenSetError extends Error {
     this.name = 'GoldenSetError'
     this.problems = problems
   }
+}
+
+/** A set file's identity, for the freeze (ADR-0009): the same with either line ending. */
+export function goldenSetHash(text: string): string {
+  return sha256Hex(text.replaceAll('\r\n', '\n'))
 }
 
 /** One anchor's identity: two pins on one section are two anchors. */

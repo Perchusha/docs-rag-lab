@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import {
   checkGoldenSet,
+  goldenSetHash,
   parseGoldenLock,
   parseGoldenSet,
   type AnchorIndex,
@@ -33,8 +34,10 @@ export function checkGoldenFiles(
   const setPath = goldenSetPath(root, sourceId)
   if (!existsSync(setPath)) return undefined
   const lockPath = goldenLockPath(root, sourceId)
+  const text = readFileSync(setPath, 'utf8')
   return checkGoldenSet({
-    questions: parseGoldenSet(readFileSync(setPath, 'utf8')),
+    questions: parseGoldenSet(text),
+    setHash: goldenSetHash(text),
     index,
     lock: existsSync(lockPath) ? parseGoldenLock(readFileSync(lockPath, 'utf8')) : undefined,
   })

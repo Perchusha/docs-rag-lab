@@ -14,6 +14,7 @@ import {
   parseGoldenLock,
   resolveAnchor,
   sectionAnchorsOf,
+  type CheckGoldenSetOptions,
   type GoldenLock,
 } from './anchors.ts'
 import { GoldenSetError, parseGoldenSet, type GoldenQuestion } from './golden.ts'
@@ -175,9 +176,12 @@ describe('sectionAnchorsOf', () => {
   })
 })
 
+const checkSet = (options: Omit<CheckGoldenSetOptions, 'setHash'>) =>
+  checkGoldenSet({ setHash: 'set-hash', ...options })
+
 describe('checkGoldenSet', () => {
   const lockOf = (index: SourceIndex, questions: GoldenQuestion[]): GoldenLock =>
-    checkGoldenSet({ questions, index, lock: undefined }).lock
+    checkSet({ questions, index, lock: undefined }).lock
 
   it('reports nothing for a golden set that matches its lock', () => {
     const index = indexOf(DOC)
@@ -186,7 +190,7 @@ describe('checkGoldenSet', () => {
       question({ id: 'ts-0002', tags: ['unanswerable'] }),
     ]
 
-    const check = checkGoldenSet({ questions, index, lock: lockOf(index, questions) })
+    const check = checkSet({ questions, index, lock: lockOf(index, questions) })
 
     expect(check).toMatchObject({
       docsSha: 'docs-sha',
@@ -202,7 +206,7 @@ describe('checkGoldenSet', () => {
   it('says every anchor needs reviewing before there is a lock', () => {
     const questions = [question({ primary: ['a.md#long'] })]
 
-    const check = checkGoldenSet({ questions, index: indexOf(DOC), lock: undefined })
+    const check = checkSet({ questions, index: indexOf(DOC), lock: undefined })
 
     expect(check.review).toEqual(['ts-0001'])
     expect(check.findings).toMatchObject([{ role: 'primary', problem: 'not-locked' }])
@@ -211,7 +215,7 @@ describe('checkGoldenSet', () => {
   it('marks a question stale when a primary anchor is gone', () => {
     const questions = [question({ primary: ['a.md#long', 'a.md#missing'] })]
 
-    const check = checkGoldenSet({ questions, index: indexOf(DOC), lock: undefined })
+    const check = checkSet({ questions, index: indexOf(DOC), lock: undefined })
 
     expect(check.stale).toEqual(['ts-0001'])
     expect(check.review).toEqual([])
@@ -231,7 +235,7 @@ describe('checkGoldenSet', () => {
       primaryMatch: 'any',
     })
 
-    const check = checkGoldenSet({ questions: [one, none], index: indexOf(DOC), lock: undefined })
+    const check = checkSet({ questions: [one, none], index: indexOf(DOC), lock: undefined })
 
     expect(check.stale).toEqual(['ts-0002'])
     expect(check.review).toEqual(['ts-0001'])
@@ -241,7 +245,7 @@ describe('checkGoldenSet', () => {
     const index = indexOf(DOC)
     const questions = [question({ primary: ['a.md#long'], acceptable: ['a.md#missing'] })]
 
-    const check = checkGoldenSet({ questions, index, lock: lockOf(index, questions) })
+    const check = checkSet({ questions, index, lock: lockOf(index, questions) })
 
     expect(check.stale).toEqual([])
     expect(check.review).toEqual(['ts-0001'])
@@ -252,7 +256,7 @@ describe('checkGoldenSet', () => {
     const questions = [question({ primary: ['a.md#packed'] })]
     const lock = lockOf(indexOf({ 'a.md': [section('Packed', prose('Old text.'))] }), questions)
 
-    const check = checkGoldenSet({
+    const check = checkSet({
       questions,
       index: indexOf({ 'a.md': [section('Packed', prose('New text.'))] }),
       lock,
@@ -263,6 +267,34 @@ describe('checkGoldenSet', () => {
     expect(check.findings).toMatchObject([{ problem: 'changed' }])
   })
 
+  describe('the freeze', () => {
+    const questions = [question({ primary: ['a.md#long'] })]
+
+    it('starts at version 1, and records the hash of the file', () => {
+      const check = checkGoldenSet({
+        questions,
+        setHash: 'hash-1',
+        index: indexOf(DOC),
+        lock: undefined,
+      })
+
+      expect(check).toMatchObject({ setVersion: 1, setChanged: false })
+      expect(check.lock).toMatchObject({ setVersion: 1, setHash: 'hash-1' })
+    })
+
+    it('reports a file that differs from the lock, and keeps the version', () => {
+      const index = indexOf(DOC)
+      const lock = { ...lockOf(index, questions), setVersion: 3, setHash: 'hash-3' }
+
+      const same = checkGoldenSet({ questions, setHash: 'hash-3', index, lock })
+      const changed = checkGoldenSet({ questions, setHash: 'edited', index, lock })
+
+      expect(same).toMatchObject({ setVersion: 3, setChanged: false })
+      expect(changed).toMatchObject({ setVersion: 3, setChanged: true })
+      expect(changed.lock).toMatchObject({ setVersion: 3, setHash: 'edited' })
+    })
+  })
+
   it('notices a change in a later part of a section, not only the first', () => {
     const questions = [question({ primary: ['a.md#long'] })]
     const parts = (second: string) => ({
@@ -270,7 +302,7 @@ describe('checkGoldenSet', () => {
     })
     const lock = lockOf(indexOf(parts('beta')), questions)
 
-    const check = checkGoldenSet({ questions, index: indexOf(parts('gamma')), lock })
+    const check = checkSet({ questions, index: indexOf(parts('gamma')), lock })
 
     expect(check.findings).toMatchObject([{ problem: 'changed' }])
   })
@@ -282,7 +314,7 @@ describe('checkGoldenSet', () => {
     const [locked] = lock.anchors['a.md#packed'] ?? []
     if (locked === undefined) throw new Error('nothing locked')
 
-    const check = checkGoldenSet({
+    const check = checkSet({
       questions,
       index,
       lock: { ...lock, anchors: { 'a.md#packed': [{ ...locked, chunkId: 'another-id' }] } },
@@ -299,7 +331,7 @@ describe('checkGoldenSet', () => {
     ]
     const lock = { ...lockOf(index, questions), docsSha: 'older-sha' }
 
-    const check = checkGoldenSet({ questions, index, lock })
+    const check = checkSet({ questions, index, lock })
 
     expect(check.docsMovedFrom).toBe('older-sha')
     expect(check.review).toEqual(['ts-0002'])
@@ -312,8 +344,8 @@ describe('checkGoldenSet', () => {
     const index = indexOf(DOC)
     const questions = [question({ tags: ['unanswerable'] })]
 
-    expect(checkGoldenSet({ questions, index, lock: undefined }).docsMovedFrom).toBeUndefined()
-    const same = checkGoldenSet({ questions, index, lock: lockOf(index, questions) })
+    expect(checkSet({ questions, index, lock: undefined }).docsMovedFrom).toBeUndefined()
+    const same = checkSet({ questions, index, lock: lockOf(index, questions) })
     expect(same.docsMovedFrom).toBeUndefined()
     expect(same.review).toEqual([])
   })
@@ -322,7 +354,7 @@ describe('checkGoldenSet', () => {
     const questions = [question({ primary: [{ at: 'a.md#packed', contains: 'Old text' }] })]
     const old = indexOf({ 'a.md': [section('Packed', prose('Old text.'))] })
 
-    const check = checkGoldenSet({
+    const check = checkSet({
       questions,
       index: indexOf({ 'a.md': [section('Packed', prose('New text.'))] }),
       lock: lockOf(old, questions),
@@ -338,7 +370,7 @@ describe('checkGoldenSet', () => {
       question({ id: 'ts-0002', primary: ['a.md#long'] }),
     ]
 
-    const { lock, anchors } = checkGoldenSet({ questions, index: indexOf(DOC), lock: undefined })
+    const { lock, anchors } = checkSet({ questions, index: indexOf(DOC), lock: undefined })
 
     expect(anchors).toBe(3)
     expect(lock.docsSha).toBe('docs-sha')
@@ -348,7 +380,7 @@ describe('checkGoldenSet', () => {
   it('refuses an index built by another chunker, whose anchors it cannot trust', () => {
     const index = indexOf(DOC, CHUNKER_VERSION - 1)
 
-    expect(() => checkGoldenSet({ questions: [], index, lock: undefined })).toThrow(
+    expect(() => checkSet({ questions: [], index, lock: undefined })).toThrow(
       `the index was built with chunker version ${String(CHUNKER_VERSION - 1)} and this code has ${String(CHUNKER_VERSION)}: run drl sync demo --at docs-sha`,
     )
   })
@@ -357,16 +389,17 @@ describe('checkGoldenSet', () => {
     const index = openSourceIndex(':memory:')
     open.push(index)
 
-    expect(() => checkGoldenSet({ questions: [], index, lock: undefined })).toThrow(
-      'the index is empty',
-    )
+    expect(() => checkSet({ questions: [], index, lock: undefined })).toThrow('the index is empty')
   })
 })
+
+const VALID_LOCK = { setVersion: 1, setHash: 'h', docsSha: 's', anchors: {} }
+const MALFORMED = 'setVersion, setHash, docsSha and anchors'
 
 describe('parseGoldenLock', () => {
   it('reads what checkGoldenSet wrote', () => {
     const index = indexOf(DOC)
-    const { lock } = checkGoldenSet({
+    const { lock } = checkSet({
       questions: [question({ primary: ['a.md#long'] })],
       index,
       lock: undefined,
@@ -377,11 +410,16 @@ describe('parseGoldenLock', () => {
 
   it.each([
     ['text that is not JSON', '{nope', 'not valid JSON'],
-    ['a missing SHA', '{"anchors":{}}', 'docsSha and anchors'],
-    ['missing anchors', '{"docsSha":"s"}', 'docsSha and anchors'],
-    ['a malformed entry', '{"docsSha":"s","anchors":{"a":[{"chunkId":1}]}}', 'docsSha and anchors'],
-    ['an empty entry', '{"docsSha":"s","anchors":{"a":[]}}', 'docsSha and anchors'],
-  ])('refuses %s', (_name, text, message) => {
+    ['a missing SHA', { ...VALID_LOCK, docsSha: undefined }, MALFORMED],
+    ['missing anchors', { ...VALID_LOCK, anchors: undefined }, MALFORMED],
+    ['a missing set version', { ...VALID_LOCK, setVersion: undefined }, MALFORMED],
+    ['a set version of 0', { ...VALID_LOCK, setVersion: 0 }, MALFORMED],
+    ['a fractional set version', { ...VALID_LOCK, setVersion: 1.5 }, MALFORMED],
+    ['a missing set hash', { ...VALID_LOCK, setHash: undefined }, MALFORMED],
+    ['a malformed entry', { ...VALID_LOCK, anchors: { a: [{ chunkId: 1 }] } }, MALFORMED],
+    ['an empty entry', { ...VALID_LOCK, anchors: { a: [] } }, MALFORMED],
+  ])('refuses %s', (_name, value, message) => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value)
     expect(() => parseGoldenLock(text)).toThrow(GoldenSetError)
     expect(() => parseGoldenLock(text)).toThrow(message)
   })

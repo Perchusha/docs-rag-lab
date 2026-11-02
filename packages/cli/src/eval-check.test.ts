@@ -6,7 +6,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { CHUNKER_VERSION, createEmbeddingProvider, openIndexes } from '@docs-rag-lab/core'
+import {
+  CHUNKER_VERSION,
+  createEmbeddingProvider,
+  goldenSetHash,
+  openIndexes,
+} from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -123,7 +128,7 @@ describe('drl eval check', () => {
 
     expect(first.code).toBe(1)
     expect(first.out).toContain(
-      'golden set: 2 questions (1 unanswerable), 1 anchors, docs 205122bb',
+      'golden set v1: 2 questions (1 unanswerable), 1 anchors, docs 205122bb',
     )
     expect(first.out).toContain('to review: ts-0001')
     expect(first.out).toContain('  ts-0001 primary docs/a.md#sec: not in the lock')
@@ -133,8 +138,10 @@ describe('drl eval check', () => {
     const accepted = await drl('eval', 'check', '--accept')
 
     expect(accepted.code).toBe(0)
-    expect(accepted.out).toContain('the lock now records 1 anchors at 205122bb')
+    expect(accepted.out).toContain('the lock now records set version 1, with 1 anchors at 205122bb')
     expect(JSON.parse(readFileSync(goldenLockPath(root, 'typescript'), 'utf8'))).toEqual({
+      setVersion: 1,
+      setHash: goldenSetHash(readFileSync(goldenSetPath(root, 'typescript'), 'utf8')),
       docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015',
       anchors: { 'docs/a.md#sec': [{ chunkId: 'c1', textHash: 'A > Sec\n\nThe text.' }] },
     })
@@ -144,6 +151,93 @@ describe('drl eval check', () => {
     expect(second.code).toBe(0)
     expect(second.out).toContain('every anchor resolves and matches the lock')
     expect(second.out).toContain('usage: no API calls')
+  })
+
+  describe('the frozen set', () => {
+    const lockVersion = () =>
+      (
+        JSON.parse(readFileSync(goldenLockPath(root, 'typescript'), 'utf8')) as {
+          setVersion: number
+        }
+      ).setVersion
+
+    async function changedSet() {
+      seedIndex('A > Sec\n\nThe text.')
+      writeGoldenSet(answerable)
+      await drl('eval', 'check', '--accept')
+      writeGoldenSet({ ...answerable, answer: 'A different answer.' })
+    }
+
+    it('fails when the file differs from the lock, even with every anchor fine', async () => {
+      await changedSet()
+
+      const { code, out, err } = await drl('eval', 'check')
+
+      expect(code).toBe(1)
+      expect(out).toContain('the set changed since the lock, and it is frozen')
+      expect(out).not.toContain('every anchor resolves')
+      expect(err).toContain('frozen')
+    })
+
+    it('needs the next version to accept a changed set, and not any other', async () => {
+      await changedSet()
+
+      const none = await drl('eval', 'check', '--accept')
+      expect(none.code).toBe(1)
+      expect(none.err).toContain('accept it with --set-version 2')
+
+      const skipped = await drl('eval', 'check', '--accept', '--set-version', '3')
+      expect(skipped.code).toBe(1)
+      expect(skipped.err).toContain('accept it with --set-version 2')
+      expect(lockVersion()).toBe(1)
+
+      const next = await drl('eval', 'check', '--accept', '--set-version', '2')
+      expect(next.code).toBe(0)
+      expect(next.out).toContain('the lock now records set version 2')
+      expect(lockVersion()).toBe(2)
+
+      const after = await drl('eval', 'check')
+      expect(after.code).toBe(0)
+      expect(after.out).toContain('golden set v2:')
+    })
+
+    it('refuses a new version when nothing changed', async () => {
+      seedIndex('A > Sec\n\nThe text.')
+      writeGoldenSet(answerable)
+      await drl('eval', 'check', '--accept')
+
+      const { code, err } = await drl('eval', 'check', '--accept', '--set-version', '2')
+
+      expect(code).toBe(1)
+      expect(err).toContain('--set-version is for a changed set')
+      expect(lockVersion()).toBe(1)
+    })
+
+    it('keeps the version when only the docs moved, since the set is the same', async () => {
+      seedIndex('A > Sec\n\nOld text.')
+      writeGoldenSet(answerable)
+      await drl('eval', 'check', '--accept')
+      seedIndex('A > Sec\n\nNew text.')
+
+      const { code } = await drl('eval', 'check', '--accept')
+
+      expect(code).toBe(0)
+      expect(lockVersion()).toBe(1)
+      expect((await drl('eval', 'check')).code).toBe(0)
+    })
+
+    it('takes --set-version only with --accept, as a whole number', async () => {
+      seedIndex('A > Sec\n\nThe text.')
+      writeGoldenSet(answerable)
+
+      const alone = await drl('eval', 'check', '--set-version', '2')
+      expect(alone.code).toBe(2)
+      expect(alone.err).toContain('--set-version works only with eval check --accept')
+
+      const bad = await drl('eval', 'check', '--accept', '--set-version', 'two')
+      expect(bad.code).toBe(1)
+      expect(bad.err).toContain('--set-version must be a whole number')
+    })
   })
 
   it('names a question whose text changed under its anchor, and fails', async () => {

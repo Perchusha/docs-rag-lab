@@ -48,6 +48,7 @@ export {
 } from './engine.ts'
 export {
   anchorKey,
+  goldenSetHash,
   GOLDEN_TAGS,
   GoldenSetError,
   parseGoldenSet,

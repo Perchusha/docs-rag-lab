@@ -66,16 +66,22 @@ const FINDING_LABEL: Record<AnchorFinding['problem'], string> = {
 /** The golden set against the index: what is usable, and what needs a human. */
 export function formatGoldenCheck(check: GoldenCheck): string {
   const lines = [
-    `golden set: ${count(check.questions)} questions (${count(check.unanswerable)} unanswerable), ` +
+    `golden set v${String(check.setVersion)}: ${count(check.questions)} questions (${count(check.unanswerable)} unanswerable), ` +
       `${count(check.anchors)} anchors, docs ${check.docsSha.slice(0, 8)}`,
   ]
+  if (check.setChanged) {
+    lines.push(
+      'the set changed since the lock, and it is frozen: a change needs a reason from the docs text, ' +
+        `a changelog entry in ADR-0009 and a new version, ${String(check.setVersion + 1)}`,
+    )
+  }
   if (check.docsMovedFrom !== undefined) {
     lines.push(
       `the docs moved since the lock, from ${check.docsMovedFrom.slice(0, 8)}: only anchored text is compared, ` +
         'so text added elsewhere can still change an answer',
     )
   }
-  if (check.findings.length === 0 && check.docsMovedFrom === undefined) {
+  if (check.findings.length === 0 && check.docsMovedFrom === undefined && !check.setChanged) {
     lines.push('every anchor resolves and matches the lock')
   }
   if (check.stale.length > 0) {

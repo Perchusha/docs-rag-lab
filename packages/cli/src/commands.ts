@@ -134,7 +134,7 @@ function reportGoldenSet(ctx: CommandContext, sourceId: string, index: AnchorInd
 /** `drl eval check`: the golden set against the index. No API calls. */
 export function evalCheckCommand(
   ctx: CommandContext,
-  args: { source: string; accept: boolean },
+  args: { source: string; accept: boolean; setVersion: number | undefined },
 ): void {
   const { out, root } = ctx
   const source = findSource(ctx.sources, args.source)
@@ -156,10 +156,22 @@ export function evalCheckCommand(
           'anchors that do not resolve cannot be accepted: fix or remove them first',
         )
       }
-      writeGoldenLock(root, source.id, check.lock)
+      const next = check.setVersion + 1
+      if (check.setChanged && args.setVersion !== next) {
+        throw new CliError(
+          `the golden set is frozen: after adding its changelog entry to ADR-0009, accept it with --set-version ${String(next)}`,
+        )
+      }
+      if (!check.setChanged && args.setVersion !== undefined) {
+        throw new CliError('--set-version is for a changed set, and this one matches the lock')
+      }
+      const setVersion = args.setVersion ?? check.setVersion
+      writeGoldenLock(root, source.id, { ...check.lock, setVersion })
       out.write(
-        `the lock now records ${String(check.anchors)} anchors at ${check.docsSha.slice(0, 8)}\n`,
+        `the lock now records set version ${String(setVersion)}, with ${String(check.anchors)} anchors at ${check.docsSha.slice(0, 8)}\n`,
       )
+    } else if (check.setChanged) {
+      throw new CliError('the golden set is frozen, and the file differs from its lock')
     } else if (check.findings.length > 0 || check.docsMovedFrom !== undefined) {
       throw new CliError(
         'the golden set needs a review: fix what is listed, then record it with drl eval check --accept',

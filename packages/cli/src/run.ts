@@ -46,6 +46,7 @@ Commands:
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
+      [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
@@ -62,6 +63,9 @@ API keys come from the environment or from .env at the repository root.
 Every command that calls an API ends with its token usage and estimated cost.
 Set DRL_DEBUG=1 to print stack traces of failures.
 `
+
+/** More than any golden set will reach; it only keeps the flag's error message sensible. */
+const MAX_SET_VERSION = 9999
 
 /** The Source objects for the configured sources. Settings hold their options as data. */
 export function sourcesFor(settings: Settings): Source[] {
@@ -155,6 +159,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         full: { type: 'boolean', default: false },
         at: { type: 'string' },
         accept: { type: 'boolean', default: false },
+        'set-version': { type: 'string' },
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
@@ -190,6 +195,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --accept works only with eval check\n\n${USAGE}`)
     return 2
   }
+  if (values['set-version'] !== undefined && !values.accept) {
+    err.write(`drl: --set-version works only with eval check --accept\n\n${USAGE}`)
+    return 2
+  }
 
   const meter = new UsageMeter()
   const start = now()
@@ -222,7 +231,15 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     } else if (command === 'eval') {
       if (rest[0] !== 'check') throw new CliError('eval needs a subcommand: drl eval check')
       if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
-      evalCheckCommand(ctx, { source: values.source, accept: values.accept })
+      const setVersion = values['set-version']
+      evalCheckCommand(ctx, {
+        source: values.source,
+        accept: values.accept,
+        setVersion:
+          setVersion === undefined
+            ? undefined
+            : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
+      })
     } else {
       await limitsCommand(ctx)
     }

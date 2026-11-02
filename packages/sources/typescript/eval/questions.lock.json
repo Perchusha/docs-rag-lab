@@ -1,4 +1,6 @@
 {
+  "setVersion": 1,
+  "setHash": "0d270eac9aef91b17711bfdf01af164cb706f4218e4609e19074eb0c6a1f0bf3",
   "docsSha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
   "anchors": {
     "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md#number-string-boolean-symbol-and-object": [

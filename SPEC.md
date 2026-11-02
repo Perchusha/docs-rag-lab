@@ -317,18 +317,19 @@ M4 builds this in stages. So far: the golden set format, anchors, the lock and `
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
 - Start with 40 questions per source, written or reviewed by a human, plus a few unanswerable ones. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
 - `eval/questions.lock.json` records what each anchor resolved to when a human last reviewed the set. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
+- The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared.
 
 **Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
 - hit@k, for k = 1, 3, 5 and 8: a primary anchor is in the top k. With `primaryMatch: all`, the best-ranked one counts;
 - recall@8: the share of primary anchors in the top 8. With `primaryMatch: any`, one is enough. The top 8 is what reaches the answer;
 - MRR: the reciprocal rank of the first primary anchor, or 0 if no candidate list has it.
 
-hit@k and MRR are also reported counting acceptable anchors.
+Primary metrics are the headline. hit@k and MRR are also reported counting acceptable anchors, as a secondary number: many of those anchors were found by looking at what the current retrievers return, which favours those retrievers.
 
 **Answer metrics,** only on request, with the estimated cost printed first:
 - correctness: a Claude judge scores 0-2 against the expected answer, grading only what the question asks;
 - citation support: does each cited passage support the claim next to it? A judge decides;
-- citation accuracy: do the cited chunks include a primary or acceptable anchor? This takes no judge;
+- citation accuracy: do the cited chunks include a primary or acceptable anchor? This takes no judge. When the judge says a cited chunk supports a correct answer but that chunk is not an anchor, the report lists it as a candidate for review; it is never added automatically;
 - refusals. On an unanswerable question, a correct answer says the docs do not cover it or, for a false premise, rejects it, and cites nothing as support for an answer. Naming a version, describing a made-up option, or presenting outside knowledge as coming from the docs is a hallucination, reported separately from a plain wrong answer. On an answerable question, saying the docs do not cover it is a false refusal;
 - latency;
 - tokens and cost per question.
@@ -346,7 +347,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
 
-**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs stay local and ignored. The dashboard reads the JSON. Every report records the repository and docs commit SHAs and the models used, so results are reproducible.
+**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs stay local and ignored. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version and the models used, so results are reproducible.
 
 **Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree. The judge is a different model from the one that answers.
 

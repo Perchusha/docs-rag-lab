@@ -20,7 +20,7 @@ SPEC section 6 also planned `eval_runs` and `eval_results` tables in the per-sou
 
 ### 1. Primary and acceptable anchors
 
-A question has `primary` anchors, the passages its answer was written from, and `acceptable` anchors, other passages that also support the answer and are never required. Metrics are reported both ways: primary only, and counting acceptable ones. Primary anchors are all required by default, since ts-0038 needs three sections for one answer. `"primaryMatch": "any"` says each one is enough on its own; ts-0040 is the only such question, because the 5.7 and 5.9 notes show the same error text.
+A question has `primary` anchors, the passages its answer was written from, and `acceptable` anchors, other passages that also support the answer and are never required. Metrics are reported both ways, and primary metrics are the headline (section 9). Primary anchors are all required by default, since ts-0038 needs three sections for one answer. `"primaryMatch": "any"` says each one is enough on its own; ts-0040 is the only such question, because the 5.7 and 5.9 notes show the same error text.
 
 An acceptable anchor supports the answer itself, if less fully than a primary one: the handbook chunks of ts-0040 show the error on an example, without its text. A chunk that backs only a caveat, or cannot answer half of a two-part question, is not one, since a hit on it would count with the answer missing from the context. Most acceptable anchors came from reading what vector and hybrid search return in their top 8, the usual way to judge relevance when no one can read 994 chunks per question. That favours chunks these two strategies can find, so a later strategy that surfaces a new correct chunk needs a new judgment before its numbers are compared.
 
@@ -77,6 +77,24 @@ A correct answer says the docs do not cover the question or, for a false premise
 
 SPEC section 9 and the settings said M4 would tune k and the list weights. A sweep over 40 questions would fit noise, and the same questions would then report the result. They stay at the usual defaults. M4 tests the two hypotheses in SPEC section 13, each decided on the full set; if those leave a gap, the M5 reranker is the next lever. Any later tuning needs held-out questions.
 
+### 9. The set is frozen
+
+The golden set is frozen after the second review. This is the rule from now on:
+
+- **Primary metrics are the headline.** Acceptable anchors are secondary, because many of them were found by looking at what the current retrievers return, which favours those retrievers.
+- **A later change must be justified by the docs text, not by a ranking.** A question is not edited because a strategy does badly on it, or because a chunk ranks high.
+- **Each change gets a new set version** and an entry in the changelog below.
+- **Every strategy in a report is then re-scored on that version.** Numbers from two versions are never compared.
+- **The judge proposes, a human decides.** When the judge says a cited chunk supports a correct answer but that chunk is not an anchor, the report lists it as a candidate for review. It is not added automatically, and adding it follows this same rule.
+
+The version and a hash of the file are in the lock, so the freeze is checked and not only stated. `drl eval check` fails when the file differs from its lock, `--accept` then needs `--set-version` with the next number, and a test in the CI run fails when the file does not match the lock or the version has no changelog entry. A docs sync that changes anchored text does not change the set, so accepting it keeps the version.
+
+## Set changelog
+
+| Source | Version | Set hash | Date | Change | Reason from the docs text |
+|---|---|---|---|---|---|
+| typescript | 1 | `0d270eac9aef` | 2026-11-03 | The first reviewed set: 40 answerable questions and 5 unanswerable, at docs `205122bb` | The first version. Each expected answer and anchor was checked against the anchored text in two reviews |
+
 ## Measured before and after
 
 The same retrieval over the same index, on the 40 questions with anchors. Only the golden set changed: its grading, and the wording of six questions (ts-0007, 0013, 0014, 0019, 0027, 0033). The draft rows use the draft questions.
@@ -90,7 +108,7 @@ The same retrieval over the same index, on the 40 questions with anchors. Only t
 | Hybrid, primary | 19 | 36 | 0.657 |
 | Hybrid, primary or acceptable | 27 | 37 | 0.787 |
 
-The old rule flattered hit@8, and it counted correct chunks it had no anchor for as misses. On primary anchors, vector search does better on 14 questions and hybrid on 7, with 19 tied: an exact sign test gives p = 0.19, so 40 questions do not show that either is better.
+The old rule flattered hit@8, and it counted correct chunks it had no anchor for as misses. On primary anchors, the headline, vector search does better on 14 questions and hybrid on 7, with 19 tied: an exact sign test gives p = 0.19, so 40 questions do not show that either is better.
 
 ## Consequences
 

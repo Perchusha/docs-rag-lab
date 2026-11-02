@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { anchorKey, GoldenSetError, parseGoldenSet } from './golden.ts'
+import { anchorKey, goldenSetHash, GoldenSetError, parseGoldenSet } from './golden.ts'
 
 const valid = {
   id: 'ts-0001',
@@ -22,6 +22,13 @@ function problemsOf(...rows: unknown[]): readonly string[] {
   }
   throw new Error('expected a GoldenSetError')
 }
+
+describe('goldenSetHash', () => {
+  it('changes with the text, but not with the line endings', () => {
+    expect(goldenSetHash('a\nb\n')).toBe(goldenSetHash('a\r\nb\r\n'))
+    expect(goldenSetHash('a\nb\n')).not.toBe(goldenSetHash('a\nc\n'))
+  })
+})
 
 describe('parseGoldenSet', () => {
   it('fills in the defaults, so a question reads the same however it was written', () => {

@@ -56,6 +56,10 @@ export function resolveAnchor(ref: AnchorRef, index: AnchorIndex): AnchorResolut
 
 /** What every anchor resolved to when the golden set was last reviewed. */
 export interface GoldenLock {
+  /** The version of the set, which is frozen: a changed file needs a new one (ADR-0009). */
+  setVersion: number
+  /** goldenSetHash of the file at that version. */
+  setHash: string
   /** The docs commit of the index it was written from. */
   docsSha: string
   /** By anchorKey, sorted. */
@@ -71,6 +75,10 @@ export interface AnchorFinding {
 }
 
 export interface GoldenCheck {
+  /** The version the lock records; 1 before there is a lock. */
+  setVersion: number
+  /** The file differs from that version. The set is frozen, so it needs a new one. */
+  setChanged: boolean
   docsSha: string
   questions: number
   unanswerable: number
@@ -93,13 +101,15 @@ export interface GoldenCheck {
 
 export interface CheckGoldenSetOptions {
   questions: readonly GoldenQuestion[]
+  /** goldenSetHash of the file the questions came from. */
+  setHash: string
   index: AnchorIndex
   lock: GoldenLock | undefined
 }
 
 /** Checks a golden set against an index built by this code. Throws if the index is not. */
 export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
-  const { questions, index, lock } = options
+  const { questions, setHash, index, lock } = options
   const manifest = index.getManifest()
   if (manifest === undefined) {
     throw new GoldenSetError(['the index is empty: run drl sync first'])
@@ -152,7 +162,10 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
   const entries = [...resolved.entries()].flatMap(([key, { chunks }]): [string, AnchorChunk[]][] =>
     chunks === undefined ? [] : [[key, chunks]],
   )
+  const setVersion = lock?.setVersion ?? 1
   return {
+    setVersion,
+    setChanged: lock !== undefined && lock.setHash !== setHash,
     docsSha: manifest.commitSha,
     questions: questions.length,
     unanswerable: questions.filter((question) => question.tags.includes('unanswerable')).length,
@@ -162,6 +175,8 @@ export function checkGoldenSet(options: CheckGoldenSetOptions): GoldenCheck {
     findings,
     docsMovedFrom: docsMoved ? lock.docsSha : undefined,
     lock: {
+      setVersion,
+      setHash,
       docsSha: manifest.commitSha,
       anchors: Object.fromEntries(entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
     },
@@ -183,8 +198,14 @@ export function parseGoldenLock(text: string): GoldenLock {
     throw new GoldenSetError(['the lock file is not valid JSON'])
   }
   if (typeof value === 'object' && value !== null) {
-    const { docsSha, anchors } = value as Partial<Record<keyof GoldenLock, unknown>>
+    const { setVersion, setHash, docsSha, anchors } = value as Partial<
+      Record<keyof GoldenLock, unknown>
+    >
     if (
+      typeof setVersion === 'number' &&
+      Number.isInteger(setVersion) &&
+      setVersion > 0 &&
+      typeof setHash === 'string' &&
       typeof docsSha === 'string' &&
       typeof anchors === 'object' &&
       anchors !== null &&
@@ -192,8 +213,8 @@ export function parseGoldenLock(text: string): GoldenLock {
         (chunks) => Array.isArray(chunks) && chunks.length > 0 && chunks.every(isAnchorChunk),
       )
     ) {
-      return { docsSha, anchors: anchors as GoldenLock['anchors'] }
+      return { setVersion, setHash, docsSha, anchors: anchors as GoldenLock['anchors'] }
     }
   }
-  throw new GoldenSetError(['the lock file does not hold docsSha and anchors'])
+  throw new GoldenSetError(['the lock file does not hold setVersion, setHash, docsSha and anchors'])
 }

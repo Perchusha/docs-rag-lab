@@ -14,6 +14,8 @@ import {
 
 describe('formatGoldenCheck', () => {
   const clean = {
+    setVersion: 1,
+    setChanged: false,
     docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015',
     questions: 45,
     unanswerable: 5,
@@ -22,13 +24,25 @@ describe('formatGoldenCheck', () => {
     review: [],
     findings: [],
     docsMovedFrom: undefined,
-    lock: { docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015', anchors: {} },
+    lock: {
+      setVersion: 1,
+      setHash: 'h',
+      docsSha: '205122bb73dcbf6f3b373de5bdb0d9fa5434d015',
+      anchors: {},
+    },
   }
 
   it('says so when everything matches', () => {
     expect(formatGoldenCheck(clean).split('\n')).toEqual([
-      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'golden set v1: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
       'every anchor resolves and matches the lock',
+    ])
+  })
+
+  it('says a frozen set changed, and does not claim the lock still matches', () => {
+    expect(formatGoldenCheck({ ...clean, setVersion: 2, setChanged: true }).split('\n')).toEqual([
+      'golden set v2: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'the set changed since the lock, and it is frozen: a change needs a reason from the docs text, a changelog entry in ADR-0009 and a new version, 3',
     ])
   })
 
@@ -36,7 +50,7 @@ describe('formatGoldenCheck', () => {
     const check = { ...clean, docsMovedFrom: 'aaaaaaaaaaaaaaaa', review: ['ts-0041'] }
 
     expect(formatGoldenCheck(check).split('\n')).toEqual([
-      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'golden set v1: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
       'the docs moved since the lock, from aaaaaaaa: only anchored text is compared, so text added elsewhere can still change an answer',
       'to review: ts-0041',
     ])
@@ -70,7 +84,7 @@ describe('formatGoldenCheck', () => {
     }
 
     expect(formatGoldenCheck(check).split('\n')).toEqual([
-      'golden set: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
+      'golden set v1: 45 questions (5 unanswerable), 66 anchors, docs 205122bb',
       'stale, an anchor it needs is gone: ts-0001',
       'to review: ts-0002, ts-0003',
       '  ts-0001 primary a.md#s contains words: the pinned passage is gone',
