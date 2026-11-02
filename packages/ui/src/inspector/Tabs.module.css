@@ -1,8 +1,9 @@
+/* Tabs wrap at narrow widths: only tables and code blocks scroll sideways. */
 .tablist {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
 }
 
 .tab {

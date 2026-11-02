@@ -96,23 +96,11 @@
   background: var(--color-list-exact);
 }
 
-.scroll {
-  overflow-x: auto;
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-}
-
-.table caption {
-  text-align: start;
-  caption-side: top;
-  padding-bottom: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
 }
 
 .table th {

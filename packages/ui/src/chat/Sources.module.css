@@ -33,6 +33,7 @@
 }
 
 .quote {
+  overflow-wrap: anywhere;
   margin: 0;
   padding-inline-start: var(--space-3);
   border-inline-start: 2px solid var(--color-border);

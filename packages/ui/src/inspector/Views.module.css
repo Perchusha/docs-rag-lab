@@ -77,6 +77,7 @@
 }
 
 .card {
+  overflow-wrap: anywhere;
   border: 1px solid var(--color-border);
   border-inline-start: 4px solid var(--color-border);
   border-radius: var(--radius-2);

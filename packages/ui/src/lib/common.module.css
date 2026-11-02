@@ -49,9 +49,11 @@
   filter: brightness(1.1);
 }
 
+/* A link text may be a whole URL, with nowhere to wrap. */
 .link {
   color: var(--color-accent);
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
 }
 
 .badge {

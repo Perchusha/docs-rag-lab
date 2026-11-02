@@ -19,6 +19,7 @@ import {
   type SortDirection,
   type SortKey,
 } from '../lib/fusion.ts'
+import { ScrollRegion } from '../lib/ScrollRegion.tsx'
 import { ChunkButton } from './ChunkButton.tsx'
 import styles from './Inspector.module.css'
 
@@ -197,12 +198,14 @@ export function FusionView({ trace, selectedChunkId, onSelectChunk }: FusionView
           </li>
         ))}
       </ul>
-      <div className={styles.scroll}>
+      {/* Outside the box: a sentence should not need sideways scrolling to read. */}
+      <p className={styles.note}>
+        The fused ranking (RRF, k = {trace.fusion.k}): each chunk&apos;s rank and score in every
+        list, and what each list adds to its RRF score.
+      </p>
+      <ScrollRegion label="Fused ranking">
         <table className={styles.table}>
-          <caption>
-            The fused ranking (RRF, k = {trace.fusion.k}): each chunk&apos;s rank and score in every
-            list, and what each list adds to its RRF score.
-          </caption>
+          <caption className={common.srOnly}>Fused ranking</caption>
           <thead>
             <tr>
               <SortHeader
@@ -274,7 +277,7 @@ export function FusionView({ trace, selectedChunkId, onSelectChunk }: FusionView
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollRegion>
       {rows.length > FUSION_ROWS && (
         <button
           type="button"

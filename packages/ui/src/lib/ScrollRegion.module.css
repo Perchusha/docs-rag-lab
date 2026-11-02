@@ -1,4 +1,8 @@
+/* position: relative keeps absolutely positioned content in the box: the
+   visually hidden text in a wide table would otherwise escape it and make the
+   whole page scroll. */
 .region {
+  position: relative;
   overflow-x: auto;
 }
 

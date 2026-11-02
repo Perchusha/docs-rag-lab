@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { DocsAssistant } from './DocsAssistant.tsx'
-import { answerFixture, documentFixture } from './fixtures.ts'
+import { answerFixture, documentFixture, tableAnswerFixture } from './fixtures.ts'
 import { replayGate, replayTransport } from './lib/replay.ts'
 
 const question = 'In which version did `satisfies` appear?'
@@ -210,6 +210,112 @@ export const Stop: Story = {
     // The abort reached the transport, which is what stops the Claude stream.
     await waitFor(() => expect(onStoppedAskEnd).toHaveBeenCalledWith('aborted'))
     await expect(onStoppedAskEnd).toHaveBeenCalledOnce()
+  },
+}
+
+/** The only boxes allowed to scroll sideways: a table's or a code block's. */
+const WIDE_BOX = '[role="group"][tabindex="0"]'
+
+function describeElement(element: Element): string {
+  const name = element.getAttribute('aria-label') ?? element.getAttribute('role') ?? ''
+  const text = element.textContent.slice(0, 40)
+  return `<${element.tagName.toLowerCase()}> ${name} "${text}"`
+}
+
+/** Everything that would make the page scroll sideways at the current width. */
+function reflowProblems(root: HTMLElement): string[] {
+  const page = document.documentElement
+  const problems: string[] = []
+  if (page.scrollWidth > page.clientWidth) {
+    problems.push(`the page scrolls: ${String(page.scrollWidth)} in ${String(page.clientWidth)}`)
+  }
+  for (const element of root.querySelectorAll('*')) {
+    const box = element.closest(WIDE_BOX)
+    // What is inside a table's or a code block's box may be as wide as it likes.
+    if (box !== null && box !== element) continue
+    const right = element.getBoundingClientRect().right
+    if (right > page.clientWidth + 0.5) {
+      problems.push(`${describeElement(element)} ends at ${right.toFixed(0)}`)
+    }
+    if (box === element) continue
+    const { overflowX } = getComputedStyle(element)
+    const scrolls = overflowX === 'auto' || overflowX === 'scroll'
+    if (scrolls && element.scrollWidth > element.clientWidth) {
+      problems.push(`${describeElement(element)} scrolls sideways`)
+    }
+  }
+  return problems
+}
+
+/**
+ * Reflow at 320 CSS px (WCAG 1.4.10: 1280 px at 400% zoom): the chat and the
+ * inspector stack, and nothing scrolls sideways but tables and code blocks.
+ * Uses the table answer, whose table and code really are wider than the page,
+ * so axe's scrollable-region rule has something to check here.
+ */
+export const Reflow320: Story = {
+  parameters: {
+    viewport: {
+      options: {
+        reflow: { name: '320 CSS px', type: 'mobile', styles: { width: '320px', height: '256px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'reflow' } },
+  args: {
+    transport: replayTransport({
+      // With one more code block, with a line too long for the page.
+      events: [
+        ...tableAnswerFixture.events.slice(0, -1),
+        {
+          type: 'text',
+          text: '\n\n```ts\nconst aNameThatGoesOnAndOn: Record<string, unknown> = { key: 1, other: 2 }\n```\n',
+        },
+        ...tableAnswerFixture.events.slice(-1),
+      ],
+      // The layout is what counts here, so any document can stand in for this trace's.
+      documents: tableAnswerFixture.events.flatMap((event) =>
+        event.type === 'trace'
+          ? event.trace.context.flatMap((chunk) => {
+              const path = event.trace.chunks[chunk.chunkId]?.docPath
+              return path === undefined ? [] : [{ ...documentFixture, path }]
+            })
+          : [],
+      ),
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(window.innerWidth).toBe(320)
+    await expect(reflowProblems(canvasElement)).toEqual([])
+
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    await waitFor(() =>
+      expect(canvas.getByRole('status')).toHaveTextContent('Answer ready, with 4 sources'),
+    )
+
+    // Stacked: the inspector starts below the chat.
+    const answerBottom = canvas.getByRole('article').getBoundingClientRect().bottom
+    const inspector = canvas.getByRole('region', { name: 'Retrieval inspector' })
+    await expect(inspector.getBoundingClientRect().top).toBeGreaterThanOrEqual(answerBottom)
+
+    // The table and the long code line do not fit, and scroll in their own boxes.
+    const box = canvas.getByRole('group', { name: 'Table: any, unknown' })
+    await expect(box.scrollWidth).toBeGreaterThan(box.clientWidth)
+    const code = canvas.getAllByRole('group', { name: 'Code example' }).at(-1)
+    await expect(code?.scrollWidth).toBeGreaterThan(code?.clientWidth ?? Infinity)
+    await expect(reflowProblems(canvasElement)).toEqual([])
+
+    for (const name of ['Lists', /^Context/, 'Document', 'Fusion']) {
+      await userEvent.click(canvas.getByRole('tab', { name }))
+      await expect(canvas.getByRole('tabpanel')).toBeVisible()
+      await expect(reflowProblems(canvasElement)).toEqual([])
+    }
+    await canvas.findByRole('group', { name: 'Fused ranking' })
+    await userEvent.click(canvas.getByRole('tab', { name: 'Document' }))
+    await canvas.findByRole('list', { name: 'Chunks of TypeScript 4.9' })
+    await expect(reflowProblems(canvasElement)).toEqual([])
   },
 }
 
