@@ -27,7 +27,8 @@ export const EnterSends: Story = {
     const canvas = within(canvasElement)
     const question = canvas.getByRole('textbox', { name: 'Question' })
 
-    await userEvent.click(question)
+    await userEvent.tab()
+    await expect(question).toHaveFocus()
     // One focus ring, on the box, and none of its own on the input inside it.
     await expect(getComputedStyle(question).outlineStyle).toBe('none')
     await expect(getComputedStyle(canvas.getByRole('form')).outlineStyle).toBe('solid')

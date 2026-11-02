@@ -88,7 +88,7 @@ The conditions from the M3 approval, and how each is met:
 - **Reflow at 320 CSS px** (WCAG 1.4.10: 1280 px at 400% zoom). The chat and the inspector stack below 64rem, and nothing scrolls sideways but a table's or code block's box. The tab list wraps. Links and cards break long URLs and anchors. A scroll box is `position: relative`, or the absolutely positioned hidden text in a wide table escapes it and widens the page. Sentences stay outside the boxes, so reading one never needs sideways scrolling. The fusion table uses the same focusable box, because its right-hand columns hold nothing focusable and a keyboard could not otherwise reach them.
 
 Also:
-- each focusable element shows a 2px focus outline (`:focus-visible`);
+- each focusable element shows a 2px focus outline (`:focus-visible`), for the keyboard only. A text field matches `:focus-visible` on a click too, and CSS cannot tell the two apart, so `useFocusRing` sets `--focus-ring-style` to `none` on a press and clears it on any key but typing. With no script yet, the rings stay on;
 - Send and Stop are one button that changes role, so it keeps focus when a run starts or ends, and no button is ever disabled;
 - opening the inspector moves focus into it, and closing it returns focus to what opened it, or to the input if that has gone;
 - the input sticks to the bottom of the page, except in windows under 30rem tall. It grows with its text, so a `ResizeObserver` sets the page's `scroll-padding` to its real height, and it never hides a focused element (WCAG 2.4.11);

@@ -8,10 +8,6 @@
   background: var(--color-bg);
 }
 
-.composer:focus-within {
-  border-color: var(--color-accent);
-}
-
 /* The box shows focus for the input inside it. */
 .input {
   font: inherit;
@@ -33,7 +29,7 @@
 }
 
 .composer:has(.input:focus-visible) {
-  outline: var(--space-hairline) solid var(--color-focus);
+  outline: var(--space-hairline) var(--focus-ring-style, solid) var(--color-focus);
   outline-offset: var(--space-hairline);
 }
 

@@ -94,9 +94,10 @@
   }
 }
 
-/* One visible focus style for every interactive element. */
+/* One visible focus style for every interactive element. useFocusRing sets
+   --focus-ring-style to none after a press: focus shows for the keyboard only. */
 :focus-visible {
-  outline: var(--space-hairline) solid var(--color-focus);
+  outline: var(--space-hairline) var(--focus-ring-style, solid) var(--color-focus);
   outline-offset: var(--space-hairline);
 }
 

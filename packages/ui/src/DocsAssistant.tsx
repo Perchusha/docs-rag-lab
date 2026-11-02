@@ -16,6 +16,7 @@ import { useInspectorPanel } from './inspector/useInspectorPanel.ts'
 import { isRunning, statusText } from './lib/assistant.ts'
 import common from './lib/common.module.css'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
+import { useFocusRing } from './lib/useFocusRing.ts'
 import './tokens.css'
 
 export interface Theme {
@@ -53,6 +54,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const latestAnswer = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState<string[]>([])
+  useFocusRing()
 
   const requestFor = (question: string, strategy: Strategy): RetrievalRequest => ({
     question,
