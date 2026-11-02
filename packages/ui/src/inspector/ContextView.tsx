@@ -57,15 +57,16 @@ export function ContextView(props: ContextViewProps) {
                   else headings.current.set(chunk.chunkId, element)
                 }}
               >
-                {chunk.rank}. {chunk.title}
+                {chunk.title}
               </h3>
               {selected && <span className={common.badge}>selected</span>}
               {cited.map((c) => (
                 <span key={c.number} className={common.badge}>
-                  cited as [{c.number}]
+                  Source {c.number}
                 </span>
               ))}
             </div>
+            <p className={styles.meta}>Rank {chunk.rank} in the context</p>
             <ExternalLink href={chunk.source}>
               {chunk.source.replace(/^https?:\/\//, '')}
             </ExternalLink>

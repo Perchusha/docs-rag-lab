@@ -120,8 +120,12 @@ export function Inspector(props: InspectorProps) {
         selected={props.tab ?? defaultTab(trace)}
         onSelect={props.onTabChange}
         tabs={[
-          { id: 'fusion', label: 'Fusion', panel: <FusionView {...shared} /> },
-          { id: 'lists', label: 'Lists', panel: <ListsView {...shared} /> },
+          {
+            id: 'fusion',
+            label: 'Fusion',
+            panel: <FusionView {...shared} citations={citations} />,
+          },
+          { id: 'lists', label: 'Lists', panel: <ListsView {...shared} citations={citations} /> },
           {
             id: 'context',
             label: `Context (${String(trace.context.length)})`,
@@ -143,6 +147,7 @@ export function Inspector(props: InspectorProps) {
               ) : (
                 <DocumentView
                   trace={trace}
+                  citations={citations}
                   chunkId={documentChunk}
                   onSelectChunk={onSelectChunk}
                   transport={transport}

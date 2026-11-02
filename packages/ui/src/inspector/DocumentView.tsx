@@ -1,4 +1,9 @@
-import { chunkLabel, type DocumentChunks, type RetrievalTrace } from '@docs-rag-lab/contracts'
+import {
+  chunkLabel,
+  type Citation,
+  type DocumentChunks,
+  type RetrievalTrace,
+} from '@docs-rag-lab/contracts'
 import { useEffect, useState } from 'react'
 
 import { ExternalLink } from '../chat/AnswerMarkdown.tsx'
@@ -8,6 +13,8 @@ import styles from './Views.module.css'
 
 export interface DocumentViewProps {
   trace: RetrievalTrace
+  /** The answer's citations, to show their numbers on the chunks. */
+  citations?: readonly Citation[] | undefined
   /** The chunk whose document to show. */
   chunkId: string
   onSelectChunk: (chunkId: string) => void
@@ -20,7 +27,13 @@ type Loaded = { path: string; document: DocumentChunks } | { path: string; error
  * The chunk boundaries of one document, in order: where each chunk starts and
  * ends, its section, anchor and size, and which ones retrieval found.
  */
-export function DocumentView({ trace, chunkId, onSelectChunk, transport }: DocumentViewProps) {
+export function DocumentView({
+  trace,
+  citations,
+  chunkId,
+  onSelectChunk,
+  transport,
+}: DocumentViewProps) {
   const docPath = trace.chunks[chunkId]?.docPath
   const [loaded, setLoaded] = useState<Loaded | undefined>(undefined)
 
@@ -97,6 +110,13 @@ export function DocumentView({ trace, chunkId, onSelectChunk, transport }: Docum
                 >
                   {chunkLabel({ ...chunk, title: document.title })}
                 </button>
+                {citations
+                  ?.filter((c) => c.chunkId === chunk.chunkId)
+                  .map((c) => (
+                    <span key={c.number} className={common.badge}>
+                      Source {c.number}
+                    </span>
+                  ))}
                 {selected && <span className={common.badge}>selected</span>}
                 {rank !== undefined && <span className={common.badge}>candidate #{rank}</span>}
                 {contextRank !== undefined && (

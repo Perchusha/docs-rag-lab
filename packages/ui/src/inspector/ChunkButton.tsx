@@ -7,6 +7,8 @@ export interface ChunkButtonProps {
   chunkId: string
   chunk: TraceChunk | undefined
   selected: boolean
+  /** The answer's citation number for this chunk, if it cited it. */
+  source?: number | undefined
   onSelect: (chunkId: string) => void
   className?: string | undefined
   titleClassName?: string | undefined
@@ -35,6 +37,7 @@ export function ChunkButton(props: ChunkButtonProps) {
       {chunk !== undefined && props.locationClassName !== undefined && (
         <span className={props.locationClassName}>{chunkLocation(chunk)}</span>
       )}
+      {props.source !== undefined && <span className={common.badge}>Source {props.source}</span>}
       {selected && <span className={common.badge}>selected</span>}
     </button>
   )

@@ -30,7 +30,10 @@ export const Default: Story = {
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     await expect(link).toHaveAccessibleName(/opens in a new tab/)
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Show chunk 1 in the inspector' }))
+    // One numbering: the citation's. No chunk number in the button.
+    const show = canvas.getByRole('button', { name: /^Show in the inspector\s*: source 1$/ })
+    await expect(canvasElement).not.toHaveTextContent(/chunk \d/i)
+    await userEvent.click(show)
     await expect(args.onShow).toHaveBeenCalledWith(answerFixture.citations[0])
   },
 }

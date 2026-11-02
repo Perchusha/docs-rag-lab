@@ -58,7 +58,8 @@ export function Sources({ citations, onShow }: SourcesProps) {
                   onShow(citation)
                 }}
               >
-                Show chunk {citation.contextRank} in the inspector
+                Show in the inspector
+                <span className={common.srOnly}>: source {citation.number}</span>
               </button>
             )}
           </li>

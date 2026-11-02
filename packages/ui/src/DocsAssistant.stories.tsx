@@ -97,7 +97,7 @@ export const AskAndInspect: Story = {
     )
     await expect(
       canvas.getByRole('heading', {
-        name: '1. TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2)',
+        name: 'TypeScript 5.0 > @satisfies Support in JSDoc (part 1 of 2)',
       }),
     ).toHaveFocus()
 
