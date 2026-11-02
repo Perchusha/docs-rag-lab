@@ -1,7 +1,7 @@
 // Typed access to the recorded fixtures in __fixtures__, for unit tests and
 // stories. Not part of the public entry. The traces come from
-// `drl search --json` over the real index; the answer is one real
-// `ask` stream. Every excerpt of the docs is cut to 300 characters (NOTICE).
+// `drl search --json` over the real index; the answers are real `ask` streams.
+// Every excerpt of the docs is cut to 300 characters (NOTICE).
 import {
   EventDecoder,
   type AnswerEvent,
@@ -12,6 +12,7 @@ import {
 } from '@docs-rag-lab/contracts'
 
 import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
+import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
 import satisfies from './__fixtures__/trace-satisfies.json'
@@ -38,8 +39,6 @@ function decode(ndjson: string): AnswerEvent[] {
   return [...decoder.push(ndjson), ...decoder.end()]
 }
 
-const events = decode(answerNdjson)
-
 function summarize(all: readonly AnswerEvent[]) {
   let parts: AnswerPart[] = []
   const citations: Citation[] = []
@@ -55,5 +54,13 @@ function summarize(all: readonly AnswerEvent[]) {
   return { parts, citations, usage }
 }
 
+function answer(ndjson: string) {
+  const events = decode(ndjson)
+  return { events, ...summarize(events) }
+}
+
 /** The recorded answer to the `satisfies` question: its events, and what they add up to. */
-export const answerFixture = { events, ...summarize(events) }
+export const answerFixture = answer(answerNdjson)
+
+/** A recorded answer with a GFM table with cited cells, then two code blocks. */
+export const tableAnswerFixture = answer(tableAnswerNdjson)

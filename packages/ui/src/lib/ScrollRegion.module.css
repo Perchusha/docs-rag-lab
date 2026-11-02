@@ -1,0 +1,8 @@
+.region {
+  overflow-x: auto;
+}
+
+/* Inside the box, so the box's own overflow cannot clip it. */
+.region:focus-visible {
+  outline-offset: -2px;
+}

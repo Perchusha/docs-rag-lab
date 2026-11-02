@@ -31,22 +31,48 @@ const FENCE = /^ {0,3}(`{3,}|~{3,})/
 // A closing fence has nothing after the fence but spaces.
 const CLOSING_FENCE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 
-/** Whether the text ends with a fence that closes a code block. */
-function endsWithClosingFence(text: string): boolean {
-  const lines = text.split('\n')
+// The last pipe of a table row, and any space around it; an escaped pipe is text.
+const ROW_END = /[ \t]*(?<!\\)\|[ \t]*$/
+// A table's delimiter row, such as | --- | :-: |.
+const DELIMITER_ROW = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/
+
+function isRow(line: string): boolean {
+  return ROW_END.test(line) && line.replace(ROW_END, '').includes('|')
+}
+
+function isDelimiterRow(line: string): boolean {
+  return line.includes('|') && DELIMITER_ROW.test(line)
+}
+
+/** The text with the markers placed where they will render. */
+function withMarkers(body: string, links: string): string {
+  const lines = body.split('\n')
+  const fences = lines.filter((line) => FENCE.test(line)).length
   const last = lines.at(-1) ?? ''
-  if (!CLOSING_FENCE.test(last)) return false
-  // An even number of fence lines: the last one closes a block, it does not open one.
-  return lines.filter((line) => FENCE.test(line)).length % 2 === 0
+  // After a closing fence, on a line of their own: text after a closing fence
+  // would keep the block open and turn the rest of the answer into code. An
+  // even number of fence lines means the last one closes a block.
+  if (CLOSING_FENCE.test(last) && fences % 2 === 0) return `${body}\n\n${links}`
+  // Inside a code block there is no better place than the end.
+  if (fences % 2 === 1) return body + links
+
+  // A marker after a row's last pipe would be an extra cell, which GFM drops
+  // without a trace. It goes inside the last cell; a delimiter row has no cell
+  // to hold it, so it goes in the header row above.
+  const rowIndex = isDelimiterRow(last) ? lines.length - 2 : lines.length - 1
+  const row = lines[rowIndex]
+  if (row !== undefined && isRow(row)) {
+    lines[rowIndex] = row.replace(ROW_END, () => `${links} |`)
+    return lines.join('\n')
+  }
+  return body + links
 }
 
 /**
  * The answer as markdown. Each marker becomes a link to #cite-<n>, which the
  * renderer turns into a citation button. A marker goes right after the text
  * of its block, before any trailing whitespace, so it stays on the cited
- * line instead of starting a paragraph of its own. After a closing code
- * fence it starts its own line: text after a closing fence would keep the
- * block open and turn the rest of the answer into code.
+ * line instead of starting a paragraph of its own.
  */
 export function answerMarkdown(parts: readonly AnswerPart[]): string {
   let markdown = ''
@@ -58,9 +84,7 @@ export function answerMarkdown(parts: readonly AnswerPart[]): string {
     const body = markdown.trimEnd()
     const trailing = markdown.slice(body.length)
     const links = part.numbers.map((n) => `[${String(n)}](${CITE_HREF}${String(n)})`).join('')
-    markdown = endsWithClosingFence(body)
-      ? `${body}\n\n${links}${trailing}`
-      : body + links + trailing
+    markdown = withMarkers(body, links) + trailing
   }
   return markdown
 }

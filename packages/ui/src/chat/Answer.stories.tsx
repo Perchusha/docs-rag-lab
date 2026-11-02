@@ -2,7 +2,7 @@ import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
-import { answerFixture, traces } from '../fixtures.ts'
+import { answerFixture, tableAnswerFixture, traces } from '../fixtures.ts'
 import {
   assistantReducer,
   initialState,
@@ -44,6 +44,28 @@ export const Done: Story = {
     citations[1]?.focus()
     await userEvent.keyboard('{Enter}')
     await expect(args.onCitation).toHaveBeenCalledWith(answerFixture.citations[0])
+  },
+}
+
+/** A recorded answer with a table with cited cells, then two code blocks. */
+export const WithTable: Story = {
+  args: { state: stateAfter(tableAnswerFixture.events) },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const table = canvas.getByRole('table')
+    await expect(within(table).getAllByRole('columnheader')).toHaveLength(2)
+    await expect(within(table).getAllByRole('row')).toHaveLength(6)
+
+    // The table and each code block scroll in a box the keyboard can reach.
+    const box = canvas.getByRole('group', { name: 'Table: any, unknown' })
+    await expect(box).toContainElement(table)
+    await expect(box).toHaveAttribute('tabindex', '0')
+    await expect(canvas.getAllByRole('group', { name: 'Code example' })).toHaveLength(2)
+
+    // A citation in a cell works like any other.
+    const [citation] = within(table).getAllByRole('button', { name: /^Source 2: / })
+    await userEvent.click(citation ?? canvasElement)
+    await expect(args.onCitation).toHaveBeenCalledWith(tableAnswerFixture.citations[1])
   },
 }
 

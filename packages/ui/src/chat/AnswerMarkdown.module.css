@@ -19,17 +19,47 @@
   padding: 0.1em 0.3em;
 }
 
-.markdown pre {
+.block {
+  margin-block: 1em;
+}
+
+.code {
+  composes: block;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-2);
   padding: var(--space-3);
-  overflow-x: auto;
+}
+
+.markdown pre {
+  margin: 0;
 }
 
 .markdown pre code {
   background: none;
   padding: 0;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+/* A cell keeps a readable width, and words stay whole: a table too wide for
+   the column scrolls in its box instead of squeezing to a letter per line. */
+.markdown th,
+.markdown td {
+  min-width: 7rem;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: normal;
+}
+
+.markdown thead th,
+.markdown thead td {
+  background: var(--color-surface);
 }
 
 .citation {

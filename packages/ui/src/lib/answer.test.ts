@@ -57,6 +57,31 @@ describe('answerMarkdown', () => {
     expect(answerMarkdown(open)).toBe('Text\n```[2](#cite-2)')
   })
 
+  it('keeps a marker inside the table row it follows, where GFM would drop an extra cell', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('| a | b |'))).toBe('| a | b[1](#cite-1) |')
+    expect(answerMarkdown(cited('| a | b |\n'))).toBe('| a | b[1](#cite-1) |\n')
+    expect(answerMarkdown(cited('a | b |'))).toBe('a | b[1](#cite-1) |')
+    // In the middle of a cell, the end of the text is already the right place.
+    expect(answerMarkdown(cited('| a | b'))).toBe('| a | b[1](#cite-1)')
+    // A delimiter row has no cell to hold it, so the header row takes it.
+    expect(answerMarkdown(cited('| a | b |\n|---|:-:|'))).toBe('| a | b[1](#cite-1) |\n|---|:-:|')
+  })
+
+  it('does not take other text for a table row', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('a | b \\|'))).toBe('a | b \\|[1](#cite-1)')
+    expect(answerMarkdown(cited('Use a pipe |'))).toBe('Use a pipe |[1](#cite-1)')
+    expect(answerMarkdown(cited('---'))).toBe('---[1](#cite-1)')
+    expect(answerMarkdown(cited('```\n| a | b |'))).toBe('```\n| a | b |[1](#cite-1)')
+  })
+
   it('renders the recorded answer with both of its markers', () => {
     const markdown = answerMarkdown(answerFixture.parts)
     expect(markdown).toContain('introduced in TypeScript 4.9.[1](#cite-1)')

@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@docs-rag-lab/contracts": "workspace:*",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "peerDependencies": {
     "react": "^19.3.0",
