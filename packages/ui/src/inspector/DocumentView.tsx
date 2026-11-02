@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 
 import { ExternalLink } from '../chat/AnswerMarkdown.tsx'
 import common from '../lib/common.module.css'
+import { messageOf } from '../lib/format.ts'
 import type { Transport } from '../lib/transport.ts'
 import styles from './Views.module.css'
 
@@ -47,7 +48,7 @@ export function DocumentView({
       },
       (error: unknown) => {
         if (controller.signal.aborted) return
-        setLoaded({ path: docPath, error: error instanceof Error ? error.message : String(error) })
+        setLoaded({ path: docPath, error: messageOf(error) })
       },
     )
     return () => {

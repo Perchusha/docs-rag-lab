@@ -1,7 +1,7 @@
 // The retrieval inspector (SPEC section 13, M3): how the context of an answer
-// was chosen. A header with the question, the query and the timings, then
-// four tabs: fusion, the candidate lists, the context as sent, and the chunk
-// boundaries of the selected chunk's document.
+// was chosen. The query and the timings, then four tabs: fusion, the candidate
+// lists, the context as sent, and the chunk boundaries of the selected chunk's
+// document.
 import { LIST_NAMES, type Citation, type RetrievalTrace } from '@docs-rag-lab/contracts'
 
 import common from '../lib/common.module.css'
@@ -52,8 +52,6 @@ function Facts({ trace }: { trace: RetrievalTrace }) {
   ]
   return (
     <dl className={styles.facts}>
-      <dt>Question</dt>
-      <dd>{trace.question}</dd>
       <dt>Strategy</dt>
       <dd>
         {trace.strategy}: {params.candidates} candidates per list
@@ -103,12 +101,7 @@ function Facts({ trace }: { trace: RetrievalTrace }) {
 export function Inspector(props: InspectorProps) {
   const { trace, citations, selectedChunkId, onSelectChunk, transport } = props
   if (trace === undefined) {
-    return (
-      <p className={styles.empty}>
-        Ask a question or run a search to see how the context was chosen: every candidate list, the
-        fused ranking, the chunks sent to Claude and where each chunk starts and ends.
-      </p>
-    )
+    return <p className={styles.empty}>There is no retrieval trace for this question yet.</p>
   }
   const documentChunk = selectedChunkId ?? trace.context[0]?.chunkId
   const shared = { trace, selectedChunkId, onSelectChunk }

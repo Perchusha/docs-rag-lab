@@ -33,6 +33,11 @@ export function chunkLocation(chunk: Pick<TraceChunk, 'docPath' | 'anchor'>): st
   return chunk.anchor === '' ? path : `${path}#${chunk.anchor}`
 }
 
+/** The message of something thrown. */
+export function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** Tokens and cost of one answer or search, from the engine's usage summary. */
 export function formatUsage(usage: UsageSummary): string {
   const models = usage.models.map((m) => {

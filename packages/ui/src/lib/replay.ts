@@ -5,6 +5,7 @@ import type {
   DocumentChunks,
   RetrievalRequest,
   RetrievalTrace,
+  Strategy,
 } from '@docs-rag-lab/contracts'
 
 import type { Transport } from './transport.ts'
@@ -64,6 +65,10 @@ export interface ReplayOptions {
   events?: readonly AnswerEvent[]
   /** What search() returns; defaults to the trace event in `events`. */
   trace?: RetrievalTrace
+  /** What search() returns for a method, ahead of `trace`. */
+  searchTraces?: Partial<Record<Strategy, RetrievalTrace>>
+  /** search() fails with this message, while ask() works. */
+  searchFailure?: string
   documents?: readonly DocumentChunks[]
   /** The wait before each event and response, for watching a story stream. */
   delayMs?: number
@@ -128,7 +133,11 @@ export function replayTransport(options: ReplayOptions): Transport {
     async search(request, signal) {
       options.onRequest?.('search', request)
       await abortable(searchGate?.pass() ?? sleep(delayMs), signal)
-      if (options.failure !== undefined) throw new Error(options.failure)
+      const failure = options.failure ?? options.searchFailure
+      if (failure !== undefined) throw new Error(failure)
+      const found =
+        request.strategy === undefined ? undefined : options.searchTraces?.[request.strategy]
+      if (found !== undefined) return found
       if (trace === undefined) throw new Error('nothing to replay: no trace')
       return trace
     },

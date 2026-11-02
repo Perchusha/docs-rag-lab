@@ -249,4 +249,7 @@ export const VectorOnly: Story = {
 
 export const Empty: Story = {
   args: { trace: undefined, citations: [] },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/no retrieval trace/)).toBeVisible()
+  },
 }

@@ -11,7 +11,7 @@
 // buttons that show the cited chunk in the inspector. Tables and code blocks
 // scroll inside their own focusable box, so the page never has to.
 import type { Citation } from '@docs-rag-lab/contracts'
-import { useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import Markdown, { type Components, type Options } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -37,14 +37,7 @@ const QUOTED_HEADING = ({ children }: { children?: ReactNode }) => (
     <strong>{children}</strong>
   </p>
 )
-const QUOTED_COMPONENTS: Components = {
-  h1: QUOTED_HEADING,
-  h2: QUOTED_HEADING,
-  h3: QUOTED_HEADING,
-  h4: QUOTED_HEADING,
-  h5: QUOTED_HEADING,
-  h6: QUOTED_HEADING,
-}
+const NO_CITATIONS: readonly Citation[] = []
 
 // Only ~~two tildes~~ strike through: version ranges like ~5.0 are common here.
 const REMARK_PLUGINS: Options['remarkPlugins'] = [[remarkGfm, { singleTilde: false }]]
@@ -93,62 +86,87 @@ export function ExternalLink({ href, children }: { href: string; children: React
   )
 }
 
+/**
+ * What a citation marker needs, through context and not in the component map: a
+ * new map would remount the whole answer, and a focused citation with it.
+ */
+const CitationContext = createContext<{
+  citations: readonly Citation[]
+  onCitation: AnswerMarkdownProps['onCitation']
+}>({ citations: [], onCitation: undefined })
+
+function MarkdownLink({ href, children }: { href?: string | undefined; children?: ReactNode }) {
+  const { citations, onCitation } = useContext(CitationContext)
+  const n = citationNumber(href)
+  if (n !== undefined) {
+    const citation = citations.find((c) => c.number === n)
+    if (citation === undefined) return <span className={styles.marker}>[{n}]</span>
+    return (
+      <button
+        type="button"
+        className={styles.citation}
+        aria-label={`Source ${String(n)}: ${citation.title}. Show it in the inspector`}
+        title={citation.title}
+        onClick={(event) => onCitation?.(citation, event.currentTarget)}
+      >
+        {n}
+      </button>
+    )
+  }
+  return isWebUrl(href) ? <ExternalLink href={href}>{children}</ExternalLink> : children
+}
+
+const COMPONENTS: Components = {
+  a: MarkdownLink,
+  img: ({ alt }) => (alt === undefined || alt === '' ? null : <span>{alt}</span>),
+  input: ({ checked }) => <span>{checked === true ? '[x] ' : '[ ] '}</span>,
+  table: ({ node, children }) => (
+    <ScrollRegion label={tableLabel(node)} className={styles.block}>
+      <table>{children}</table>
+    </ScrollRegion>
+  ),
+  // A comparison table's empty corner is not a header: it heads nothing,
+  // and a header with no text is announced as a blank.
+  th: ({ node, children, style }) =>
+    node !== undefined && textOf(node).trim() === '' ? (
+      <td style={style} />
+    ) : (
+      <th style={style}>{children}</th>
+    ),
+  pre: ({ children }) => (
+    <ScrollRegion label="Code example" className={styles.code}>
+      <pre>{children}</pre>
+    </ScrollRegion>
+  ),
+}
+
+const QUOTED_COMPONENTS: Components = {
+  ...COMPONENTS,
+  h1: QUOTED_HEADING,
+  h2: QUOTED_HEADING,
+  h3: QUOTED_HEADING,
+  h4: QUOTED_HEADING,
+  h5: QUOTED_HEADING,
+  h6: QUOTED_HEADING,
+}
+
 export function AnswerMarkdown({
   markdown,
-  citations = [],
+  citations = NO_CITATIONS,
   onCitation,
   quoted = false,
 }: AnswerMarkdownProps) {
-  const components = useMemo<Components>(
-    () => ({
-      ...(quoted ? QUOTED_COMPONENTS : {}),
-      a: ({ href, children }) => {
-        const n = citationNumber(href)
-        if (n !== undefined) {
-          const citation = citations.find((c) => c.number === n)
-          if (citation === undefined) return <span className={styles.marker}>[{n}]</span>
-          return (
-            <button
-              type="button"
-              className={styles.citation}
-              aria-label={`Source ${String(n)}: ${citation.title}. Show it in the inspector`}
-              title={citation.title}
-              onClick={(event) => onCitation?.(citation, event.currentTarget)}
-            >
-              {n}
-            </button>
-          )
-        }
-        return isWebUrl(href) ? <ExternalLink href={href}>{children}</ExternalLink> : children
-      },
-      img: ({ alt }) => (alt === undefined || alt === '' ? null : <span>{alt}</span>),
-      input: ({ checked }) => <span>{checked === true ? '[x] ' : '[ ] '}</span>,
-      table: ({ node, children }) => (
-        <ScrollRegion label={tableLabel(node)} className={styles.block}>
-          <table>{children}</table>
-        </ScrollRegion>
-      ),
-      // A comparison table's empty corner is not a header: it heads nothing,
-      // and a header with no text is announced as a blank.
-      th: ({ node, children, style }) =>
-        node !== undefined && textOf(node).trim() === '' ? (
-          <td style={style} />
-        ) : (
-          <th style={style}>{children}</th>
-        ),
-      pre: ({ children }) => (
-        <ScrollRegion label="Code example" className={styles.code}>
-          <pre>{children}</pre>
-        </ScrollRegion>
-      ),
-    }),
-    [citations, onCitation, quoted],
-  )
+  const context = useMemo(() => ({ citations, onCitation }), [citations, onCitation])
   return (
     <div className={styles.markdown}>
-      <Markdown remarkPlugins={REMARK_PLUGINS} components={components}>
-        {markdown}
-      </Markdown>
+      <CitationContext.Provider value={context}>
+        <Markdown
+          remarkPlugins={REMARK_PLUGINS}
+          components={quoted ? QUOTED_COMPONENTS : COMPONENTS}
+        >
+          {markdown}
+        </Markdown>
+      </CitationContext.Provider>
     </div>
   )
 }

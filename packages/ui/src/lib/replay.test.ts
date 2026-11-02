@@ -1,6 +1,7 @@
 import type { AnswerEvent } from '@docs-rag-lab/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
+import { traces } from '../fixtures.ts'
 import { replayGate, replayTransport } from './replay.ts'
 
 const events: AnswerEvent[] = [
@@ -116,6 +117,26 @@ describe('replayTransport with a gate', () => {
     await done
     expect(seen).toEqual(events)
     expect(onAskEnd).toHaveBeenCalledExactlyOnceWith('aborted')
+  })
+
+  it('answers search() per method, and can fail it alone', async () => {
+    const signal = new AbortController().signal
+    const transport = replayTransport({
+      trace: traces.satisfies,
+      searchTraces: { vector: traces.satisfiesVector },
+    })
+    await expect(transport.search({ question: 'q', strategy: 'vector' }, signal)).resolves.toBe(
+      traces.satisfiesVector,
+    )
+    await expect(transport.search({ question: 'q', strategy: 'hybrid' }, signal)).resolves.toBe(
+      traces.satisfies,
+    )
+
+    const failing = replayTransport({ events, searchFailure: 'overloaded' })
+    await expect(failing.search({ question: 'q' }, signal)).rejects.toThrow('overloaded')
+    const { seen, done } = collect(failing.ask({ question: 'q' }, signal))
+    await done
+    expect(seen).toEqual(events)
   })
 
   it('holds search() on its own gate', async () => {

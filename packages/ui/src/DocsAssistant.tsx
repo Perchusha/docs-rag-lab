@@ -1,17 +1,18 @@
 'use client'
-// A docs assistant: a chat column for someone asking a question, with the
-// retrieval inspector beside it for someone exploring how it was found (SPEC
+// A docs assistant: a chat column for someone asking a question, and the
+// retrieval inspector, on demand, for someone exploring how it was found (SPEC
 // section 13, M3). An app renders this from a server component with its config:
 // serializable props only, so the transport is built here from the endpoints
 // unless a story or test passes its own.
-import type { Citation, Strategy } from '@docs-rag-lab/contracts'
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import type { RetrievalRequest, Strategy } from '@docs-rag-lab/contracts'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import { Answer } from './chat/Answer.tsx'
 import { Composer, type ComposerHandle } from './chat/Composer.tsx'
 import { useAssistant } from './chat/useAssistant.ts'
 import styles from './DocsAssistant.module.css'
-import { Inspector, type InspectorTab } from './inspector/Inspector.tsx'
+import { InspectorPanel } from './inspector/InspectorPanel.tsx'
+import { useInspectorPanel } from './inspector/useInspectorPanel.ts'
 import { isRunning, statusText } from './lib/assistant.ts'
 import common from './lib/common.module.css'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
@@ -43,7 +44,6 @@ export interface DocsAssistantProps {
 
 export function DocsAssistant(props: DocsAssistantProps) {
   const { title, sourceId, endpoints, theme } = props
-  const id = useId()
   const transport = useMemo(
     () => props.transport ?? fetchTransport(endpoints),
     [props.transport, endpoints],
@@ -52,28 +52,29 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const composer = useRef<ComposerHandle>(null)
   const latestAnswer = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState<string[]>([])
-  const [selected, setSelected] = useState<string | undefined>(undefined)
-  const [tab, setTab] = useState<InspectorTab | undefined>(undefined)
-  const [reveal, setReveal] = useState<string | undefined>(undefined)
+
+  const requestFor = (question: string, strategy: Strategy): RetrievalRequest => ({
+    question,
+    strategy,
+    docTypes: filter,
+    ...(sourceId === undefined ? {} : { source: sourceId }),
+  })
+  const inspector = useInspectorPanel({
+    transport,
+    exchanges,
+    defaultStrategy: props.defaultStrategy,
+    requestFor,
+    focusFallback: () => composer.current?.focus(),
+  })
 
   const latest = exchanges.at(-1)
   const empty = latest === undefined
   const running = latest !== undefined && isRunning(latest.state)
 
-  const send = useCallback(
-    (question: string) => {
-      setSelected(undefined)
-      setTab(undefined)
-      setReveal(undefined)
-      void ask({
-        question,
-        strategy: props.defaultStrategy,
-        docTypes: filter,
-        ...(sourceId === undefined ? {} : { source: sourceId }),
-      })
-    },
-    [ask, filter, props.defaultStrategy, sourceId],
-  )
+  const send = (question: string) => {
+    inspector.followQuestion(question)
+    void ask(requestFor(question, inspector.strategy))
+  }
 
   // An example disappears as it sends, so focus moves on to the input.
   const sendExample = (question: string) => {
@@ -87,16 +88,6 @@ export function DocsAssistant(props: DocsAssistantProps) {
     if (count > 0) latestAnswer.current?.scrollIntoView({ block: 'start' })
   }, [count])
 
-  // A citation shows its chunk: selected, in the Context tab, with focus on it.
-  const showCitation = useCallback((citation: Citation) => {
-    setSelected(citation.chunkId)
-    setTab('context')
-    setReveal(citation.chunkId)
-  }, [])
-  const revealed = useCallback(() => {
-    setReveal(undefined)
-  }, [])
-
   const style =
     theme === undefined
       ? undefined
@@ -105,13 +96,14 @@ export function DocsAssistant(props: DocsAssistantProps) {
           '--accent-dark': theme.accent.dark,
         } as CSSProperties)
 
-  const trace = latest?.state.trace
-  const layout = [styles.layout, trace === undefined ? undefined : styles.withInspector]
+  const { panel } = inspector
+  const layout = [styles.layout, panel === undefined ? undefined : styles.withInspector]
   const chat = [styles.chat, empty ? styles.empty : undefined]
   return (
     <div className={styles.root} data-drl-theme="" style={style}>
-      <main className={layout.filter(Boolean).join(' ')}>
-        <div className={chat.filter(Boolean).join(' ')}>
+      {/* The panel is a top-level landmark, so it is beside main, not in it. */}
+      <div className={layout.filter(Boolean).join(' ')}>
+        <main className={chat.filter(Boolean).join(' ')}>
           <header className={styles.header}>
             <h1>{title}</h1>
             {empty && props.tagline !== undefined && (
@@ -122,7 +114,26 @@ export function DocsAssistant(props: DocsAssistantProps) {
             <div className={styles.transcript}>
               {exchanges.map((exchange) => (
                 <div key={exchange.id} ref={exchange.id === latest.id ? latestAnswer : undefined}>
-                  <Answer state={exchange.state} onCitation={showCitation} />
+                  <Answer
+                    state={exchange.state}
+                    onCitation={(citation, trigger) => {
+                      inspector.showCitation(exchange, citation, trigger)
+                    }}
+                    actions={
+                      exchange.state.trace !== undefined && !isRunning(exchange.state) ? (
+                        <button
+                          type="button"
+                          className={styles.how}
+                          aria-expanded={inspector.shown?.id === exchange.id}
+                          onClick={(event) => {
+                            inspector.toggle(exchange, event.currentTarget)
+                          }}
+                        >
+                          How was this found?
+                        </button>
+                      ) : undefined
+                    }
+                  />
                 </div>
               ))}
             </div>
@@ -161,24 +172,13 @@ export function DocsAssistant(props: DocsAssistantProps) {
               </ul>
             )}
           </div>
-        </div>
-        {trace !== undefined && (
-          <section className={styles.inspector} aria-labelledby={`${id}-inspector`}>
-            <h2 id={`${id}-inspector`}>Retrieval inspector</h2>
-            <Inspector
-              trace={trace}
-              citations={latest?.state.citations ?? []}
-              selectedChunkId={selected}
-              onSelectChunk={setSelected}
-              tab={tab}
-              onTabChange={setTab}
-              reveal={reveal}
-              onRevealed={revealed}
-              transport={transport}
-            />
-          </section>
+        </main>
+        {panel !== undefined && (
+          <div className={styles.inspector}>
+            <InspectorPanel {...panel} />
+          </div>
         )}
-      </main>
+      </div>
     </div>
   )
 }

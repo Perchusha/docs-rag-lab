@@ -2,6 +2,7 @@ import type { RetrievalRequest } from '@docs-rag-lab/contracts'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 import { transcriptReducer, type Exchange } from '../lib/assistant.ts'
+import { messageOf } from '../lib/format.ts'
 import type { Transport } from '../lib/transport.ts'
 
 export interface Assistant {
@@ -10,10 +11,6 @@ export interface Assistant {
   ask: (request: RetrievalRequest) => Promise<void>
   /** Stops the running question; the app route then stops the Claude stream. */
   stop: () => void
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 /** The chat over a Transport. One question runs at a time. */
