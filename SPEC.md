@@ -149,7 +149,7 @@ Notes on the chunk columns:
 - `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
 - `ordinal` is the chunk's 0-based place in its document; the inspector orders chunk boundaries by it. The chunk ID uses a different number, the pack's place within its section.
 - `context` is the contextual retrieval prefix.
-- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`, and `sectionPath`, the heading path of the section the chunk starts in (the one its anchor points to). For a pack of sections, `heading_path` is their common parent, which is empty under the document root.
+- `metadata` holds things like version_introduced, error_codes and option names, plus `spans`, the character ranges of the rendered blocks in `text`, `sectionPath`, the heading path of the section the chunk starts in (the one its anchor points to), and `part`, `{index, total}`, when that section split into several chunks. For a pack of sections, `heading_path` is their common parent, which is empty under the document root.
 
 `manifest.include_paths`, `embed_model` (provider, model and dimensions), `chunker_version` and `parser_version` decide when a sync must rebuild everything (ADR-0004, ADR-0005). A rebuild re-parses every file but embeds only changed text.
 
@@ -291,7 +291,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 ### Generation
 - Sonnet receives the retrieved chunks as `search_result` content blocks with citations enabled:
   - `source` = canonical doc URL with anchor;
-  - `title` = doc title + the heading path of the section the chunk starts in (`sectionPath`);
+  - `title` = doc title + the heading path of the section the chunk starts in (`sectionPath`), plus "(part 2 of 3)" when that section split into several chunks;
   - `content` = text blocks, one per rendered block of the chunk, so citations point at precise passages.
 - The response is streamed, and citations are rendered inline in the UI. Core reports an answer as a sequence of events: the trace, text deltas, the citation markers of each cited text block (each citation names its context chunk), then `done` with the stop reason and the usage, tokens and estimated cost (ADR-0006). The CLI prints them; an app route sends them to the browser as NDJSON, one event per line, and ui renders the markdown without raw HTML, with each citation marker as a button that shows its chunk in the inspector (ADR-0008).
 - The system prompt says: answer only from the provided results, and say so when they are not enough.

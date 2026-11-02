@@ -34,8 +34,9 @@ Superseded in M3 by ADR-0007: the values and their types moved to the leaf packa
 - The 800 budget counts the rendered blocks. The prefix line and the blank lines between blocks come on top. A single code block, or a single line, longer than the budget is never split. In the TypeScript index, 12 of 994 chunks exceed 800: two single code blocks (1,046 and 824) and ten at 802-810 because of the prefix.
 - Chunk text is a `Title > H2 > H3` prefix line, then the rendered blocks. `spans` records each block's character range, so generation can send one citable text block per rendered block.
 - Chunk ID: the first 24 hex characters of `sha256(JSON.stringify([docPath, headingPath, occurrence, ordinal]))`. `occurrence` counts earlier sections with the same heading path in the document; `ordinal` is the pack's position within its section. `text_hash` is `sha256(text)`.
-- `CHUNKER_VERSION` (now 3) is stored in the manifest; changing it forces a full rebuild.
+- `CHUNKER_VERSION` (now 4) is stored in the manifest; changing it forces a full rebuild.
 - Since version 3 (M3), every chunk records `sectionPath`, the heading path of the section it starts in. A pack takes its parent's heading path, which is empty under the document root, so 170 chunks were cited by the document title alone ("TypeScript 5.9" for `#notable-behavioral-changes`) and 73 more by their parent section. Citation titles now use `sectionPath`. The text did not change, so the rebuild embedded nothing.
+- Since version 4 (the UX pass before M4), a chunk of a section that split records `part`, `{index, total}`, and its label says "(part 2 of 3)". Inside a document, 102 labels were shared by 231 of the 994 chunks, and no label is now. The text and IDs did not change: the re-parse took 3.4s and 0 tokens, and the keyword index and every embedding stayed byte-identical.
 
 ### 3. Token counts are estimated locally, billed counts come from the API
 

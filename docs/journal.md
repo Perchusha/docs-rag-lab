@@ -2,6 +2,45 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M3 follow-up - A UX pass, before M4 (2026-11-02)
+
+Trying the app in Chrome showed that it read like an admin panel: it showed someone asking a question everything it knows about retrieval. Now the chat comes first, and the inspector opens on demand. Five bugs went with it. Decisions are in ADR-0008, section 9.
+
+| | Before | After |
+|---|---|---|
+| Tab stops before the first question | 14 (counted from the old form's markup) | 7 |
+| Inspector on the first view | Always, with a paragraph explaining itself | Closed until asked for |
+| Comparing Hybrid and Vector for one question | Choose in the form, press Search only, and the answer leaves the page | One click on the toggle: one `/api/search`, no `/api/ask`, and the answer stays |
+| Labels shared by chunks of one document | 102, covering 231 of 994 chunks | 0 |
+| Fences and asterisks shown as text in sources | Whole ```` ```ts ```` fences | None in the 4 live answers |
+| Numberings for one chunk | 2: "citation 1" could say "Show chunk 2" | 1: "Source N" in the chat and all four tabs |
+| Lone citation markers | A marker alone after a code block | None in the 4 live answers, and a story on a derived fixture |
+| Stories, each a test in Chromium with axe in light and dark | 28 | 58 |
+
+**Parts came at no cost:** `CHUNKER_VERSION` 4 forced a re-parse of 3.4s and 0 tokens. The keyword index, every embedding and the chunk text stayed byte-identical (`665fa74c8077a848`, `d2f55731ce8a7ba5`), and 20 of 20 M2 searches came back with the same rankings and contexts. The part in the title sent to Claude adds about 7 tokens per split chunk. The recorded traces have 0 to 4 such chunks of 8, against about 8,000 input tokens.
+
+**Still shared:** 2 labels across 4 chunks, because upstream gives two pages the same title: `TSConfig Option: exclude` and `include`, under `options/` and `options/typeAcquisition/`. They are separate documents, with their own locations and links, so this PR leaves them.
+
+**Checked on the live app, over the real index:**
+- The 4 example questions, each with "How was this found?", all four tabs and the toggle. Search only with edited text sent one `/api/search`, and neither it nor the toggle sent an `/api/ask`.
+- axe found nothing in 42 states: empty, Search in open, answers, the panel on each tab, vector, 320 and 390 px wide, and dark.
+- A keyboard-only run from the input to the panel and back, with a visible focus style at every stop.
+- 63 of 64 checks passed. The last was my check for Next's indicator, which matched 3 empty 0 by 0 elements: nothing shows in the screenshots.
+
+| Question | Sources | Cost |
+|---|---|---|
+| In which version did `satisfies` appear? | 1 | about $0.017 (its usage line was not captured; the recorded one is $0.0171) |
+| What does error TS2345 mean? | 5 | $0.0251 |
+| What does the `strict` flag enable? | 4 | $0.0219 |
+| ts-0004, В чём разница между `unknown` и `any`? | 4 | $0.0237 |
+
+Total spend for this pass: about $0.21, of which $0.1202 went on 6 recordings while planning.
+
+**What was surprising:**
+- **A citation could not get focus back.** The first story for it failed: focus landed in the input. The markdown component map depended on `onCitation`, so a new callback built a new map, and React remounted the whole answer, citation included. The same thing happened during streaming each time a new citation arrived, and scrolled code boxes lost their place. The map is now a constant, and what a citation needs comes through context.
+- **A double focus ring that no story could see.** `outline: none` on the input ties with the global `:focus-visible` rule, and the later rule wins. Storybook and Next load CSS in a different order, so it only showed on the live app, in a screenshot.
+- **The lone marker was my own fix from the last PR.** It stopped a citation from turning the rest of an answer into code by giving the marker its own line. Five recording attempts could not reproduce the shape, so that one story uses a real answer with one event moved, and the file name says so.
+
 ## M3 - The ts-docs app and the retrieval inspector (2026-11-01)
 
 The second M3 PR adds the ui package, Storybook and the Next.js app on top of the engine from the first. `pnpm dev` now opens a TypeScript docs assistant: ask on the left, see on the right how the answer's context was chosen. Decisions are in ADR-0008.
