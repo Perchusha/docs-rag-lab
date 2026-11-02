@@ -12,8 +12,10 @@ import {
 } from '@docs-rag-lab/contracts'
 
 import citationAfterCodeNdjson from './__fixtures__/answer-citation-after-code.derived.ndjson?raw'
+import satisfiesHowNdjson from './__fixtures__/answer-satisfies-how.ndjson?raw'
 import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
 import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
+import varianceNdjson from './__fixtures__/answer-variance.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
 import satisfies from './__fixtures__/trace-satisfies.json'
@@ -65,6 +67,12 @@ export const answerFixture = answer(answerNdjson)
 
 /** A recorded answer with a GFM table with cited cells, then two code blocks. */
 export const tableAnswerFixture = answer(tableAnswerNdjson)
+
+/** "How does the `satisfies` operator work?": two sources from one section, one a whole code fence. */
+export const satisfiesHowFixture = answer(satisfiesHowNdjson)
+
+/** On optional variance annotations: three chunks of one section, and emphasis in an excerpt. */
+export const varianceFixture = answer(varianceNdjson)
 
 /**
  * NOT a verbatim recording, unlike the others here. A real answer about `--strict`

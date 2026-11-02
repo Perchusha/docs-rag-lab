@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
-import { answerFixture } from '../fixtures.ts'
+import { answerFixture, satisfiesHowFixture, varianceFixture } from '../fixtures.ts'
 import { Sources } from './Sources.tsx'
 
 const meta = {
@@ -32,5 +32,45 @@ export const Default: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Show chunk 1 in the inspector' }))
     await expect(args.onShow).toHaveBeenCalledWith(answerFixture.citations[0])
+  },
+}
+
+/**
+ * Excerpts render as markdown, not as raw text: a recorded ```ts fence is code, with no
+ * backticks to read, and a long excerpt starts collapsed behind Show more.
+ */
+export const RenderedExcerpts: Story = {
+  args: { citations: satisfiesHowFixture.citations },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvasElement).not.toHaveTextContent('```')
+    await expect(canvasElement).not.toHaveTextContent('`satisfies`')
+
+    const [items] = [canvas.getAllByRole('listitem')]
+    const fenced = items[1] ?? canvasElement
+    const code = within(fenced).getByRole('group', { name: 'Code example' })
+    await expect(code.querySelector('pre code')).toHaveTextContent('type Colors')
+
+    // The collapsed code block stops early, and Show more brings the rest.
+    await expect(code).not.toHaveTextContent('const palette')
+    const more = within(fenced).getByRole('button', { name: 'Show more' })
+    await expect(more).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(more)
+    const less = within(fenced).getByRole('button', { name: 'Show less' })
+    await expect(less).toHaveAttribute('aria-expanded', 'true')
+    await expect(within(fenced).getByRole('group', { name: 'Code example' })).toHaveTextContent(
+      'const palette',
+    )
+    await userEvent.click(less)
+    await expect(within(fenced).getByRole('button', { name: 'Show more' })).toBeVisible()
+  },
+}
+
+/** Emphasis in an excerpt is emphasis, not asterisks. */
+export const RenderedEmphasis: Story = {
+  args: { citations: varianceFixture.citations.slice(0, 1) },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement).not.toHaveTextContent('*')
+    await expect(canvasElement.querySelector('em')).toHaveTextContent('explicitly')
   },
 }

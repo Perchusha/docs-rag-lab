@@ -73,6 +73,13 @@ describe('AnswerMarkdown', () => {
     expect(out).not.toContain('#cite-1')
   })
 
+  it('renders the headings of a quoted excerpt as bold text, not as headings of the page', () => {
+    const out = renderToStaticMarkup(<AnswerMarkdown markdown={'## A heading\n\nText.'} quoted />)
+    expect(out).toContain('<p><strong>A heading</strong></p>')
+    expect(out).not.toContain('<h2')
+    expect(html('## A heading')).toContain('<h2>A heading</h2>')
+  })
+
   describe('GFM', () => {
     const table = '| | `any` | `unknown` |\n|---|---|---|\n| Safety | Unsafe. | Type-safe. |'
 

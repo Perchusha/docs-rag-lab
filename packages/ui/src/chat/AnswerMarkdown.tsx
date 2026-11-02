@@ -22,8 +22,28 @@ import styles from './AnswerMarkdown.module.css'
 
 export interface AnswerMarkdownProps {
   markdown: string
-  citations: readonly Citation[]
+  /** The answer's citations; an excerpt from the docs has none. */
+  citations?: readonly Citation[] | undefined
   onCitation?: ((citation: Citation) => void) | undefined
+  /**
+   * For an excerpt quoted inside the page: its headings render as bold text, so
+   * they do not become headings of the page.
+   */
+  quoted?: boolean | undefined
+}
+
+const QUOTED_HEADING = ({ children }: { children?: ReactNode }) => (
+  <p>
+    <strong>{children}</strong>
+  </p>
+)
+const QUOTED_COMPONENTS: Components = {
+  h1: QUOTED_HEADING,
+  h2: QUOTED_HEADING,
+  h3: QUOTED_HEADING,
+  h4: QUOTED_HEADING,
+  h5: QUOTED_HEADING,
+  h6: QUOTED_HEADING,
 }
 
 // Only ~~two tildes~~ strike through: version ranges like ~5.0 are common here.
@@ -73,9 +93,15 @@ export function ExternalLink({ href, children }: { href: string; children: React
   )
 }
 
-export function AnswerMarkdown({ markdown, citations, onCitation }: AnswerMarkdownProps) {
+export function AnswerMarkdown({
+  markdown,
+  citations = [],
+  onCitation,
+  quoted = false,
+}: AnswerMarkdownProps) {
   const components = useMemo<Components>(
     () => ({
+      ...(quoted ? QUOTED_COMPONENTS : {}),
       a: ({ href, children }) => {
         const n = citationNumber(href)
         if (n !== undefined) {
@@ -116,7 +142,7 @@ export function AnswerMarkdown({ markdown, citations, onCitation }: AnswerMarkdo
         </ScrollRegion>
       ),
     }),
-    [citations, onCitation],
+    [citations, onCitation, quoted],
   )
   return (
     <div className={styles.markdown}>
