@@ -3,7 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { DocsAssistant } from './DocsAssistant.tsx'
 import { answerFixture, documentFixture } from './fixtures.ts'
-import { replayTransport } from './lib/replay.ts'
+import { replayGate, replayTransport } from './lib/replay.ts'
 
 const question = 'In which version did `satisfies` appear?'
 const onRequest = fn()
@@ -34,9 +34,24 @@ type Story = StoryObj<typeof meta>
 
 export const Idle: Story = {}
 
-/** The recorded answer streams in; a citation shows its chunk in the inspector. */
+const answerGate = replayGate()
+
+/**
+ * The recorded answer streams in; a citation shows its chunk in the inspector.
+ * The gate holds each state until the test releases it, so no check here races
+ * the replay, however slow the machine (ADR-0008).
+ */
 export const AskAndInspect: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      documents: [documentFixture],
+      gate: answerGate,
+      onRequest,
+    }),
+  },
   play: async ({ canvasElement }) => {
+    answerGate.reset()
     const canvas = within(canvasElement)
     const status = canvas.getByRole('status')
     await userEvent.click(canvas.getByRole('button', { name: question }))
@@ -46,9 +61,28 @@ export const AskAndInspect: Story = {
       strategy: 'hybrid',
       docTypes: [],
     })
-    // State shows up after React renders, so status checks wait for it. The
-    // short Searching state is checked in Stop, where it lasts 400 ms.
-    await expect(await canvas.findByText('Answer ready, with 1 source')).toBe(status)
+
+    // Nothing released: retrieval has not answered, so this state cannot pass.
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+    await expect(canvas.queryByRole('tab', { name: 'Fusion' })).toBeNull()
+
+    // The trace: the inspector fills in before any answer text.
+    answerGate.release(1)
+    await waitFor(() => expect(status).toHaveTextContent('Writing the answer'))
+    const answer = canvas.getByRole('article')
+    await expect(answer).toHaveAttribute('aria-busy', 'true')
+    await expect(canvas.getByRole('tab', { name: 'Fusion' })).toBeVisible()
+
+    // The first two deltas: the answer shows part of its text, and is still busy.
+    answerGate.release(2)
+    await waitFor(() => expect(answer).toHaveTextContent('The satisfies operator was introduced'))
+    await expect(answer).not.toHaveTextContent('TypeScript 4')
+    await expect(answer).toHaveAttribute('aria-busy', 'true')
+    await expect(status).toHaveTextContent('Writing the answer')
+
+    answerGate.open()
+    await waitFor(() => expect(status).toHaveTextContent('Answer ready, with 1 source'))
+    await expect(answer).toHaveAttribute('aria-busy', 'false')
     await expect(canvas.getByRole('tab', { name: 'Fusion' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -93,42 +127,89 @@ export const SearchOnly: Story = {
   },
 }
 
-/** A new question replaces one still running: nothing of the first reaches the page. */
+const replacedAskGate = replayGate()
+const replacingSearchGate = replayGate()
+const onReplacedAskEnd = fn()
+
+/**
+ * A new question replaces one still running, and nothing of the first reaches
+ * the page. The replay keeps sending after its abort, as a real response does
+ * with a chunk it has read, so both guards in useAssistant are under test: the
+ * abort, and dropping what arrives after it.
+ */
 export const NewQuestionReplacesRunning: Story = {
   args: {
-    // The search answers after the replaced ask would have streamed every event,
-    // so an ask that kept going would reach the page.
-    transport: replayTransport({ events: answerFixture.events, delayMs: 30, searchDelayMs: 1500 }),
+    transport: replayTransport({
+      events: answerFixture.events,
+      gate: replacedAskGate,
+      searchGate: replacingSearchGate,
+      ignoresAbort: true,
+      onAskEnd: onReplacedAskEnd,
+    }),
   },
   play: async ({ canvasElement }) => {
+    replacedAskGate.reset()
+    replacingSearchGate.reset()
+    onReplacedAskEnd.mockClear()
     const canvas = within(canvasElement)
     const status = canvas.getByRole('status')
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+
+    // The first question is mid-answer: its trace and some text are on the page.
     await userEvent.click(canvas.getByRole('button', { name: 'Ask' }))
+    replacedAskGate.release(3)
+    await waitFor(() => expect(canvasElement).toHaveTextContent('operator was introduced'))
+
+    // The new question clears it, and stays searching until the test says so.
     await userEvent.click(canvas.getByRole('button', { name: 'Search only' }))
-    await canvas.findByText('Search done: 8 chunks in the context')
-    await expect(status).toHaveTextContent('Search done: 8 chunks in the context')
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+    await expect(canvasElement).not.toHaveTextContent('operator was introduced')
+
+    // Everything the first question still has to send, sent into the new
+    // question's searching state, before it has an answer of its own.
+    replacedAskGate.open()
+    await waitFor(() => expect(onReplacedAskEnd).toHaveBeenCalledWith('aborted'))
+    await expect(onReplacedAskEnd).toHaveBeenCalledOnce()
+    await expect(status).toHaveTextContent('Searching the docs')
+    await expect(canvasElement).not.toHaveTextContent('operator was introduced')
+
+    replacingSearchGate.open()
+    await waitFor(() => expect(status).toHaveTextContent('Search done: 8 chunks in the context'))
     await expect(canvas.getByRole('heading', { name: 'Search' })).toBeVisible()
     await expect(canvas.queryByRole('heading', { name: 'Sources' })).toBeNull()
     await expect(canvas.queryAllByRole('button', { name: /^Source / })).toHaveLength(0)
   },
 }
 
+const stoppedAskGate = replayGate()
+const onStoppedAskEnd = fn()
+
+/** Stop aborts the running question. The gate never opens, so it is always mid-search. */
 export const Stop: Story = {
   args: {
-    transport: replayTransport({ events: answerFixture.events, delayMs: 400 }),
+    transport: replayTransport({
+      events: answerFixture.events,
+      gate: stoppedAskGate,
+      onAskEnd: onStoppedAskEnd,
+    }),
   },
   play: async ({ canvasElement }) => {
+    stoppedAskGate.reset()
+    onStoppedAskEnd.mockClear()
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
     await userEvent.keyboard('{Control>}{Enter}{/Control}')
     const status = canvas.getByRole('status')
     await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
     await waitFor(() => expect(status).toHaveTextContent('Stopped'))
     await waitFor(() =>
       expect(canvas.getByRole('button', { name: 'Stop' })).toHaveAttribute('aria-disabled', 'true'),
     )
+    // The abort reached the transport, which is what stops the Claude stream.
+    await waitFor(() => expect(onStoppedAskEnd).toHaveBeenCalledWith('aborted'))
+    await expect(onStoppedAskEnd).toHaveBeenCalledOnce()
   },
 }
 
