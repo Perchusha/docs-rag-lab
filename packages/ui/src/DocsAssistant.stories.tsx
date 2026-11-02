@@ -393,6 +393,8 @@ export const ToggleMakesNoClaudeCall: Story = {
     const panel = within(panelOf(canvasElement))
     const status = panel.getByRole('status')
 
+    // Chosen by hand or not, Fusion has nothing to show for a vector search.
+    await userEvent.click(panel.getByRole('tab', { name: 'Fusion' }))
     await userEvent.click(panel.getByRole('radio', { name: 'Vector' }))
     await expect(onToggleRequest).toHaveBeenLastCalledWith('search', {
       question,

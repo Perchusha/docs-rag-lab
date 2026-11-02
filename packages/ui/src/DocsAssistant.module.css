@@ -122,7 +122,7 @@
   inset-block-start: 0;
   box-sizing: border-box;
   min-width: 0;
-  max-height: 100vh;
+  height: 100vh;
   overflow-y: auto;
   padding: var(--space-4) var(--space-5);
   border-inline-start: 1px solid var(--color-border);
@@ -134,13 +134,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .chat {
+  /* The panel comes right after the chat, not a page further down. */
+  .withInspector .chat {
     min-height: 0;
   }
 
   .inspector {
     position: static;
-    max-height: none;
+    height: auto;
     overflow-y: visible;
     border-inline-start: none;
     border-top: 1px solid var(--color-border);

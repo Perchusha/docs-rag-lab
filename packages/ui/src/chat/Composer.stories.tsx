@@ -28,6 +28,10 @@ export const EnterSends: Story = {
     const question = canvas.getByRole('textbox', { name: 'Question' })
 
     await userEvent.click(question)
+    // One focus ring, on the box, and none of its own on the input inside it.
+    await expect(getComputedStyle(question).outlineStyle).toBe('none')
+    await expect(getComputedStyle(canvas.getByRole('form')).outlineStyle).toBe('solid')
+
     await userEvent.keyboard('First line')
     await userEvent.keyboard('{Shift>}{Enter}{/Shift}')
     await userEvent.keyboard('second line')

@@ -75,9 +75,11 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
   const search = (text: string, method: Strategy) => {
     const question = text.trim()
     if (question === '') return
-    // The new trace may not have the selected chunk.
+    // The new trace may not have the selected chunk, and only hybrid search has
+    // a fusion to show: back to the default tab, which for vector search is Lists.
     setSelected(undefined)
     setReveal(undefined)
+    setTab((current) => (current === 'fusion' ? undefined : current))
     fresh.search(requestFor(question, method))
   }
 

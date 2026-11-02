@@ -23,9 +23,13 @@
   resize: none;
   padding: var(--space-1) 0;
   border: none;
-  outline: none;
   background: none;
   color: var(--color-text);
+}
+
+/* As specific as it must be to beat the global focus style, in any CSS order. */
+.input:focus-visible {
+  outline: none;
 }
 
 .composer:has(.input:focus-visible) {
