@@ -38,15 +38,36 @@ describe('answerMarkdown', () => {
     )
   })
 
-  it('puts a marker after a closing code fence on its own line', () => {
+  it('puts a marker that follows a code block on the text before the block', () => {
     const fenced: AnswerPart[] = [
       { kind: 'text', text: 'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n' },
       { kind: 'cite', numbers: [1] },
       { kind: 'text', text: '\nAfter the code.' },
     ]
     expect(answerMarkdown(fenced)).toBe(
-      'Example:\n\n```ts\nconst a = 1 satisfies number\n```\n\n[1](#cite-1)\n\nAfter the code.',
+      'Example:[1](#cite-1)\n\n```ts\nconst a = 1 satisfies number\n```\n\nAfter the code.',
     )
+  })
+
+  it('goes past several code blocks to the text, and into a table row there', () => {
+    const cited = (text: string): AnswerPart[] => [
+      { kind: 'text', text },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(cited('Two:\n\n```\na\n```\n\n```\nb\n```'))).toBe(
+      'Two:[1](#cite-1)\n\n```\na\n```\n\n```\nb\n```',
+    )
+    expect(answerMarkdown(cited('| a | b |\n\n```\nc\n```'))).toBe(
+      '| a | b[1](#cite-1) |\n\n```\nc\n```',
+    )
+  })
+
+  it('keeps a line of its own only when nothing comes before the code block', () => {
+    const fenced: AnswerPart[] = [
+      { kind: 'text', text: '```ts\nconst a = 1\n```' },
+      { kind: 'cite', numbers: [1] },
+    ]
+    expect(answerMarkdown(fenced)).toBe('```ts\nconst a = 1\n```\n\n[1](#cite-1)')
   })
 
   it('treats a bare fence that opens a block as code, not as a closing fence', () => {

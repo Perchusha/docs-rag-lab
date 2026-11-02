@@ -49,6 +49,17 @@ describe('AnswerMarkdown', () => {
     expect(out).not.toContain('#cite-1')
   })
 
+  it('renders a citation after a code block on the text before it, not as a lone marker', () => {
+    const out = html(
+      answerMarkdown([
+        { kind: 'text', text: 'Pass this:\n\n```sh\n--strict\n```' },
+        { kind: 'cite', numbers: [1] },
+      ]),
+    )
+    expect(out).toMatch(/<p>Pass this:<button[^>]*>1<\/button><\/p>/)
+    expect(out).not.toMatch(/<p><button/)
+  })
+
   it('keeps the text after a cited code block out of the code', () => {
     const out = html(
       answerMarkdown([

@@ -11,6 +11,7 @@ import {
   type UsageSummary,
 } from '@docs-rag-lab/contracts'
 
+import citationAfterCodeNdjson from './__fixtures__/answer-citation-after-code.derived.ndjson?raw'
 import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
 import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
@@ -64,3 +65,11 @@ export const answerFixture = answer(answerNdjson)
 
 /** A recorded answer with a GFM table with cited cells, then two code blocks. */
 export const tableAnswerFixture = answer(tableAnswerNdjson)
+
+/**
+ * NOT a verbatim recording, unlike the others here. A real answer about `--strict`
+ * with its first citation event moved to right after its code block. That shape
+ * depends on how Claude splits citation blocks: it happened in a live run, but
+ * five recording attempts did not reproduce it.
+ */
+export const citationAfterCodeFixture = answer(citationAfterCodeNdjson)

@@ -44,28 +44,46 @@ function isDelimiterRow(line: string): boolean {
   return line.includes('|') && DELIMITER_ROW.test(line)
 }
 
+/** The last line of text before the code blocks that end the text, or -1 if there is none. */
+function lineBeforeCode(lines: readonly string[]): number {
+  let inCode = false
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i] ?? ''
+    if (FENCE.test(line)) inCode = !inCode
+    else if (!inCode && line.trim() !== '') return i
+  }
+  return -1
+}
+
+/** The lines with the markers at the end of one of them. */
+function markLine(lines: string[], index: number, links: string): string {
+  const line = lines[index] ?? ''
+  // A marker after a row's last pipe would be an extra cell, which GFM drops
+  // without a trace. It goes inside the last cell; a delimiter row has no cell
+  // to hold it, so it goes in the header row above.
+  const rowIndex = isDelimiterRow(line) ? index - 1 : index
+  const row = lines[rowIndex]
+  if (row !== undefined && isRow(row)) lines[rowIndex] = row.replace(ROW_END, () => `${links} |`)
+  else lines[index] = line.trimEnd() + links
+  return lines.join('\n')
+}
+
 /** The text with the markers placed where they will render. */
 function withMarkers(body: string, links: string): string {
   const lines = body.split('\n')
   const fences = lines.filter((line) => FENCE.test(line)).length
   const last = lines.at(-1) ?? ''
-  // After a closing fence, on a line of their own: text after a closing fence
-  // would keep the block open and turn the rest of the answer into code. An
-  // even number of fence lines means the last one closes a block.
-  if (CLOSING_FENCE.test(last) && fences % 2 === 0) return `${body}\n\n${links}`
+  // After a closing fence, text would keep the block open and turn the rest of
+  // the answer into code, and a line of its own reads as a lone marker. So it
+  // goes on the text before the code. An even number of fence lines means the
+  // last one closes a block.
+  if (CLOSING_FENCE.test(last) && fences % 2 === 0) {
+    const before = lineBeforeCode(lines)
+    return before === -1 ? `${body}\n\n${links}` : markLine(lines, before, links)
+  }
   // Inside a code block there is no better place than the end.
   if (fences % 2 === 1) return body + links
-
-  // A marker after a row's last pipe would be an extra cell, which GFM drops
-  // without a trace. It goes inside the last cell; a delimiter row has no cell
-  // to hold it, so it goes in the header row above.
-  const rowIndex = isDelimiterRow(last) ? lines.length - 2 : lines.length - 1
-  const row = lines[rowIndex]
-  if (row !== undefined && isRow(row)) {
-    lines[rowIndex] = row.replace(ROW_END, () => `${links} |`)
-    return lines.join('\n')
-  }
-  return body + links
+  return markLine(lines, lines.length - 1, links)
 }
 
 /**

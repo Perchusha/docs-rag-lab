@@ -2,7 +2,7 @@ import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
-import { answerFixture, tableAnswerFixture, traces } from '../fixtures.ts'
+import { answerFixture, citationAfterCodeFixture, tableAnswerFixture, traces } from '../fixtures.ts'
 import {
   assistantReducer,
   initialState,
@@ -66,6 +66,24 @@ export const WithTable: Story = {
     const [citation] = within(table).getAllByRole('button', { name: /^Source 2: / })
     await userEvent.click(citation ?? canvasElement)
     await expect(args.onCitation).toHaveBeenCalledWith(tableAnswerFixture.citations[1])
+  },
+}
+
+/** A citation right after a code block sits on the text before it, not on a line of its own. */
+export const CitationAfterCodeBlock: Story = {
+  args: { state: stateAfter(citationAfterCodeFixture.events) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const [marker] = canvas.getAllByRole('button', { name: /^Source 1: / })
+    const paragraph = marker?.closest('p')
+    await expect(paragraph).toHaveTextContent(/^Pass --strict and then explicitly set/)
+    await expect(canvas.getByRole('group', { name: 'Code example' })).toHaveTextContent(
+      '--strict --noImplicitThis false',
+    )
+    // No paragraph holds a marker and nothing else.
+    for (const p of canvasElement.querySelectorAll('p')) {
+      await expect(p.textContent.trim()).not.toMatch(/^\d+$/)
+    }
   },
 }
 
