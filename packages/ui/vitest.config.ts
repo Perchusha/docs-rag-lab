@@ -31,6 +31,10 @@ export default defineConfig({
         optimizeDeps: { include: ['react-markdown'] },
         test: {
           name: 'stories',
+          // Vitest's default, 63315, is in the range Windows hands to Hyper-V,
+          // which changes at each boot. There it fails with EACCES, and Vitest
+          // only tries another port when one is taken.
+          api: { port: 5199 },
           browser: {
             enabled: true,
             headless: true,
