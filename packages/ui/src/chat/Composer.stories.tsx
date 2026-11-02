@@ -88,22 +88,41 @@ export const Running: Story = {
   },
 }
 
+/** Presses an Enter that confirms a word: nothing is sent, and the browser keeps the key. */
+async function confirmWord(
+  root: HTMLElement,
+  onSend: (question: string) => void,
+  init: KeyboardEventInit,
+): Promise<void> {
+  const question = within(root).getByRole('textbox', { name: 'Question' })
+  await userEvent.type(question, 'Half a word')
+  const enter = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  })
+  await expect(question.dispatchEvent(enter)).toBe(true)
+  await expect(onSend).not.toHaveBeenCalled()
+  await expect(question).toHaveValue('Half a word')
+
+  // The next Enter, with the word confirmed, sends.
+  await userEvent.keyboard('{Enter}')
+  await expect(onSend).toHaveBeenCalledWith('Half a word')
+}
+
 /** Enter that confirms a word in an input method does not send. */
 export const EnterDuringComposition: Story = {
   play: async ({ args, canvasElement }) => {
-    const question = within(canvasElement).getByRole('textbox', { name: 'Question' })
-    await userEvent.type(question, 'Half a word')
-    question.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        isComposing: true,
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
-    await expect(args.onSend).not.toHaveBeenCalled()
-    await userEvent.keyboard('{Enter}')
-    await expect(args.onSend).toHaveBeenCalledWith('Half a word')
+    await confirmWord(canvasElement, args.onSend, { isComposing: true })
+  },
+}
+
+/** Safari has ended the composition by this keydown, so only keyCode 229 tells. */
+export const EnterWithKeyCode229: Story = {
+  play: async ({ args, canvasElement }) => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- what Safari sends, which the input checks.
+    await confirmWord(canvasElement, args.onSend, { isComposing: false, keyCode: 229 })
   },
 }
 

@@ -32,6 +32,15 @@ export interface ComposerProps {
 }
 
 /**
+ * Enter that confirms a word in an input method, and sends nothing yet. Safari ends
+ * the composition before this keydown, so there only keyCode 229 tells.
+ */
+function isComposing(event: KeyboardEvent): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- nothing else tells in Safari: its key is 'Enter'.
+  return event.nativeEvent.isComposing || event.keyCode === 229
+}
+
+/**
  * One input with its button inside it. Enter sends and Shift+Enter adds a line.
  * Sending clears the input: the question becomes a message in the chat.
  */
@@ -63,11 +72,9 @@ export function Composer({
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    // isComposing: Enter confirms a word in an input method, it does not send yet.
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault()
-      send()
-    }
+    if (event.key !== 'Enter' || event.shiftKey || isComposing(event)) return
+    event.preventDefault()
+    send()
   }
 
   return (
