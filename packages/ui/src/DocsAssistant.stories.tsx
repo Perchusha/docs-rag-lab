@@ -119,6 +119,35 @@ export const StopReplacesSend: Story = {
   },
 }
 
+const doubleGate = replayGate()
+const onDoubleAskEnd = fn()
+
+/** Send becomes Stop under the pointer, and the second click of a double click must not stop it. */
+export const DoubleClickOnSend: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      gate: doubleGate,
+      onAskEnd: onDoubleAskEnd,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    doubleGate.reset()
+    onDoubleAskEnd.mockClear()
+    const canvas = within(canvasElement)
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    await userEvent.dblClick(canvas.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Stop' })).toBeVisible())
+    await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'true')
+    await expect(canvas.getByRole('article')).not.toHaveTextContent('Stopped.')
+    await expect(onDoubleAskEnd).not.toHaveBeenCalled()
+
+    doubleGate.open()
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Answer ready'))
+    await expect(onDoubleAskEnd).toHaveBeenCalledWith('finished')
+  },
+}
+
 const answerGate = replayGate()
 
 /**

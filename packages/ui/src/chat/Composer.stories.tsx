@@ -80,6 +80,30 @@ export const Running: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
     await expect(args.onStop).toHaveBeenCalledOnce()
     await expect(args.onSend).not.toHaveBeenCalled()
+
+    // By keyboard a click has no count, and Stop still stops.
+    canvas.getByRole('button', { name: 'Stop' }).focus()
+    await userEvent.keyboard('{Enter}')
+    await expect(args.onStop).toHaveBeenCalledTimes(2)
+  },
+}
+
+/** Enter that confirms a word in an input method does not send. */
+export const EnterDuringComposition: Story = {
+  play: async ({ args, canvasElement }) => {
+    const question = within(canvasElement).getByRole('textbox', { name: 'Question' })
+    await userEvent.type(question, 'Half a word')
+    question.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await expect(args.onSend).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Enter}')
+    await expect(args.onSend).toHaveBeenCalledWith('Half a word')
   },
 }
 

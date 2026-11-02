@@ -118,7 +118,8 @@ export function Composer({
           onClick={(event) => {
             if (!running) return
             event.preventDefault()
-            onStop()
+            // The second click of a double click on Send must not stop what the first sent.
+            if (event.detail <= 1) onStop()
           }}
         >
           <span aria-hidden="true">{running ? '■' : '↑'}</span>
