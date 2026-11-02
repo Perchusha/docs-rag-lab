@@ -51,6 +51,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const { exchanges, ask, stop } = useAssistant(transport)
   const composer = useRef<ComposerHandle>(null)
   const latestAnswer = useRef<HTMLDivElement>(null)
+  const dock = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState<string[]>([])
 
   const requestFor = (question: string, strategy: Strategy): RetrievalRequest => ({
@@ -87,6 +88,22 @@ export function DocsAssistant(props: DocsAssistantProps) {
   useEffect(() => {
     if (count > 0) latestAnswer.current?.scrollIntoView({ block: 'start' })
   }, [count])
+
+  // The input's real height, which grows with its text: the page keeps that much
+  // clear when it scrolls something into view (tokens.css).
+  useEffect(() => {
+    const element = dock.current
+    if (element === null) return
+    const page = document.documentElement
+    const observer = new ResizeObserver(() => {
+      page.style.setProperty('--dock-height', `${String(element.offsetHeight)}px`)
+    })
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      page.style.removeProperty('--dock-height')
+    }
+  }, [])
 
   const style =
     theme === undefined
@@ -138,7 +155,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
               ))}
             </div>
           )}
-          <div className={styles.dock}>
+          <div ref={dock} className={styles.dock}>
             {/* Announced in every state, but only worth seeing while something runs. */}
             <p role="status" className={running ? styles.status : common.srOnly}>
               {statusText(latest?.state)}

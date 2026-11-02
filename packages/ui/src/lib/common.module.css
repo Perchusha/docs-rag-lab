@@ -52,7 +52,7 @@
 /* A link text may be a whole URL, with nowhere to wrap. */
 .link {
   color: var(--color-accent);
-  text-underline-offset: 2px;
+  text-underline-offset: var(--space-hairline);
   overflow-wrap: anywhere;
 }
 

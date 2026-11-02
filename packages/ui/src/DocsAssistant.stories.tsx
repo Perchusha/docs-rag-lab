@@ -646,8 +646,7 @@ export const SearchFailure: Story = {
   },
 }
 
-/** From 64rem up the panel sits beside the chat, with a scroll of its own. */
-export const SidePanelWhenWide: Story = {
+const WIDE = {
   parameters: {
     viewport: {
       options: {
@@ -660,6 +659,65 @@ export const SidePanelWhenWide: Story = {
     },
   },
   globals: { viewport: { value: 'wide' } },
+}
+
+/**
+ * A second question goes to the top of the page, with room for its answer above
+ * the input, however short the answers are.
+ */
+export const NewQuestionComesIntoView: Story = {
+  ...WIDE,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(window.innerHeight).toBe(800)
+    await askAndWait(canvasElement, 'First question')
+    await askAndWait(canvasElement, 'Second question')
+    const heading = canvas.getByRole('heading', { level: 2, name: 'Second question' })
+    await waitFor(() => expect(heading.getBoundingClientRect().top).toBeLessThan(80))
+    await expect(heading.getBoundingClientRect().top).toBeGreaterThanOrEqual(0)
+  },
+}
+
+/**
+ * WCAG 2.4.11: the input sticks to the bottom and grows with its text, and it never
+ * covers what has focus. Tabs through a long answer with ten lines in the input.
+ */
+export const InputNeverCoversFocus: Story = {
+  ...WIDE,
+  args: { transport: replayTransport({ events: tableAnswerFixture.events }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    await userEvent.click(input)
+    await userEvent.keyboard('A line{Shift>}{Enter}{/Shift}'.repeat(10))
+    const form = canvas.getByRole('form', { name: 'Ask the docs' })
+    // Taller than the padding the page has before it has measured anything.
+    await expect(form.getBoundingClientRect().height).toBeGreaterThan(200)
+    const padding = () => parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom)
+    await waitFor(() => expect(padding()).toBeGreaterThan(form.getBoundingClientRect().height))
+
+    const covered: string[] = []
+    canvas.getAllByRole('link').at(0)?.focus()
+    for (let stop = 0; stop < 60 && document.activeElement !== input; stop += 1) {
+      const element = document.activeElement
+      if (element !== null) {
+        const { top, bottom } = element.getBoundingClientRect()
+        const inView = top >= 0 && bottom <= form.getBoundingClientRect().top
+        if (!inView)
+          covered.push(`${describeElement(element)}: ${top.toFixed(0)} to ${bottom.toFixed(0)}`)
+      }
+      await userEvent.tab()
+    }
+    await expect(document.activeElement).toBe(input)
+    await expect(covered).toEqual([])
+  },
+}
+
+/** From 64rem up the panel sits beside the chat, with a scroll of its own. */
+export const SidePanelWhenWide: Story = {
+  ...WIDE,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(window.innerWidth).toBe(1280)

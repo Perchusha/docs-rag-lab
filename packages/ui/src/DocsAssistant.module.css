@@ -23,7 +23,7 @@
   gap: var(--space-4);
   box-sizing: border-box;
   width: 100%;
-  max-width: 760px;
+  max-width: var(--width-chat);
   min-height: 100vh;
   padding: var(--space-4) var(--space-5) 0;
   justify-self: center;
@@ -61,6 +61,16 @@
   gap: var(--space-6);
 }
 
+/* A new question goes to the top of the page, with room for its answer to grow
+   into view above the input. A first question needs no room: it starts there. */
+.transcript > * {
+  scroll-margin-block-start: var(--space-4);
+}
+
+.transcript > :last-child:not(:first-child) {
+  min-height: calc(100vh - var(--dock-height, 10rem) - var(--space-4));
+}
+
 .how {
   align-self: flex-start;
   padding: var(--space-1) 0;
@@ -70,7 +80,7 @@
   font-size: var(--text-sm);
   color: var(--color-accent);
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: var(--space-hairline);
   cursor: pointer;
 }
 
@@ -135,7 +145,8 @@
   }
 
   /* The panel comes right after the chat, not a page further down. */
-  .withInspector .chat {
+  .withInspector .chat,
+  .withInspector .transcript > :last-child:not(:first-child) {
     min-height: 0;
   }
 

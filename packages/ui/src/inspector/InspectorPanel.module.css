@@ -19,8 +19,8 @@
 
 .close {
   flex: none;
-  width: 2rem;
-  height: 2rem;
+  width: var(--size-control);
+  height: var(--size-control);
   font: inherit;
   font-size: var(--text-lg);
   line-height: 1;
@@ -46,7 +46,7 @@
   display: inline-flex;
   flex: none;
   margin: 0;
-  padding: 2px;
+  padding: var(--space-hairline);
   border: none;
   border-radius: var(--radius-2);
   background: var(--color-surface-strong);
@@ -68,13 +68,13 @@
 
 .on:has(input:focus-visible),
 .off:has(input:focus-visible) {
-  outline: 2px solid var(--color-focus);
+  outline: var(--space-hairline) solid var(--color-focus);
   outline-offset: 1px;
 }
 
 .search {
   display: flex;
-  flex: 1 1 16rem;
+  flex: 1 1 var(--width-search-field);
   gap: var(--space-2);
   min-width: 0;
 }
