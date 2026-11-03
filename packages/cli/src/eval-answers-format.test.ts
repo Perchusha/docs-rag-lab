@@ -265,6 +265,12 @@ describe('the exploratory metric', () => {
     expect(text).toContain('| row 0 | 40 | - |')
     expect(text).toContain('| row 3 | 40 | 21 |')
   })
+
+  it('has no section for a report from before the metric, rather than a count of none', () => {
+    const older = sections(answers({ rows: [row({ overall: metrics() })] })).join('\n\n')
+
+    expect(older).not.toContain('Correct and grounded')
+  })
 })
 
 describe('formatAnswersSummary', () => {

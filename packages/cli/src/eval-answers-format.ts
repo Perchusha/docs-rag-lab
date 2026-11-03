@@ -119,6 +119,8 @@ function comparisonSection(comparison: AnswerComparison): string[] {
 
 /** Defined after seeing the first results, so it says so wherever it appears (ADR-0012). */
 function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
+  // A report from before the metric has no number for it, which is not a count of none.
+  if (rows.every((row) => row.overall.correctAndGrounded === undefined)) return []
   return [
     '### Correct and grounded (exploratory)',
     'Exploratory: this metric was defined after seeing the first results, and it is no target. An answer counts when it scores 2, every claim it cites is supported, and at least one cited chunk is a primary or acceptable anchor. Row 0 cannot score on it by design, so it shows what retrieval adds beyond memory.',
@@ -127,7 +129,7 @@ function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
       rows.map((row) => [
         rowName(row),
         String(row.overall.questions),
-        row.row === 0 ? '-' : String(row.overall.correctAndGrounded ?? 0),
+        row.row === 0 ? '-' : String(row.overall.correctAndGrounded ?? '-'),
       ]),
     ),
   ]
