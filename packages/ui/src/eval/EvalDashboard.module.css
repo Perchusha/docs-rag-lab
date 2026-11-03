@@ -1,3 +1,9 @@
+/* The app's body sets no colours, so the page paints its own, as the chat does. */
+.root {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
 .page {
   max-width: var(--width-dashboard);
   margin-inline: auto;
@@ -164,6 +170,26 @@
 
 .dot[data-shape='diamond'] {
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* Forced colours drop every background, which is all that these marks are. */
+@media (forced-colors: active) {
+  .track {
+    forced-color-adjust: none;
+    background-image: linear-gradient(GrayText, GrayText);
+  }
+
+  .whisker,
+  .dot {
+    forced-color-adjust: none;
+    background: CanvasText;
+    opacity: 1;
+  }
+
+  .dot[data-shape='circle'] {
+    background: Canvas;
+    border-color: CanvasText;
+  }
 }
 
 .trust {

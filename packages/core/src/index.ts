@@ -140,6 +140,7 @@ export {
 } from './eval/dashboard.ts'
 export {
   goldenSetPath,
+  isSidecarName,
   listRuns,
   readCalibrations,
   readRun,
@@ -147,6 +148,7 @@ export {
   reportsDir,
   UnknownRunError,
   verifyRecordPath,
+  type CalibrationFiles,
 } from './eval/report-store.ts'
 export { judgeSentence, judgeTrust, verifyWords } from './eval/trust.ts'
 export {
@@ -155,6 +157,7 @@ export {
   loadDashboardDetails,
   loadDashboardRun,
   loadRunComparison,
+  runToShow,
   type DashboardStore,
 } from './eval/dashboard-store.ts'
 export {

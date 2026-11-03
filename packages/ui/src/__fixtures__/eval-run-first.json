@@ -10,6 +10,7 @@
       "Vector",
       "Hybrid"
     ],
+    "scale": "0 to 1 (100%)",
     "rows": [
       {
         "id": "top-8",
@@ -54,14 +55,16 @@
             "value": 0.7507761437908497,
             "of": 40,
             "low": 0.6349673202614379,
-            "high": 0.8571078431372549
+            "high": 0.8571078431372549,
+            "max": 1
           },
           {
             "kind": "mean",
             "value": 0.6571734270631328,
             "of": 40,
             "low": 0.5486019984917043,
-            "high": 0.7635897435897434
+            "high": 0.7635897435897434,
+            "max": 1
           }
         ],
         "comparisons": [
@@ -82,17 +85,18 @@
   },
   "answers": {
     "question": "Does it give better answers, and does RAG help at all?",
-    "summary": "No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding.",
+    "summary": "The judge is not calibrated for these prompts, so these are provisional. No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding: most of its answers cite passages that hold.",
     "columns": [
       "No RAG",
       "Vector",
       "Hybrid"
     ],
+    "scale": "0 to 100%",
     "rows": [
       {
         "id": "fully-correct",
         "label": "Fully correct",
-        "note": "may run high",
+        "note": "not calibrated, may run high",
         "exploratory": false,
         "figures": [
           {
@@ -188,6 +192,7 @@
       {
         "id": "correct-and-grounded",
         "label": "Correct and grounded",
+        "note": "not calibrated, may run high",
         "exploratory": true,
         "figures": [
           {
@@ -245,7 +250,8 @@
       },
       {
         "id": "false-refusals",
-        "label": "Refused, though the docs answer it",
+        "label": "Wrongly refused",
+        "note": "fewer is better",
         "exploratory": false,
         "figures": [
           {
@@ -274,8 +280,8 @@
           {
             "a": "Vector",
             "b": "Hybrid",
-            "aAhead": 0,
-            "bAhead": 1,
+            "aAhead": 1,
+            "bAhead": 0,
             "tied": 39,
             "p": 1,
             "verdict": "noise"
@@ -465,7 +471,8 @@
             }
           ]
         }
-      ]
+      ],
+      "unreadable": []
     },
     "goldenSet": {
       "version": 1,

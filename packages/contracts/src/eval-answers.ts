@@ -231,6 +231,8 @@ export interface EvalCalibration {
   blind?: boolean
   /** The prompts graded under, so that a change of prompt shows as not calibrated. */
   prompts?: Record<string, string>
+  /** The model that graded, so that another judge shows as not calibrated too. */
+  judgeModel?: string
   correctnessDisagreements?: CalibrationDisagreement[]
   labelled: number
   agreement: AgreementResult[]

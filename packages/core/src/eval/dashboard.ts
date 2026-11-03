@@ -39,15 +39,19 @@ const ROW_NAMES: Record<AnswerRow, string> = { 0: 'No RAG', 2: 'Vector', 3: 'Hyb
 const ROWS: readonly AnswerRow[] = [0, 2, 3]
 
 const NO_DOCS: EvalFigure = { kind: 'none', reason: 'cannot: no docs' }
+const NOTHING_TO_COUNT: EvalFigure = { kind: 'none', reason: 'none to count' }
 
 export function shareFigure(count: number, of: number): EvalFigure {
+  if (of === 0) return NOTHING_TO_COUNT
   const [low, high] = wilsonInterval(count, of)
   return { kind: 'share', count, of, low, high }
 }
 
-export function meanFigure(values: readonly number[]): EvalFigure {
+/** `max` is the top of the scale the values are on. */
+export function meanFigure(values: readonly number[], max = 1): EvalFigure {
+  if (values.length === 0) return NOTHING_TO_COUNT
   const { value, low, high } = bootstrapMean(values)
-  return { kind: 'mean', value, of: values.length, low, high }
+  return { kind: 'mean', value, of: values.length, low, high, max }
 }
 
 const fromDifference = (d: MetricDifference, a: string, b: string): EvalSplit => ({
@@ -91,6 +95,17 @@ export function splitOf(a: string, valuesA: Values, b: string, valuesB: Values):
   }
 }
 
+/**
+ * A difference a row also shows against itself means nothing (ADR-0012, section 8). Each side of
+ * a comparison can move by what a second run moved, so a margin up to twice that is noise.
+ */
+export function againstItself(split: EvalSplit, runToRun: number | null): EvalSplit {
+  const named = split.verdict === 'a' || split.verdict === 'b'
+  return named && runToRun !== null && Math.abs(split.aAhead - split.bAhead) <= 2 * runToRun
+    ? { ...split, verdict: 'noise' }
+    : split
+}
+
 /** How many questions differ between two samples. */
 function differing(a: Values, b: Values): number {
   return [...a].filter(([id, value]) => {
@@ -113,6 +128,43 @@ function mrrValues(result: EvalStrategyResult, tag?: string): number[] {
 
 const namedSide = ({ verdict, a, b }: EvalSplit): string | undefined =>
   verdict === 'a' ? a : verdict === 'b' ? b : undefined
+
+const inSentence = (label: string): string => label.charAt(0).toLowerCase() + label.slice(1)
+
+/**
+ * What the verdicts between two sides say, in sentences, or `nothing` when none names a side.
+ * Only a verdict can make a claim, and an exploratory row makes none (ADR-0013).
+ */
+function verdictsBetween(
+  rows: readonly DashboardRow[],
+  sides: readonly [string, string],
+  nothing: string,
+): string {
+  const found = rows
+    .filter(({ exploratory }) => !exploratory)
+    .flatMap((row) =>
+      row.comparisons
+        .filter(({ a, b }) => a === sides[0] && b === sides[1])
+        .map((split) => ({ label: inSentence(row.label), split })),
+    )
+  if (found.length === 0) return ''
+  if (found.every(({ split }) => split.verdict === 'too-few')) return 'Too few questions to say.'
+  const labelsWhere = (test: (split: EvalSplit) => boolean): string =>
+    found
+      .filter(({ split }) => test(split))
+      .map(({ label }) => label)
+      .join(' and ')
+  const claims = [
+    ...sides.flatMap((side) => {
+      const labels = labelsWhere((split) => namedSide(split) === side)
+      return labels === '' ? [] : [`${side} better on ${labels}.`]
+    }),
+    ...[labelsWhere(({ verdict }) => verdict === 'mixed')].flatMap((labels) =>
+      labels === '' ? [] : [`Mixed on ${labels}.`],
+    ),
+  ]
+  return claims.length === 0 ? nothing : claims.join(' ')
+}
 
 function retrievalSection(report: EvalReport): DashboardSection {
   const results = report.result.strategies
@@ -140,17 +192,16 @@ function retrievalSection(report: EvalReport): DashboardSection {
       runToRun: null,
     },
   ]
-  const winners = rows.flatMap(({ comparisons }) =>
-    comparisons.flatMap((split) => namedSide(split) ?? []),
-  )
   const n = results[0]?.overall.questions ?? 0
   return {
     question: 'Does hybrid find the right chunks more often?',
-    summary:
-      winners.length === 0
-        ? `No difference holds up on these ${String(n)} questions.`
-        : `${[...new Set(winners)].join(' and ')} ahead, on ${String(n)} questions.`,
+    summary: verdictsBetween(
+      rows,
+      ['Vector', 'Hybrid'],
+      `No difference holds up on these ${String(n)} questions.`,
+    ),
     columns,
+    scale: '0 to 1 (100%)',
     rows,
     showRunToRun: false,
   }
@@ -251,6 +302,13 @@ function storedDifference(
     ?.differences.find((difference) => difference.metric === metric)
 }
 
+/** What stands beside every correctness number: whether to trust it, and which way it leans. */
+function correctnessNote(judge: DashboardJudge | null): string | null {
+  if (judge === null) return null
+  const notes = [...(judge.calibrated ? [] : ['not calibrated']), judge.note]
+  return notes.filter((note) => note !== null).join(', ') || null
+}
+
 function storedRow(
   answers: EvalAnswers,
   metric: AnswerComparedMetric,
@@ -294,14 +352,19 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     grades.valuesOf(row, sample, ({ correctness }) => (correctness === 2 ? 1 : 0))
   const refusedWithAnswer = (row: AnswerRow, sample = 1): Values =>
     grades.valuesOf(row, sample, ({ falseRefusal }) => (falseRefusal === true ? 1 : 0))
+  // Fewer is better here, so the comparison counts the answers that did not refuse.
+  const answeredWithAnswer = (row: AnswerRow): Values =>
+    grades.valuesOf(row, 1, ({ falseRefusal }) => (falseRefusal === true ? 0 : 1))
   const shareOf = (values: Values): EvalFigure => shareFigure(sum(values.values()), values.size)
   const runToRun = (values: (row: AnswerRow, sample: number) => Values): number | null =>
     second ? differing(values(3, 1), values(3, 2)) : null
+  const note = correctnessNote(judge)
+  const withNote = note === null ? {} : { note }
 
   const fullyCorrect: DashboardRow = {
     id: 'fully-correct',
     label: 'Fully correct',
-    ...(judge.note === null ? {} : { note: judge.note }),
+    ...withNote,
     exploratory: false,
     figures: rows.map((row) => shareOf(fully(row))),
     comparisons: compareRows(fully, [
@@ -322,6 +385,7 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
   const grounded: DashboardRow = {
     id: 'correct-and-grounded',
     label: 'Correct and grounded',
+    ...withNote,
     exploratory: true,
     figures: rows.map((row): EvalFigure => {
       const metrics = resultOf(row)?.overall
@@ -345,10 +409,11 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
   }
   const falseRefusals: DashboardRow = {
     id: 'false-refusals',
-    label: 'Refused, though the docs answer it',
+    label: 'Wrongly refused',
+    note: 'fewer is better',
     exploratory: false,
     figures: rows.map((row) => shareOf(refusedWithAnswer(row))),
-    comparisons: compareRows(refusedWithAnswer, [[2, 3]]),
+    comparisons: compareRows(answeredWithAnswer, [[2, 3]]),
     runToRun: runToRun(refusedWithAnswer),
   }
   const rightRefusals: DashboardRow = {
@@ -365,6 +430,7 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     exploratory: false,
     figures: rows.map((row): EvalFigure => {
       const finished = grades.finished(row)
+      if (finished.length === 0) return NOTHING_TO_COUNT
       const time = bootstrapMean(finished.map(({ latencyMs }) => latencyMs / 1000))
       const price = bootstrapMean(finished.map(({ costUsd }) => costUsd))
       return {
@@ -376,41 +442,90 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     runToRun: null,
   }
 
-  const named = (from: AnswerRow) =>
-    fullyCorrect.comparisons
-      .filter(({ a }) => a === ROW_NAMES[from])
-      .flatMap((split) => namedSide(split) ?? [])
-  const ragClaim =
-    named(0).length === 0
-      ? 'Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding.'
-      : `${[...new Set(named(0))].join(' and ')} ahead between no RAG and RAG on correctness.`
-  const between = fullyCorrect.comparisons.find(({ a, b }) => a === 'Vector' && b === 'Hybrid')
-  const hybridClaim =
-    between === undefined || namedSide(between) === undefined
-      ? 'No difference between vector and hybrid holds up.'
-      : `${String(namedSide(between))} ahead between vector and hybrid.`
-
+  const sectionRows = [
+    fullyCorrect,
+    citationsHold,
+    grounded,
+    anchors,
+    falseRefusals,
+    rightRefusals,
+    cost,
+  ].map((row) => ({
+    ...row,
+    comparisons: row.comparisons.map((split) => againstItself(split, row.runToRun)),
+  }))
+  // Grounding is claimed only when the answers show it: on most answers, past the interval, the
+  // citations hold. An answer with no citation counts against it.
+  const grounds = rows
+    .filter((row) => row !== 0)
+    .every((row) => {
+      const [low] = wilsonInterval(sum(grades.citationsHold(row, 1).values()), fully(row).size)
+      return low > 0.5
+    })
   return {
     question: 'Does it give better answers, and does RAG help at all?',
-    summary: `${hybridClaim} ${ragClaim}`,
+    summary: [
+      ...(judge.calibrated
+        ? []
+        : ['The judge is not calibrated for these prompts, so these are provisional.']),
+      verdictsBetween(
+        sectionRows,
+        ['Vector', 'Hybrid'],
+        'No difference between vector and hybrid holds up.',
+      ),
+      ragClaim(sectionRows[0]?.comparisons ?? [], grounds),
+    ]
+      .filter((sentence) => sentence !== '')
+      .join(' '),
     columns: rows.map((row) => ROW_NAMES[row]),
-    rows: [fullyCorrect, citationsHold, grounded, anchors, falseRefusals, rightRefusals, cost],
+    scale: '0 to 100%',
+    rows: sectionRows,
     showRunToRun: second,
   }
+}
+
+/** Whether RAG helps, from fully correct alone, and grounding only if the answers show it. */
+function ragClaim(fullyCorrect: readonly EvalSplit[], grounds: boolean): string {
+  const splits = fullyCorrect.filter(({ a }) => a === ROW_NAMES[0])
+  if (splits.length === 0) return ''
+  if (splits.every(({ verdict }) => verdict === 'too-few')) {
+    return 'Too few questions to say whether RAG helps.'
+  }
+  const better = splits.flatMap((split) => {
+    const side = namedSide(split)
+    if (side === undefined) return []
+    return [`${side} better than ${side === split.a ? split.b : split.a}`]
+  })
+  if (better.length > 0) return `On fully correct, ${better.join(' and ')}.`
+  if (splits.some(({ verdict }) => verdict === 'mixed')) {
+    return 'Mixed between no RAG and RAG on fully correct.'
+  }
+  if (splits.every(({ verdict }) => verdict === 'noise')) {
+    const about =
+      'Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds.'
+    return grounds
+      ? `${about} What RAG adds is grounding: most of its answers cite passages that hold.`
+      : about
+  }
+  return 'No difference between no RAG and RAG holds up on fully correct.'
 }
 
 export interface BuildRunOptions {
   id: string
   report: EvalReport
   calibrations: readonly EvalCalibration[]
+  unreadableCalibrations?: readonly string[]
   verify: EvalVerifyRecord | null
   indexDocsSha: string | null
 }
 
 /** Everything on the first screen for one run. */
 export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
-  const { id, report, calibrations, verify, indexDocsSha } = options
-  const judge = report.answers === undefined ? null : judgeTrust(report.answers, calibrations)
+  const { id, report, calibrations, unreadableCalibrations, verify, indexDocsSha } = options
+  const judge =
+    report.answers === undefined
+      ? null
+      : judgeTrust(report.answers, calibrations, unreadableCalibrations)
   return {
     id,
     name: report.run.name ?? id,
@@ -453,6 +568,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
       question: 'Right chunk in top 8, by tag',
       summary: 'A tag of 5 questions or fewer cannot reach significance.',
       columns,
+      scale: '0 to 100%',
       rows: tags.map((tag) => ({
         id: `top-8-${tag}`,
         label: tag,
@@ -473,6 +589,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
       question: 'How high it ranks (MRR), by tag',
       summary: 'A tag of 5 questions or fewer cannot reach significance.',
       columns,
+      scale: '0 to 1',
       rows: tags.map((tag) => ({
         id: `mrr-${tag}`,
         label: tag,
@@ -509,14 +626,16 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
   ).filter(([a, b]) => rows.includes(a) && rows.includes(b))
   const splits = (values: (row: AnswerRow) => Values): EvalSplit[] =>
     pairs.map(([a, b]) => splitOf(ROW_NAMES[a], values(a), ROW_NAMES[b], values(b)))
+  const note = correctnessNote(judge)
   const noteFor = (tag: string): string =>
-    [`${String(countOf(tag))} questions`, ...(judge?.note == null ? [] : [judge.note])].join(', ')
+    [`${String(countOf(tag))} questions`, ...(note === null ? [] : [note])].join(', ')
 
   sections.push(
     {
       question: 'Fully correct, by tag',
       summary: 'A tag of 5 questions or fewer cannot reach significance.',
       columns: rows.map((row) => ROW_NAMES[row]),
+      scale: '0 to 100%',
       rows: tags.map((tag) => ({
         id: `fully-${tag}`,
         label: tag,
@@ -535,16 +654,13 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
       question: 'Correctness score, 0 to 2',
       summary: 'The score keeps its own comparison: 1 and 0 count as different here.',
       columns: rows.map((row) => ROW_NAMES[row]),
+      scale: '0 to 2',
       rows: [undefined, ...tags].map((tag) => ({
         id: `score-${tag ?? 'overall'}`,
         label: tag ?? 'All questions',
-        ...(tag === undefined
-          ? judge?.note == null
-            ? {}
-            : { note: judge.note }
-          : { note: noteFor(tag) }),
+        ...(tag === undefined ? (note === null ? {} : { note }) : { note: noteFor(tag) }),
         exploratory: false,
-        figures: rows.map((row) => meanFigure([...score(row, tag).values()])),
+        figures: rows.map((row) => meanFigure([...score(row, tag).values()], 2)),
         comparisons: splits((row) => score(row, tag)),
         runToRun: null,
       })),
@@ -607,15 +723,20 @@ export interface BuildDetailsOptions {
   report: EvalReport
   questions: readonly GoldenQuestion[]
   calibrations: readonly EvalCalibration[]
+  unreadableCalibrations?: readonly string[]
 }
 
 /** What opens behind the first screen. */
 export function buildDashboardDetails(options: BuildDetailsOptions): DashboardDetails {
-  const { report, questions, calibrations } = options
-  const judge = report.answers === undefined ? null : judgeTrust(report.answers, calibrations)
+  const { report, questions, calibrations, unreadableCalibrations } = options
+  const judge =
+    report.answers === undefined
+      ? null
+      : judgeTrust(report.answers, calibrations, unreadableCalibrations)
   return {
     tags: tagSections(report, judge),
     questions: questionRows(report, questions),
+    gradeNote: correctnessNote(judge),
     candidates: (report.answers?.candidates ?? []).map((candidate): DashboardCandidate => ({
       questionId: candidate.questionId,
       column: ROW_NAMES[candidate.row],
@@ -704,6 +825,7 @@ export function compareDashboardRuns(a: EvalReport, b: EvalReport): DashboardRun
           ? 'No right chunk moved.'
           : `${String(moved.length)} right chunks moved.`,
       columns: [labels.a, labels.b],
+      scale: '0 to 1 (100%)',
       rows,
       showRunToRun: false,
     },

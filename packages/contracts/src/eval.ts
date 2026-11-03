@@ -6,7 +6,7 @@
 // recomputed from `identity`. Bump EVAL_REPORT_VERSION only when an existing field
 // changes its meaning. A new section is optional and needs no bump, so the reports
 // already committed stay readable.
-import type { EvalAnswers } from './eval-answers.ts'
+import type { EvalAnswers, EvalCalibration, EvalVerifyRecord } from './eval-answers.ts'
 import type { DifferenceVerdict } from './eval-difference.ts'
 import type { Strategy } from './trace.ts'
 import type { Parsed } from './requests.ts'
@@ -207,4 +207,26 @@ export function parseEvalReport(value: unknown): Parsed<EvalReport> {
     return { ok: false, error: 'a report needs run, with repoSha' }
   }
   return { ok: true, value: value as unknown as EvalReport }
+}
+
+/** A calibration file, or why it is not one. It checks the outline, as a report's parse does. */
+export function parseEvalCalibration(value: unknown): Parsed<EvalCalibration> {
+  if (!isRecord(value)) return { ok: false, error: 'a calibration must be a JSON object' }
+  const { report, agreement } = value
+  if (!isRecord(report) || typeof report.createdAt !== 'string') {
+    return { ok: false, error: 'a calibration needs report, with createdAt' }
+  }
+  if (!Array.isArray(agreement)) return { ok: false, error: 'a calibration needs agreement' }
+  return { ok: true, value: value as unknown as EvalCalibration }
+}
+
+/** A verify record, or why it is not one. */
+export function parseEvalVerifyRecord(value: unknown): Parsed<EvalVerifyRecord> {
+  if (!isRecord(value)) return { ok: false, error: 'a verify record must be a JSON object' }
+  const { status, rerun } = value
+  if (typeof status !== 'string') return { ok: false, error: 'a verify record needs status' }
+  if (!isRecord(rerun) || typeof rerun.repoSha !== 'string') {
+    return { ok: false, error: 'a verify record needs rerun, with repoSha' }
+  }
+  return { ok: true, value: value as unknown as EvalVerifyRecord }
 }

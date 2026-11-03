@@ -95,7 +95,7 @@ export function SectionTable({
                 </th>
               ))}
               <th scope="col" aria-hidden="true" className={styles.scale}>
-                0 to 100%
+                {section.scale}
               </th>
               <th scope="col">Compared, question by question</th>
               {section.showRunToRun && (
@@ -116,7 +116,8 @@ export function SectionTable({
                 {row.figures.map((figure, i) => (
                   <FigureCell key={i} figure={figure} />
                 ))}
-                <td className={styles.graphicCell}>
+                {/* Hidden with its header, so that the other cells keep their headers. */}
+                <td aria-hidden="true" className={styles.graphicCell}>
                   <IntervalGraphic row={row} columns={section.columns} />
                 </td>
                 <td>

@@ -1,6 +1,7 @@
 // How far a report's answer metrics can be trusted (ADR-0012, ADR-0013). This comes from the
-// labels and never from the code: a changed prompt shows as not calibrated by itself, and the
-// bias counts every blind round, because the lean did not go away with the first prompt.
+// labels and never from the code: a changed prompt or judge shows as not calibrated by itself,
+// and the bias counts every blind round of this judge, because the lean did not go away with
+// the first prompt.
 import type {
   AgreementResult,
   CalibrationDimension,
@@ -52,12 +53,15 @@ function biasWords(higher: number, lower: number): Pick<DashboardJudge, 'bias' |
   }
 }
 
-/** What the labels say about the judge, for a report's prompts. */
+/** What the labels say about the judge, for a report's judge and prompts. */
 export function judgeTrust(
-  answers: Pick<EvalAnswers, 'prompts'>,
+  answers: Pick<EvalAnswers, 'prompts' | 'models'>,
   calibrations: readonly EvalCalibration[],
+  unreadable: readonly string[] = [],
 ): DashboardJudge {
-  const blind = calibrations.filter(({ blind: isBlind }) => isBlind !== false)
+  const blind = calibrations.filter(
+    (round) => round.blind !== false && round.judgeModel === answers.models.judge,
+  )
   const agreement = DIMENSIONS.flatMap((dimension): DashboardAgreement[] => {
     // The latest blind round under the same prompt decides.
     const decided = blind
@@ -76,12 +80,15 @@ export function judgeTrust(
   }))
   return {
     calibrated:
-      agreement.length === DIMENSIONS.length && agreement.every((result) => result.passed),
+      unreadable.length === 0 &&
+      agreement.length === DIMENSIONS.length &&
+      agreement.every((result) => result.passed),
     agreement,
     judgeHigher,
     judgeLower,
     ...biasWords(judgeHigher, judgeLower),
     rounds,
+    unreadable: [...unreadable],
   }
 }
 
@@ -90,7 +97,9 @@ export function judgeSentence(judge: DashboardJudge): string {
   const status = judge.calibrated
     ? 'The judge is calibrated for these prompts.'
     : 'The judge is not calibrated for these prompts, so these answer metrics are not yet to be trusted.'
-  return judge.bias === null ? status : `${status} ${judge.bias}`
+  const unread =
+    judge.unreadable.length === 0 ? [] : [`Could not read ${judge.unreadable.join(', ')}.`]
+  return [status, ...unread, ...(judge.bias === null ? [] : [judge.bias])].join(' ')
 }
 
 /** What a recorded re-run found, in words. */

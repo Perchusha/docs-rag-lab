@@ -22,7 +22,7 @@ export interface BootstrapOptions {
   seed?: number
 }
 
-/** The 95% interval of a mean, and the mean. No values gives a mean of 0 and the whole range. */
+/** The 95% interval of a mean, and the mean. No values gives zeros: a caller shows no number. */
 export function bootstrapMean(
   values: readonly number[],
   options: BootstrapOptions = {},

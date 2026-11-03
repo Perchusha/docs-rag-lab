@@ -4,12 +4,13 @@ import type { DifferenceVerdict } from './eval-difference.ts'
 
 /**
  * One number and its uncertainty. A share has a 95% Wilson interval, a mean a 95% percentile
- * bootstrap over questions. `none` says why there is no number, and `text` is for what has
- * units of its own, with its interval already in the words.
+ * bootstrap over questions, and `max` is the top of the scale it is on: 1 for MRR, 2 for a score.
+ * `none` says why there is no number, and `text` is for what has units of its own, with its
+ * interval already in the words.
  */
 export type EvalFigure =
   | { kind: 'share'; count: number; of: number; low: number; high: number }
-  | { kind: 'mean'; value: number; of: number; low: number; high: number }
+  | { kind: 'mean'; value: number; of: number; low: number; high: number; max: number }
   | { kind: 'none'; reason: string }
   | { kind: 'text'; text: string }
 
@@ -41,9 +42,11 @@ export interface DashboardRow {
 
 export interface DashboardSection {
   question: string
-  /** One plain sentence. It never rests on an exploratory metric. */
+  /** Plain sentences that claim only what a verdict names. Never an exploratory metric. */
   summary: string
   columns: string[]
+  /** What the graphic's scale runs over, in words. */
+  scale: string
   rows: DashboardRow[]
   /** Whether the section has a run-to-run column. Retrieval repeats exactly. */
   showRunToRun: boolean
@@ -70,7 +73,7 @@ export interface DashboardRound {
 }
 
 export interface DashboardJudge {
-  /** Every dimension has a blind round under this report's prompts, and passed it. */
+  /** Every dimension has a blind round under this report's judge and prompts, and passed it. */
   calibrated: boolean
   /** What decides, per dimension, for this report's prompts. Missing means not calibrated. */
   agreement: DashboardAgreement[]
@@ -82,6 +85,8 @@ export interface DashboardJudge {
   /** The note beside every correctness number, or null. */
   note: string | null
   rounds: DashboardRound[]
+  /** Calibration files that could not be read. With any of these, it is not calibrated. */
+  unreadable: string[]
 }
 
 export interface DashboardTrust {
@@ -117,6 +122,12 @@ export interface DashboardRunEntry {
   hasAnswers: boolean
 }
 
+export interface DashboardRunList {
+  runs: DashboardRunEntry[]
+  /** Reports that could not be read, so the page can say so rather than lose them quietly. */
+  unreadable: string[]
+}
+
 export interface DashboardQuestion {
   id: string
   question: string
@@ -140,6 +151,8 @@ export interface DashboardDetails {
   /** One section per metric, with a row per tag. */
   tags: DashboardSection[]
   questions: DashboardQuestion[]
+  /** What stands beside the answers' grades, such as "may run high", or null. */
+  gradeNote: string | null
   candidates: DashboardCandidate[]
 }
 

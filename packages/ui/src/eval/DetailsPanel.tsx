@@ -30,6 +30,7 @@ function QuestionsTab({ details }: { details: DashboardDetails }) {
         {showAll
           ? `All ${String(details.questions.length)} questions.`
           : `The ${String(differing.length)} questions where strategies or rows differ.`}
+        {details.gradeNote !== null && ` The judge's grades: ${details.gradeNote}.`}
       </p>
       <button
         type="button"

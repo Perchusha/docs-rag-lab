@@ -113,6 +113,31 @@ export const FitsOneScreen: Story = {
   },
 }
 
+/**
+ * The app's body sets no colours, unlike the one in these stories, so the page paints its own
+ * from the edge of the window. Without it axe fails every dark view of the live page, and no
+ * other story can see that.
+ */
+const paintsItsOwnPage = async (canvasElement: HTMLElement) => {
+  const root = within(canvasElement).getByRole('main').parentElement
+  if (root === null) throw new Error('no element around the page')
+  const probe = document.createElement('div')
+  probe.style.background = 'var(--color-bg)'
+  root.append(probe)
+  const expected = getComputedStyle(probe).backgroundColor
+  probe.remove()
+  await expect(expected).not.toBe('rgba(0, 0, 0, 0)')
+  await expect(getComputedStyle(root).backgroundColor).toBe(expected)
+  await expect(root.getBoundingClientRect().height).toBeGreaterThanOrEqual(window.innerHeight)
+}
+
+export const OwnBackground: Story = {
+  ...desktop,
+  play: async ({ canvasElement }) => {
+    await paintsItsOwnPage(canvasElement)
+  },
+}
+
 /** Three tab stops: the run, how it was calibrated, and the details. */
 export const TabStops: Story = {
   ...desktop,
@@ -152,6 +177,15 @@ export const IntervalsAreHidden: Story = {
     // Nothing is placed for a row with no numbers, and it claims no run-to-run measure.
     await expect(shapes(/Time and cost/)).toEqual([])
     await expect(rowNamed(canvasElement, /Time and cost/)).not.toHaveTextContent('not measured')
+    // The cell of the graphic goes with its header, so each other cell keeps its own header.
+    for (const table of canvasElement.querySelectorAll('table')) {
+      const heard = (cells: NodeListOf<Element>) =>
+        [...cells].filter((cell) => cell.getAttribute('aria-hidden') !== 'true').length
+      const headers = heard(table.querySelectorAll('thead th'))
+      for (const row of table.querySelectorAll('tbody tr')) {
+        await expect(heard(row.querySelectorAll('th, td'))).toBe(headers)
+      }
+    }
   },
 }
 
@@ -245,6 +279,7 @@ export const NoRuns: Story = {
   args: { runs: [], initial: undefined },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText(/no named run yet/)).toBeVisible()
+    await paintsItsOwnPage(canvasElement)
   },
 }
 
@@ -261,6 +296,60 @@ export const HowCalibrated: Story = {
     await expect(canvas.getByText('Fresh round')).toBeVisible()
     await expect(canvas.getAllByText('Not blind').length).toBeGreaterThan(0)
     await expect(canvas.getAllByText('decides nothing').length).toBeGreaterThan(0)
+  },
+}
+
+/** The address asked for a run the store does not have, so the page says what it shows instead. */
+export const UnknownRunAsked: Story = {
+  args: { missingRun: 'typo' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      'There is no run "typo", so this shows answers-regraded.',
+    )
+    await userEvent.selectOptions(
+      canvas.getByRole('combobox', { name: 'Run' }),
+      evalFixtures.baseline.id,
+    )
+    await waitFor(() => expect(canvas.queryByRole('alert')).toBeNull())
+  },
+}
+
+/** A report that cannot be read is named, and the others still show. */
+export const UnreadableRun: Story = {
+  args: { unreadableRuns: ['2026-11-02-abcdef12-broken'] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('alert')).toHaveTextContent(
+      'Could not read these reports: 2026-11-02-abcdef12-broken.',
+    )
+    await expect(canvas.getAllByRole('heading', { level: 2 })).toHaveLength(3)
+  },
+}
+
+/** Nothing readable is not the same as nothing yet. */
+export const OnlyUnreadableRuns: Story = {
+  args: { runs: [], initial: undefined, unreadableRuns: ['2026-11-02-abcdef12-broken'] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('alert')).toHaveTextContent('2026-11-02-abcdef12-broken')
+    await expect(canvas.queryByText(/no named run yet/)).toBeNull()
+  },
+}
+
+/** A calibration file that cannot be read means not calibrated, and says which. */
+export const UnreadableCalibration: Story = {
+  args: {
+    initial: trustChange(({ trust }) => {
+      if (trust.judge === null) return
+      trust.judge.calibrated = false
+      trust.judge.unreadable = ['2026-11-03-abcdef12-answers-calibration']
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText('Not calibrated for these prompts.')).toBeVisible()
+    await expect(canvas.getByText(/Could not read 2026-11-03-abcdef12/)).toBeVisible()
   },
 }
 
@@ -293,6 +382,49 @@ export const SwitchRunFails: Story = {
   },
 }
 
+/** A slow answer to an earlier choice never replaces the run the picker now names. */
+const answerByHand = () => {
+  const waiting = new Map<string, () => void>()
+  return {
+    release: (id: string) => {
+      waiting.get(id)?.()
+    },
+    transport: transport({
+      run: (id) =>
+        new Promise<DashboardRun>((resolve) => {
+          waiting.set(id, () => {
+            resolve(id === evalFixtures.baseline.id ? evalFixtures.baseline : evalFixtures.first)
+          })
+        }),
+    }),
+  }
+}
+const outOfOrder = answerByHand()
+
+export const SwitchRunOutOfOrder: Story = {
+  args: { transport: outOfOrder.transport },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const picker = canvas.getByRole('combobox', { name: 'Run' })
+    await userEvent.selectOptions(picker, evalFixtures.first.id)
+    await userEvent.selectOptions(picker, evalFixtures.baseline.id)
+    outOfOrder.release(evalFixtures.baseline.id)
+    await waitFor(() =>
+      expect(canvas.getByRole('status')).toHaveTextContent('Showing the run baseline.'),
+    )
+    await expect(canvas.getAllByRole('heading', { level: 2 })).toHaveLength(2)
+
+    // The earlier answer arrives last, and changes nothing.
+    outOfOrder.release(evalFixtures.first.id)
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0)
+    })
+    await expect(picker).toHaveValue(evalFixtures.baseline.id)
+    await expect(canvas.getAllByRole('heading', { level: 2 })).toHaveLength(2)
+    await expect(canvas.getByRole('status')).toHaveTextContent('Showing the run baseline.')
+  },
+}
+
 const openDetails = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement)
   await userEvent.click(canvas.getByRole('button', { name: /^Details/ }))
@@ -307,6 +439,16 @@ export const DetailsTabs: Story = {
     await expect(canvas.getByRole('heading', { name: 'Fully correct, by tag' })).toBeVisible()
     await expect(canvas.getByRole('heading', { name: 'Correctness score, 0 to 2' })).toBeVisible()
     await expect(canvas.getAllByText('Too few to say').length).toBeGreaterThan(0)
+    // A score of 1.850 sits on a scale of 0 to 2, on the track, and the scale says so.
+    const score = canvas
+      .getByRole('heading', { name: 'Correctness score, 0 to 2' })
+      .closest('section')
+    await expect(score?.querySelector('thead th[aria-hidden="true"]')).toHaveTextContent('0 to 2')
+    const dot = score?.querySelector<HTMLElement>('[data-shape]')
+    await expect(dot?.style.insetInlineStart).toBe('92.5%')
+    await expect(
+      canvas.getByRole('heading', { name: 'Fully correct, by tag' }).closest('section'),
+    ).toHaveTextContent('may run high')
 
     canvas.getByRole('tab', { name: 'Per tag' }).focus()
     await userEvent.keyboard('{ArrowRight}')
@@ -327,6 +469,7 @@ export const PerQuestion: Story = {
     const toggle = canvas.getByRole('button', { name: /^Show all/ })
     await expect(toggle).toHaveAttribute('aria-pressed', 'false')
     await expect(canvas.getByText(/where strategies or rows differ/)).toBeVisible()
+    await expect(canvas.getByText(/The judge's grades: may run high/)).toBeVisible()
     const differing = canvas.getAllByRole('rowheader').length
     await userEvent.click(toggle)
     await expect(canvas.getAllByRole('rowheader').length).toBeGreaterThan(differing)

@@ -7,6 +7,7 @@
         "Vector",
         "Hybrid"
       ],
+      "scale": "0 to 100%",
       "rows": [
         {
           "id": "top-8-basic",
@@ -222,6 +223,7 @@
         "Vector",
         "Hybrid"
       ],
+      "scale": "0 to 1",
       "rows": [
         {
           "id": "mrr-basic",
@@ -234,14 +236,16 @@
               "value": 0.7685185185185185,
               "of": 15,
               "low": 0.5907407407407407,
-              "high": 0.9222222222222223
+              "high": 0.9222222222222223,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.7000793650793651,
               "of": 15,
               "low": 0.5207936507936508,
-              "high": 0.8666666666666667
+              "high": 0.8666666666666667,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -268,14 +272,16 @@
               "value": 0.875,
               "of": 4,
               "low": 0.625,
-              "high": 1
+              "high": 1,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.5504201680672268,
               "of": 4,
               "low": 0.10084033613445378,
-              "high": 1
+              "high": 1,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -302,14 +308,16 @@
               "value": 0.7579365079365079,
               "of": 14,
               "low": 0.5674603174603174,
-              "high": 0.9285714285714286
+              "high": 0.9285714285714286,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.6709706959706959,
               "of": 14,
               "low": 0.4717032967032967,
-              "high": 0.8571428571428571
+              "high": 0.8571428571428571,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -336,14 +344,16 @@
               "value": 0.7666666666666666,
               "of": 10,
               "low": 0.5333333333333333,
-              "high": 1
+              "high": 1,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.6166666666666666,
               "of": 10,
               "low": 0.4666666666666666,
-              "high": 0.7833333333333333
+              "high": 0.7833333333333333,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -370,14 +380,16 @@
               "value": 0.7569444444444444,
               "of": 4,
               "low": 0.27083333333333326,
-              "high": 1
+              "high": 1,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.4089366515837104,
               "of": 4,
               "low": 0.06787330316742082,
-              "high": 0.7692307692307693
+              "high": 0.7692307692307693,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -404,14 +416,16 @@
               "value": 0.6988795518207283,
               "of": 7,
               "low": 0.40616246498599434,
-              "high": 0.9285714285714286
+              "high": 0.9285714285714286,
+              "max": 1
             },
             {
               "kind": "mean",
               "value": 0.6428571428571429,
               "of": 7,
               "low": 0.42857142857142855,
-              "high": 0.9047619047619048
+              "high": 0.9047619047619048,
+              "max": 1
             }
           ],
           "comparisons": [
@@ -438,6 +452,7 @@
         "Vector",
         "Hybrid"
       ],
+      "scale": "0 to 100%",
       "rows": [
         {
           "id": "fully-basic",
@@ -750,6 +765,7 @@
         "Vector",
         "Hybrid"
       ],
+      "scale": "0 to 2",
       "rows": [
         {
           "id": "score-overall",
@@ -762,21 +778,24 @@
               "value": 1.85,
               "of": 40,
               "low": 1.675,
-              "high": 1.975
+              "high": 1.975,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.85,
               "of": 40,
               "low": 1.675,
-              "high": 1.975
+              "high": 1.975,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.775,
               "of": 40,
               "low": 1.575,
-              "high": 1.925
+              "high": 1.925,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -812,21 +831,24 @@
               "value": 1.9333333333333333,
               "of": 15,
               "low": 1.8,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.8666666666666667,
               "of": 15,
               "low": 1.6,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.8,
               "of": 15,
               "low": 1.4666666666666666,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -862,21 +884,24 @@
               "value": 1.5,
               "of": 4,
               "low": 0.5,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.75,
               "of": 4,
               "low": 1.25,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.5,
               "of": 4,
               "low": 0.5,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -912,21 +937,24 @@
               "value": 1.7857142857142858,
               "of": 14,
               "low": 1.4285714285714286,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.7857142857142858,
               "of": 14,
               "low": 1.4285714285714286,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.7142857142857142,
               "of": 14,
               "low": 1.3571428571428572,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -962,21 +990,24 @@
               "value": 2,
               "of": 10,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 2,
               "of": 10,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 2,
               "of": 10,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -1012,21 +1043,24 @@
               "value": 1,
               "of": 4,
               "low": 0,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1.25,
               "of": 4,
               "low": 0.5,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 1,
               "of": 4,
               "low": 0,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -1062,21 +1096,24 @@
               "value": 2,
               "of": 7,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 2,
               "of": 7,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             },
             {
               "kind": "mean",
               "value": 2,
               "of": 7,
               "low": 2,
-              "high": 2
+              "high": 2,
+              "max": 2
             }
           ],
           "comparisons": [
@@ -2562,6 +2599,7 @@
       "differs": false
     }
   ],
+  "gradeNote": "may run high",
   "candidates": [
     {
       "questionId": "ts-0001",

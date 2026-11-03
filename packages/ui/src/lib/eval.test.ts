@@ -19,9 +19,9 @@ describe('figureWords', () => {
   })
 
   it('keeps a mean and its interval together, with no tilde', () => {
-    expect(figureWords({ kind: 'mean', value: 0.7508, of: 40, low: 0.639, high: 0.866 })).toBe(
-      '0.751 (0.64-0.87)',
-    )
+    expect(
+      figureWords({ kind: 'mean', value: 0.7508, of: 40, low: 0.639, high: 0.866, max: 1 }),
+    ).toBe('0.751 (0.64-0.87)')
   })
 
   it('says why there is no number', () => {
@@ -49,9 +49,15 @@ describe('figurePosition', () => {
   })
 
   it('places a mean at its value', () => {
-    expect(figurePosition({ kind: 'mean', value: 0.5, of: 4, low: 0.1, high: 0.6 })?.value).toBe(
-      0.5,
-    )
+    expect(
+      figurePosition({ kind: 'mean', value: 0.5, of: 4, low: 0.1, high: 0.6, max: 1 })?.value,
+    ).toBe(0.5)
+  })
+
+  it('places a score on its own scale, so 1.850 of 2 stays on the track', () => {
+    expect(
+      figurePosition({ kind: 'mean', value: 1.85, of: 40, low: 1.6, high: 2, max: 2 }),
+    ).toEqual({ value: 0.925, low: 0.8, high: 1 })
   })
 
   it('has no place for what is not a number, or a share of nothing', () => {

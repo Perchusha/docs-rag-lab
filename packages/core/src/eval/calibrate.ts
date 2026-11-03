@@ -271,6 +271,8 @@ export interface CalibrateOptions {
   blind?: boolean
   /** The prompts these verdicts were graded under. */
   prompts?: Record<string, string>
+  /** The model that graded them. */
+  judgeModel?: string
 }
 
 /** How often the human and the judge agree, per dimension. */
@@ -332,6 +334,7 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
     report: options.report,
     blind,
     ...(options.prompts === undefined ? {} : { prompts: options.prompts }),
+    ...(options.judgeModel === undefined ? {} : { judgeModel: options.judgeModel }),
     correctnessDisagreements,
     labelled: labels.length,
     agreement: results,

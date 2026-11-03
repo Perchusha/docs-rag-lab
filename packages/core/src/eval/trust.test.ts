@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { judgeSentence, judgeTrust, verifyWords } from './trust.ts'
 
 const PROMPTS = { correctness: 'c2', refusal: 'r1', support: 's1' }
+const MODELS = { answer: 'a', judge: 'j' }
 
 const result = (
   dimension: AgreementResult['dimension'],
@@ -29,6 +30,7 @@ function round(overrides: Partial<EvalCalibration> = {}): EvalCalibration {
     report: { repoSha: 'x', name: 'answers', createdAt: 'then' },
     blind: true,
     prompts: PROMPTS,
+    judgeModel: 'j',
     correctnessDisagreements: [],
     labelled: 15,
     agreement: [result('correctness', 12, 12), result('refusal', 15, 15), result('support', 8, 8)],
@@ -38,7 +40,8 @@ function round(overrides: Partial<EvalCalibration> = {}): EvalCalibration {
   }
 }
 
-const judge = (rounds: EvalCalibration[]) => judgeTrust({ prompts: PROMPTS }, rounds)
+const judge = (rounds: EvalCalibration[]) =>
+  judgeTrust({ prompts: PROMPTS, models: MODELS }, rounds)
 
 describe('judgeTrust', () => {
   it('is calibrated when a blind round under these prompts passed every dimension', () => {
@@ -71,10 +74,27 @@ describe('judgeTrust', () => {
   })
 
   it('shows a changed prompt as not calibrated, by itself', () => {
-    const trust = judgeTrust({ prompts: { ...PROMPTS, correctness: 'changed' } }, [round()])
+    const trust = judgeTrust({ prompts: { ...PROMPTS, correctness: 'changed' }, models: MODELS }, [
+      round(),
+    ])
 
     expect(trust.calibrated).toBe(false)
     expect(trust.agreement.map(({ dimension }) => dimension)).toEqual(['refusal', 'support'])
+  })
+
+  it('shows another judge as not calibrated, with no bias from labels of a different model', () => {
+    const trust = judgeTrust({ prompts: PROMPTS, models: { answer: 'a', judge: 'other' } }, [
+      round({ correctnessDisagreements: [disagreement(1, 2)] }),
+    ])
+
+    expect(trust).toMatchObject({ calibrated: false, agreement: [], judgeHigher: 0, bias: null })
+  })
+
+  it('is not calibrated when a calibration file could not be read, and says which', () => {
+    const trust = judgeTrust({ prompts: PROMPTS, models: MODELS }, [round()], ['broken'])
+
+    expect(trust).toMatchObject({ calibrated: false, unreadable: ['broken'] })
+    expect(judgeSentence(trust)).toContain('Could not read broken.')
   })
 
   it('lets the latest blind round under the prompt decide each dimension', () => {
@@ -164,6 +184,7 @@ describe('judgeTrust', () => {
   it('reads a calibration from before prompts and disagreements were recorded', () => {
     const old = round()
     delete old.prompts
+    delete old.judgeModel
     delete old.correctnessDisagreements
 
     expect(judge([old])).toMatchObject({ calibrated: false, judgeHigher: 0, bias: null })

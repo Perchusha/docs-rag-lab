@@ -23,7 +23,9 @@ import {
   isUnanswerable,
   judgeSentence,
   judgeTrust,
+  listRuns,
   readCalibrations,
+  readRun,
   judgeCases,
   judgeRetest,
   noRagSystemPrompt,
@@ -57,7 +59,14 @@ import {
   formatJudgeCheck,
   formatLabelSheet,
 } from './eval-answers-format.ts'
-import { measure, readReport, reportsDir, writeReport } from './eval-commands.ts'
+import {
+  checkRunName,
+  measure,
+  readReport,
+  reportMarkdown,
+  reportsDir,
+  writeReport,
+} from './eval-commands.ts'
 import { readGoldenFiles } from './golden.ts'
 
 /** The Claude client. Tests pass a fake through the command context. */
@@ -131,6 +140,7 @@ export async function evalAnswersCommand(
 ): Promise<void> {
   const source = findSource(ctx.sources, args.source)
   const { settings } = ctx
+  checkRunName(args.name)
   if (
     args.name !== undefined &&
     (args.only !== undefined || args.rows.length < ANSWER_ROWS.length)
@@ -244,7 +254,10 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
-    const judgeLine = judgeSentence(judgeTrust(section, readCalibrations(ctx.root, source.id)))
+    const calibrations = readCalibrations(ctx.root, source.id)
+    const judgeLine = judgeSentence(
+      judgeTrust(section, calibrations.rounds, calibrations.unreadable),
+    )
     const failures =
       answers.filter(({ status }) => status === 'failed').length +
       verdicts.filter(({ status }) => status === 'failed').length +
@@ -441,6 +454,7 @@ export function evalCalibrateCommand(
     support: answers.support,
     blind: earlier === undefined,
     prompts: answers.prompts,
+    judgeModel: answers.models.judge,
     ...(args.after === undefined ? {} : { dimensions: ['correctness'] as const }),
   })
   // Next to the report, where JSON is recorded data (ADR-0010).
@@ -449,5 +463,24 @@ export function evalCalibrateCommand(
   writeFileSync(`${stem}.json`, `${JSON.stringify(calibration, null, 2)}\n`)
   const text = formatCalibration(calibration)
   writeFileSync(`${stem}.md`, text)
+  rewriteAnswerMarkdown(ctx, source.id)
   ctx.out.write(text)
+}
+
+/**
+ * What a report's markdown says of the judge depends on the labels, which come after the report,
+ * so new labels write it again (ADR-0013). The JSON, which is the record, is not touched.
+ */
+function rewriteAnswerMarkdown(ctx: CommandContext, sourceId: string): void {
+  const { rounds, unreadable } = readCalibrations(ctx.root, sourceId)
+  for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
+    if (!hasAnswers) continue
+    const report = readRun(ctx.root, sourceId, id)
+    writeFileSync(
+      join(reportsDir(ctx.root, sourceId), `${id}.md`),
+      reportMarkdown(report, (answers) =>
+        answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
+      ),
+    )
+  }
 }

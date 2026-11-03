@@ -86,6 +86,7 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
                 ...judge.agreement.map(agreementWords),
                 ...missing.map((dimension) => `${dimensionWords[dimension]} not labelled`),
               ].join(', ')}
+              {judge.unreadable.length > 0 && ` Could not read ${judge.unreadable.join(', ')}.`}
             </>
           )}
         </dd>

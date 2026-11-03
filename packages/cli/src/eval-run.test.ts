@@ -407,6 +407,16 @@ describe('drl eval', () => {
       expect(code).toBe(1)
       expect(err).toContain('--name takes lowercase words with hyphens')
     })
+
+    it.each(['pre-verify', 'calibration', 'old-calibration-fresh'])(
+      'refuses %s, whose report would read as a file next to a report',
+      async (name) => {
+        const { code, err } = await drl('eval', '--name', name)
+
+        expect(code).toBe(1)
+        expect(err).toContain('would read as a calibration or verify file')
+      },
+    )
   })
 
   it('refuses any run on a set that differs from its lock, since no version would fit', async () => {
@@ -669,6 +679,14 @@ describe('drl eval answers', () => {
     expect(claudeRequests).toEqual([])
   })
 
+  it('refuses a name that reads as a file next to a report, before paying for anything', async () => {
+    const { code, err } = await drl('eval', 'answers', '--name', 'pre-verify', '--yes')
+
+    expect(code).toBe(1)
+    expect(err).toContain('would read as a calibration or verify file')
+    expect(claudeRequests).toEqual([])
+  })
+
   it('a named run needs a clean tree, before paying for anything', async () => {
     writeFileSync(join(root, 'stray.txt'), 'x')
 
@@ -752,6 +770,42 @@ describe('drl eval answers', () => {
         calibrated: true,
       })
       expect(readFileSync(`${written}.md`, 'utf8')).toContain('| correctness |')
+    })
+
+    it('writes what a named report says of its judge again, once labels exist', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--name', 'x', '--yes')).out)
+      const markdown = path.replace(/\.json$/, '.md')
+      const stored = readFileSync(path, 'utf8')
+      expect(readFileSync(markdown, 'utf8')).toContain('The judge is not calibrated')
+      const report = readReport(path)
+      const answers = report.answers?.answers ?? []
+      const verdicts = report.answers?.verdicts ?? []
+      const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+      const sample = sampleForLabels({ rows: [0, 2, 3], answers, verdicts, questions: golden })
+      const labels = sample.map((answer, i) => {
+        const verdict = verdicts.find(
+          (item) => item.questionId === answer.questionId && item.row === answer.row,
+        )
+        return verdict?.outcome == null
+          ? {
+              item: i + 1,
+              correctness: verdict?.correctness,
+              ...(answer.claims.length > 0 ? { supported: true } : {}),
+            }
+          : { item: i + 1, outcome: verdict.outcome }
+      })
+      const labelsPath = join(root, 'labels.json')
+      writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+
+      expect((await drl('eval', 'calibrate', path, labelsPath)).code).toBe(0)
+
+      const text = readFileSync(markdown, 'utf8')
+      expect(text).toContain('The judge is calibrated for these prompts.')
+      expect(text).not.toContain('The judge is not calibrated')
+      expect(readFileSync(path, 'utf8')).toBe(stored)
+      expect(
+        JSON.parse(readFileSync(path.replace(/\.json$/, '-calibration.json'), 'utf8')),
+      ).toMatchObject({ judgeModel: report.answers?.models.judge })
     })
 
     /** Labels of the whole sample, each with every field a kind of question can need. */

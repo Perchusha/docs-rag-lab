@@ -1,4 +1,5 @@
-// The dashboard's data from the files on disk (ADR-0013). Only reading: no API call, no key.
+// The dashboard's data from the files on disk (ADR-0013). Only reading: no API call, no key,
+// and the index is looked at without opening it for use, so a page view changes nothing.
 import { readFileSync } from 'node:fs'
 
 import type {
@@ -6,9 +7,11 @@ import type {
   DashboardRun,
   DashboardRunComparison,
   DashboardRunEntry,
+  DashboardRunList,
 } from '@docs-rag-lab/contracts'
+import { readIndexCommit } from '@docs-rag-lab/db'
 
-import { IndexNotFoundError, openIndexes } from '../indexes.ts'
+import { sourceIndexPath } from '../indexes.ts'
 import { buildDashboardDetails, buildDashboardRun, compareDashboardRuns } from './dashboard.ts'
 import { parseGoldenSet } from './golden.ts'
 import {
@@ -26,22 +29,7 @@ export interface DashboardStore {
   sourceId: string
 }
 
-/** The commit the index is at now, or null when there is no index yet. */
-function indexDocsSha({ dataDir, sourceId }: DashboardStore): string | null {
-  try {
-    const indexes = openIndexes(dataDir, sourceId, { create: false })
-    try {
-      return indexes.index.getManifest()?.commitSha ?? null
-    } finally {
-      indexes.close()
-    }
-  } catch (error) {
-    if (error instanceof IndexNotFoundError) return null
-    throw error
-  }
-}
-
-export function dashboardRuns(store: DashboardStore): DashboardRunEntry[] {
+export function dashboardRuns(store: DashboardStore): DashboardRunList {
   return listRuns(store.root, store.sourceId)
 }
 
@@ -50,23 +38,39 @@ export function defaultRun(runs: readonly DashboardRunEntry[]): DashboardRunEntr
   return runs.find(({ hasAnswers }) => hasAnswers) ?? runs[0]
 }
 
+/** The run a page asks for, or the default, with what it asked for if no run has that name. */
+export function runToShow(
+  runs: readonly DashboardRunEntry[],
+  asked: string | string[] | undefined,
+): { shown: DashboardRunEntry | undefined; missing: string | undefined } {
+  const id = Array.isArray(asked) ? asked[0] : asked
+  const found = runs.find((run) => run.id === id)
+  return found !== undefined
+    ? { shown: found, missing: undefined }
+    : { shown: defaultRun(runs), missing: id }
+}
+
 export function loadDashboardRun(store: DashboardStore, id: string): DashboardRun {
-  const { root, sourceId } = store
+  const { root, sourceId, dataDir } = store
+  const { rounds, unreadable } = readCalibrations(root, sourceId)
   return buildDashboardRun({
     id,
     report: readRun(root, sourceId, id),
-    calibrations: readCalibrations(root, sourceId),
+    calibrations: rounds,
+    unreadableCalibrations: unreadable,
     verify: readVerifyRecord(root, sourceId, id),
-    indexDocsSha: indexDocsSha(store),
+    indexDocsSha: readIndexCommit(sourceIndexPath(dataDir, sourceId)),
   })
 }
 
 export function loadDashboardDetails(store: DashboardStore, id: string): DashboardDetails {
   const { root, sourceId } = store
+  const { rounds, unreadable } = readCalibrations(root, sourceId)
   return buildDashboardDetails({
     report: readRun(root, sourceId, id),
     questions: parseGoldenSet(readFileSync(goldenSetPath(root, sourceId), 'utf8')),
-    calibrations: readCalibrations(root, sourceId),
+    calibrations: rounds,
+    unreadableCalibrations: unreadable,
   })
 }
 

@@ -16,6 +16,7 @@ import {
 import {
   compareScores,
   fieldDifferences,
+  isSidecarName,
   openIndexes,
   parseEvalTargets,
   readRepoState,
@@ -41,6 +42,19 @@ import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
 const NAME = /^[a-z0-9][a-z0-9-]*$/
 
 export { reportsDir }
+
+/** Before anything that spends: a name must fit a file, and not read as a file next to a report. */
+export function checkRunName(name: string | undefined): void {
+  if (name === undefined) return
+  if (!NAME.test(name)) {
+    throw new CliError(`--name takes lowercase words with hyphens, such as baseline, got "${name}"`)
+  }
+  if (isSidecarName(name)) {
+    throw new CliError(
+      `--name cannot be "${name}": its report would read as a calibration or verify file`,
+    )
+  }
+}
 
 export async function measure(
   ctx: CommandContext,
@@ -108,9 +122,7 @@ export async function evalRunCommand(
   args: { source: string; name: string | undefined; strategy: Strategy | undefined },
 ): Promise<void> {
   const { name } = args
-  if (name !== undefined && !NAME.test(name)) {
-    throw new CliError(`--name takes lowercase words with hyphens, such as baseline, got "${name}"`)
-  }
+  checkRunName(name)
   if (name !== undefined && args.strategy !== undefined) {
     throw new CliError('a named run measures every strategy, so that later runs can be compared')
   }
@@ -157,13 +169,17 @@ export function writeReport(
   const { jsonPath, markdownPath } = reportPaths(ctx, source, name, report.run.repoSha)
   mkdirSync(join(jsonPath, '..'), { recursive: true })
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
-  const extra = report.answers === undefined ? [] : extraSections(report.answers)
-  writeFileSync(
-    markdownPath,
-    [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n',
-    { flag: 'wx' },
-  )
+  writeFileSync(markdownPath, reportMarkdown(report, extraSections), { flag: 'wx' })
   return jsonPath
+}
+
+/** A report's markdown, from its JSON. */
+export function reportMarkdown(
+  report: EvalReport,
+  extraSections: (answers: NonNullable<EvalReport['answers']>) => string[],
+): string {
+  const extra = report.answers === undefined ? [] : extraSections(report.answers)
+  return [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n'
 }
 
 export function readReport(root: string, path: string): EvalReport {

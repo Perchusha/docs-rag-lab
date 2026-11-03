@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest'
 
 import { compareScores } from './compare.ts'
 import {
+  againstItself,
   buildDashboardDetails,
   buildDashboardRun,
   compareDashboardRuns,
@@ -208,6 +209,42 @@ describe('figures', () => {
     expect(figure.value).toBeCloseTo(0.975)
     expect(figure.high).toBeLessThanOrEqual(1)
   })
+
+  it('keeps the top of the scale with a mean, for what is not out of 1', () => {
+    expect(meanFigure([1, 2, 2], 2)).toMatchObject({ kind: 'mean', max: 2 })
+    expect(meanFigure([1, 0])).toMatchObject({ max: 1 })
+  })
+
+  it('shows no number for nothing, rather than 0.000 or 0 of 0', () => {
+    expect(meanFigure([])).toEqual({ kind: 'none', reason: 'none to count' })
+    expect(shareFigure(0, 0)).toEqual({ kind: 'none', reason: 'none to count' })
+  })
+})
+
+describe('againstItself', () => {
+  const split = (aAhead: number, bAhead: number, verdict: 'a' | 'b' | 'mixed' = 'a') => ({
+    a: 'A',
+    b: 'B',
+    aAhead,
+    bAhead,
+    tied: 0,
+    p: 0.01,
+    verdict,
+  })
+
+  it('leaves a verdict alone with no second run to compare it with', () => {
+    expect(againstItself(split(8, 0), null).verdict).toBe('a')
+  })
+
+  it('calls a margin noise up to twice what a row moves against itself', () => {
+    expect(againstItself(split(8, 0), 4).verdict).toBe('noise')
+    expect(againstItself(split(0, 8, 'b'), 4).verdict).toBe('noise')
+    expect(againstItself(split(9, 0), 4).verdict).toBe('a')
+  })
+
+  it('touches only a verdict that names a side', () => {
+    expect(againstItself(split(8, 0, 'mixed'), 6).verdict).toBe('mixed')
+  })
 })
 
 describe('splitOf', () => {
@@ -267,7 +304,37 @@ describe('buildDashboardRun', () => {
       tied: 2,
       verdict: 'a',
     })
-    expect(retrieval.summary).toBe('Vector ahead, on 10 questions.')
+    expect(retrieval.summary).toBe(
+      'Vector better on right chunk in top 8 and how high it ranks (MRR).',
+    )
+  })
+
+  it('says a mixed verdict is mixed, rather than that nothing holds up', () => {
+    const value = report({
+      vector: [2, 2, 2, 2, 2, 2, 2, 2, 2, null],
+      hybrid: [3, 3, 3, 3, 3, 3, 3, 3, 3, 1],
+    })
+    const scope = value.result.comparison?.scopes.find((item) => item.scope === 'overall')
+    for (const difference of scope?.primary ?? []) {
+      if (difference.metric === 'mrr') difference.verdict = 'mixed'
+    }
+
+    expect(build(value).retrieval.summary).toContain('Mixed on how high it ranks (MRR).')
+  })
+
+  it('says too few rather than that nothing holds up', () => {
+    const same = [1, 1, 1]
+
+    expect(build(report({ vector: same, hybrid: same })).retrieval.summary).toBe(
+      'Too few questions to say.',
+    )
+  })
+
+  it('claims nothing for a run of one strategy', () => {
+    const value = report()
+    value.result.comparison = null
+
+    expect(build(value).retrieval.summary).toBe('')
   })
 
   it('says no difference holds up when none does', () => {
@@ -490,6 +557,26 @@ describe('buildDashboardRun', () => {
       expect(rowOf(section, 'right-refusals').figures[1]).toMatchObject({ count: 1, of: 2 })
     })
 
+    it('counts the side that refuses less as ahead, since fewer refusals are better', () => {
+      const value = answered({
+        verdicts: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          verdict(i, 2, 2),
+          verdict(i, 3, 0, { falseRefusal: true }),
+        ]),
+      })
+      const row = rowOf(build(report({ answers: value })).answers, 'false-refusals')
+
+      expect(row.figures[1]).toMatchObject({ count: 0, of: 8 })
+      expect(row.figures[2]).toMatchObject({ count: 8, of: 8 })
+      expect(row.comparisons[0]).toMatchObject({
+        a: 'Vector',
+        b: 'Hybrid',
+        aAhead: 8,
+        bAhead: 0,
+        verdict: 'a',
+      })
+    })
+
     it('leaves a failed verdict and a second opinion out of the counts', () => {
       const value = answered({
         verdicts: [
@@ -530,14 +617,137 @@ describe('buildDashboardRun', () => {
             ],
           },
         ],
-        verdicts: [1, 2, 3].flatMap((i) => [verdict(i, 0, 2), verdict(i, 2, 2), verdict(i, 3, 2)]),
+        verdicts: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          verdict(i, 0, 2),
+          verdict(i, 2, 2),
+          verdict(i, 3, 2),
+        ]),
       })
       const section = build(report({ answers: value })).answers
 
       expect(rowOf(section, 'correct-and-grounded').comparisons[0]?.verdict).toBe('a')
       expect(section?.summary).toBe(
-        'No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding.',
+        'The judge is not calibrated for these prompts, so these are provisional. No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding: most of its answers cite passages that hold.',
       )
+    })
+
+    it('says too few on so few answers, rather than about as correct', () => {
+      const value = answered({
+        verdicts: [1, 2, 3].flatMap((i) => [verdict(i, 0, 2), verdict(i, 2, 2), verdict(i, 3, 2)]),
+        support: [],
+      })
+
+      expect(build(report({ answers: value })).answers?.summary).toBe(
+        'The judge is not calibrated for these prompts, so these are provisional. Too few questions to say. Too few questions to say whether RAG helps.',
+      )
+    })
+
+    const evenly = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+      verdict(i, 0, 2),
+      verdict(i, 2, 2),
+      verdict(i, 3, 2),
+    ])
+    const held = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [support(i, 2, true), support(i, 3, true)])
+
+    it('claims grounding only when the citations hold on most answers', () => {
+      const shown = build(report({ answers: answered({ verdicts: evenly, support: held }) }))
+      expect(shown.answers?.summary).toContain(
+        'What RAG adds is grounding: most of its answers cite passages that hold.',
+      )
+
+      const broken = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+        support(i, 2, false),
+        support(i, 3, false),
+      ])
+      for (const value of [[], broken]) {
+        const summary = build(report({ answers: answered({ verdicts: evenly, support: value }) }))
+          .answers?.summary
+        expect(summary).toContain('about as correct')
+        expect(summary).not.toContain('grounding')
+      }
+    })
+
+    it('says about as correct only on noise, and never for a gap that is merely not significant', () => {
+      const gap = (i: number) => (i <= 5 ? 0 : 2)
+      const value = answered({
+        verdicts: Array.from({ length: 8 }, (_, i) => i + 1).flatMap((i) => [
+          verdict(i, 0, gap(i)),
+          verdict(i, 2, 2),
+          verdict(i, 3, 2),
+        ]),
+        support: held,
+      })
+      const section = build(report({ answers: value })).answers
+
+      expect(rowOf(section, 'fully-correct').comparisons[1]?.verdict).toBe('not-significant')
+      expect(section?.summary).toContain(
+        'No difference between no RAG and RAG holds up on fully correct.',
+      )
+      expect(section?.summary).not.toContain('about as correct')
+      expect(section?.summary).not.toContain('grounding')
+    })
+
+    it('names what a verdict names on any row, not only on correctness', () => {
+      const value = answered({
+        verdicts: evenly,
+        support: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          support(i, 2, true),
+          support(i, 3, false),
+        ]),
+      })
+      const { summary } = build(report({ answers: value })).answers ?? {}
+
+      expect(summary).toContain('Vector better on all citations hold.')
+      expect(summary).not.toContain('No difference between vector and hybrid')
+    })
+
+    it('says which RAG row no RAG beat, and never that it beat RAG as a whole', () => {
+      const value = answered({
+        verdicts: Array.from({ length: 8 }, (_, i) => i + 1).flatMap((i) => [
+          verdict(i, 0, 2),
+          verdict(i, 2, 2),
+          verdict(i, 3, 0),
+        ]),
+      })
+      const { summary } = build(report({ answers: value })).answers ?? {}
+
+      expect(summary).toContain('On fully correct, No RAG better than Hybrid.')
+      expect(summary).not.toContain('Vector better than')
+    })
+
+    it('calls a verdict noise when hybrid moves against itself by as much', () => {
+      const value = answered({
+        verdicts: Array.from({ length: 8 }, (_, i) => i + 1).flatMap((i) => [
+          verdict(i, 0, 2),
+          verdict(i, 2, 2),
+          verdict(i, 3, 0),
+          verdict(i, 3, i <= 4 ? 2 : 0, { sample: 2 }),
+        ]),
+      })
+      value.rows = [...value.rows, rowResult(3, 2)]
+      const section = build(report({ answers: value })).answers
+      const row = rowOf(section, 'fully-correct')
+
+      expect(row.runToRun).toBe(4)
+      expect(row.comparisons[0]).toMatchObject({ aAhead: 8, bAhead: 0, verdict: 'noise' })
+      expect(section?.summary).toContain('No difference between vector and hybrid holds up.')
+    })
+
+    it('says so at the top when the judge is not calibrated, and beside the numbers', () => {
+      const section = build(report({ answers: answered() })).answers
+
+      expect(section?.summary).toMatch(/^The judge is not calibrated for these prompts/)
+      expect(rowOf(section, 'fully-correct').note).toBe('not calibrated')
+      expect(rowOf(section, 'correct-and-grounded').note).toBe('not calibrated')
+    })
+
+    it('shows no time and cost for a row with no finished answers', () => {
+      const figures = rowOf(
+        build(report({ answers: answered({ answers: [] }) })).answers,
+        'time-and-cost',
+      ).figures
+
+      expect(figures[0]).toEqual({ kind: 'none', reason: 'none to count' })
     })
 
     it('names a row in the summary when a difference holds up', () => {
@@ -550,7 +760,7 @@ describe('buildDashboardRun', () => {
       })
 
       expect(build(report({ answers: value })).answers?.summary).toBe(
-        'Vector ahead between vector and hybrid. Vector ahead between no RAG and RAG on correctness.',
+        'The judge is not calibrated for these prompts, so these are provisional. Vector better on fully correct. On fully correct, Vector better than No RAG.',
       )
     })
 
@@ -567,6 +777,7 @@ describe('buildDashboardRun', () => {
           report: { repoSha: 'x', name: null, createdAt: 'a' },
           blind: true,
           prompts: { correctness: 'c1', refusal: 'r1', support: 's1' },
+          judgeModel: 'j',
           correctnessDisagreements: [{ questionId: ID(1), row: 3, human: 1, judge: 2 }],
           labelled: 1,
           agreement: [],
@@ -576,10 +787,26 @@ describe('buildDashboardRun', () => {
       ]
       const section = build(report({ answers: answered() }), calibrations).answers
 
-      expect(rowOf(section, 'fully-correct').note).toBe('may run high')
-      expect(
-        rowOf(build(report({ answers: answered() })).answers, 'fully-correct').note,
-      ).toBeUndefined()
+      expect(rowOf(section, 'fully-correct').note).toBe('not calibrated, may run high')
+      expect(rowOf(section, 'correct-and-grounded').note).toBe('not calibrated, may run high')
+
+      const result = (dimension: 'correctness' | 'refusal' | 'support') => ({
+        dimension,
+        compared: 1,
+        agreed: 1,
+        kappa: 1,
+        interval: [0.5, 1] as [number, number],
+        passed: true,
+      })
+      const passed = calibrations.map((round) => ({
+        ...round,
+        agreement: [result('correctness'), result('refusal'), result('support')],
+      }))
+      const calibrated = build(report({ answers: answered() }), passed).answers
+
+      expect(rowOf(calibrated, 'fully-correct').note).toBe('may run high')
+      expect(rowOf(calibrated, 'correct-and-grounded').note).toBe('may run high')
+      expect(calibrated?.summary).not.toContain('not calibrated')
     })
   })
 
@@ -670,6 +897,31 @@ describe('buildDashboardDetails', () => {
     expect(tags.map(({ question }) => question)).toContain('Fully correct, by tag')
     expect(score_?.rows[0]?.label).toBe('All questions')
     expect(score_?.rows[0]?.comparisons[0]).toMatchObject({ a: 'Vector', aAhead: 1, bAhead: 0 })
+  })
+
+  it('puts the score on a scale of 0 to 2, and says so', () => {
+    const answers = answersFixture({ verdicts: [verdict(1, 2, 2), verdict(1, 3, 2)] })
+    const { tags } = buildDashboardDetails({
+      report: report({ answers }),
+      questions,
+      calibrations: [],
+    })
+    const score_ = tags.find(({ question }) => question === 'Correctness score, 0 to 2')
+
+    expect(score_?.scale).toBe('0 to 2')
+    expect(score_?.rows[0]?.figures[1]).toMatchObject({ kind: 'mean', value: 2, max: 2 })
+    expect(tags.find(({ question }) => question.startsWith('Fully'))?.scale).toBe('0 to 100%')
+  })
+
+  it('says what stands beside the grades, wherever they are', () => {
+    const answers = answersFixture({ verdicts: [verdict(1, 2, 2)] })
+
+    expect(
+      buildDashboardDetails({ report: report({ answers }), questions, calibrations: [] }).gradeNote,
+    ).toBe('not calibrated')
+    expect(buildDashboardDetails({ report: report(), questions, calibrations: [] }).gradeNote).toBe(
+      null,
+    )
   })
 
   it('lists each question, in words, and says where rows or strategies differ', () => {

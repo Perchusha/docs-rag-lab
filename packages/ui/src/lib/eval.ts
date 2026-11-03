@@ -23,7 +23,7 @@ export function figureWords(figure: EvalFigure): string {
   }
 }
 
-/** Where a figure sits on the shared 0 to 1 scale of its row, or null when it has no place. */
+/** Where a figure sits on its row's shared scale, from 0 to 1, or null when it has no place. */
 export function figurePosition(
   figure: EvalFigure,
 ): { value: number; low: number; high: number } | null {
@@ -34,7 +34,10 @@ export function figurePosition(
       high: figure.high,
     }
   }
-  if (figure.kind === 'mean') return { value: figure.value, low: figure.low, high: figure.high }
+  if (figure.kind === 'mean') {
+    const { value, low, high, max } = figure
+    return { value: value / max, low: low / max, high: high / max }
+  }
   return null
 }
 
