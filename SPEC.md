@@ -277,11 +277,13 @@ Every `drl` command that calls an API ends with the tokens it used and their est
 - For each chunk, Haiku writes 1-3 sentences that situate the chunk in its document (Anthropic's Contextual Retrieval technique).
 - The document is sent once with prompt caching and reused for all its chunks.
 - The context is prepended for both embedding and FTS. It is stored separately so the inspector can show it and eval can toggle it.
+- The context is for retrieval only. Claude receives and cites the original chunk text, never the generated prefix (ADR-0014).
+- Contexts are committed under `eval/contexts/<source>/` with their model and prompt hash, so the index can be rebuilt without calling Haiku. The contextual index is a second file, and the plain one stays as it is, so earlier reports can still be verified.
 
 ### Retrieval
 1. Vector search top 50 plus FTS5 BM25 top 50 over the question's terms, plus BM25 top 50 over its exact tokens: code in backticks, camelCase identifiers, `--flags` and source tokens (ADR-0005).
 2. Reciprocal Rank Fusion (k=60, equal weights). These are not tuned: a sweep over 40 questions would fit noise (ADR-0009).
-3. `rerank-3` over the top 20 (M5).
+3. `rerank-3` over the top 20 (M5). On the free trial the top 20 is split into calls under the rate limit, if a check shows that splitting does not change the scores (ADR-0014).
 4. Top K (default 8) goes to generation.
 
 Strategies: `vector` (step 1's vector list only, ladder row 2) and `hybrid` (steps 1-2, ladder row 3). `drl ask` and `drl search` take `--strategy`.
@@ -348,6 +350,8 @@ Answers are not deterministic, because the API has no temperature for these mode
 4. Hybrid + rerank
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
+
+Hybrid + contextual retrieval without the reranker is measured too, for retrieval only, to tell what each adds. It is no ladder row (ADR-0014).
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, the hypotheses, the answers, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
@@ -448,7 +452,7 @@ Hypotheses to check first, on the full golden set and not tuned to these four qu
 1. **Backticked plain words are counted twice.** A word like `satisfies`, `strict`, `unknown` or `any` is both a search term and an exact token, so BM25 enters the fusion twice. Check: limit exact tokens to code-shaped ones (identifiers, flags, source tokens, code with punctuation).
 2. **Trigram matches 3-character terms inside other words.** `any` matches "many" and "company", so 488 of 994 chunks match it. Check: match 3-character terms as whole words, for example through a second unicode61 column or table.
 
-Both were tested on the full set under criteria fixed first, alone and together, and neither reached the targets, so neither was adopted (ADR-0011). The three rows stay unmet, and the M5 reranker (`rerank-3` over the fused top 20) is the next lever.
+Both were tested on the full set under criteria fixed first, alone and together, and neither reached the targets, so neither was adopted (ADR-0011). The three rows stay unmet, and the M5 reranker (`rerank-3` over the fused top 20) is the next lever. ADR-0014 fixes that test before any run.
 
 ## 14. Conventions
 
