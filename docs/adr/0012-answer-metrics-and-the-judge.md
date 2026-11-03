@@ -64,7 +64,26 @@ The bar is a share, so what it allows depends on how many answers a dimension co
 | Correctness | 12, the questions the docs answer | 1 |
 | Support | 8, the answers that cite something on questions the docs answer | 1 | The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
 
-### 6. Noise
+### 6. The second round, after the first missed the bar
+
+The first round agreed on correctness on 10 of 12, one disagreement over what the bar allows. The owner set the following before any re-grading and before any fresh answer was picked.
+
+**The rubric.** It already said 1 means part of what is asked is missing or wrong, so "minor gap, still 2" broke the written rule. The prompt now says so outright: if any part of what the question asks is missing or wrong, the score is 1, however small, and details the question did not ask for do not count either way. This aligns the judge with its rule. It is not tuned to the labels. Correctness is graded again, for every answer. The refusal and support prompts do not change.
+
+**Fresh labels.** 10 fresh answers:
+- only on questions the docs answer, and none on a question in the first 15, so no answer repeats and no question is seen twice;
+- 3 from row 0, 3 from row 2 and 4 from row 3, from a second fixed seed, with at least 3 the re-graded judge scored low when there are 3, in shuffled order;
+- at most 1 disagreement on correctness, the same tolerance as the first round. 5 of 5 would be both stricter and weaker evidence.
+
+**What it decides.** The fresh round decides correctness alone. Refusal and support keep their first-round results. If it misses the bar, correctness stays marked uncalibrated, and the prompt does not change again without the owner.
+
+**The first 15, graded again,** are reported apart and marked as not blind, because the prompt changed after those labels were read. They decide nothing.
+
+### 7. Correct and grounded, exploratory
+
+Defined after seeing the first results, so it is marked as exploratory wherever it appears, and it is no target. It takes no new LLM call. An answer is correct and grounded when it scores 2, every claim it cites is supported, and at least one cited chunk is a primary or acceptable anchor. Row 0 cannot score on it by design, so the metric shows what retrieval adds beyond Claude's memory.
+
+### 8. Noise
 
 Differences between rows use the same sign test and verdicts as retrieval (ADR-0010). Unlike retrieval, answers have run-to-run noise too. `--noise` answers row 3 a second time and asks the judge a second time about row 3's first answers, so a report says how far a row differs from itself and how often the judge repeats its grade. A difference between rows that a row also shows against itself means nothing.
 
