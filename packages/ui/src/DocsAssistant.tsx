@@ -177,11 +177,6 @@ export function DocsAssistant(props: DocsAssistantProps) {
               onSend={send}
               onStop={stop}
             />
-            {props.evalHref !== undefined && (
-              <a href={props.evalHref} className={styles.evalLink}>
-                Eval results
-              </a>
-            )}
             {empty && props.examples.length > 0 && (
               <ul className={styles.examples} aria-label="Example questions">
                 {props.examples.map((example) => (
@@ -198,6 +193,12 @@ export function DocsAssistant(props: DocsAssistantProps) {
                   </li>
                 ))}
               </ul>
+            )}
+            {/* Last, so that the stops before a first question stay as they were. */}
+            {props.evalHref !== undefined && (
+              <a href={props.evalHref} className={styles.evalLink}>
+                Eval results
+              </a>
             )}
           </div>
         </main>

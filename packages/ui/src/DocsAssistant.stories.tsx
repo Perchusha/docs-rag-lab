@@ -1283,16 +1283,29 @@ export const Failure: Story = {
   },
 }
 
-/** The link to the eval results comes after the input, so it costs no tab stop before it. */
+/**
+ * The link to the eval results comes last: the input, the filter, Send and the four examples are
+ * the 7 stops before a first question (journal, M3 follow-up), and it adds none to them.
+ */
 export const EvalLink: Story = {
-  args: { evalHref: '/eval' },
+  args: {
+    evalHref: '/eval',
+    examples: [question, 'What does error TS2345 mean?', 'Third example', 'Fourth example'],
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const link = canvas.getByRole('link', { name: 'Eval results' })
     await expect(link).toHaveAttribute('href', '/eval')
-    const input = canvas.getByRole('textbox', { name: 'Question' })
-    await expect(
-      input.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    await userEvent.tab()
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveFocus()
+    for (let stop = 2; stop <= 7; stop++) {
+      await userEvent.tab()
+      await expect(link).not.toHaveFocus()
+      await expect(canvasElement.contains(document.activeElement)).toBe(true)
+    }
+    await userEvent.tab()
+    await expect(link).toHaveFocus()
+    // It stays under the input after the first question, when the examples have gone.
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toBeVisible()
   },
 }

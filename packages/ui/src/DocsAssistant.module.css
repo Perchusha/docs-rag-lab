@@ -90,14 +90,13 @@
   color: var(--color-text-muted);
 }
 
-/* The input stays in reach as the chat grows. */
 .evalLink {
-  display: inline-block;
-  margin-block-start: var(--space-1);
+  align-self: flex-start;
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
+/* The input stays in reach as the chat grows. */
 .dock {
   position: sticky;
   inset-block-end: 0;
