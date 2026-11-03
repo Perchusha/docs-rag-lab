@@ -47,6 +47,7 @@ function fakeEngine(events: AnswerEvent[]) {
       return Promise.resolve({ hits: [], trace })
     },
     documentChunks: () => undefined,
+    embedQueries: () => Promise.resolve([]),
   }
   return { engine, requests }
 }

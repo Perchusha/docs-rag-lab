@@ -129,6 +129,22 @@ function engine(provider = new RecordingProvider(), client = fakeAnswerClient())
 }
 
 describe('createEngine', () => {
+  it('embeds questions in one request, in order, and later searches find them cached', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const host = engine(provider)
+    const meter = new UsageMeter()
+    const questions = ['Second question?', 'First question?']
+
+    const vectors = await host.embedQueries({ source: 'demo', questions }, meter)
+
+    expect(provider.calls).toEqual([{ texts: questions, inputType: 'query' }])
+    expect(vectors).toEqual(questions.map((text) => fakeVector(text, provider.dimensions)))
+
+    await host.search({ question: 'First question?' }, meter)
+    expect(provider.calls).toHaveLength(1)
+  })
+
   it('searches with the settings, and a request overrides strategy and top K', async () => {
     const provider = new RecordingProvider()
     seed(provider)

@@ -17,6 +17,7 @@ import type { Settings } from '@docs-rag-lab/settings'
 import { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'
 
 import { ask } from './ask.ts'
+import { embedWithCache } from './embeddings/cached.ts'
 import { createEmbeddingProvider } from './embeddings/factory.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import { RateLimiter } from './embeddings/rate-limit.ts'
@@ -58,6 +59,14 @@ export interface Engine {
   readonly sources: readonly Source[]
   /** Retrieval only, no Claude call. */
   search(request: RetrievalRequest, meter: UsageMeter): Promise<Retrieval>
+  /**
+   * Embeds questions into the cache together, in order, so later searches find
+   * them there. One request instead of one per question, under the same rate limiter.
+   */
+  embedQueries(
+    request: { source?: string | undefined; questions: readonly string[] },
+    meter: UsageMeter,
+  ): Promise<Float32Array[]>
   /** Retrieval, then a streamed answer with citations. Throws on failure. */
   ask(request: RetrievalRequest, run: AskRun): Promise<Retrieval>
   /** A document and its chunks in order, or undefined when the path is not indexed. */
@@ -184,6 +193,19 @@ export function createEngine(options: EngineOptions): Engine {
       const source = sourceOf(request.source)
       return await withIndexes(source, (indexes) =>
         retrieve(retrieveOptions(source, checked, meter, indexes)),
+      )
+    },
+
+    async embedQueries(request, meter) {
+      const source = sourceOf(request.source)
+      return await withIndexes(source, (indexes) =>
+        embedWithCache(request.questions, {
+          provider: providerOf(),
+          cache: indexes.cache,
+          inputType: 'query',
+          meter,
+          limiter,
+        }),
       )
     },
 
