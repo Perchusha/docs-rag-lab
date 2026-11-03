@@ -16,7 +16,7 @@ Two facts shape it. Provider vectors are not reproducible, and 40 questions cann
 
 A report has four parts:
 - `identity`: what was measured. The docs commit, the chunker and parser versions, the index schema, the embedding and context models, a hash of every chunk's ID, text hash and context, the golden set version and hash, a version of the retrieval code, and every retrieval setting. `drl eval verify` refuses to call a re-run with another identity a reproduction, and `drl eval compare` prints every difference, since comparing two configurations is what it is for.
-- `result`: what came out, per strategy and per tag, with each question's anchor ranks and context. What retrieval produced is deterministic given the vectors, so it is compared byte for byte; means are rounded, and questions and tags are sorted. The targets and the review list sit here too but are judged apart, because the targets file and the lock can change with the search unchanged.
+- `result`: what came out, per strategy and per tag, with each question's anchor ranks and context. What retrieval produced is deterministic given the vectors, so it is compared byte for byte; means are rounded, and questions and tags are sorted. The order of keys in the file does not count. The targets and the review list sit here too but are judged apart, because the targets file and the lock can change with the search unchanged. Chunk labels sit here for reading, and are not compared.
 - `vectors`: hashes of the query vectors and the corpus vectors. They are kept out of `identity`, because the same text can get different vectors.
 - `run`: what is true of this run alone: name, time, repository SHA, whether the tree was dirty, timings and token usage. It is never compared.
 
@@ -48,7 +48,9 @@ So `drl eval verify <report>` has two bars:
 
 Comparing totals alone is not enough: two questions can trade places and leave every count the same, and a deep rank can flip a verdict.
 
-Other vectors and other code together are **inconclusive**, even with every number the same, because the check cannot tell which of the two it is looking at. It asks for a run at the report's commit with a clean tree.
+Other vectors and other code together are **inconclusive** as soon as anything moved, even only a rank below the context with every count the same, because the check cannot tell which of the two moved it. It asks for a run at the report's commit with a clean tree. If the report itself came from a dirty tree, no commit can settle it, and the check says that instead.
+
+If nothing moved at all, there is no cause to tell apart, so that counts as reproduced at any commit. The output names both commits, so it says the result came out again under this code, not that the report's own commit was re-run.
 
 A different identity is not a failed reproduction but a different measurement: the check says so, and names the commit to sync when that is the reason.
 
@@ -60,7 +62,7 @@ Scores are compared question by question, overall and per tag, with an exact two
 - **too few:** the scope has 5 questions or fewer, where even 5 of 5 gives p = 0.0625, so no result could count;
 - **noise:** the sides differ by one or two questions;
 - **not significant:** they differ by more, but p >= 0.05. The smallest splits that do reach it are 6:0, 8:1, 10:2, 12:3, 13:4 and 15:5, so a gain of 5 questions with no losses is still not significant, and the report says so;
-- **mixed:** significant, but one side won more questions and the other has the higher total, as when ten small wins meet two large defeats, so no side is named;
+- **mixed:** significant, but the side that won more questions does not have the higher total, as when ten small wins meet two large defeats, or when the totals tie, so no side is named;
 - **better:** anything else.
 
 A sign test needs no dependency and no seed, so its result is part of the deterministic result. It ignores how far a rank moved, which is the right bias for a set this small: a metric that rewards one large move would let a single question decide. That is also why the totals sit beside it, and why they can disagree. With about 7 tags and 6 metrics there are many tests in one report, so one low p is not proof, and the report says so.

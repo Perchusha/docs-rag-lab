@@ -336,7 +336,7 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 
 Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by question, context, model and request settings.
 
-**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall. A difference of one or two questions is marked as noise, a larger one with p >= 0.05 as not significant, and a win that the totals contradict as mixed. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
+**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall. A difference of one or two questions is marked as noise, a larger one with p >= 0.05 as not significant, and a win without the higher total as mixed. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
 
 **Strategy ladder.** Each strategy is one row of the README table:
 0. Claude without RAG
