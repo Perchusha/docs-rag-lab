@@ -19,6 +19,7 @@ import {
   createClaudeClient,
   CORRECTNESS_SYSTEM_PROMPT,
   estimateCost,
+  freshSampleForLabels,
   isUnanswerable,
   judgeCases,
   judgeRetest,
@@ -315,17 +316,39 @@ function sampleOf(report: EvalReport, answers: EvalAnswers, golden: Golden) {
   })
 }
 
+/** The second round's sample: fresh answers, with the first round's questions left out. */
+function freshSampleOf(ctx: CommandContext, answers: EvalAnswers, golden: Golden, earlier: string) {
+  const first = reportWithAnswers(ctx, earlier)
+  return freshSampleForLabels({
+    rows: [...new Set(answers.answers.map((answer) => answer.row))].sort(),
+    answers: answers.answers,
+    verdicts: answers.verdicts,
+    questions: golden.questions,
+    exclude: sampleOf(first.report, first.answers, golden),
+  })
+}
+
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */
-export function evalLabelCommand(ctx: CommandContext, args: { path: string }): void {
+export function evalLabelCommand(
+  ctx: CommandContext,
+  args: { path: string; after: string | undefined },
+): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const golden = goldenOf(ctx, source)
-  const sample = sampleOf(report, answers, golden)
+  const fresh = args.after !== undefined
+  const sample =
+    args.after !== undefined
+      ? freshSampleOf(ctx, answers, golden, args.after)
+      : sampleOf(report, answers, golden)
   const dir = join(reportsDir(ctx.root, source.id), 'dev')
   mkdirSync(dir, { recursive: true })
-  const sheet = join(dir, `labels-${basename(args.path, '.json')}.md`)
+  const sheet = join(dir, `labels-${basename(args.path, '.json')}${fresh ? '-fresh' : ''}.md`)
   const questions = new Map(golden.questions.map((question) => [question.id, question]))
-  writeFileSync(sheet, `${formatLabelSheet(sample, questions, sampleHash(sample))}\n`)
+  writeFileSync(
+    sheet,
+    `${formatLabelSheet(sample, questions, sampleHash(sample), { correctnessOnly: fresh })}\n`,
+  )
   ctx.out.write(`${String(sample.length)} answers to label, with no verdicts in sight: ${sheet}\n`)
 }
 
@@ -348,13 +371,23 @@ interface LabelFile {
 /** `drl eval calibrate <report> <labels>`: how often the human and the judge agree. */
 export function evalCalibrateCommand(
   ctx: CommandContext,
-  args: { path: string; labels: string },
+  args: { path: string; labels: string; after: string | undefined; sampleOf: string | undefined },
 ): void {
+  if (args.after !== undefined && args.sampleOf !== undefined) {
+    throw new CliError('--after and --sample-of cannot go together')
+  }
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const golden = goldenOf(ctx, source)
-  // The sample comes from a fixed seed, so the item numbers need no key next to them.
-  const sample = sampleOf(report, answers, golden)
+  // The sample comes from a fixed seed, so the item numbers need no key next to them. For an
+  // earlier round graded again, it is that report's sample, and this report's verdicts.
+  const earlier = args.sampleOf === undefined ? undefined : reportWithAnswers(ctx, args.sampleOf)
+  const sample =
+    args.after !== undefined
+      ? freshSampleOf(ctx, answers, golden, args.after)
+      : earlier !== undefined
+        ? sampleOf(earlier.report, earlier.answers, golden)
+        : sampleOf(report, answers, golden)
   const full = resolve(ctx.root, args.labels)
   if (!existsSync(full)) throw new CliError(`no labels at ${full}`)
   const file = JSON.parse(readFileSync(full, 'utf8')) as LabelFile
@@ -406,11 +439,14 @@ export function evalCalibrateCommand(
     labels,
     verdicts: answers.verdicts,
     support: answers.support,
+    blind: earlier === undefined,
+    ...(args.after === undefined ? {} : { dimensions: ['correctness'] as const }),
   })
   // Next to the report, where JSON is recorded data (ADR-0010).
-  const stem = resolve(ctx.root, args.path).replace(/\.json$/, '')
-  writeFileSync(`${stem}-calibration.json`, `${JSON.stringify(calibration, null, 2)}\n`)
+  const round = args.after !== undefined ? '-fresh' : earlier !== undefined ? '-not-blind' : ''
+  const stem = `${resolve(ctx.root, args.path).replace(/\.json$/, '')}-calibration${round}`
+  writeFileSync(`${stem}.json`, `${JSON.stringify(calibration, null, 2)}\n`)
   const text = formatCalibration(calibration)
-  writeFileSync(`${stem}-calibration.md`, text)
+  writeFileSync(`${stem}.md`, text)
   ctx.out.write(text)
 }

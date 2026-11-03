@@ -18,6 +18,7 @@ import {
   CHUNKER_VERSION,
   createEmbeddingProvider,
   embeddingCacheKey,
+  freshSampleForLabels,
   parseGoldenSet,
   sampleForLabels,
   sampleHash,
@@ -838,6 +839,156 @@ describe('drl eval answers', () => {
       expect((await drl('eval', 'calibrate', path, labelsPath)).err).toMatch(
         /item \d+ needs an? (outcome|correctness)/,
       )
+    })
+
+    describe('a second round', () => {
+      /** Ten more questions, so that a fresh round has somewhere to go. */
+      function moreQuestions(): void {
+        const rows = Array.from({ length: 24 }, (_, i) => ({
+          id: `ts-${String(i + 1).padStart(4, '0')}`,
+          question: QUESTIONS[0],
+          answer: `Answer ${String(i)}.`,
+          primary: ['docs/a.md#one'],
+          tags: ['basic'],
+        }))
+        writeFileSync(
+          goldenSetPath(root, 'typescript'),
+          `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        )
+      }
+
+      async function twoReports() {
+        moreQuestions()
+        await drl('eval', 'check', '--accept', '--set-version', '2')
+        const first = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+        clock += 1000
+        const second = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+        return { first, second }
+      }
+
+      const golden = () => parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+
+      function samples(first: string, second: string) {
+        const a = readReport(first).answers
+        const b = readReport(second).answers
+        const firstSample = sampleForLabels({
+          rows: [0, 2, 3],
+          answers: a?.answers ?? [],
+          verdicts: a?.verdicts ?? [],
+          questions: golden(),
+        })
+        const freshSample = freshSampleForLabels({
+          rows: [0, 2, 3],
+          answers: b?.answers ?? [],
+          verdicts: b?.verdicts ?? [],
+          questions: golden(),
+          exclude: firstSample,
+        })
+        return { firstSample, freshSample }
+      }
+
+      it('writes a fresh sheet of 10, apart from the first, with no citations', async () => {
+        const { first, second } = await twoReports()
+
+        const { code, out } = await drl('eval', 'label', second, '--after', first)
+
+        expect(code).toBe(0)
+        expect(out).toContain('10 answers to label')
+        const sheet = sheetOf(out)
+        expect(sheet).toMatch(/-fresh\.md$/)
+        const text = readFileSync(sheet, 'utf8')
+        expect(text).toContain('a fresh round')
+        expect(text).not.toContain('SECRET PASSAGE')
+      })
+
+      it('holds a fresh round to at most 1 disagreement, on correctness alone', async () => {
+        const { first, second } = await twoReports()
+        const { freshSample } = samples(first, second)
+        const labelsPath = join(root, 'fresh.json')
+        const write = (wrong: number) => {
+          writeFileSync(
+            labelsPath,
+            JSON.stringify({
+              sample: sampleHash(freshSample),
+              labels: freshSample.map((_, i) => ({ item: i + 1, correctness: i < wrong ? 0 : 2 })),
+            }),
+          )
+        }
+
+        write(1)
+        const passed = await drl('eval', 'calibrate', second, labelsPath, '--after', first)
+        expect(passed.out).toContain('| correctness | 9 | 10 |')
+        expect(passed.out).toContain('The judge is calibrated for this report')
+        expect(passed.out).not.toContain('| refusal |')
+        expect(existsSync(second.replace(/\.json$/, '-calibration-fresh.md'))).toBe(true)
+
+        write(2)
+        const failed = await drl('eval', 'calibrate', second, labelsPath, '--after', first)
+        expect(failed.out).toContain('| correctness | 8 | 10 |')
+        expect(failed.out).toContain('uncalibrated')
+      })
+
+      it('reads the first labels against the new verdicts, marked as not blind', async () => {
+        const { first, second } = await twoReports()
+        const { firstSample } = samples(first, second)
+        // Graded again, the low scores differ, and so would a sample taken from this report.
+        const regraded = readReport(second)
+        const keyOf = (item: { questionId: string; row: number }) =>
+          `${item.questionId}/${String(item.row)}`
+        const picked = new Set(firstSample.map(keyOf))
+        for (const verdict of regraded.answers?.verdicts ?? []) {
+          if (verdict.correctness !== null && !picked.has(keyOf(verdict))) verdict.correctness = 0
+        }
+        writeFileSync(second, JSON.stringify(regraded))
+        const labelsPath = join(root, 'first.json')
+        writeFileSync(
+          labelsPath,
+          JSON.stringify({
+            sample: sampleHash(firstSample),
+            labels: firstSample.map((_, i) => ({ item: i + 1, correctness: 2 })),
+          }),
+        )
+
+        const { code, out } = await drl(
+          'eval',
+          'calibrate',
+          second,
+          labelsPath,
+          '--sample-of',
+          first,
+        )
+
+        expect(code).toBe(0)
+        expect(out).toContain('**Not blind.**')
+        expect(out).not.toContain('The judge is calibrated')
+        expect(existsSync(second.replace(/\.json$/, '-calibration-not-blind.md'))).toBe(true)
+      })
+
+      it('refuses both flags at once', async () => {
+        const { first, second } = await twoReports()
+
+        const { code, err } = await drl(
+          'eval',
+          'calibrate',
+          second,
+          'x.json',
+          '--after',
+          first,
+          '--sample-of',
+          first,
+        )
+
+        expect(code).toBe(1)
+        expect(err).toContain('cannot go together')
+      })
+
+      it.each([
+        [['eval', 'answers', '--after', 'x'], '--after does not apply'],
+        [['eval', 'check', '--after', 'x'], '--after does not apply'],
+        [['eval', 'label', 'x.json', '--sample-of', 'y'], '--sample-of does not apply'],
+      ])('refuses %j', async (argv, message) => {
+        expect((await drl(...argv)).err).toContain(message)
+      })
     })
 
     it('needs a report with answers', async () => {

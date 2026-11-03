@@ -1,4 +1,5 @@
 import type {
+  AgreementResult,
   AnswerMetrics,
   AnswerRowResult,
   EvalAnswer,
@@ -218,6 +219,52 @@ describe('answerSections', () => {
   })
 })
 
+describe('the exploratory metric', () => {
+  const text = answerSections(
+    answers({
+      rows: [
+        row({ row: 0, overall: metrics({ correctAndGrounded: 0 }) }),
+        row({ overall: metrics({ correctAndGrounded: 21 }) }),
+      ],
+      comparisons: [
+        {
+          a: 'row 2',
+          b: 'row 3',
+          scopes: [
+            {
+              scope: 'overall',
+              questions: 40,
+              differences: [
+                {
+                  metric: 'correct-and-grounded',
+                  a: 0.6,
+                  b: 0.5,
+                  aBetter: 5,
+                  bBetter: 1,
+                  tied: 34,
+                  p: 0.219,
+                  verdict: 'not-significant',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  ).join('\n\n')
+
+  it('says it is exploratory, and defined after the results', () => {
+    expect(text).toContain('### Correct and grounded (exploratory)')
+    expect(text).toContain('defined after seeing the first results')
+    expect(lineWith(text, '| overall |')).toContain('correct-and-grounded (exploratory)')
+  })
+
+  it('shows row 0 as a dash, since it cannot score by design', () => {
+    expect(text).toContain('| row 0 | 40 | - |')
+    expect(text).toContain('| row 3 | 40 | 21 |')
+  })
+})
+
 describe('formatAnswersSummary', () => {
   it('prints what was paid and each row', () => {
     expect(formatAnswersSummary(answers())).toBe(
@@ -332,6 +379,29 @@ describe('formatLabelSheet', () => {
     expect(second).not.toContain('Is every cited claim supported')
   })
 
+  it('a fresh round asks for correctness alone, with no citations', () => {
+    const text = formatLabelSheet(
+      [
+        answer({
+          claims: [{ text: 'Cited.', citations: [{ chunkId: 'c1', citedText: 'A passage.' }] }],
+        }),
+      ],
+      questions,
+      'abc123',
+      { correctnessOnly: true },
+    )
+
+    expect(text).toContain('a fresh round')
+    expect(text).toContain('Sample `abc123`')
+    expect(text).toContain('**Label:** correctness 0, 1 or 2?')
+    expect(text).toContain('however small')
+    expect(text).toContain('do not count either way')
+    expect(text).not.toContain('A passage.')
+    expect(text).not.toContain('Cites nothing')
+    expect(text).not.toContain('Is every cited claim')
+    expect(text).not.toContain('refused')
+  })
+
   it('leaves out the row, the chunk and the judge', () => {
     const text = formatLabelSheet(
       [
@@ -385,6 +455,51 @@ describe('formatCalibration', () => {
     expect(text).toContain('the three outcomes agree on 2 of 3')
     expect(text).toContain('too little data, so it decides nothing')
     expect(text).toContain('uncalibrated')
+  })
+})
+
+describe('formatCalibration, on later rounds', () => {
+  const result: AgreementResult = {
+    dimension: 'correctness',
+    compared: 10,
+    agreed: 9,
+    kappa: 0.7,
+    interval: [0.6, 0.98],
+    passed: true,
+  }
+  const report = { repoSha: 'abcdef1234', name: 'answers', createdAt: 'now' }
+
+  it('marks a fresh round, and leaves out the refusal line', () => {
+    const text = formatCalibration({
+      report,
+      blind: true,
+      labelled: 10,
+      agreement: [result],
+      unanswerableOnly: { compared: 0, agreed: 0 },
+      calibrated: true,
+    })
+
+    expect(text).toContain('A fresh round: correctness alone, with at most 1 disagreement in 10.')
+    expect(text).toContain('The judge is calibrated for this report.')
+    expect(text).not.toContain('Refusal covers every answer')
+    expect(text).not.toContain('Not blind')
+  })
+
+  it('marks labels that are not blind, and claims nothing from them', () => {
+    const text = formatCalibration({
+      report,
+      blind: false,
+      labelled: 15,
+      agreement: [result, { ...result, dimension: 'refusal' }],
+      unanswerableOnly: { compared: 3, agreed: 3 },
+      calibrated: false,
+    })
+
+    expect(text).toContain('**Not blind.**')
+    expect(text).toContain('decides nothing')
+    expect(text).toContain('Reported for comparison only.')
+    expect(text).not.toContain('calibrated for this report')
+    expect(text).not.toContain('uncalibrated')
   })
 })
 

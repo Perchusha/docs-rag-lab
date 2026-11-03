@@ -101,7 +101,9 @@ function comparisonSection(comparison: AnswerComparison): string[] {
           scope.scope,
           // Citation metrics compare only the questions where both sides cite something.
           String(difference.aBetter + difference.bBetter + difference.tied),
-          difference.metric,
+          difference.metric === 'correct-and-grounded'
+            ? 'correct-and-grounded (exploratory)'
+            : difference.metric,
           mean(difference.a),
           mean(difference.b),
           String(difference.aBetter),
@@ -111,6 +113,22 @@ function comparisonSection(comparison: AnswerComparison): string[] {
           verdictText(difference, comparison),
         ]),
       ),
+    ),
+  ]
+}
+
+/** Defined after seeing the first results, so it says so wherever it appears (ADR-0012). */
+function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
+  return [
+    '### Correct and grounded (exploratory)',
+    'Exploratory: this metric was defined after seeing the first results, and it is no target. An answer counts when it scores 2, every claim it cites is supported, and at least one cited chunk is a primary or acceptable anchor. Row 0 cannot score on it by design, so it shows what retrieval adds beyond memory.',
+    table(
+      ['Row', 'Questions', 'Correct and grounded'],
+      rows.map((row) => [
+        rowName(row),
+        String(row.overall.questions),
+        row.row === 0 ? '-' : String(row.overall.correctAndGrounded ?? 0),
+      ]),
     ),
   ]
 }
@@ -136,6 +154,7 @@ export function answerSections(answers: EvalAnswers): string[] {
         String(row.refusals.wrong),
       ]),
     ),
+    ...exploratorySection(rows),
     '### Latency and cost per question',
     table(
       ['Row', 'Latency, mean', 'Input tokens', 'Output tokens', 'Cost'],
@@ -210,13 +229,15 @@ export function formatLabelSheet(
   sample: readonly EvalAnswer[],
   questions: ReadonlyMap<string, GoldenQuestion>,
   hash: string,
+  options: { correctnessOnly?: boolean } = {},
 ): string {
+  const correctnessOnly = options.correctnessOnly === true
   // The question ID stays out too: it says nothing to a human, and the labels use item numbers.
   const items = sample.map((answer, i) => {
     const question = questions.get(answer.questionId)
     if (question === undefined) throw new Error(`no question ${answer.questionId}`)
     const unanswerable = question.tags.includes('unanswerable')
-    const claims = answer.claims.flatMap((claim, claimIndex) => [
+    const claims = (correctnessOnly ? [] : answer.claims).flatMap((claim, claimIndex) => [
       `Claim ${String(claimIndex + 1)}: ${claim.text.trim()}`,
       ...claim.citations.map((citation) => `> ${citation.citedText.trim()}`),
       '',
@@ -227,17 +248,31 @@ export function formatLabelSheet(
       `**Expert answer:** ${question.answer}`,
       ...(question.note === undefined ? [] : [`**Note:** ${question.note}`]),
       `**The answer to grade:**\n\n${answer.text.trim() === '' ? '(empty)' : answer.text.trim()}`,
-      ...(claims.length === 0 ? ['**Cites nothing.**'] : ['**What it cites:**', '', ...claims]),
+      ...(correctnessOnly
+        ? []
+        : claims.length === 0
+          ? ['**Cites nothing.**']
+          : ['**What it cites:**', '', ...claims]),
       unanswerable
         ? '**Label:** the docs do not answer this. correct-refusal, hallucination or wrong?'
-        : '**Label:** correctness 0, 1 or 2? Add "refused" if it says the docs do not cover this, or declines to answer.',
+        : correctnessOnly
+          ? '**Label:** correctness 0, 1 or 2?'
+          : '**Label:** correctness 0, 1 or 2? Add "refused" if it says the docs do not cover this, or declines to answer.',
       ...(claims.length === 0 ? [] : ['Is every cited claim supported by its passages? yes or no']),
     ].join('\n\n')
   })
+  if (correctnessOnly) {
+    return [
+      '# Labels for the judge, a fresh round',
+      `Sample \`${hash}\`. Grade each answer without looking at any report. Only correctness counts here, so the citations are left out.`,
+      '- **Correctness, on what the question asks:** 2 is correct and gives everything asked. 1 has the main point right with any part of what is asked missing or wrong, however small. 0 has the main point wrong, or is empty or a refusal. Details the question did not ask for do not count either way.',
+      ...items,
+    ].join('\n\n')
+  }
   return [
     '# Labels for the judge',
     `Sample \`${hash}\`. Grade each answer without looking at the report: the judge has graded these too, and this measures how often you agree. Reply with the item number and your labels.`,
-    '- **Correctness, on what the question asks:** 2 is correct, 1 has the main point right with part of what is asked missing or wrong, and 0 is wrong, empty or a refusal.',
+    '- **Correctness, on what the question asks:** 2 is correct and gives everything asked. 1 has the main point right with any part of what is asked missing or wrong, however small. 0 has the main point wrong, or is empty or a refusal. Details the question did not ask for do not count either way.',
     '- **A question the docs do not answer:** correct-refusal says so, or rejects the false premise, and cites nothing for an answer. It may add general knowledge that it marks as not from the docs. hallucination names a version, describes a made-up option as real, or presents outside knowledge as from the docs. wrong is anything else.',
     '- **Refused, on a question the docs do answer:** it says the docs do not cover this, or declines to answer. That is a refusal the question did not call for, and it scores 0. Your count of these goes against the judge across all 15 answers.',
     '- **Supported:** a reader could confirm each cited claim from its passages alone.',
@@ -249,6 +284,14 @@ export function formatCalibration(calibration: EvalCalibration): string {
   return [
     `# Judge calibration: ${String(calibration.labelled)} answers labelled`,
     `Report: \`${calibration.report.repoSha.slice(0, 8)}\`, ${calibration.report.name ?? 'development run'}, ${calibration.report.createdAt}. The bar is 13 of 15 on each dimension (ADR-0012).`,
+    ...(calibration.blind === false
+      ? [
+          '**Not blind.** The judge was graded again under a changed prompt after these labels were read, so this decides nothing about how far to trust it.',
+        ]
+      : []),
+    ...(calibration.agreement.length === 1
+      ? ['A fresh round: correctness alone, with at most 1 disagreement in 10.']
+      : []),
     table(
       ['Dimension', 'Agreed', 'Compared', "Cohen's kappa", '95% interval', 'Passed'],
       calibration.agreement.map((result) => [
@@ -260,10 +303,16 @@ export function formatCalibration(calibration: EvalCalibration): string {
         result.passed ? 'yes' : 'no',
       ]),
     ),
-    `Refusal covers every answer: whether it refused, and whether that was right. On the unanswerable questions alone, the three outcomes agree on ${String(calibration.unanswerableOnly.agreed)} of ${String(calibration.unanswerableOnly.compared)}. That is too little data, so it decides nothing.`,
-    calibration.calibrated
-      ? 'The judge is calibrated for this report.'
-      : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',
+    ...(calibration.agreement.some(({ dimension }) => dimension === 'refusal')
+      ? [
+          `Refusal covers every answer: whether it refused, and whether that was right. On the unanswerable questions alone, the three outcomes agree on ${String(calibration.unanswerableOnly.agreed)} of ${String(calibration.unanswerableOnly.compared)}. That is too little data, so it decides nothing.`,
+        ]
+      : []),
+    calibration.blind === false
+      ? 'Reported for comparison only.'
+      : calibration.calibrated
+        ? 'The judge is calibrated for this report.'
+        : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',
   ]
     .join('\n\n')
     .concat('\n')

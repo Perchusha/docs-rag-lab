@@ -66,7 +66,10 @@ Commands:
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
   eval label <report>         Write the sheet a human labels from, with no verdicts
+      [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
   eval calibrate <r> <labels> How often the human and the judge agree
+      [--after <report>]      Those labels are of a fresh round after that report
+      [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
@@ -163,6 +166,8 @@ function refuseStrayEvalFlags(
     accept: boolean
     name?: string | undefined
     strategy?: string | undefined
+    after?: string | undefined
+    'sample-of'?: string | undefined
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
@@ -179,6 +184,10 @@ function refuseStrayEvalFlags(
     ...(values.name !== undefined && subcommand !== undefined && subcommand !== 'answers'
       ? ['--name']
       : []),
+    ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
+      ? ['--after']
+      : []),
+    ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
     ...(values.rows !== undefined && subcommand !== 'answers' ? ['--rows'] : []),
     ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
     ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
@@ -228,6 +237,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
+        after: { type: 'string' },
+        'sample-of': { type: 'string' },
         rows: { type: 'string' },
         only: { type: 'string' },
         noise: { type: 'boolean', default: false },
@@ -341,12 +352,17 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         await evalJudgeCheckCommand(ctx, { source: values.source, yes: values.yes })
       } else if (subcommand === 'label') {
         if (first === undefined) throw new CliError('eval label needs a report file')
-        evalLabelCommand(ctx, { path: first })
+        evalLabelCommand(ctx, { path: first, after: values.after })
       } else if (subcommand === 'calibrate') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval calibrate needs a report file and a labels file')
         }
-        evalCalibrateCommand(ctx, { path: first, labels: second })
+        evalCalibrateCommand(ctx, {
+          path: first,
+          labels: second,
+          after: values.after,
+          sampleOf: values['sample-of'],
+        })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')
         await evalVerifyCommand(ctx, { path: first })
