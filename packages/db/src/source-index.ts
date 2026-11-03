@@ -1,6 +1,6 @@
 // The per-source index: data/sources/<source-id>.sqlite (SPEC sections 4 and 6).
-// Tables: manifest, documents, chunks, the chunks_fts keyword index and the
-// chunks_vec vector table (ADR-0004, ADR-0005). Eval results live in committed
+// Tables: manifest, documents, chunks, the chunks_fts and chunks_words keyword
+// indexes and the chunks_vec vector table (ADR-0004, ADR-0005, ADR-0011). Eval results live in committed
 // reports, not here (ADR-0009).
 import { createHash } from 'node:crypto'
 
@@ -140,6 +140,33 @@ const MIGRATIONS: readonly Migration[] = [
     values (new.pk, new.heading_path, new.context, new.text);
   end;
   insert into chunks_fts (chunks_fts) values ('optimize');
+  `,
+  // Version 4: whole words, for 3-character terms that trigram also finds inside
+  // longer words (ADR-0011).
+  `
+  create virtual table chunks_words using fts5(
+    heading_path, context, text,
+    content = 'chunks', content_rowid = 'pk', tokenize = 'unicode61'
+  );
+  create trigger chunks_words_insert after insert on chunks begin
+    insert into chunks_words (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  create trigger chunks_words_delete after delete on chunks begin
+    insert into chunks_words (chunks_words, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+  end;
+  create trigger chunks_words_update after update of heading_path, context, text on chunks
+  when old.heading_path is not new.heading_path
+    or old.context is not new.context
+    or old.text is not new.text
+  begin
+    insert into chunks_words (chunks_words, rowid, heading_path, context, text)
+    values ('delete', old.pk, old.heading_path, old.context, old.text);
+    insert into chunks_words (rowid, heading_path, context, text)
+    values (new.pk, new.heading_path, new.context, new.text);
+  end;
+  insert into chunks_words (chunks_words) values ('rebuild');
   `,
 ]
 
@@ -465,21 +492,47 @@ export class SourceIndex {
    * The k best chunks for an FTS5 query, best first. The score is BM25 with
    * the sign flipped, so higher is better. The caller builds the query
    * (core quotes every term); an invalid one throws.
+   *
+   * `wholeWords` is a second query, over the unicode61 table. Scores add up per chunk,
+   * since BM25 is a sum over terms (ADR-0011). Either query may be ''.
    */
-  searchKeywords(query: string, k: number, filter: SearchFilter = {}): Candidate[] {
+  searchKeywords(
+    query: string,
+    k: number,
+    filter: SearchFilter = {},
+    wholeWords = '',
+  ): Candidate[] {
     const docTypes = filter.docTypes ?? []
     const where = docTypes.length > 0 ? `and d.doc_type in (${placeholders(docTypes)})` : ''
+    const parts = (
+      [
+        ['chunks_fts', query],
+        ['chunks_words', wholeWords],
+      ] as const
+    ).filter(([, text]) => text !== '')
+    if (parts.length === 0) return []
+    const scored = parts.map(
+      ([table]) =>
+        `select c.id, -bm25(${table}) as score
+         from ${table}
+         join chunks c on c.pk = ${table}.rowid
+         join documents d on d.id = c.doc_id
+         where ${table} match ? ${where}`,
+    )
     const rows = this.#db
       .prepare(
-        `select c.id, -bm25(chunks_fts) as score
-         from chunks_fts
-         join chunks c on c.pk = chunks_fts.rowid
-         join documents d on d.id = c.doc_id
-         where chunks_fts match ? ${where}
-         order by bm25(chunks_fts), c.id
+        // Materialized: bm25() cannot run once SQLite flattens a lone query into this one.
+        `with scored as materialized (${scored.join(' union all ')})
+         select id, sum(score) as score
+         from scored
+         group by id
+         order by score desc, id
          limit ?`,
       )
-      .all(query, ...docTypes, k) as { id: string; score: number }[]
+      .all(...parts.flatMap(([, text]) => [text, ...docTypes]), k) as {
+      id: string
+      score: number
+    }[]
     return rows.map((row) => ({ chunkId: row.id, score: row.score }))
   }
 
@@ -604,12 +657,14 @@ export class SourceIndex {
     this.#db.exec(sql)
   }
 
-  /** FTS5 compares the keyword index with the chunks table; any drift throws. */
+  /** FTS5 compares the keyword indexes with the chunks table; any drift throws. */
   #checkKeywordIndex(): void {
     try {
-      this.#db
-        .prepare("insert into chunks_fts (chunks_fts, rank) values ('integrity-check', 1)")
-        .run()
+      for (const table of ['chunks_fts', 'chunks_words']) {
+        this.#db
+          .prepare(`insert into ${table} (${table}, rank) values ('integrity-check', 1)`)
+          .run()
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       throw new Error(`the keyword index does not match the chunks (${reason})`, { cause: error })

@@ -495,6 +495,157 @@ describe('SourceIndex keyword search', () => {
   })
 })
 
+describe('SourceIndex whole words (ADR-0011)', () => {
+  function seeded(): SourceIndex {
+    const idx = memoryIndex()
+    idx.applyChanges({
+      documents: [
+        doc('a', [
+          chunk('c-word', [1, 0, 0, 0], 'the any type'),
+          chunk('c-inside', [0, 1, 0, 0], 'many a company'),
+          chunk('c-upper', [0, 0, 1, 0], 'ANY[] again'),
+          chunk('c-both', [0, 0, 0, 1], 'any value and a version'),
+          chunk('c-long', [1, 1, 0, 0], 'only a version'),
+          // BM25 gives a term in half of the chunks no weight, so "any" needs to be rarer.
+          ...['f1', 'f2', 'f3', 'f4', 'f5', 'f6'].map((id) =>
+            chunk(id, [0, 1, 1, 0], 'some other text'),
+          ),
+        ]),
+        doc('b', [chunk('c-other', [1, 0, 1, 0], 'any thing')], 'option'),
+      ],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+    return idx
+  }
+  const ids = (hits: { chunkId: string }[]) => hits.map((hit) => hit.chunkId)
+
+  it('finds a word on its own, in any case, and not inside longer words', () => {
+    const idx = seeded()
+
+    expect(ids(idx.searchKeywords('"any"', 10))).toContain('c-inside')
+    expect(ids(idx.searchKeywords('', 10, {}, '"any"')).sort()).toEqual([
+      'c-both',
+      'c-other',
+      'c-upper',
+      'c-word',
+    ])
+  })
+
+  it('adds up the two scores, so a chunk that has both comes first', () => {
+    const idx = seeded()
+    const score = (hits: { chunkId: string; score: number }[], id: string) =>
+      hits.find((hit) => hit.chunkId === id)?.score ?? Number.NaN
+
+    const both = idx.searchKeywords('"version"', 10, {}, '"any"')
+
+    expect(both[0]?.chunkId).toBe('c-both')
+    expect(score(both, 'c-both')).toBeCloseTo(
+      score(idx.searchKeywords('"version"', 10), 'c-both') +
+        score(idx.searchKeywords('', 10, {}, '"any"'), 'c-both'),
+      10,
+    )
+    expect(ids(both)).toContain('c-long')
+    expect(ids(both)).toContain('c-word')
+  })
+
+  it('applies the filter to both queries, and the limit after adding up', () => {
+    const idx = seeded()
+
+    expect(ids(idx.searchKeywords('"thing"', 10, { docTypes: ['option'] }, '"any"'))).toEqual([
+      'c-other',
+    ])
+    expect(ids(idx.searchKeywords('"version"', 10, { docTypes: ['option'] }, '"any"'))).toEqual([
+      'c-other',
+    ])
+    expect(ids(idx.searchKeywords('"version"', 1, {}, '"any"'))).toEqual(['c-both'])
+  })
+
+  it('breaks a tie by chunk ID', () => {
+    const idx = memoryIndex()
+    idx.applyChanges({
+      documents: [
+        doc('a', [chunk('c-b', [1, 0, 0, 0], 'any x'), chunk('c-a', [0, 1, 0, 0], 'any x')]),
+      ],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+
+    expect(ids(idx.searchKeywords('', 10, {}, '"any"'))).toEqual(['c-a', 'c-b'])
+  })
+
+  it('finds nothing with no query at all, and throws on an invalid one', () => {
+    const idx = seeded()
+
+    expect(idx.searchKeywords('', 10)).toEqual([])
+    expect(() => idx.searchKeywords('', 10, {}, '"unterminated')).toThrow()
+  })
+
+  it('follows changed and deleted chunks, and does not re-index unchanged text', () => {
+    const db = openDatabase(':memory:')
+    index = new SourceIndex(db)
+    const write = (text: string) => {
+      index?.applyChanges({
+        documents: [doc('a', [chunk('a1', [1, 0, 0, 0], text)])],
+        deletePaths: [],
+        manifest: manifest(),
+      })
+    }
+    const segments = () =>
+      (db.prepare('select count(*) as n from chunks_words_data').get() as { n: number }).n
+    write('the any type')
+    const before = segments()
+
+    write('the any type')
+    expect(segments()).toBe(before)
+
+    write('the old word')
+    expect(ids(index.searchKeywords('', 5, {}, '"any"'))).toEqual([])
+    expect(ids(index.searchKeywords('', 5, {}, '"old"'))).toEqual(['a1'])
+
+    index.applyChanges({ documents: [], deletePaths: ['a'], manifest: manifest() })
+    expect(ids(index.searchKeywords('', 5, {}, '"old"'))).toEqual([])
+  })
+
+  it('refuses a sync that would leave the whole-word index out of step with the chunks', () => {
+    const db = openDatabase(':memory:')
+    index = new SourceIndex(db)
+    index.applyChanges({
+      documents: [doc('a', [chunk('a1', [1, 0, 0, 0])])],
+      deletePaths: [],
+      manifest: manifest(),
+    })
+    db.exec('drop trigger chunks_words_insert')
+
+    expect(() =>
+      index?.applyChanges({
+        documents: [doc('b', [chunk('b1', [0, 1, 0, 0])])],
+        deletePaths: [],
+        manifest: manifest(),
+      }),
+    ).toThrow(/keyword index does not match/)
+  })
+
+  it('migration 4 indexes the chunks a version 3 file already has', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'v3.sqlite')
+    const v3 = openDatabase(path)
+    migrate(v3, SOURCE_INDEX_MIGRATIONS.slice(0, 3))
+    v3.exec(`
+      insert into documents values (1, 'a.md', 'https://example.com/a', 'A', 'option', 'h', 's');
+      insert into chunks values
+        (1, 'c1', 1, 0, '["Any"]', 'any', '["prose"]', 'the any type', null, '{}', 4, 'x'),
+        (2, 'c2', 1, 1, '["Many"]', 'many', '["prose"]', 'many a company', null, '{}', 3, 'y');
+    `)
+    v3.close()
+
+    index = new SourceIndex(openDatabase(path))
+
+    expect(index.schemaVersion()).toBe(4)
+    expect(ids(index.searchKeywords('', 5, {}, '"any"'))).toEqual(['c1'])
+  })
+})
+
 describe('SourceIndex filters', () => {
   function seeded(): SourceIndex {
     const idx = memoryIndex()
