@@ -738,15 +738,16 @@ export function openSourceIndex(path: string): SourceIndex {
 }
 
 /**
- * The commit an index on disk is at, for a reader that must change nothing (ADR-0013): no
- * migration and no file left behind. A read-only handle would leave -wal and -shm files next to
- * a WAL database, so this is an ordinary one that refuses writes. Null for a file that is
- * missing, empty or no database.
+ * The commit an index on disk is at, for a page view (ADR-0013): no migration and no file left
+ * behind. A read-only handle would leave -wal and -shm files next to a WAL database, so this is
+ * an ordinary one that refuses writes. Like any connection, it finishes what a killed writer left
+ * in the WAL, which changes no data. Null, after a short wait, for a file that is missing, empty,
+ * held by a writer or no database.
  */
 export function readIndexCommit(path: string): string | null {
   if (!existsSync(path)) return null
   try {
-    const db = new Database(path, { fileMustExist: true })
+    const db = new Database(path, { fileMustExist: true, timeout: 250 })
     try {
       db.pragma('query_only = ON')
       const row = db.prepare('select commit_sha from manifest where id = 1').get() as

@@ -200,6 +200,28 @@ describe('readIndexCommit', () => {
   })
 })
 
+describe('readIndexCommit with a writer', () => {
+  it('reads past a writer that has not committed, and gives up soon on one that excludes it', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'demo.sqlite')
+    const first = openSourceIndex(path)
+    first.applyChanges({ documents: [], deletePaths: [], manifest: manifest() })
+    first.close()
+
+    const writer = openDatabase(path)
+    writer.exec('begin immediate')
+    expect(readIndexCommit(path)).toBe('a'.repeat(40))
+    writer.exec('rollback')
+    writer.pragma('locking_mode = exclusive')
+    writer.exec('begin exclusive')
+    const started = Date.now()
+    expect(readIndexCommit(path)).toBeNull()
+    expect(Date.now() - started).toBeLessThan(2000)
+    writer.exec('rollback')
+    writer.close()
+  })
+})
+
 describe('SourceIndex', () => {
   it('migrates a new file and reopens it without migrating again', () => {
     tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
