@@ -497,8 +497,8 @@
     "review": [],
     "verify": {
       "status": "identical",
-      "text": "Retrieval reproduced byte for byte at 4dc7dfac, with uncommitted changes, on the same vectors. Answers do not repeat, so they are not part of this check.",
-      "checkedAt": "2026-11-03T13:54:53.455Z"
+      "text": "Retrieval reproduced byte for byte at 2e3cf794, on the same vectors. Answers do not repeat, so they are not part of this check.",
+      "checkedAt": "2026-11-03T14:10:06.601Z"
     }
   }
 }
