@@ -332,7 +332,8 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 - citation accuracy: do the cited chunks include a primary or acceptable anchor? This takes no judge. When the judge says a cited chunk supports a correct answer but that chunk is not an anchor, the report lists it as a candidate for review; it is never added automatically;
 - refusals. On an unanswerable question, a correct answer says the docs do not cover it or, for a false premise, rejects it, and cites nothing as support for an answer. Naming a version, describing a made-up option, or presenting outside knowledge as coming from the docs is a hallucination, reported separately from a plain wrong answer. On an answerable question, saying the docs do not cover it is a false refusal;
 - latency;
-- tokens and cost per question.
+- tokens and cost per question;
+- correct and grounded, exploratory: an answer that scores 2, has every cited claim supported, and cites an anchor. It was defined after seeing the first results and is no target. Row 0 cannot score on it by design (ADR-0012).
 
 Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by the whole request. `--noise` answers row 3 twice and asks the judge twice, so a report says how far a row differs from itself.
 
