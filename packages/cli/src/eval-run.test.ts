@@ -18,6 +18,9 @@ import {
   CHUNKER_VERSION,
   createEmbeddingProvider,
   embeddingCacheKey,
+  parseGoldenSet,
+  sampleForLabels,
+  type EvalClient,
   openIndexes,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
@@ -47,6 +50,78 @@ function capture() {
 
 let clock = Date.UTC(2026, 10, 3, 12)
 
+type ClaudeRequest = Parameters<EvalClient['messages']['stream']>[0]
+type ClaudeMessage = Awaited<
+  ReturnType<ReturnType<EvalClient['messages']['stream']>['finalMessage']>
+>
+
+/** What the fake Claude was asked, and what it answers with. */
+let claudeRequests: ClaudeRequest[] = []
+let judgeBody: (system: string, text: string) => unknown = () => undefined
+
+function fakeClaude(request: ClaudeRequest): ClaudeMessage {
+  claudeRequests.push(request)
+  const system = JSON.stringify(request.system)
+  const text = JSON.stringify(request.messages)
+  const judged = request.output_config?.format != null
+  const usage = { input_tokens: 1000, output_tokens: 100 }
+  const content = judged
+    ? [{ type: 'text', text: JSON.stringify(judgeBody(system, text)), citations: null }]
+    : [
+        {
+          type: 'text',
+          text: 'SECRET ANSWER TEXT.',
+          citations: text.includes('search_result')
+            ? [
+                {
+                  type: 'search_result_location',
+                  search_result_index: 0,
+                  cited_text: 'SECRET PASSAGE.',
+                  source: 's',
+                  title: 't',
+                  start_block_index: 0,
+                  end_block_index: 1,
+                },
+              ]
+            : null,
+        },
+      ]
+  return {
+    id: 'm',
+    type: 'message',
+    role: 'assistant',
+    model: request.model,
+    content,
+    stop_reason: 'end_turn',
+    stop_sequence: null,
+    usage,
+  } as unknown as ClaudeMessage
+}
+
+const fakeEvalClient: EvalClient = {
+  messages: {
+    stream(request) {
+      const message = fakeClaude(request)
+      return {
+        on: () => undefined,
+        finalMessage: () => Promise.resolve(message),
+        currentMessage: message,
+      }
+    },
+    countTokens: () => Promise.resolve({ input_tokens: 1000 }),
+  },
+}
+
+const SOUND_JUDGE = (system: string, text: string): unknown => {
+  if (system.includes('You check the citations')) {
+    return { claims: [{ claim: 1, reason: 'r', supported: true }] }
+  }
+  if (system.includes('does not answer the question below')) {
+    return { reasoning: 'r', outcome: 'correct_refusal' }
+  }
+  return { reasoning: 'r', correctness: text.includes('First?') ? 2 : 1, false_refusal: false }
+}
+
 async function drl(...argv: string[]) {
   const out = capture()
   const err = capture()
@@ -56,6 +131,7 @@ async function drl(...argv: string[]) {
     root,
     debug: false,
     now: () => clock,
+    createEvalClient: () => fakeEvalClient,
   })
   return { code, out: out.text(), err: err.text() }
 }
@@ -63,7 +139,7 @@ async function drl(...argv: string[]) {
 const git = (...args: string[]) =>
   execFileSync('git', args, { cwd: root, stdio: 'pipe', encoding: 'utf8' }).trim()
 
-const QUESTIONS = ['First?', 'Second?']
+const QUESTIONS = ['First?', 'Second?', 'Not covered?']
 
 function seedIndex(): void {
   const { dimensions } = settings.embeddings
@@ -369,6 +445,281 @@ describe('drl eval', () => {
 
 function goldenLockRelative(): string {
   return join('packages', 'sources', 'typescript', 'eval', 'questions.lock.json')
+}
+
+describe('drl eval answers', () => {
+  beforeEach(() => {
+    claudeRequests = []
+    judgeBody = SOUND_JUDGE
+  })
+
+  const reportOf = (out: string): EvalReport => readReport(reportPathIn(out))
+  const answersOf = (out: string) => {
+    const { answers } = reportOf(out)
+    if (answers === undefined) throw new Error('no answers')
+    return answers
+  }
+
+  it('prints the estimate and spends nothing without --yes', async () => {
+    const { code, out } = await drl('eval', 'answers')
+
+    expect(code).toBe(0)
+    expect(out).toContain('estimate, at list prices')
+    expect(out).toContain('answers: 9 (0 cached)')
+    expect(out).toContain('no paid call was made: add --yes')
+    expect(claudeRequests).toEqual([])
+    expect(reportFiles('dev')).toEqual([])
+  })
+
+  it('refuses an estimate over the limit, even with --yes', async () => {
+    const { code, err } = await drl('eval', 'answers', '--yes', '--max-usd', '0.0001')
+
+    expect(code).toBe(1)
+    expect(err).toContain('the estimate is over the limit')
+    expect(claudeRequests).toEqual([])
+  })
+
+  it('answers every row and judges each answer, with the judge model', async () => {
+    const { code, out } = await drl('eval', 'answers', '--yes')
+
+    expect(code).toBe(0)
+    const answers = answersOf(out)
+    expect(answers.rows.map(({ row }) => row)).toEqual([0, 2, 3])
+    expect(answers.answers).toHaveLength(9)
+    expect(answers.verdicts).toHaveLength(9)
+    expect(answers.models).toEqual({
+      answer: settings.models.answer,
+      judge: settings.models.judge,
+    })
+    expect(answers.rows[2]?.overall.correctness).toBe(1.5)
+    expect(answers.rows[2]?.refusals).toEqual({
+      questions: 1,
+      correct: 1,
+      hallucinations: 0,
+      wrong: 0,
+    })
+    const models = new Set(claudeRequests.map((request) => request.model))
+    expect(models).toEqual(new Set([settings.models.answer, settings.models.judge]))
+    expect(answers.paidUsd).toBeGreaterThan(0)
+    expect(out).toContain('row 3: correctness 1.500 over 2')
+  })
+
+  it('compares row 2 with row 3 and row 0 with row 3', async () => {
+    const { comparisons } = answersOf((await drl('eval', 'answers', '--yes')).out)
+
+    expect(comparisons.map(({ a, b }) => [a, b])).toEqual([
+      ['row 2', 'row 3'],
+      ['row 0', 'row 3'],
+    ])
+  })
+
+  it('a rerun answers from the cache, and pays nothing', async () => {
+    await drl('eval', 'answers', '--yes')
+    const paid = claudeRequests.length
+    clock += 1000
+
+    const { out } = await drl('eval', 'answers', '--yes')
+
+    expect(claudeRequests).toHaveLength(paid)
+    const answers = answersOf(out)
+    expect(answers.paidUsd).toBe(0)
+    expect(answers.answers.every(({ fromCache }) => fromCache)).toBe(true)
+    expect(answers.rows[2]?.overall.meanCostUsd).toBeGreaterThan(0)
+  })
+
+  it('takes a pilot of some questions and rows', async () => {
+    const { out } = await drl('eval', 'answers', '--yes', '--only', 'ts-0001', '--rows', '0,3')
+
+    const answers = answersOf(out)
+    expect(answers.answers.map(({ questionId, row }) => [questionId, row])).toEqual([
+      ['ts-0001', 0],
+      ['ts-0001', 3],
+    ])
+  })
+
+  it('a noise run answers row 3 twice and asks the judge twice', async () => {
+    const answers = answersOf((await drl('eval', 'answers', '--yes', '--noise')).out)
+
+    expect(answers.rows.map(({ row, sample }) => [row, sample])).toEqual([
+      [0, 1],
+      [2, 1],
+      [3, 1],
+      [3, 2],
+    ])
+    expect(answers.comparisons.at(-1)).toMatchObject({ a: 'row 3', b: 'row 3 again' })
+    expect(answers.judgeRetest).toEqual({ compared: 3, agreed: 3 })
+  })
+
+  it('keeps the answers in the JSON, and out of the markdown', async () => {
+    const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+
+    expect(readFileSync(path, 'utf8')).toContain('SECRET ANSWER TEXT.')
+    const markdown = readFileSync(path.replace(/\.json$/, '.md'), 'utf8')
+    expect(markdown).toContain('## Answers')
+    expect(markdown).toContain('### row 2 against row 3')
+    expect(markdown).not.toContain('SECRET')
+  })
+
+  it('a named run needs the whole set and every row', async () => {
+    const only = await drl('eval', 'answers', '--name', 'x', '--only', 'ts-0001', '--yes')
+    const rows = await drl('eval', 'answers', '--name', 'x', '--rows', '3', '--yes')
+
+    expect(only.err).toContain('a named run answers the whole set under every row')
+    expect(rows.err).toContain('a named run answers the whole set under every row')
+    expect(claudeRequests).toEqual([])
+  })
+
+  it('a named run needs a clean tree, before paying for anything', async () => {
+    writeFileSync(join(root, 'stray.txt'), 'x')
+
+    const { code, err } = await drl('eval', 'answers', '--name', 'x', '--yes')
+
+    expect(code).toBe(1)
+    expect(err).toContain('a named run needs a clean tree')
+    expect(claudeRequests).toEqual([])
+  })
+
+  it.each([
+    [['eval', 'answers', '--rows', '1'], '--rows takes 0, 2, 3'],
+    [['eval', 'answers', '--only', 'ts-9999'], 'there is no scored question ts-9999'],
+    [['eval', 'answers', '--max-usd', 'lots'], '--max-usd must be a number above 0'],
+    [['eval', '--yes'], '--yes does not apply'],
+    [['eval', '--noise'], '--noise does not apply'],
+    [['eval', 'check', '--rows', '0'], '--rows does not apply'],
+    [['eval', 'verify', 'x.json', '--only', 'a'], '--only does not apply'],
+    [['eval', 'label', 'x.json', '--yes'], '--yes does not apply'],
+  ])('refuses %j', async (argv, message) => {
+    const { code, err } = await drl(...argv)
+
+    expect(code).toBe(1)
+    expect(err).toContain(message)
+  })
+
+  describe('labels', () => {
+    const sheetOf = (out: string): string => /: (.+labels-.+\.md)/.exec(out)?.[1] ?? ''
+
+    it('writes a sheet with the answers and no verdict, under dev/', async () => {
+      judgeBody = (system, text) => {
+        const body = SOUND_JUDGE(system, text) as Record<string, unknown>
+        return 'reasoning' in body ? { ...body, reasoning: 'THE JUDGE SAYS' } : body
+      }
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+
+      const { code, out } = await drl('eval', 'label', path)
+
+      expect(code).toBe(0)
+      const sheet = sheetOf(out)
+      expect(sheet).toMatch(/[\\/]dev[\\/]labels-/)
+      const text = readFileSync(sheet, 'utf8')
+      expect(text).toContain('SECRET ANSWER TEXT.')
+      expect(text).toContain('SECRET PASSAGE.')
+      expect(text).toContain('## Item 1')
+      expect(text).not.toContain('THE JUDGE SAYS')
+      expect(text).not.toMatch(/row \d|hybrid|vector/i)
+    })
+
+    it('says how often a human agrees with the judge, per dimension', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const report = readReport(path)
+      const answers = report.answers?.answers ?? []
+      const verdicts = report.answers?.verdicts ?? []
+      const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+      // The sample the sheet shows: the same seed gives the same items.
+      const sample = sampleForLabels({ rows: [0, 2, 3], answers, verdicts, questions: golden })
+      const labels = sample.map((answer, i) => {
+        const verdict = verdicts.find(
+          (item) => item.questionId === answer.questionId && item.row === answer.row,
+        )
+        return verdict?.outcome == null
+          ? {
+              item: i + 1,
+              correctness: verdict?.correctness,
+              ...(answer.claims.length > 0 ? { supported: true } : {}),
+            }
+          : { item: i + 1, outcome: verdict.outcome }
+      })
+      const labelsPath = join(root, 'labels.json')
+      writeFileSync(labelsPath, JSON.stringify(labels))
+
+      const { code, out } = await drl('eval', 'calibrate', path, labelsPath)
+
+      expect(code).toBe(0)
+      expect(out).toContain('The judge is calibrated for this report')
+      const written = path.replace(/\.json$/, '-calibration')
+      expect(JSON.parse(readFileSync(`${written}.json`, 'utf8'))).toMatchObject({
+        labelled: sample.length,
+        calibrated: true,
+      })
+      expect(readFileSync(`${written}.md`, 'utf8')).toContain('| correctness |')
+    })
+
+    it('marks the answer metrics uncalibrated when the labels disagree', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+      writeFileSync(labelsPath, JSON.stringify([{ item: 1, correctness: 0, outcome: 'wrong' }]))
+
+      const { out } = await drl('eval', 'calibrate', path, labelsPath)
+
+      expect(out).toContain('uncalibrated')
+    })
+
+    it('refuses an item that is not on the sheet, and a label that is missing', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+
+      writeFileSync(labelsPath, JSON.stringify([{ item: 99, correctness: 2 }]))
+      expect((await drl('eval', 'calibrate', path, labelsPath)).err).toContain('no item 99')
+
+      writeFileSync(labelsPath, JSON.stringify([{ item: 1 }]))
+      expect((await drl('eval', 'calibrate', path, labelsPath)).err).toMatch(
+        /item 1 needs an? (outcome|correctness)/,
+      )
+    })
+
+    it('needs a report with answers', async () => {
+      const path = reportPathIn((await drl('eval')).out)
+
+      expect((await drl('eval', 'label', path)).err).toContain('has no answers')
+    })
+  })
+
+  describe('judge-check', () => {
+    it('says what it would do without --yes, and spends nothing', async () => {
+      writeThreeQuestions()
+      await drl('eval', 'check', '--accept', '--set-version', '2')
+
+      const { code, out } = await drl('eval', 'judge-check')
+
+      expect(code).toBe(0)
+      expect(out).toContain('add --yes')
+      expect(claudeRequests).toEqual([])
+    })
+
+    it('fails when the judge gets a known case wrong', async () => {
+      writeThreeQuestions()
+      await drl('eval', 'check', '--accept', '--set-version', '2')
+
+      const { code, out, err } = await drl('eval', 'judge-check', '--yes')
+
+      expect(code).toBe(1)
+      expect(out).toContain('WRONG')
+      expect(err).toContain('the judge cannot be trusted')
+    })
+  })
+})
+
+function writeThreeQuestions(): void {
+  const rows = [1, 2, 3].map((i) => ({
+    id: `ts-000${String(i)}`,
+    question: `Question ${String(i)}?`,
+    answer: 'A.',
+    primary: ['docs/a.md#one'],
+    tags: ['basic'],
+  }))
+  writeFileSync(
+    goldenSetPath(root, 'typescript'),
+    `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+  )
 }
 
 describe('drl eval verify', () => {

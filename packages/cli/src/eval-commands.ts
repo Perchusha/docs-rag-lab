@@ -41,11 +41,11 @@ export function reportsDir(root: string, sourceId: string): string {
   return join(root, 'eval', 'reports', sourceId)
 }
 
-async function measure(
+export async function measure(
   ctx: CommandContext,
   source: Source,
   name: string | null,
-  strategies: readonly Strategy[],
+  strategies: readonly Strategy[] = STRATEGIES,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
   const repo = await readRepoState(root)
@@ -115,30 +115,57 @@ export async function evalRunCommand(
   }
   const source = findSource(ctx.sources, args.source)
   const strategies = args.strategy === undefined ? STRATEGIES : [args.strategy]
+  // Before a run that may take a while. Writing with wx settles it for good.
+  reportPaths(ctx, source, name, (await readRepoState(ctx.root)).sha)
 
-  // A named report is never overwritten: its file is what was committed.
+  const report = await measure(ctx, source, name ?? null, strategies)
+  const path = writeReport(ctx, source, name, report)
+  ctx.out.write(`${formatEvalSummary(report)}\n\nreport: ${path}\n`)
+}
+
+/** Where a report goes. A named report is never overwritten: its file is what was committed. */
+function reportPaths(
+  ctx: CommandContext,
+  source: Source,
+  name: string | undefined,
+  repoSha: string,
+): { jsonPath: string; markdownPath: string } {
   const now = new Date(ctx.now())
-  const dir = reportsDir(ctx.root, source.id)
-  const sha = (await readRepoState(ctx.root)).sha.slice(0, 8)
+  const sha = repoSha.slice(0, 8)
   const stem =
     name === undefined
       ? join('dev', `${now.toISOString().replaceAll(/[:.]/g, '-')}-${sha}`)
       : `${now.toISOString().slice(0, 10)}-${sha}-${name}`
+  const dir = reportsDir(ctx.root, source.id)
   const jsonPath = join(dir, `${stem}.json`)
   const markdownPath = join(dir, `${stem}.md`)
-  // Before a run that may take a while. Writing with wx below settles it for good.
   for (const path of [jsonPath, markdownPath]) {
     if (existsSync(path)) throw new CliError(`${path} already exists`)
   }
-
-  const report = await measure(ctx, source, name ?? null, strategies)
-  mkdirSync(join(jsonPath, '..'), { recursive: true })
-  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
-  writeFileSync(markdownPath, formatEvalMarkdown(report), { flag: 'wx' })
-  ctx.out.write(`${formatEvalSummary(report)}\n\nreport: ${jsonPath}\n`)
+  return { jsonPath, markdownPath }
 }
 
-function readReport(root: string, path: string): EvalReport {
+/** Writes the JSON and the markdown, and returns where the JSON went. */
+export function writeReport(
+  ctx: CommandContext,
+  source: Source,
+  name: string | undefined,
+  report: EvalReport,
+  extraSections: (answers: NonNullable<EvalReport['answers']>) => string[] = () => [],
+): string {
+  const { jsonPath, markdownPath } = reportPaths(ctx, source, name, report.run.repoSha)
+  mkdirSync(join(jsonPath, '..'), { recursive: true })
+  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
+  const extra = report.answers === undefined ? [] : extraSections(report.answers)
+  writeFileSync(
+    markdownPath,
+    [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n',
+    { flag: 'wx' },
+  )
+  return jsonPath
+}
+
+export function readReport(root: string, path: string): EvalReport {
   const full = resolve(root, path)
   if (!existsSync(full)) throw new CliError(`no report at ${full}`)
   let value: unknown

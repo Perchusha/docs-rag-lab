@@ -15,6 +15,7 @@ import {
   UnknownSourceError,
   UsageMeter,
   type DocType,
+  type EvalClient,
   type Source,
 } from '@docs-rag-lab/core'
 import { settings as defaultSettings, type Settings } from '@docs-rag-lab/settings'
@@ -30,6 +31,13 @@ import {
   type Writer,
 } from './commands.ts'
 import { CliError } from './errors.ts'
+import {
+  evalAnswersCommand,
+  evalCalibrateCommand,
+  evalJudgeCheckCommand,
+  evalLabelCommand,
+  parseRows,
+} from './eval-answers.ts'
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { formatDuration } from './format.ts'
 
@@ -49,6 +57,16 @@ Commands:
       [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
       [--strategy <s>]        One strategy instead of vector and hybrid
   eval verify <report>        Run a report again, and say whether it reproduces
+  eval answers                Answer the set under each row and judge the answers. Spends
+                              money: prints the estimate, and needs --yes to go on
+      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default
+      [--only <ids>]          Only these questions, for a pilot
+      [--noise]               Answer row 3 twice and ask the judge twice, to measure noise
+      [--max-usd <n>]         Stop before the next paid call past this
+      [--name <name>]         A run to keep: the whole set, every row, a clean tree
+  eval judge-check            Grade answers whose grade is known. Needs --yes
+  eval label <report>         Write the sheet a human labels from, with no verdicts
+  eval calibrate <r> <labels> How often the human and the judge agree
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
@@ -90,6 +108,8 @@ export interface RunOptions {
   now?: () => number
   /** Print stack traces of failures (default: DRL_DEBUG=1). */
   debug?: boolean
+  /** For tests: the Claude client behind answer metrics. */
+  createEvalClient?: () => EvalClient
 }
 
 function positiveInteger(
@@ -143,6 +163,11 @@ function refuseStrayEvalFlags(
     accept: boolean
     name?: string | undefined
     strategy?: string | undefined
+    rows?: string | undefined
+    only?: string | undefined
+    noise?: boolean | undefined
+    'max-usd'?: string | undefined
+    yes?: boolean | undefined
     'top-k'?: string | undefined
     'doc-type'?: string[] | undefined
   },
@@ -151,7 +176,16 @@ function refuseStrayEvalFlags(
     ...(values['top-k'] === undefined ? [] : ['--top-k']),
     ...(values['doc-type'] === undefined ? [] : ['--doc-type']),
     ...(values.accept && subcommand !== 'check' ? ['--accept'] : []),
-    ...(values.name !== undefined && subcommand !== undefined ? ['--name'] : []),
+    ...(values.name !== undefined && subcommand !== undefined && subcommand !== 'answers'
+      ? ['--name']
+      : []),
+    ...(values.rows !== undefined && subcommand !== 'answers' ? ['--rows'] : []),
+    ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
+    ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
+    ...(values['max-usd'] !== undefined && subcommand !== 'answers' ? ['--max-usd'] : []),
+    ...(values.yes === true && subcommand !== 'answers' && subcommand !== 'judge-check'
+      ? ['--yes']
+      : []),
     ...(values.strategy !== undefined && subcommand !== undefined ? ['--strategy'] : []),
   ]
   if (stray.length > 0) {
@@ -194,6 +228,11 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
+        rows: { type: 'string' },
+        only: { type: 'string' },
+        noise: { type: 'boolean', default: false },
+        'max-usd': { type: 'string' },
+        yes: { type: 'boolean', default: false },
         'doc-type': { type: 'string', multiple: true },
         json: { type: 'boolean', default: false },
         verbose: { type: 'boolean', short: 'v', default: false },
@@ -241,7 +280,16 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
     const engine = createEngine({ settings, sources, root })
-    const ctx = { settings, sources, engine, root, meter, out, now }
+    const ctx = {
+      settings,
+      sources,
+      engine,
+      root,
+      meter,
+      out,
+      now,
+      createEvalClient: options.createEvalClient,
+    }
     if (command === 'sync') {
       const source = rest[0]
       if (source === undefined)
@@ -275,6 +323,30 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
               ? undefined
               : strategyOf(values.strategy, settings.retrieval.strategy),
         })
+      } else if (subcommand === 'answers') {
+        const maxUsd = values['max-usd'] === undefined ? undefined : Number(values['max-usd'])
+        if (maxUsd !== undefined && !(maxUsd > 0)) {
+          throw new CliError('--max-usd must be a number above 0')
+        }
+        await evalAnswersCommand(ctx, {
+          source: values.source,
+          name: values.name,
+          rows: parseRows(values.rows),
+          only: values.only?.split(',').map((id) => id.trim()),
+          noise: values.noise,
+          maxUsd,
+          yes: values.yes,
+        })
+      } else if (subcommand === 'judge-check') {
+        await evalJudgeCheckCommand(ctx, { source: values.source, yes: values.yes })
+      } else if (subcommand === 'label') {
+        if (first === undefined) throw new CliError('eval label needs a report file')
+        evalLabelCommand(ctx, { path: first })
+      } else if (subcommand === 'calibrate') {
+        if (first === undefined || second === undefined) {
+          throw new CliError('eval calibrate needs a report file and a labels file')
+        }
+        evalCalibrateCommand(ctx, { path: first, labels: second })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')
         await evalVerifyCommand(ctx, { path: first })
@@ -295,7 +367,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
               : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
         })
       } else {
-        throw new CliError(`unknown eval command "${subcommand}" (known: check, verify, compare)`)
+        throw new CliError(
+          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, verify)`,
+        )
       }
     } else {
       await limitsCommand(ctx)

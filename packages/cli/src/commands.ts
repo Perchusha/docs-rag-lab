@@ -20,6 +20,7 @@ import {
   type Engine,
   type Source,
   type UsageMeter,
+  type EvalClient,
 } from '@docs-rag-lab/core'
 import type { Settings } from '@docs-rag-lab/settings'
 
@@ -49,6 +50,8 @@ export interface CommandContext {
   meter: UsageMeter
   out: Writer
   now: () => number
+  /** For tests. Answer metrics default to the Claude client named in settings. */
+  createEvalClient?: (() => EvalClient) | undefined
 }
 
 // Progress lines during a long sync: at most one every this many milliseconds.
