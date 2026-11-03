@@ -20,9 +20,10 @@ export function findEmDashes(text: string): Hit[] {
   return hits
 }
 
-// The lockfile is generated, and fixtures must stay byte-for-byte copies of
-// their upstream docs.
-const EXCLUDED = [/(^|\/)pnpm-lock\.yaml$/, /(^|\/)__fixtures__\//]
+// The lockfile is generated, fixtures must stay byte-for-byte copies of their
+// upstream docs, and an eval report's JSON is recorded data: chunk labels from the
+// docs and, from M4 on, raw answers from Claude. Its markdown stays checked.
+const EXCLUDED = [/(^|\/)pnpm-lock\.yaml$/, /(^|\/)__fixtures__\//, /^eval\/reports\/.+\.json$/]
 
 /** Whether a repository-relative path is subject to the check. */
 export function isChecked(path: string): boolean {

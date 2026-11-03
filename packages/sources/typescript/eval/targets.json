@@ -1,0 +1,27 @@
+[
+  {
+    "questionId": "ts-0033",
+    "anchor": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md#the-satisfies-operator contains without changing the resulting type",
+    "rank": 1
+  },
+  {
+    "questionId": "ts-0027",
+    "anchor": "packages/documentation/copy/en/project-config/Compiler Options.md#compiler-options contains `--strictNullChecks`",
+    "rank": 6
+  },
+  {
+    "questionId": "ts-0004",
+    "anchor": "packages/documentation/copy/en/handbook-v2/More on Functions.md#unknown",
+    "rank": 2
+  },
+  {
+    "questionId": "ts-0040",
+    "anchor": "packages/documentation/copy/en/release-notes/TypeScript 5.7.md#typedarrays-are-now-generic-over-arraybufferlike",
+    "rank": 8
+  },
+  {
+    "questionId": "ts-0040",
+    "anchor": "packages/documentation/copy/en/handbook-v2/Object Types.md#excess-property-checks contains @errors: 2345",
+    "rank": 8
+  }
+]

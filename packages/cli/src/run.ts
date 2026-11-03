@@ -30,6 +30,7 @@ import {
   type Writer,
 } from './commands.ts'
 import { CliError } from './errors.ts'
+import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { formatDuration } from './format.ts'
 
 export const USAGE = `Usage: drl <command> [options]
@@ -43,6 +44,12 @@ Commands:
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the embedding API's rate-limit headers (one tiny request)
+  eval                        Retrieval metrics over the golden set, written as a report.
+                              No Claude call. Without --name it is a development run
+      [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
+      [--strategy <s>]        One strategy instead of vector and hybrid
+  eval verify <report>        Run a report again, and say whether it reproduces
+  eval compare <a> <b>        Compare two reports question by question, and mark what is noise
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
@@ -160,6 +167,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         at: { type: 'string' },
         accept: { type: 'boolean', default: false },
         'set-version': { type: 'string' },
+        name: { type: 'string' },
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
@@ -193,6 +201,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   if (values.accept && command !== 'eval') {
     err.write(`drl: --accept works only with eval check\n\n${USAGE}`)
+    return 2
+  }
+  if (values.name !== undefined && command !== 'eval') {
+    err.write(`drl: --name works only with eval\n\n${USAGE}`)
     return 2
   }
   if (values['set-version'] !== undefined && !values.accept) {
@@ -229,17 +241,38 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
       else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else if (command === 'eval') {
-      if (rest[0] !== 'check') throw new CliError('eval needs a subcommand: drl eval check')
-      if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
-      const setVersion = values['set-version']
-      evalCheckCommand(ctx, {
-        source: values.source,
-        accept: values.accept,
-        setVersion:
-          setVersion === undefined
-            ? undefined
-            : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
-      })
+      const [subcommand, first, second] = rest
+      if (subcommand === undefined) {
+        await evalRunCommand(ctx, {
+          source: values.source,
+          name: values.name,
+          strategy:
+            values.strategy === undefined
+              ? undefined
+              : strategyOf(values.strategy, settings.retrieval.strategy),
+        })
+      } else if (subcommand === 'verify') {
+        if (first === undefined) throw new CliError('eval verify needs a report file')
+        await evalVerifyCommand(ctx, { path: first })
+      } else if (subcommand === 'compare') {
+        if (first === undefined || second === undefined) {
+          throw new CliError('eval compare needs two report files')
+        }
+        evalCompareCommand(ctx, { a: first, b: second })
+      } else if (subcommand === 'check') {
+        if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
+        const setVersion = values['set-version']
+        evalCheckCommand(ctx, {
+          source: values.source,
+          accept: values.accept,
+          setVersion:
+            setVersion === undefined
+              ? undefined
+              : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
+        })
+      } else {
+        throw new CliError(`unknown eval command "${subcommand}" (known: check, verify, compare)`)
+      }
     } else {
       await limitsCommand(ctx)
     }

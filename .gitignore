@@ -5,6 +5,9 @@ node_modules/
 /data/
 /.cache/
 
+# Eval runs without a name. Named runs are committed (ADR-0010).
+/eval/reports/*/dev/
+
 # Tool and build output
 .turbo/
 .next/
