@@ -125,6 +125,37 @@ describe('verifyReport', () => {
     })
   })
 
+  it('is identical with other vectors and other code, since nothing moved', () => {
+    const later = otherVectors(report())
+    later.run = { ...later.run, repoSha: 'other', repoDirty: true }
+
+    expect(verifyReport(report(), later)).toEqual({
+      status: 'identical',
+      changedVectors: ['query', 'corpus'],
+      notes: [],
+    })
+  })
+
+  it('does not count a reworded chunk label, which is only for reading', () => {
+    const before = report()
+    before.result.chunks = { c1: { label: 'Old', docPath: 'a.md' } }
+    const after = report()
+    after.result.chunks = { c1: { label: 'New', docPath: 'a.md' } }
+
+    expect(verifyReport(before, after).status).toBe('identical')
+  })
+
+  it('does not count the order of the keys in a file', () => {
+    const after = report()
+    const [strategy] = after.result.strategies
+    if (strategy === undefined) throw new Error('no strategy')
+    strategy.overall = Object.fromEntries(
+      Object.entries(strategy.overall).reverse(),
+    ) as typeof strategy.overall
+
+    expect(verifyReport(report(), after).status).toBe('identical')
+  })
+
   it('is identical with other vectors too, when nothing measured moved, and says so', () => {
     expect(verifyReport(report(), otherVectors(report()))).toEqual({
       status: 'identical',
@@ -178,10 +209,28 @@ describe('verifyReport', () => {
       )
     })
 
-    it('does not forgive a deep rank, which only other vectors can explain', () => {
-      const verification = verifyReport(report({ 'ts-0001': 20 }), report({ 'ts-0001': 21 }))
+    it('does not forgive a deep rank, which only other vectors can explain, and names it', () => {
+      expect(differencesOf(report({ 'ts-0001': 20 }), report({ 'ts-0001': 21 }))).toContain(
+        'result.strategies.0.questions.0.primaryRank: report 20, now 21',
+      )
+    })
 
-      expect(verification.status).toBe('different')
+    it('names a field that is new, when no conclusion changed', () => {
+      const after = report()
+      const [strategy] = after.result.strategies
+      if (strategy === undefined) throw new Error('no strategy')
+      Object.assign(strategy, { extra: 1 })
+
+      expect(differencesOf(report(), after)).toEqual([
+        'the code and the vectors are the same, and the result is not: it is not deterministic',
+        'result.strategies.0.extra: report undefined, now 1',
+      ])
+    })
+
+    it('leaves the field paths out when it can name a conclusion instead', () => {
+      expect(differencesOf(report(), report({ 'ts-0001': 2 })).join('\n')).not.toContain(
+        'result.strategies',
+      )
     })
   })
 

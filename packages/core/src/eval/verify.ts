@@ -51,10 +51,11 @@ export function fieldDifferences(
  * What a result says about retrieval. Targets and the review list are left out: both
  * can change without the search changing, since the targets file is not part of the
  * golden set and the review list follows the lock. Targets are compared on their own.
+ * Chunk labels are left out as well: they are only for reading.
  */
 function measuredOf(result: EvalResult): unknown {
-  const { scored, stale, unanswerable, strategies, comparison, chunks } = result
-  return { scored, stale, unanswerable, strategies, comparison, chunks }
+  const { scored, stale, unanswerable, strategies, comparison } = result
+  return { scored, stale, unanswerable, strategies, comparison }
 }
 
 function metricCounts(scope: string, report: EvalMetrics, now: EvalMetrics): string[] {
@@ -170,9 +171,9 @@ export function verifyReport(report: EvalReport, now: EvalReport): EvalVerificat
     ...(report.vectors.corpusHash === now.vectors.corpusHash ? [] : ['corpus']),
   ]
   const targets = targetDifferences(report.result, now.result)
-  const sameMeasure =
-    JSON.stringify(measuredOf(report.result)) === JSON.stringify(measuredOf(now.result))
-  if (sameMeasure && targets.differences.length === 0) {
+  const measured = fieldDifferences('result', measuredOf(report.result), measuredOf(now.result))
+  // Nothing moved, so there is no cause to find, whatever the vectors and the commit.
+  if (measured.length === 0 && targets.differences.length === 0) {
     return { status: 'identical', changedVectors, notes: targets.notes }
   }
 
@@ -202,7 +203,7 @@ export function verifyReport(report: EvalReport, now: EvalReport): EvalVerificat
         sameCode
           ? 'the code and the vectors are the same, and the result is not: it is not deterministic'
           : 'the vectors are the same and the result is not: the code changed',
-        ...differences,
+        ...(differences.length > 0 ? differences : measured),
       ],
       moved,
     }
