@@ -1,0 +1,816 @@
+import type {
+  AnswerRow,
+  EvalAnswer,
+  EvalAnswers,
+  EvalCalibration,
+  EvalQuestionScore,
+  EvalReport,
+  EvalSupport,
+  EvalVerdict,
+  EvalVerifyRecord,
+} from '@docs-rag-lab/contracts'
+import { EVAL_REPORT_VERSION } from '@docs-rag-lab/contracts'
+import { describe, expect, it } from 'vitest'
+
+import { compareScores } from './compare.ts'
+import {
+  buildDashboardDetails,
+  buildDashboardRun,
+  compareDashboardRuns,
+  meanFigure,
+  shareFigure,
+  splitOf,
+} from './dashboard.ts'
+import { parseGoldenSet } from './golden.ts'
+import { strategyResult } from './metrics.ts'
+
+const ID = (i: number): string => `ts-${String(i).padStart(4, '0')}`
+
+const score = (id: string, rank: number | null, tags = ['basic']): EvalQuestionScore => ({
+  id,
+  tags,
+  anchors: [{ anchor: `${id}.md`, role: 'primary', rank }],
+  primaryRank: rank,
+  acceptableRank: rank,
+  recallAt8: rank !== null && rank <= 8 ? 1 : 0,
+  context: [],
+})
+
+function answer(i: number, row: AnswerRow, overrides: Partial<EvalAnswer> = {}): EvalAnswer {
+  return {
+    questionId: ID(i),
+    row,
+    sample: 1,
+    status: 'ok',
+    model: 'm',
+    stopReason: 'end_turn',
+    text: 'T',
+    blocks: [],
+    claims: [],
+    context: [],
+    inputTokens: 1,
+    outputTokens: 1,
+    costUsd: 0.01,
+    latencyMs: 2000,
+    firstTokenMs: 1,
+    fromCache: false,
+    ...overrides,
+  }
+}
+
+function verdict(
+  i: number,
+  row: AnswerRow,
+  correctness: 0 | 1 | 2 | null,
+  overrides: Partial<EvalVerdict> = {},
+): EvalVerdict {
+  return {
+    questionId: ID(i),
+    row,
+    sample: 1,
+    judgeSample: 1,
+    status: 'ok',
+    reasoning: 'r',
+    correctness,
+    falseRefusal: correctness === null ? null : false,
+    outcome: null,
+    costUsd: 0,
+    ...overrides,
+  }
+}
+
+const support = (i: number, row: AnswerRow, ...values: boolean[]): EvalSupport => ({
+  questionId: ID(i),
+  row,
+  sample: 1,
+  status: 'ok',
+  claims: values.map((supported) => ({ supported, reason: 'r' })),
+  costUsd: 0,
+})
+
+const metrics = (overrides: object = {}) => ({
+  questions: 10,
+  correctness: 1,
+  scores: [0, 0, 10] as [number, number, number],
+  falseRefusals: 0,
+  citationAccuracy: { cited: 10, hit: 9 },
+  support: { claims: 10, supported: 10 },
+  correctAndGrounded: 7,
+  meanLatencyMs: 1,
+  meanInputTokens: 1,
+  meanOutputTokens: 1,
+  meanCostUsd: 1,
+  ...overrides,
+})
+
+const rowResult = (row: AnswerRow, sample = 1) => ({
+  row,
+  sample,
+  overall: metrics(),
+  byTag: {},
+  refusals: { questions: 1, correct: 1, hallucinations: 0, wrong: 0 },
+  excluded: { truncated: [], refused: [], failed: [], unjudged: [] },
+})
+
+function answersFixture(overrides: Partial<EvalAnswers> = {}): EvalAnswers {
+  return {
+    models: { answer: 'a', judge: 'j' },
+    prompts: { correctness: 'c1', refusal: 'r1', support: 's1' },
+    rows: [rowResult(0), rowResult(2), rowResult(3)],
+    comparisons: [],
+    judgeRetest: null,
+    candidates: [],
+    paidUsd: 0,
+    answers: [],
+    verdicts: [],
+    support: [],
+    ...overrides,
+  }
+}
+
+function report(
+  overrides: { answers?: EvalAnswers; vector?: (number | null)[]; hybrid?: (number | null)[] } = {},
+): EvalReport {
+  const vector = overrides.vector ?? Array.from({ length: 10 }, () => 1)
+  const hybrid = overrides.hybrid ?? Array.from({ length: 10 }, () => 2)
+  const scores = (ranks: (number | null)[], name: 'vector' | 'hybrid') =>
+    strategyResult(
+      name,
+      ranks.map((rank, i) => score(ID(i + 1), rank, i < 2 ? ['basic', 'edge'] : ['basic'])),
+    )
+  const strategies = [scores(vector, 'vector'), scores(hybrid, 'hybrid')]
+  const [a, b] = strategies
+  if (a === undefined || b === undefined) throw new Error('no strategies')
+  return {
+    version: EVAL_REPORT_VERSION,
+    identity: {
+      sourceId: 'demo',
+      docs: { repo: 'r', branch: 'main', sha: 'docs-sha' },
+      chunkerVersion: 5,
+      parserVersion: 1,
+      indexSchema: 3,
+      embedModel: 'fake',
+      contextModel: null,
+      chunksHash: 'chunks',
+      goldenSet: { version: 1, hash: 'set-hash' },
+      retrievalVersion: 1,
+      retrieval: { topK: 8 },
+    },
+    vectors: { queryHash: 'q', corpusHash: 'c' },
+    result: {
+      scored: vector.length,
+      stale: [],
+      review: [],
+      unanswerable: [ID(41)],
+      strategies,
+      comparison: compareScores(
+        { name: 'vector', questions: a.questions },
+        { name: 'hybrid', questions: b.questions },
+      ),
+      targets: [],
+      chunks: {},
+    },
+    run: {
+      name: 'answers',
+      createdAt: '2026-11-03T00:00:00.000Z',
+      repoSha: 'abcdef1234567890',
+      repoDirty: false,
+      timings: {},
+      usage: { embeddingTokens: 0, embeddingRequests: 0 },
+    },
+    ...(overrides.answers === undefined ? {} : { answers: overrides.answers }),
+  }
+}
+
+const build = (value: EvalReport, calibrations: EvalCalibration[] = []) =>
+  buildDashboardRun({
+    id: 'run-id',
+    report: value,
+    calibrations,
+    verify: null,
+    indexDocsSha: 'docs-sha',
+  })
+
+describe('figures', () => {
+  it('gives a share a Wilson interval', () => {
+    const figure = shareFigure(36, 40)
+
+    expect(figure).toMatchObject({ kind: 'share', count: 36, of: 40 })
+    if (figure.kind !== 'share') throw new Error('not a share')
+    expect(figure.low).toBeCloseTo(0.77, 2)
+    expect(figure.high).toBeCloseTo(0.96, 2)
+  })
+
+  it('gives a mean a bootstrap interval that stays in range', () => {
+    const figure = meanFigure([...Array.from({ length: 39 }, () => 1), 0])
+
+    if (figure.kind !== 'mean') throw new Error('not a mean')
+    expect(figure.value).toBeCloseTo(0.975)
+    expect(figure.high).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('splitOf', () => {
+  const values = (...entries: [string, number][]) => new Map(entries)
+
+  it('keeps each side with its own wins, over the questions both have', () => {
+    expect(
+      splitOf(
+        'A',
+        values(['q1', 1], ['q2', 1], ['q3', 0], ['only-a', 1]),
+        'B',
+        values(['q1', 0], ['q2', 1], ['q3', 1], ['only-b', 0]),
+      ),
+    ).toMatchObject({ a: 'A', b: 'B', aAhead: 1, bAhead: 1, tied: 1, verdict: 'too-few' })
+  })
+
+  it('names a winner only past what chance explains', () => {
+    const win = values(
+      ...Array.from({ length: 8 }, (_, i): [string, number] => [`q${String(i)}`, 1]),
+    )
+    const loss = values(
+      ...Array.from({ length: 8 }, (_, i): [string, number] => [`q${String(i)}`, 0]),
+    )
+
+    expect(splitOf('A', win, 'B', loss).verdict).toBe('a')
+    expect(splitOf('A', loss, 'B', win).verdict).toBe('b')
+  })
+})
+
+describe('buildDashboardRun', () => {
+  it('asks the retrieval question with retrieval numbers alone', () => {
+    const { retrieval, answers } = build(report())
+
+    expect(retrieval.question).toBe('Does hybrid find the right chunks more often?')
+    expect(retrieval.columns).toEqual(['Vector', 'Hybrid'])
+    expect(retrieval.rows.map(({ label }) => label)).toEqual([
+      'Right chunk in top 8',
+      'How high it ranks (MRR)',
+    ])
+    expect(retrieval.showRunToRun).toBe(false)
+    expect(answers).toBeNull()
+  })
+
+  it('takes retrieval numbers and verdicts from the report, each on its own side', () => {
+    const { retrieval } = build(
+      report({ vector: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], hybrid: [9, 9, 9, 9, 9, 9, 9, 9, 1, 1] }),
+    )
+    const [top8] = retrieval.rows
+
+    expect(top8?.figures[0]).toMatchObject({ count: 10, of: 10 })
+    expect(top8?.figures[1]).toMatchObject({ count: 2, of: 10 })
+    expect(top8?.comparisons[0]).toMatchObject({
+      a: 'Vector',
+      b: 'Hybrid',
+      aAhead: 8,
+      bAhead: 0,
+      tied: 2,
+      verdict: 'a',
+    })
+    expect(retrieval.summary).toBe('Vector ahead, on 10 questions.')
+  })
+
+  it('says no difference holds up when none does', () => {
+    const same = Array.from({ length: 10 }, () => 1)
+
+    expect(build(report({ vector: same, hybrid: same })).retrieval.summary).toBe(
+      'No difference holds up on these 10 questions.',
+    )
+  })
+
+  it('computes MRR from the ranks, with an interval', () => {
+    const [, mrr] = build(report({ vector: [1, 1, 1, 1, 2, 2, 2, 2, null, null] })).retrieval.rows
+
+    expect(mrr?.figures[0]).toMatchObject({ kind: 'mean', of: 10 })
+    if (mrr?.figures[0]?.kind !== 'mean') throw new Error('not a mean')
+    expect(mrr.figures[0].value).toBeCloseTo(0.6)
+    expect(mrr.figures[0].low).toBeLessThan(0.6)
+    expect(mrr.figures[0].high).toBeGreaterThan(0.6)
+  })
+
+  it('has no answers section for a run with none, and no judge', () => {
+    const run = build(report())
+
+    expect(run.answers).toBeNull()
+    expect(run.trust.judge).toBeNull()
+  })
+
+  describe('with answers', () => {
+    const answered = (overrides: Partial<EvalAnswers> = {}) =>
+      answersFixture({
+        answers: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          answer(i, 0),
+          answer(i, 2),
+          answer(i, 3),
+        ]),
+        verdicts: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          verdict(i, 0, i <= 6 ? 2 : 1),
+          verdict(i, 2, 2),
+          verdict(i, 3, i <= 2 ? 2 : 0),
+        ]),
+        support: [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [
+          support(i, 2, true, true),
+          support(i, 3, true, i === 1 ? false : true),
+        ]),
+        ...overrides,
+      })
+
+    const rowOf = (section: ReturnType<typeof build>['answers'], id: string) => {
+      const row = section?.rows.find((candidate) => candidate.id === id)
+      if (row === undefined) throw new Error(`no row ${id}`)
+      return row
+    }
+
+    it('asks the answers question over all three rows', () => {
+      const section = build(report({ answers: answered() })).answers
+
+      expect(section?.question).toBe('Does it give better answers, and does RAG help at all?')
+      expect(section?.columns).toEqual(['No RAG', 'Vector', 'Hybrid'])
+    })
+
+    it('counts fully correct as a score of 2, and compares that same thing', () => {
+      const row = rowOf(build(report({ answers: answered() })).answers, 'fully-correct')
+
+      expect(row.label).toBe('Fully correct')
+      expect(row.figures.map((figure) => (figure.kind === 'share' ? figure.count : null))).toEqual([
+        6, 8, 2,
+      ])
+      expect(row.comparisons[0]).toMatchObject({
+        a: 'Vector',
+        b: 'Hybrid',
+        aAhead: 6,
+        bAhead: 0,
+        tied: 2,
+      })
+      expect(row.comparisons.map(({ a, b }) => [a, b])).toEqual([
+        ['Vector', 'Hybrid'],
+        ['No RAG', 'Vector'],
+        ['No RAG', 'Hybrid'],
+      ])
+    })
+
+    it('treats 1 and 0 as equally not fully correct, which the score tab tells apart', () => {
+      const value = answered({
+        answers: [answer(1, 2), answer(1, 3)],
+        verdicts: [verdict(1, 2, 1), verdict(1, 3, 0)],
+        support: [],
+      })
+
+      expect(
+        rowOf(build(report({ answers: value })).answers, 'fully-correct').comparisons[0],
+      ).toMatchObject({ aAhead: 0, bAhead: 0, tied: 1 })
+    })
+
+    it('counts all citations holding per answer, not per claim', () => {
+      const row = rowOf(build(report({ answers: answered() })).answers, 'citations-hold')
+
+      expect(row.figures[0]).toEqual({ kind: 'none', reason: 'cannot: no docs' })
+      expect(row.figures[1]).toMatchObject({ count: 8, of: 8 })
+      expect(row.figures[2]).toMatchObject({ count: 7, of: 8 })
+      expect(row.comparisons[0]).toMatchObject({ aAhead: 1, bAhead: 0, tied: 7 })
+    })
+
+    it('marks correct and grounded as exploratory, and row 0 as unable by design', () => {
+      const row = rowOf(build(report({ answers: answered() })).answers, 'correct-and-grounded')
+
+      expect(row.exploratory).toBe(true)
+      expect(row.figures[0]).toEqual({ kind: 'none', reason: 'cannot, by design' })
+      expect(row.figures[2]).toMatchObject({ count: 7, of: 10 })
+    })
+
+    it('says so for a report from before the metric existed', () => {
+      const value = answered()
+      value.rows = value.rows.map((result) => ({
+        ...result,
+        overall: { ...result.overall, correctAndGrounded: undefined },
+      }))
+
+      expect(
+        rowOf(build(report({ answers: value })).answers, 'correct-and-grounded').figures[1],
+      ).toEqual({ kind: 'none', reason: 'not computed' })
+    })
+
+    it('reads stored comparisons for what needs the anchors', () => {
+      const value = answered({
+        comparisons: [
+          {
+            a: 'row 2',
+            b: 'row 3',
+            scopes: [
+              {
+                scope: 'overall',
+                questions: 8,
+                differences: [
+                  {
+                    metric: 'citation-accuracy',
+                    a: 0.9,
+                    b: 0.8,
+                    aBetter: 3,
+                    bBetter: 1,
+                    tied: 4,
+                    p: 0.6,
+                    verdict: 'noise',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            a: 'row 3',
+            b: 'row 3 again',
+            scopes: [
+              {
+                scope: 'overall',
+                questions: 8,
+                differences: [
+                  {
+                    metric: 'citation-accuracy',
+                    a: 0.9,
+                    b: 0.8,
+                    aBetter: 2,
+                    bBetter: 1,
+                    tied: 5,
+                    p: 1,
+                    verdict: 'noise',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      })
+      const row = rowOf(build(report({ answers: value })).answers, 'cites-anchor')
+
+      expect(row.comparisons[0]).toMatchObject({ a: 'Vector', b: 'Hybrid', aAhead: 3, bAhead: 1 })
+      expect(row.runToRun).toBe(3)
+    })
+
+    it('counts questions that differ between two runs of hybrid, and none without a second', () => {
+      const once = build(report({ answers: answered() })).answers
+      expect(once?.showRunToRun).toBe(false)
+      expect(rowOf(once, 'fully-correct').runToRun).toBeNull()
+
+      const value = answered()
+      value.rows = [...value.rows, rowResult(3, 2)]
+      value.verdicts = [
+        ...value.verdicts,
+        ...[1, 2, 3, 4, 5, 6, 7, 8].map((i) => verdict(i, 3, i <= 3 ? 2 : 0, { sample: 2 })),
+      ]
+      value.support = [
+        ...value.support,
+        ...[1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ ...support(i, 3, true), sample: 2 })),
+      ]
+      const twice = build(report({ answers: value })).answers
+
+      expect(twice?.showRunToRun).toBe(true)
+      expect(rowOf(twice, 'fully-correct').runToRun).toBe(1)
+      expect(rowOf(twice, 'citations-hold').runToRun).toBe(1)
+    })
+
+    it('does not count a question the second run did not reach as differing', () => {
+      const value = answered()
+      value.rows = [...value.rows, rowResult(3, 2)]
+      value.verdicts = [...value.verdicts, verdict(1, 3, 2, { sample: 2 })]
+
+      expect(rowOf(build(report({ answers: value })).answers, 'fully-correct').runToRun).toBe(0)
+    })
+
+    it('counts false refusals on answerable questions, and right refusals apart', () => {
+      const value = answered({
+        verdicts: [
+          verdict(1, 2, 0, { falseRefusal: true }),
+          verdict(2, 2, 2),
+          verdict(41, 2, null, { outcome: 'correct-refusal' }),
+          verdict(42, 2, null, { outcome: 'hallucination' }),
+        ],
+      })
+      const section = build(report({ answers: value })).answers
+
+      expect(rowOf(section, 'false-refusals').figures[1]).toMatchObject({ count: 1, of: 2 })
+      expect(rowOf(section, 'right-refusals').figures[1]).toMatchObject({ count: 1, of: 2 })
+    })
+
+    it('leaves a failed verdict and a second opinion out of the counts', () => {
+      const value = answered({
+        verdicts: [
+          verdict(1, 2, 2),
+          verdict(2, 2, null, { status: 'failed' }),
+          verdict(1, 2, 0, { judgeSample: 2 }),
+        ],
+      })
+
+      expect(
+        rowOf(build(report({ answers: value })).answers, 'fully-correct').figures[1],
+      ).toMatchObject({ count: 1, of: 1 })
+    })
+
+    it('never rests the summary on an exploratory metric', () => {
+      const value = answered({
+        comparisons: [
+          {
+            a: 'row 2',
+            b: 'row 3',
+            scopes: [
+              {
+                scope: 'overall',
+                questions: 8,
+                differences: [
+                  {
+                    metric: 'correct-and-grounded',
+                    a: 1,
+                    b: 0,
+                    aBetter: 8,
+                    bBetter: 0,
+                    tied: 0,
+                    p: 0.008,
+                    verdict: 'a',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        verdicts: [1, 2, 3].flatMap((i) => [verdict(i, 0, 2), verdict(i, 2, 2), verdict(i, 3, 2)]),
+      })
+      const section = build(report({ answers: value })).answers
+
+      expect(rowOf(section, 'correct-and-grounded').comparisons[0]?.verdict).toBe('a')
+      expect(section?.summary).toBe(
+        'No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding.',
+      )
+    })
+
+    it('names a row in the summary when a difference holds up', () => {
+      const value = answered({
+        verdicts: Array.from({ length: 8 }, (_, i) => i + 1).flatMap((i) => [
+          verdict(i, 0, 0),
+          verdict(i, 2, 2),
+          verdict(i, 3, 0),
+        ]),
+      })
+
+      expect(build(report({ answers: value })).answers?.summary).toBe(
+        'Vector ahead between vector and hybrid. Vector ahead between no RAG and RAG on correctness.',
+      )
+    })
+
+    it('gives time and cost with their intervals in words', () => {
+      const figure = rowOf(build(report({ answers: answered() })).answers, 'time-and-cost')
+        .figures[0]
+
+      expect(figure).toEqual({ kind: 'text', text: '2.0 s (2.0-2.0), $0.010 ($0.010-0.010)' })
+    })
+
+    it('puts the note on correctness when the labels lean', () => {
+      const calibrations: EvalCalibration[] = [
+        {
+          report: { repoSha: 'x', name: null, createdAt: 'a' },
+          blind: true,
+          prompts: { correctness: 'c1', refusal: 'r1', support: 's1' },
+          correctnessDisagreements: [{ questionId: ID(1), row: 3, human: 1, judge: 2 }],
+          labelled: 1,
+          agreement: [],
+          unanswerableOnly: { compared: 0, agreed: 0 },
+          calibrated: false,
+        },
+      ]
+      const section = build(report({ answers: answered() }), calibrations).answers
+
+      expect(rowOf(section, 'fully-correct').note).toBe('may run high')
+      expect(
+        rowOf(build(report({ answers: answered() })).answers, 'fully-correct').note,
+      ).toBeUndefined()
+    })
+  })
+
+  describe('trust', () => {
+    it('reports the set, the docs, the index and stale questions', () => {
+      const value = report()
+      value.result.stale = [ID(1)]
+      value.result.review = [ID(2)]
+
+      expect(
+        buildDashboardRun({
+          id: 'x',
+          report: value,
+          calibrations: [],
+          verify: null,
+          indexDocsSha: 'other',
+        }).trust,
+      ).toMatchObject({
+        goldenSet: { version: 1, hash: 'set-hash' },
+        docs: { sha: 'docs-sha' },
+        indexDocsSha: 'other',
+        stale: [ID(1)],
+        review: [ID(2)],
+        verify: null,
+      })
+    })
+
+    it('puts a recorded verify in words, with when', () => {
+      const verify: EvalVerifyRecord = {
+        status: 'identical',
+        changedVectors: [],
+        rerun: { repoSha: 'abcdef1234', repoDirty: false, at: 'then' },
+      }
+
+      expect(
+        buildDashboardRun({
+          id: 'x',
+          report: report(),
+          calibrations: [],
+          verify,
+          indexDocsSha: null,
+        }).trust.verify,
+      ).toEqual({
+        status: 'identical',
+        text: 'Retrieval reproduced byte for byte at abcdef12, on the same vectors.',
+        checkedAt: 'then',
+      })
+    })
+  })
+})
+
+describe('buildDashboardDetails', () => {
+  const questions = parseGoldenSet(
+    [
+      { id: ID(1), question: 'First?', answer: 'A.', primary: ['a.md'], tags: ['basic', 'edge'] },
+      { id: ID(2), question: 'Second?', answer: 'A.', primary: ['a.md'], tags: ['basic'] },
+      { id: ID(41), question: 'Not covered?', answer: 'No.', tags: ['unanswerable'] },
+    ]
+      .map((row) => JSON.stringify(row))
+      .join('\n'),
+  )
+
+  it('makes a table per metric, with a row per tag and its size', () => {
+    const { tags } = buildDashboardDetails({ report: report(), questions, calibrations: [] })
+
+    expect(tags.map(({ question }) => question)).toEqual([
+      'Right chunk in top 8, by tag',
+      'How high it ranks (MRR), by tag',
+    ])
+    expect(tags[0]?.rows.map(({ label, note }) => [label, note])).toEqual([
+      ['basic', '10 questions'],
+      ['edge', '2 questions'],
+    ])
+    expect(tags[0]?.rows[1]?.comparisons[0]?.verdict).toBe('too-few')
+  })
+
+  it('adds fully correct and the score, with its own comparison, when there are answers', () => {
+    const answers = answersFixture({
+      verdicts: [verdict(1, 2, 1), verdict(1, 3, 0), verdict(1, 0, 2)],
+    })
+    const { tags } = buildDashboardDetails({
+      report: report({ answers }),
+      questions,
+      calibrations: [],
+    })
+    const score_ = tags.find(({ question }) => question === 'Correctness score, 0 to 2')
+
+    expect(tags.map(({ question }) => question)).toContain('Fully correct, by tag')
+    expect(score_?.rows[0]?.label).toBe('All questions')
+    expect(score_?.rows[0]?.comparisons[0]).toMatchObject({ a: 'Vector', aAhead: 1, bAhead: 0 })
+  })
+
+  it('lists each question, in words, and says where rows or strategies differ', () => {
+    const answers = answersFixture({
+      verdicts: [
+        verdict(1, 0, 2),
+        verdict(1, 2, 1),
+        verdict(1, 3, 0, { falseRefusal: true }),
+        verdict(41, 0, null, { outcome: 'correct-refusal' }),
+        verdict(41, 2, null, { outcome: 'correct-refusal' }),
+        verdict(41, 3, null, { outcome: 'correct-refusal' }),
+      ],
+    })
+    const details = buildDashboardDetails({
+      report: report({ answers, vector: [1, 3], hybrid: [2, 3] }),
+      questions,
+      calibrations: [],
+    })
+    const [first, second, third] = details.questions
+
+    expect(first).toMatchObject({ id: ID(1), question: 'First?', differs: true })
+    expect(first?.ranks).toEqual([
+      { column: 'Vector', rank: 1 },
+      { column: 'Hybrid', rank: 2 },
+    ])
+    expect(first?.answers).toEqual([
+      { column: 'No RAG', grade: 'Fully correct' },
+      { column: 'Vector', grade: 'Partly correct' },
+      { column: 'Hybrid', grade: 'Refused' },
+    ])
+    expect(second?.ranks.map(({ rank }) => rank)).toEqual([3, 3])
+    expect(second?.answers.map(({ grade }) => grade)).toEqual(['-', '-', '-'])
+    expect(second?.differs).toBe(false)
+    expect(third?.answers.map(({ grade }) => grade)).toEqual([
+      'Refused rightly',
+      'Refused rightly',
+      'Refused rightly',
+    ])
+    expect(third?.differs).toBe(false)
+  })
+
+  it('says a question differs when only the ranks do, or only the answers', () => {
+    const answers = answersFixture({
+      verdicts: [verdict(1, 2, 2), verdict(1, 3, 2), verdict(2, 2, 2), verdict(2, 3, 1)],
+    })
+    const details = buildDashboardDetails({
+      report: report({ answers, vector: [1, 3], hybrid: [2, 3] }),
+      questions,
+      calibrations: [],
+    })
+
+    expect(details.questions[0]?.answers.map(({ grade }) => grade)).toEqual([
+      '-',
+      'Fully correct',
+      'Fully correct',
+    ])
+    expect(details.questions.map(({ differs }) => differs).slice(0, 2)).toEqual([true, true])
+
+    const sameAnswers = buildDashboardDetails({
+      report: report({
+        answers: answersFixture({
+          rows: [rowResult(2), rowResult(3)],
+          verdicts: [verdict(1, 2, 2), verdict(1, 3, 2), verdict(2, 2, 2), verdict(2, 3, 1)],
+        }),
+        vector: [1, 3],
+        hybrid: [2, 3],
+      }),
+      questions,
+      calibrations: [],
+    })
+
+    // Only the ranks differ on the first, and only the answers on the second.
+    expect(sameAnswers.questions[0]?.differs).toBe(true)
+    expect(sameAnswers.questions[1]?.ranks.map(({ rank }) => rank)).toEqual([3, 3])
+    expect(sameAnswers.questions[1]?.differs).toBe(true)
+  })
+
+  it('lists the cited chunks under the row that cited them', () => {
+    const answers = answersFixture({
+      candidates: [{ questionId: ID(1), row: 2, chunkId: 'c1', docPath: 'a.md' }],
+    })
+
+    expect(
+      buildDashboardDetails({ report: report({ answers }), questions, calibrations: [] })
+        .candidates,
+    ).toEqual([{ questionId: ID(1), column: 'Vector', chunkId: 'c1', docPath: 'a.md' }])
+  })
+})
+
+describe('compareDashboardRuns', () => {
+  const named = (name: string, overrides: Parameters<typeof report>[0] = {}) => {
+    const value = report(overrides)
+    value.run.name = name
+    return value
+  }
+
+  it('shows both runs, each number on its own side', () => {
+    const result = compareDashboardRuns(
+      named('before', { hybrid: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }),
+      named('after', { hybrid: [9, 9, 9, 9, 9, 9, 9, 9, 1, 1] }),
+    )
+
+    if (!result.comparable) throw new Error('not comparable')
+    expect(result).toMatchObject({ a: 'before', b: 'after' })
+    const row = result.section.rows.find(({ id }) => id === 'hybrid-top-8')
+    expect(row?.figures[0]).toMatchObject({ count: 10 })
+    expect(row?.figures[1]).toMatchObject({ count: 2 })
+    expect(row?.comparisons[0]).toMatchObject({ a: 'before', b: 'after', aAhead: 8, bAhead: 0 })
+    expect(result.moved).toHaveLength(8)
+    expect(result.moved[0]).toEqual({ strategy: 'Hybrid', questionId: ID(1), from: 1, to: 9 })
+  })
+
+  it('says what else differs, since a change of rank means little until that is known', () => {
+    const later = named('after')
+    later.identity.chunkerVersion = 6
+    later.vectors.corpusHash = 'other'
+
+    const result = compareDashboardRuns(named('before'), later)
+
+    if (!result.comparable) throw new Error('not comparable')
+    expect(result.differences).toEqual([
+      'identity.chunkerVersion: before 5, after 6',
+      'vectors.corpusHash: before c, after other',
+    ])
+    expect(result.section.summary).toBe('No right chunk moved.')
+  })
+
+  it('refuses two set versions, and one version with two contents', () => {
+    const other = named('after')
+    other.identity.goldenSet = { version: 2, hash: 'set-hash' }
+    const tampered = named('after')
+    tampered.identity.goldenSet = { version: 1, hash: 'other' }
+
+    expect(compareDashboardRuns(named('before'), other)).toMatchObject({ comparable: false })
+    expect(compareDashboardRuns(named('before'), tampered)).toMatchObject({ comparable: false })
+  })
+
+  it('tells two runs of one name apart', () => {
+    const result = compareDashboardRuns(named('same'), named('same'))
+
+    if (!result.comparable) throw new Error('not comparable')
+    expect([result.a, result.b]).toEqual(['same (1)', 'same (2)'])
+  })
+})

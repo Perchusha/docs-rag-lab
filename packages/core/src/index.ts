@@ -127,6 +127,36 @@ export {
   type CostLine,
   type EstimateOptions,
 } from './eval/cost.ts'
+export { bootstrapMean, seeded } from './eval/bootstrap.ts'
+export {
+  buildDashboardDetails,
+  buildDashboardRun,
+  compareDashboardRuns,
+  meanFigure,
+  shareFigure,
+  splitOf,
+  type BuildDetailsOptions,
+  type BuildRunOptions,
+} from './eval/dashboard.ts'
+export {
+  goldenSetPath,
+  listRuns,
+  readCalibrations,
+  readRun,
+  readVerifyRecord,
+  reportsDir,
+  UnknownRunError,
+  verifyRecordPath,
+} from './eval/report-store.ts'
+export { judgeSentence, judgeTrust, verifyWords } from './eval/trust.ts'
+export {
+  dashboardRuns,
+  defaultRun,
+  loadDashboardDetails,
+  loadDashboardRun,
+  loadRunComparison,
+  type DashboardStore,
+} from './eval/dashboard-store.ts'
 export {
   judgeCases,
   runJudgeCheck,

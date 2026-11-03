@@ -209,11 +209,29 @@ export interface AgreementResult {
   passed: boolean
 }
 
+/** Where the human and the judge differ on correctness, for the known bias (ADR-0013). */
+export interface CalibrationDisagreement {
+  questionId: string
+  row: AnswerRow
+  human: 0 | 1 | 2
+  judge: 0 | 1 | 2
+}
+
+/** What `drl eval verify --record` found (ADR-0013). */
+export interface EvalVerifyRecord {
+  status: 'identical' | 'equivalent' | 'inconclusive' | 'different' | 'not-comparable'
+  changedVectors: string[]
+  rerun: { repoSha: string; repoDirty: boolean; at: string }
+}
+
 export interface EvalCalibration {
   /** The report these labels are of. */
   report: { repoSha: string; name: string | null; createdAt: string }
   /** False when the judge's prompt changed after the labels were read. It then decides nothing. */
   blind?: boolean
+  /** The prompts graded under, so that a change of prompt shows as not calibrated. */
+  prompts?: Record<string, string>
+  correctnessDisagreements?: CalibrationDisagreement[]
   labelled: number
   agreement: AgreementResult[]
   /** The three outcomes on unanswerable questions alone. Too little data to decide anything. */
