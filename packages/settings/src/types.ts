@@ -62,8 +62,18 @@ export interface Settings {
   models: {
     answer: string
     contextualize: string
+    /** Grades answers in eval. Not the model that answers, so it does not grade itself. */
+    judge: string
   }
   answer: { effort: Effort; maxTokens: number }
+  /** Answer metrics in eval (ADR-0012). */
+  evalAnswers: {
+    judge: { effort: Effort; maxTokens: number }
+    /** Calls at once. Latency is reported, so this stays small. */
+    concurrency: number
+    /** A run stops before the next paid call past this, and refuses a forecast above it. */
+    maxUsd: number
+  }
   retrieval: RetrievalSettings
   pricing: PricingSettings
 }

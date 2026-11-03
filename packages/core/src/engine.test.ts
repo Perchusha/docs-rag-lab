@@ -36,7 +36,7 @@ const settings: EngineSettings = {
     batch: { maxInputs: 10, maxTokens: 1000 },
     rateLimit: { rpm: 1000, tpm: 1_000_000 },
   },
-  models: { answer: 'claude-test', contextualize: 'claude-small' },
+  models: { answer: 'claude-test', contextualize: 'claude-small', judge: 'claude-judge' },
   answer: { effort: 'low', maxTokens: 100 },
   retrieval: { strategy: 'hybrid', topK: 2, candidates: 10, rrfK: 60 },
   pricing: {

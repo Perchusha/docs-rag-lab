@@ -26,8 +26,14 @@ export const settings = defineSettings({
   models: {
     answer: 'claude-sonnet-5-5',
     contextualize: 'claude-haiku-5-5',
+    judge: 'claude-opus-5-5',
   },
   answer: { effort: 'low', maxTokens: 16_000 },
+  evalAnswers: {
+    judge: { effort: 'medium', maxTokens: 8_000 },
+    concurrency: 4,
+    maxUsd: 15,
+  },
   // Hybrid = vector + BM25 + exact tokens, fused by RRF (ADR-0005). k=60 and 50 candidates
   // per list are the usual defaults, not tuned: a sweep over 40 questions would fit noise (ADR-0009).
   retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
@@ -46,6 +52,12 @@ export const settings = defineSettings({
         output: 10,
         cacheWrite5m: 2.5,
         cacheRead: 0.1,
+      },
+      'claude-opus-5-5': {
+        input: 4,
+        output: 20,
+        cacheWrite5m: 5,
+        cacheRead: 0.2,
       },
       'claude-haiku-5-5': {
         input: 0.1,

@@ -29,6 +29,31 @@ export {
 } from './answer.ts'
 export type { DocumentChunk, DocumentChunks } from './document.ts'
 export {
+  ANSWER_COMPARED_METRICS,
+  ANSWER_ROWS,
+  type AgreementResult,
+  type AnchorCandidate,
+  type AnswerComparedMetric,
+  type AnswerComparison,
+  type AnswerDifference,
+  type AnswerLabel,
+  type AnswerMetrics,
+  type AnswerRow,
+  type AnswerRowResult,
+  type AnswerScopeComparison,
+  type AnswerStatus,
+  type EvalAnswer,
+  type EvalAnswers,
+  type EvalCalibration,
+  type EvalCitation,
+  type EvalClaim,
+  type EvalSupport,
+  type EvalVerdict,
+  type RefusalMetrics,
+  type RefusalOutcome,
+  type VerdictStatus,
+} from './eval-answers.ts'
+export {
   encodeEvent,
   EventDecoder,
   NDJSON_CONTENT_TYPE,
