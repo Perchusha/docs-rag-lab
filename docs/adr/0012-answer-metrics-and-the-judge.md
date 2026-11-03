@@ -54,7 +54,15 @@ Two rows that give the same text share one verdict, because the request is the s
 
 The sheet names its sample by a hash, and the labels file repeats it, so labels cannot be read against other answers. Every item needs one label. The bar is 13 of 15 on each dimension. Below it, or with nothing compared on a dimension, the answer metrics are marked uncalibrated.
 
-Refusal agreement covers every answer, by the owner's rule: whether it refused, and whether that was right. So a refusal of a question the docs do answer is a disagreement like any other, and 13 of 15 means the same as on the other dimensions. The three outcomes on unanswerable questions alone, of which the sample has 3, stay on a separate line that says it is too little data and decides nothing. The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
+Refusal agreement covers every answer, by the owner's rule: whether it refused, and whether that was right. So a refusal of a question the docs do answer is a disagreement like any other, and 13 of 15 means the same as on the other dimensions. The three outcomes on unanswerable questions alone, of which the sample has 3, stay on a separate line that says it is too little data and decides nothing.
+
+The bar is a share, so what it allows depends on how many answers a dimension compares. The owner fixed this before any comparison:
+
+| Dimension | Compared in this sample | Disagreements allowed |
+|---|---|---|
+| Refusal | 15, every answer | 2 |
+| Correctness | 12, the questions the docs answer | 1 |
+| Support | 10, the answers that cite something | 1 | The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
 
 ### 6. Noise
 
