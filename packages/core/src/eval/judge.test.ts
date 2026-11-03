@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { parseGoldenSet, type GoldenQuestion } from './golden.ts'
 import {
+  CORRECTNESS_SYSTEM_PROMPT,
   correctnessRequest,
   JudgeOutputError,
   parseCorrectness,
@@ -110,6 +111,15 @@ describe('the requests', () => {
         '<passage>P3.</passage>',
         '</claim>',
       ].join('\n'),
+    )
+  })
+})
+
+describe('the correctness rubric', () => {
+  it('scores any part missing or wrong as 1, and ignores details nobody asked for', () => {
+    expect(CORRECTNESS_SYSTEM_PROMPT).toContain('If any part is, the score is 1, however small.')
+    expect(CORRECTNESS_SYSTEM_PROMPT).toContain(
+      'Details the question did not ask for do not count either way.',
     )
   })
 })

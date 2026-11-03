@@ -113,10 +113,12 @@ export {
   calibrate,
   cohensKappa,
   LABEL_SEED,
+  freshSampleForLabels,
   sampleForLabels,
   sampleHash,
   wilsonInterval,
   type CalibrateOptions,
+  type FreshSampleOptions,
   type SampleOptions,
 } from './eval/calibrate.ts'
 export {

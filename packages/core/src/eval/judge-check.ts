@@ -73,6 +73,18 @@ const UNSUPPORTED_CLAIM: EvalClaim = {
   ],
 }
 
+/** Two parts to ask about, so that a case can leave out or get wrong just one. */
+const TWO_PARTS: GoldenQuestion = {
+  id: 'two-parts',
+  question: 'What do the `alpha` and `beta` options default to?',
+  answer: '`alpha` defaults to `true`, and `beta` defaults to `false`.',
+  primary: [],
+  primaryMatch: 'all',
+  acceptable: [],
+  tags: ['basic'],
+  note: undefined,
+}
+
 /** The cases, built from the golden set so that they read like real ones. */
 export function judgeCases(
   questions: readonly GoldenQuestion[],
@@ -138,6 +150,23 @@ export function judgeCases(
         read: outcome,
       },
     )
+  }
+  const twoParts: [string, string, string][] = [
+    ['one part missing, however small', '`alpha` defaults to `true`.', 'score 1'],
+    ['one part wrong', '`alpha` defaults to `true`, and `beta` to `true`.', 'score 1'],
+    [
+      'details the question did not ask for',
+      '`alpha` defaults to `true`, and `beta` to `false`. The separate `gamma` option defaults to 3.',
+      'score 2',
+    ],
+  ]
+  for (const [name, answer, expected] of twoParts) {
+    cases.push({
+      name: `two parts, ${name}`,
+      request: correctnessRequest(settings, TWO_PARTS, answer),
+      expected,
+      read: correctness('answer'),
+    })
   }
   cases.push(
     {

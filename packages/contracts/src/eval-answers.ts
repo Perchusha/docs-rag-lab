@@ -99,6 +99,11 @@ export interface AnswerMetrics {
   citationAccuracy: { cited: number; hit: number }
   /** Claims the judge read, and those it found supported. */
   support: { claims: number; supported: number }
+  /**
+   * Exploratory (ADR-0012): answers that score 2, have every cited claim supported, and cite an
+   * anchor. Row 0 cannot score on it by design. Reports from before it was defined have none.
+   */
+  correctAndGrounded?: number
   meanLatencyMs: number
   meanInputTokens: number
   meanOutputTokens: number
@@ -123,7 +128,12 @@ export interface AnswerRowResult {
   excluded: { truncated: string[]; refused: string[]; failed: string[]; unjudged: string[] }
 }
 
-export const ANSWER_COMPARED_METRICS = ['correctness', 'citation-accuracy', 'support'] as const
+export const ANSWER_COMPARED_METRICS = [
+  'correctness',
+  'citation-accuracy',
+  'support',
+  'correct-and-grounded',
+] as const
 
 export type AnswerComparedMetric = (typeof ANSWER_COMPARED_METRICS)[number]
 
@@ -202,6 +212,8 @@ export interface AgreementResult {
 export interface EvalCalibration {
   /** The report these labels are of. */
   report: { repoSha: string; name: string | null; createdAt: string }
+  /** False when the judge's prompt changed after the labels were read. It then decides nothing. */
+  blind?: boolean
   labelled: number
   agreement: AgreementResult[]
   /** The three outcomes on unanswerable questions alone. Too little data to decide anything. */

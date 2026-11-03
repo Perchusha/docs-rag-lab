@@ -29,6 +29,12 @@ const MIN_LOW = 3
 
 export const LABEL_SEED = 20_261_103
 
+/** The second round's own seed, so that it does not repeat the first's choices. */
+export const FRESH_SEED = LABEL_SEED + 1
+
+/** Answers in the second round. */
+const FRESH_ANSWERS = 10
+
 /** A small seeded generator (mulberry32): the sample needs to repeat, not to be secure. */
 function seeded(seed: number): () => number {
   let state = seed
@@ -119,6 +125,79 @@ export function sampleForLabels(options: SampleOptions): EvalAnswer[] {
   return shuffled(picked, seeded(LABEL_SEED ^ parseInt(sampleHash(picked).slice(0, 8), 16)))
 }
 
+export interface FreshSampleOptions extends SampleOptions {
+  /** The answers of the earlier round. Their questions are left out altogether. */
+  exclude: readonly Pick<EvalAnswer, 'questionId'>[]
+}
+
+/**
+ * The second round (ADR-0012): 10 answers to questions the docs answer, none on a question of
+ * the first round, none on the same question twice. Spread across the rows, with the last row
+ * getting any extra, and at least 3 the judge scored low when there are 3.
+ */
+export function freshSampleForLabels(options: FreshSampleOptions): EvalAnswer[] {
+  const { rows, answers, verdicts, questions, exclude } = options
+  const random = seeded(options.seed ?? FRESH_SEED)
+  const answerable = new Set(
+    questions.filter((question) => !isUnanswerable(question)).map(({ id }) => id),
+  )
+  const used = new Set(exclude.map(({ questionId }) => questionId))
+  const low = new Set(
+    verdicts
+      .filter(
+        (verdict) =>
+          verdict.judgeSample === 1 &&
+          verdict.sample === 1 &&
+          (verdict.correctness === 0 || verdict.correctness === 1),
+      )
+      .map((verdict) => `${verdict.questionId}/${String(verdict.row)}`),
+  )
+  const isLow = (answer: EvalAnswer): boolean =>
+    low.has(`${answer.questionId}/${String(answer.row)}`)
+  const pools = rows.map((row) =>
+    shuffled(
+      answers
+        .filter(
+          (answer) =>
+            answer.row === row &&
+            answer.sample === 1 &&
+            answer.status === 'ok' &&
+            answerable.has(answer.questionId) &&
+            !used.has(answer.questionId),
+        )
+        .sort((a, b) => a.questionId.localeCompare(b.questionId)),
+      random,
+    ),
+  )
+  const extra = FRESH_ANSWERS % rows.length
+  const quota = rows.map(
+    (_, i) => Math.floor(FRESH_ANSWERS / rows.length) + (i >= rows.length - extra ? 1 : 0),
+  )
+  const picked = rows.map((): EvalAnswer[] => [])
+  const taken = new Set<string>()
+  const take = (i: number, wanted: (answer: EvalAnswer) => boolean): boolean => {
+    const row = picked[i]
+    const limit = quota[i] ?? 0
+    if (row === undefined || row.length >= limit) return false
+    const next = pools[i]?.find((answer) => wanted(answer) && !taken.has(answer.questionId))
+    if (next === undefined) return false
+    row.push(next)
+    taken.add(next.questionId)
+    return true
+  }
+  // One low score per row in turn, up to the minimum, then whatever else fills each row.
+  for (let round = 0, lows = 0; round < FRESH_ANSWERS && lows < MIN_LOW; round++) {
+    for (let i = 0; i < rows.length && lows < MIN_LOW; i++) {
+      if (take(i, isLow)) lows++
+    }
+  }
+  rows.forEach((_, i) => {
+    while (take(i, () => true));
+  })
+  const sample = picked.flat()
+  return shuffled(sample, seeded(FRESH_SEED ^ parseInt(sampleHash(sample).slice(0, 8), 16)))
+}
+
 /** Names a sample, so that labels cannot be read against a different one. */
 export function sampleHash(sample: readonly Pick<EvalAnswer, 'questionId' | 'row'>[]): string {
   return createHash('sha256')
@@ -195,6 +274,10 @@ export interface CalibrateOptions {
   labels: readonly AnswerLabel[]
   verdicts: readonly EvalVerdict[]
   support: readonly EvalSupport[]
+  /** The dimensions to compare. The fresh round compares correctness alone. */
+  dimensions?: readonly AgreementResult['dimension'][]
+  /** False when the judge's prompt changed after these labels were read. */
+  blind?: boolean
 }
 
 /** How often the human and the judge agree, per dimension. */
@@ -239,19 +322,23 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
       ? []
       : [[label.supported, claims.every((claim) => claim.supported)] as const]
   })
+  const wanted = options.dimensions ?? ['correctness', 'refusal', 'support']
   const results = [
     agreement('correctness', correctness),
     agreement('refusal', refusal),
     agreement('support', supported),
-  ]
+  ].filter(({ dimension }) => wanted.includes(dimension))
+  const blind = options.blind ?? true
   return {
     report: options.report,
+    blind,
     labelled: labels.length,
     agreement: results,
     unanswerableOnly: {
       compared: outcomes.length,
       agreed: outcomes.filter(([human, judged]) => human === judged).length,
     },
-    calibrated: results.every((result) => result.passed),
+    // Labels the judge's prompt was changed after cannot vouch for it, whatever they say.
+    calibrated: blind && results.every((result) => result.passed),
   }
 }

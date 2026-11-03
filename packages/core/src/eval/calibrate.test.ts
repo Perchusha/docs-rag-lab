@@ -7,7 +7,17 @@ import type {
 } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
-import { calibrate, cohensKappa, sampleForLabels, sampleHash, wilsonInterval } from './calibrate.ts'
+import {
+  calibrate,
+  cohensKappa,
+  FRESH_SEED,
+  freshSampleForLabels,
+  LABEL_SEED,
+  sampleForLabels,
+  sampleHash,
+  wilsonInterval,
+  type FreshSampleOptions,
+} from './calibrate.ts'
 import { parseGoldenSet } from './golden.ts'
 
 const ID = (i: number): string => `ts-${String(i).padStart(4, '0')}`
@@ -176,6 +186,118 @@ describe('sampleForLabels', () => {
 
     expect(picked).toHaveLength(5)
     expect(picked.filter((item) => item.questionId >= ID(41))).toHaveLength(1)
+  })
+})
+
+describe('freshSampleForLabels', () => {
+  const first = sample()
+  const fresh = (overrides: Partial<FreshSampleOptions> = {}) =>
+    freshSampleForLabels({
+      rows: ROWS,
+      answers: allAnswers,
+      verdicts: allVerdicts,
+      questions,
+      exclude: first,
+      ...overrides,
+    })
+
+  it('takes 10 answers: 3, 3 and 4 by row', () => {
+    const picked = fresh()
+
+    expect(picked).toHaveLength(10)
+    expect(picked.filter(({ row }) => row === 0)).toHaveLength(3)
+    expect(picked.filter(({ row }) => row === 2)).toHaveLength(3)
+    expect(picked.filter(({ row }) => row === 3)).toHaveLength(4)
+  })
+
+  it('takes only questions the docs answer', () => {
+    expect(fresh().every(({ questionId }) => questionId < ID(41))).toBe(true)
+  })
+
+  it('takes no question of the first round, under any row', () => {
+    const used = new Set(first.map(({ questionId }) => questionId))
+
+    expect(fresh().filter(({ questionId }) => used.has(questionId))).toEqual([])
+  })
+
+  it('takes no question twice', () => {
+    const ids = fresh().map(({ questionId }) => questionId)
+
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('takes at least 3 low scores when there are 3, and they may be in one row', () => {
+    const verdicts = allVerdicts.map((item) =>
+      item.row === 0 && ['ts-0011', 'ts-0012', 'ts-0013'].includes(item.questionId)
+        ? { ...item, correctness: 1 as const }
+        : { ...item, correctness: 2 as const },
+    )
+
+    const picked = fresh({ verdicts, exclude: [] })
+
+    expect(
+      picked.filter(
+        ({ row, questionId }) =>
+          row === 0 && ['ts-0011', 'ts-0012', 'ts-0013'].includes(questionId),
+      ),
+    ).toHaveLength(3)
+  })
+
+  it('stops at the low scores it needs, and fills up from the rest', () => {
+    const verdicts = allVerdicts.map((item) => ({
+      ...item,
+      correctness: Number(item.questionId.slice(3)) % 4 === 0 ? (0 as const) : (2 as const),
+    }))
+    const lows = fresh({ verdicts, exclude: [] }).filter(
+      ({ questionId }) => Number(questionId.slice(3)) % 4 === 0,
+    )
+
+    expect(lows.length).toBeGreaterThanOrEqual(3)
+    expect(lows.length).toBeLessThan(10)
+  })
+
+  it('has a seed of its own, apart from the first round', () => {
+    const ids = (items: EvalAnswer[]) => items.map(({ questionId }) => questionId).join()
+
+    expect(ids(fresh())).toBe(ids(fresh({ seed: FRESH_SEED })))
+    expect(ids(fresh())).not.toBe(ids(fresh({ seed: LABEL_SEED })))
+  })
+
+  it.each([
+    ['a second sample', { sample: 2 }],
+    ['a second opinion', { judgeSample: 2 }],
+  ])('does not take a low score from %s', (_name, overrides) => {
+    const high = allVerdicts.map((item) => ({ ...item, correctness: 2 as const }))
+    const lows = [21, 22, 23, 24, 25, 26].flatMap((i) =>
+      ROWS.map((row) => verdict(i, row, 0, overrides)),
+    )
+    const ids = (items: EvalAnswer[]) =>
+      items.map(({ questionId, row }) => `${questionId}/${String(row)}`).sort()
+
+    expect(ids(fresh({ verdicts: [...lows, ...high], exclude: [] }))).toEqual(
+      ids(fresh({ verdicts: high, exclude: [] })),
+    )
+  })
+
+  it('takes only finished answers, and only the first sample', () => {
+    const answers = [
+      ...Array.from({ length: 30 }, (_, i) => answer(i + 1, 3, { status: 'failed' })),
+      answer(31, 3, { sample: 2 }),
+      answer(32, 3),
+    ]
+
+    expect(fresh({ answers, rows: [3], exclude: [] }).map(({ questionId }) => questionId)).toEqual([
+      ID(32),
+    ])
+  })
+
+  it('is the same every time, and not in row order', () => {
+    const ids = (items: EvalAnswer[]) =>
+      items.map((item) => `${item.questionId}/${String(item.row)}`)
+    const rows = fresh().map(({ row }) => row)
+
+    expect(ids(fresh())).toEqual(ids(fresh()))
+    expect(rows).not.toEqual([...rows].sort())
   })
 })
 
@@ -371,6 +493,48 @@ describe('calibrate', () => {
       expect(run(2)).toBe(true)
       expect(run(3)).toBe(false)
     })
+  })
+
+  it('compares only the dimensions asked for, and calibrates on those', () => {
+    const result = calibrate({
+      report,
+      labels: Array.from({ length: 10 }, (_, i) => label(i + 1, 3, { correctness: 2 })),
+      verdicts: Array.from({ length: 10 }, (_, i) => verdict(i + 1, 3, i === 0 ? 1 : 2)),
+      support: [],
+      dimensions: ['correctness'],
+    })
+
+    expect(result.agreement.map(({ dimension }) => dimension)).toEqual(['correctness'])
+    expect(result.agreement[0]).toMatchObject({ compared: 10, agreed: 9, passed: true })
+    expect(result.calibrated).toBe(true)
+  })
+
+  it('allows 1 disagreement in 10, and not 2', () => {
+    const run = (wrong: number) =>
+      calibrate({
+        report,
+        labels: Array.from({ length: 10 }, (_, i) => label(i + 1, 3, { correctness: 2 })),
+        verdicts: Array.from({ length: 10 }, (_, i) => verdict(i + 1, 3, i < wrong ? 1 : 2)),
+        support: [],
+        dimensions: ['correctness'],
+      }).calibrated
+
+    expect(run(1)).toBe(true)
+    expect(run(2)).toBe(false)
+  })
+
+  it('never calls the judge calibrated on labels that are not blind', () => {
+    const result = calibrate({
+      report,
+      labels: [label(1, 3, { correctness: 2 })],
+      verdicts: [verdict(1, 3, 2)],
+      support: [],
+      dimensions: ['correctness'],
+      blind: false,
+    })
+
+    expect(result).toMatchObject({ blind: false, calibrated: false })
+    expect(result.agreement[0]?.passed).toBe(true)
   })
 
   it('does not let the unanswerable line decide anything', () => {

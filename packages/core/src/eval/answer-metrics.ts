@@ -64,6 +64,20 @@ function citesAnchor(answer: EvalAnswer, anchorChunks: ReadonlySet<string>): boo
 
 export type AnchorChunksOf = (question: GoldenQuestion) => ReadonlySet<string>
 
+/** Exploratory (ADR-0012): right, with every cited claim supported, and citing an anchor. */
+function isCorrectAndGrounded(
+  { answer, verdict, support }: Graded,
+  anchorChunks: ReadonlySet<string>,
+): boolean {
+  const claims = support?.claims ?? []
+  return (
+    verdict?.correctness === 2 &&
+    claims.length > 0 &&
+    claims.every((claim) => claim.supported) &&
+    citesAnchor(answer, anchorChunks)
+  )
+}
+
 function metricsOf(items: readonly Graded[], anchorChunks: (id: string) => ReadonlySet<string>) {
   const judged = items.filter(({ verdict }) => verdict?.correctness != null)
   const scores: [number, number, number] = [0, 0, 0]
@@ -84,6 +98,9 @@ function metricsOf(items: readonly Graded[], anchorChunks: (id: string) => Reado
         .length,
     },
     support: { claims: claims.length, supported: claims.filter((c) => c.supported).length },
+    correctAndGrounded: judged.filter((item) =>
+      isCorrectAndGrounded(item, anchorChunks(item.answer.questionId)),
+    ).length,
     meanLatencyMs: meanOf(answers.map((answer) => answer.latencyMs)),
     meanInputTokens: meanOf(answers.map((answer) => answer.inputTokens)),
     meanOutputTokens: meanOf(answers.map((answer) => answer.outputTokens)),
@@ -170,6 +187,11 @@ function valueOf(
   anchorChunks: (id: string) => ReadonlySet<string>,
 ): number | undefined {
   if (metric === 'correctness') return item.verdict?.correctness ?? undefined
+  if (metric === 'correct-and-grounded') {
+    // An answer with no citations scores 0 here. Row 0 has no retrieval to ground it.
+    if (item.answer.row === 0 || item.verdict?.correctness == null) return undefined
+    return isCorrectAndGrounded(item, anchorChunks(item.answer.questionId)) ? 1 : 0
+  }
   if (item.answer.claims.length === 0) return undefined
   if (metric === 'citation-accuracy') {
     return citesAnchor(item.answer, anchorChunks(item.answer.questionId)) ? 1 : 0

@@ -55,6 +55,10 @@ function perfect(request: Anthropic.MessageCreateParamsNonStreaming): unknown {
   if (system.includes('does not answer the question below')) {
     return { reasoning: 'r', outcome: text.includes('5.4') ? 'hallucination' : 'correct_refusal' }
   }
+  if (text.includes('`alpha`')) {
+    const score = text.includes('gamma') ? 2 : 1
+    return { reasoning: 'r', correctness: score, false_refusal: false }
+  }
   const answer = /<answer>(.*)<\/answer>/s.exec(text)?.[1] ?? ''
   const expert = /<expert_answer>(.*)<\/expert_answer>/s.exec(text)?.[1] ?? ''
   if (answer.includes('I do not know')) {
@@ -93,7 +97,10 @@ describe('judgeCases', () => {
     expect(names.filter((name) => name.startsWith('ts-0042'))).toHaveLength(3)
     expect(names).toContain('a claim its passage supports')
     expect(names).toContain('a claim its passage does not support')
-    expect(names).toHaveLength(16)
+    expect(names).toContain('two parts, one part missing, however small')
+    expect(names).toContain('two parts, one part wrong')
+    expect(names).toContain('two parts, details the question did not ask for')
+    expect(names).toHaveLength(19)
   })
 
   it('gives each question the expert answer of another as the confident wrong one', () => {
@@ -114,7 +121,7 @@ describe('runJudgeCheck', () => {
     const results = await run(judgeSaying(perfect))
 
     expect(results.filter((result) => !result.passed)).toEqual([])
-    expect(results).toHaveLength(16)
+    expect(results).toHaveLength(19)
   })
 
   it('catches a judge that gives everything full marks', async () => {
@@ -133,6 +140,9 @@ describe('runJudgeCheck', () => {
     expect(wrong).toContain('ts-0001, a confident answer to another question')
     expect(wrong).toContain('ts-0041, a made-up fact from the docs')
     expect(wrong).toContain('a claim its passage does not support')
+    expect(wrong).toContain('two parts, one part missing, however small')
+    expect(wrong).toContain('two parts, one part wrong')
+    expect(wrong).not.toContain('two parts, details the question did not ask for')
     expect(wrong).not.toContain("ts-0001, the expert's answer")
   })
 
@@ -146,6 +156,6 @@ describe('runJudgeCheck', () => {
     await run(judgeSaying(perfect))
 
     expect(cache?.stats('judge').calls).toBe(0)
-    expect(cache?.stats('judge-check').calls).toBe(16)
+    expect(cache?.stats('judge-check').calls).toBe(19)
   })
 })

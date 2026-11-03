@@ -382,6 +382,86 @@ describe('compareRows', () => {
   })
 })
 
+describe('correct and grounded, exploratory', () => {
+  const grounded = (result: ReturnType<typeof rowResult>) => result.overall.correctAndGrounded
+
+  const one = (overrides: Partial<EvalAnswer>, score: 0 | 1 | 2, ...supported: boolean[]) =>
+    grounded(
+      rowResult(
+        3,
+        1,
+        options({
+          answers: [answer(1, 3, overrides)],
+          verdicts: [verdict(1, 3, score)],
+          support: supported.length === 0 ? [] : [support(1, 3, ...supported)],
+        }),
+      ),
+    )
+  const other = {
+    claims: [{ text: 'C', citations: [{ chunkId: 'other', citedText: 'P' }] }],
+  }
+
+  it('counts an answer that is right, fully supported and cites an anchor', () => {
+    expect(one({}, 2, true, true)).toBe(1)
+  })
+
+  it('needs an acceptable or primary anchor among several citations, not all of them', () => {
+    expect(
+      one(
+        {
+          claims: [
+            { text: 'C', citations: [{ chunkId: 'other', citedText: 'P' }] },
+            { text: 'D', citations: [{ chunkId: 'anchor', citedText: 'P' }] },
+          ],
+        },
+        2,
+        true,
+        true,
+      ),
+    ).toBe(1)
+  })
+
+  it.each([
+    ['it scored 1', {}, 1, [true]],
+    ['a cited claim is not supported', {}, 2, [true, false]],
+    ['it cites no anchor', other, 2, [true]],
+    ['it cites nothing', { claims: [] }, 2, []],
+    ['the support check failed', {}, 2, []],
+  ] as const)('does not count it when %s', (_name, overrides, score, supported) => {
+    expect(one(overrides as Partial<EvalAnswer>, score, ...supported)).toBe(0)
+  })
+
+  it('compares rows 2 and 3, counting an uncited answer as 0', () => {
+    const result = compareRows(
+      { row: 2, sample: 1 },
+      { row: 3, sample: 1 },
+      options({
+        answers: [answer(1, 2), answer(1, 3, { claims: [] })],
+        verdicts: [verdict(1, 2, 2), verdict(1, 3, 2)],
+        support: [support(1, 2, true)],
+      }),
+    )
+
+    expect(
+      result.scopes[0]?.differences.find(({ metric }) => metric === 'correct-and-grounded'),
+    ).toMatchObject({ a: 1, b: 0, aBetter: 1, bBetter: 0, tied: 0 })
+  })
+
+  it('leaves row 0 out of the comparison, which cannot score on it by design', () => {
+    const result = compareRows(
+      { row: 0, sample: 1 },
+      { row: 3, sample: 1 },
+      options({
+        answers: [answer(1, 0, { claims: [] }), answer(1, 3)],
+        verdicts: [verdict(1, 0, 2), verdict(1, 3, 2)],
+        support: [support(1, 3, true)],
+      }),
+    )
+
+    expect(result.scopes[0]?.differences.map(({ metric }) => metric)).toEqual(['correctness'])
+  })
+})
+
 describe('judgeRetest', () => {
   it('is null without a second opinion', () => {
     expect(judgeRetest([verdict(1, 3, 2)])).toBeNull()
