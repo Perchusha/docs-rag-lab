@@ -27,7 +27,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch; the next sync without it returns to the head)
 - Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set)
 - Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree)
-- A report again, to see if it reproduces: `pnpm drl eval verify <report>`
+- A report again, to see if it reproduces: `pnpm drl eval verify <report>` (add `--record` to write what it found next to the report, for the dashboard)
 - Two reports, question by question: `pnpm drl eval compare <a> <b>`
 - Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit). Reruns pay only for what is not cached.
 - The judge on answers whose grade is known, spends real tokens: `pnpm drl eval judge-check --yes`
@@ -37,7 +37,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
-- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call)
+- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
 `drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.

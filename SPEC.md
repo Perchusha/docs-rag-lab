@@ -41,7 +41,7 @@ Everything runs locally. There is no deployment.
    - the fused ranking and what the reranker changed;
    - chunk boundaries inside the source document;
    - the final context sent to Claude.
-3. **Eval dashboard.** Runs per source and per strategy, metrics, diffs between runs, and stale questions after a docs sync.
+3. **Eval dashboard.** Its first screen answers three questions: does hybrid find the right chunks more often, does it give better answers and does RAG help at all, and can these numbers be trusted. Per-tag tables, per-question diffs, cited chunks and diffs between runs sit behind one disclosure. Every number has its uncertainty beside it, and the dashboard only reads committed reports (ADR-0013).
 4. **Interview prep.** Pick technologies and a level, then:
    - get a topic map built from the docs themselves;
    - train in different modes (see section 11);
@@ -306,7 +306,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012). The dashboard below is coming in a later M4 PR.
+M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
