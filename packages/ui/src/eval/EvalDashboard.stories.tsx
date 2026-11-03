@@ -388,7 +388,7 @@ export const UnknownRunAsked: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await expect(canvas.getByRole('alert')).toHaveTextContent(
-      'There is no run "typo", so this shows answers-regraded.',
+      'There is no run "typo", so this shows final.',
     )
     await userEvent.selectOptions(
       canvas.getByRole('combobox', { name: 'Run' }),

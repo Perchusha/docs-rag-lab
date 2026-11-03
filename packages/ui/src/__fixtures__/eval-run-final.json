@@ -1,8 +1,8 @@
 {
-  "id": "2026-11-03-2184bccc-answers-regraded",
-  "name": "answers-regraded",
-  "createdAt": "2026-11-03T12:18:23.187Z",
-  "repoSha": "2184bccc2c565972fbc8153fbee109ed71dc2830",
+  "id": "2026-11-03-94474c83-final",
+  "name": "final",
+  "createdAt": "2026-11-03T17:24:59.575Z",
+  "repoSha": "94474c83b47c55fb007292a1ba19e8265cf7b559",
   "retrieval": {
     "question": "Does hybrid find the right chunks more often?",
     "summary": "No difference holds up on these 40 questions.",
@@ -504,8 +504,8 @@
     "review": [],
     "verify": {
       "status": "identical",
-      "text": "Retrieval reproduced byte for byte at 2e3cf794, on the same vectors. Answers do not repeat, so they are not part of this check.",
-      "checkedAt": "2026-11-03T14:10:06.601Z"
+      "text": "Retrieval reproduced byte for byte at 97efd537, on the same vectors. Answers do not repeat, so they are not part of this check.",
+      "checkedAt": "2026-11-03T17:48:55.159Z"
     }
   }
 }
