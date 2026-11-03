@@ -16,11 +16,11 @@ SPEC section 3 asks for runs per source and strategy, metrics, diffs between run
 2. **Does it give better answers, and does RAG help at all?** All three rows, with their verdicts.
 3. **Can these numbers be trusted?** The judge's calibration and known bias, the set version, the docs commit, the verify status.
 
-No number appears twice. Per-tag tables, per-question diffs, the cited chunks and the list of runs sit behind one disclosure, closed by default, with tabs inside, and their data loads only when it opens. Tests hold this: all three sections fit 1280 by 800 without scrolling, for a calibrated report and for one that is not, and the first screen has 3 tab stops. The fit depends on the system font: CI runs it with a wider one than Windows has, which is what found how little room it had.
+No number appears twice. Per-tag tables, per-question diffs, the cited chunks and the list of runs sit behind one disclosure, closed by default, with tabs inside, and their data loads only when it opens. Tests hold this: the three sections fit 1280 by 800, for a calibrated report and for one that is not, and the first screen has 3 tab stops. The Details button is no section, since it is not about any of the three questions, and it may sit just below them. The fit depends on the system font: CI runs it with a wider one than Windows has, which is what found how little room it had.
 
 Labels are plain, by the M3 rule: "Fully correct", "Right chunk in top 8", "Run to run (hybrid twice)" with values like "none" or "5 questions differ".
 
-Details and "How this was calibrated" are disclosures, side by side so that the first screen spends one line on them: focus stays on the button, and what they open comes after them in the tab order. Moving focus in is for the inspector, a side panel that opens away from what opened it.
+Details and "How this was calibrated" are disclosures: focus stays on the button, and what they open comes next in the tab order. Moving focus in is for the inspector, a side panel that opens away from what opened it.
 
 ### 2. Uncertainty sits next to every number
 
@@ -43,7 +43,9 @@ For the same reason, "Fully correct" is compared on whether each answer scored 2
 
 "Ahead" always means better. On "Wrongly refused" fewer is better, so its number counts refusals and its comparison counts the answers that did not refuse.
 
-**A verdict that names a side has to clear the row's own noise.** ADR-0012 says a difference a row also shows against itself means nothing. Each side of a comparison can move by what a second run moved, so a named verdict whose margin is at most twice the row's run-to-run count reads as noise. Twice is a judgement: it calls ADR-0012's own case, 7 to 0 against 6 questions differing, noise, which is how that ADR reads it. It changes no verdict on the reports so far. The tables by tag apply the same rule, so a question never reads as noise on the first screen and as better behind it.
+**A verdict that names a side has to clear the row's own noise.** ADR-0012 says a difference a row also shows against itself means nothing. Each side of a comparison can move by what a second run moved, so a named verdict whose margin is at most twice the row's run-to-run count reads as noise.
+
+The factor of 2 is a heuristic, not a test with a known error rate. It follows from that reasoning, and from ADR-0012's own case, 7 to 0 against 6 questions differing, which that ADR reads as noise. It applies only where run-to-run noise exists: a row with no second run keeps the sign test's verdict, and so does retrieval, which repeats exactly. It changed no current verdict: of the 165 comparisons across the 7 committed reports, on the first screen and by tag, none reads differently with it, and no verdict naming a side stands on a row with a second run. The tables by tag apply the same rule, so a question never reads as noise on the first screen and as better behind it.
 
 **A summary claims only what a verdict names.** It reads the verdicts of the rows that are not exploratory, and says which side is better on which row, and which are mixed. "No difference holds up" appears only when none of them says otherwise. "About as correct" needs noise against every RAG row, from the sign test itself: a gap that is merely not significant is not that, and neither is one the row's own noise took a verdict from. "What RAG adds is grounding" also needs the answers to show it, with the citations holding on most answers past the interval. Under a judge that is not calibrated, the summary says so first.
 
