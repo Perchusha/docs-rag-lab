@@ -198,8 +198,13 @@ async function forEachLimit<T>(
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 }
 
+/** Throws when a reply cannot be used. It then stays out of the cache, so a rerun tries again. */
+type ReplyCheck = (message: Anthropic.Message) => void
+
 export class Runner {
   readonly #options: RunnerOptions
+  /** Identical requests at once get one call, so that one text cannot get two grades. */
+  readonly #inFlight = new Map<string, Promise<CachedCall>>()
   #failuresInARow = 0
   #stop: string | undefined
 
@@ -220,19 +225,36 @@ export class Runner {
     return this.#options.meter.estimateCost(this.#options.pricing).total
   }
 
-  /** The message for a request, from the cache or from Claude. */
+  /** The message for a request, from the cache or from Claude. fromCache: this one paid nothing. */
   async call(
-    kind: 'answer' | 'judge',
+    kind: string,
     request: Anthropic.MessageCreateParamsNonStreaming,
     key: string,
+    check: ReplyCheck = () => undefined,
   ): Promise<{ call: CachedCall; fromCache: boolean }> {
-    const { cache, client, meter, maxUsd } = this.#options
+    const { cache, maxUsd } = this.#options
     const cached = cache.get(key) as CachedCall | undefined
     if (cached !== undefined) return { call: cached, fromCache: true }
+    const running = this.#inFlight.get(key)
+    if (running !== undefined) return { call: await running, fromCache: true }
     if (this.paidUsd() >= maxUsd) {
       this.#stop = `stopped at the limit of $${maxUsd.toFixed(2)}: what was paid for is cached, so a rerun continues from here`
       throw new EvalStoppedError(this.#stop)
     }
+    const paid = this.#paidCall(kind, request, key, check).finally(() => {
+      this.#inFlight.delete(key)
+    })
+    this.#inFlight.set(key, paid)
+    return { call: await paid, fromCache: false }
+  }
+
+  async #paidCall(
+    kind: string,
+    request: Anthropic.MessageCreateParamsNonStreaming,
+    key: string,
+    check: ReplyCheck,
+  ): Promise<CachedCall> {
+    const { cache, client, meter } = this.#options
     const now = this.#options.now ?? (() => performance.now())
     const start = now()
     let firstTokenMs: number | null = null
@@ -246,22 +268,23 @@ export class Runner {
           meter.recordMessage(request.model, usage)
         },
       })
+      // A fallback or an alias would measure another model than the report says.
+      if (message.model !== request.model) {
+        throw new Error(`${message.model} answered, and ${request.model} was asked for`)
+      }
+      check(message)
     } catch (error) {
       this.#failed()
       throw error
     }
     this.#failuresInARow = 0
-    // A fallback or an alias would measure another model than the report says.
-    if (message.model !== request.model) {
-      throw new Error(`${message.model} answered, and ${request.model} was asked for`)
-    }
     const call: CachedCall = { message, latencyMs: now() - start, firstTokenMs }
     cache.put(key, kind, {
       value: call,
       inputTokens: message.usage.input_tokens,
       outputTokens: message.usage.output_tokens,
     })
-    return { call, fromCache: false }
+    return call
   }
 
   #failed(): void {
@@ -289,6 +312,17 @@ export class Runner {
   get pricing(): PricingSettings {
     return this.#options.pricing
   }
+}
+
+const textOf = (message: Pick<Anthropic.Message, 'content'>): string =>
+  message.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('')
+
+/** An answer that finished with nothing to read, or stopped for a reason of no meaning here. */
+const checkAnswer: ReplyCheck = (message) => {
+  const stop = message.stop_reason
+  if (stop === 'max_tokens' || stop === 'refusal') return
+  if (stop !== 'end_turn') throw new Error(`it stopped with ${String(stop)}`)
+  if (textOf(message).trim() === '') throw new Error('the answer is empty')
 }
 
 function statusOf(message: Anthropic.Message): AnswerStatus {
@@ -325,7 +359,6 @@ function answerOf(
   pricing: PricingSettings,
 ): EvalAnswer {
   const { message } = call
-  const blocks = message.content.filter((block) => block.type === 'text')
   return {
     questionId: job.question.id,
     row: job.row,
@@ -333,8 +366,8 @@ function answerOf(
     status: statusOf(message),
     model: message.model,
     stopReason: message.stop_reason,
-    text: blocks.map((block) => block.text).join(''),
-    blocks,
+    text: textOf(message),
+    blocks: message.content.filter((block) => block.type === 'text'),
     claims: claimsOf(message, job.hits),
     context: job.hits.map((hit) => hit.chunkId),
     inputTokens: message.usage.input_tokens,
@@ -344,6 +377,16 @@ function answerOf(
     firstTokenMs: call.firstTokenMs,
     fromCache,
   }
+}
+
+/** The answer in the cache for a job, if there is one. It costs nothing to read. */
+export function cachedAnswer(
+  job: AnswerJob,
+  cache: EvalCache,
+  pricing: PricingSettings,
+): EvalAnswer | undefined {
+  const cached = cache.get(job.key) as CachedCall | undefined
+  return cached === undefined ? undefined : answerOf(job, cached, true, pricing)
 }
 
 const reasonOf = (error: unknown): string =>
@@ -371,7 +414,7 @@ export async function runAnswers(
   const answers: EvalAnswer[] = []
   await runner.run(jobs, async (job) => {
     try {
-      const { call, fromCache } = await runner.call('answer', job.request, job.key)
+      const { call, fromCache } = await runner.call('answer', job.request, job.key, checkAnswer)
       answers.push(answerOf(job, call, fromCache, runner.pricing))
     } catch (error) {
       if (error instanceof EvalStoppedError) return
@@ -412,7 +455,49 @@ export interface JudgeOptions extends RunnerOptions {
   retest: boolean
 }
 
+/** One call the judge has to make about one answer. */
+export interface JudgeCall {
+  type: 'verdict' | 'support'
+  answer: EvalAnswer
+  question: GoldenQuestion
+  judgeSample: number
+  request: Anthropic.MessageCreateParamsNonStreaming
+  key: string
+}
+
 const isRetested = (answer: EvalAnswer): boolean => answer.row === 3 && answer.sample === 1
+
+/** What the judge is asked about one finished answer. The estimate counts the same calls. */
+export function judgeCallsOf(
+  answer: EvalAnswer,
+  question: GoldenQuestion,
+  judge: JudgeSettings,
+  retest: boolean,
+): JudgeCall[] {
+  const unanswerable = isUnanswerable(question)
+  const verdict = unanswerable
+    ? refusalRequest(judge, question, answer.text, answer.claims)
+    : correctnessRequest(judge, question, answer.text)
+  const common = { answer, question }
+  return [
+    ...(retest && isRetested(answer) ? [1, 2] : [1]).map((judgeSample): JudgeCall => ({
+      ...common,
+      type: 'verdict',
+      judgeSample,
+      request: verdict,
+      key: requestKey(verdict, judgeSample),
+    })),
+    ...(answer.claims.length === 0 || unanswerable
+      ? []
+      : [supportRequest(judge, answer.claims)].map((request): JudgeCall => ({
+          ...common,
+          type: 'support',
+          judgeSample: 1,
+          request,
+          key: requestKey(request, 1),
+        }))),
+  ]
+}
 
 /** Judges every answer that finished. Truncated, refused and failed ones stay out of it. */
 export async function runJudge(
@@ -421,43 +506,48 @@ export async function runJudge(
 ): Promise<JudgeResult> {
   const runner = new Runner(options)
   const { judge, questions, retest } = options
-  const finished = answers.filter((answer) => answer.status === 'ok')
-  const verdictJobs = finished.flatMap((answer) =>
-    retest && isRetested(answer)
-      ? [
-          { answer, judgeSample: 1 },
-          { answer, judgeSample: 2 },
-        ]
-      : [{ answer, judgeSample: 1 }],
-  )
+  const calls = answers
+    .filter((answer) => answer.status === 'ok')
+    .flatMap((answer) => {
+      const question = questions.get(answer.questionId)
+      if (question === undefined) throw new Error(`no question ${answer.questionId}`)
+      return judgeCallsOf(answer, question, judge, retest)
+    })
   const verdicts: EvalVerdict[] = []
   const support: EvalSupport[] = []
 
-  const questionOf = (answer: EvalAnswer): GoldenQuestion => {
-    const question = questions.get(answer.questionId)
-    if (question === undefined) throw new Error(`no question ${answer.questionId}`)
-    return question
-  }
-
-  await runner.run(verdictJobs, async ({ answer, judgeSample }) => {
-    const question = questionOf(answer)
-    const unanswerable = isUnanswerable(question)
-    const request = unanswerable
-      ? refusalRequest(judge, question, answer.text, answer.claims)
-      : correctnessRequest(judge, question, answer.text)
-    const base = {
-      questionId: answer.questionId,
-      row: answer.row,
-      sample: answer.sample,
-      judgeSample,
+  await runner.run(calls, async ({ type, answer, question, judgeSample, request, key }) => {
+    const base = { questionId: answer.questionId, row: answer.row, sample: answer.sample }
+    if (type === 'support') {
+      const count = answer.claims.length
+      try {
+        const { call } = await runner.call('judge', request, key, (message) => {
+          parseSupport(message, count)
+        })
+        support.push({
+          ...base,
+          status: 'ok',
+          claims: parseSupport(call.message, count),
+          costUsd: costOf(call.message, runner.pricing),
+        })
+      } catch (error) {
+        if (error instanceof EvalStoppedError) return
+        support.push({ ...base, status: 'failed', error: reasonOf(error), claims: [], costUsd: 0 })
+      }
+      return
     }
+    const unanswerable = isUnanswerable(question)
     try {
-      const { call } = await runner.call('judge', request, requestKey(request, judgeSample))
+      const { call } = await runner.call('judge', request, key, (message) => {
+        if (unanswerable) parseRefusal(message)
+        else parseCorrectness(message)
+      })
       const costUsd = costOf(call.message, runner.pricing)
       if (unanswerable) {
         const { reasoning, outcome } = parseRefusal(call.message)
         verdicts.push({
           ...base,
+          judgeSample,
           status: 'ok',
           reasoning,
           correctness: null,
@@ -469,6 +559,7 @@ export async function runJudge(
         const { reasoning, correctness, falseRefusal } = parseCorrectness(call.message)
         verdicts.push({
           ...base,
+          judgeSample,
           status: 'ok',
           reasoning,
           correctness,
@@ -481,6 +572,7 @@ export async function runJudge(
       if (error instanceof EvalStoppedError) return
       verdicts.push({
         ...base,
+        judgeSample,
         status: 'failed',
         error: reasonOf(error),
         reasoning: '',
@@ -489,27 +581,6 @@ export async function runJudge(
         outcome: null,
         costUsd: 0,
       })
-    }
-  })
-  runner.check()
-
-  const cited = finished.filter(
-    (answer) => answer.claims.length > 0 && !isUnanswerable(questionOf(answer)),
-  )
-  await runner.run(cited, async (answer) => {
-    const base = { questionId: answer.questionId, row: answer.row, sample: answer.sample }
-    const request = supportRequest(judge, answer.claims)
-    try {
-      const { call } = await runner.call('judge', request, requestKey(request, 1))
-      support.push({
-        ...base,
-        status: 'ok',
-        claims: parseSupport(call.message, answer.claims.length),
-        costUsd: costOf(call.message, runner.pricing),
-      })
-    } catch (error) {
-      if (error instanceof EvalStoppedError) return
-      support.push({ ...base, status: 'failed', error: reasonOf(error), claims: [], costUsd: 0 })
     }
   })
   runner.check()

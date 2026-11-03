@@ -2,7 +2,14 @@ import { openEvalCache, type EvalCache } from '@docs-rag-lab/db'
 import type { PricingSettings } from '@docs-rag-lab/settings'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { requestKey, rowRequest, type AnswerJob, type EvalClient } from './answers.ts'
+import {
+  cachedAnswer,
+  judgeCallsOf,
+  requestKey,
+  rowRequest,
+  type AnswerJob,
+  type EvalClient,
+} from './answers.ts'
 import { estimateCost } from './cost.ts'
 import { parseGoldenSet, type GoldenQuestion } from './golden.ts'
 
@@ -12,6 +19,7 @@ const pricing: PricingSettings = {
   models: { answer: { input: 2, output: 10 }, judge: { input: 4, output: 20 } },
 }
 const settings = { model: 'answer', effort: 'low', maxTokens: 100 } as const
+const judge = { model: 'judge', effort: 'medium', maxTokens: 100 } as const
 
 const [answerable, refused] = parseGoldenSet(
   [
@@ -58,7 +66,7 @@ function estimate(jobs: AnswerJob[], fake: EvalClient, retest = false) {
     cache,
     pricing,
     answerModel: 'answer',
-    judgeModel: 'judge',
+    judge,
     retest,
   })
 }
@@ -102,17 +110,132 @@ describe('estimateCost', () => {
     expect(result.judge.calls).toBe(5)
   })
 
-  it('charges nothing for what the cache already holds', async () => {
-    const { fake, counted } = client()
-    const cached = job(answerable, 3)
-    cache = openEvalCache(':memory:')
-    cache.put(cached.key, 'answer', { value: {}, inputTokens: 1, outputTokens: 1 })
+  describe('with answers in the cache', () => {
+    const CITED = {
+      type: 'text',
+      text: 'Cited.',
+      citations: [
+        {
+          type: 'search_result_location',
+          search_result_index: 0,
+          cited_text: 'Passage.',
+          source: 's',
+          title: 't',
+          start_block_index: 0,
+          end_block_index: 1,
+        },
+      ],
+    }
 
-    const result = await estimate([cached], fake)
+    function withHit(question: GoldenQuestion, row: 2 | 3, sample = 1): AnswerJob {
+      const hits = [{ chunkId: 'c1' }] as unknown as AnswerJob['hits']
+      const request = rowRequest(row, 'demo', question.question, [], settings)
+      return { question, row, sample, hits, request, key: requestKey(request, sample) }
+    }
 
-    expect(counted).toHaveLength(0)
-    expect(result.answers).toMatchObject({ calls: 1, cached: 1, inputTokens: 0, usd: 0 })
-    expect(result.judge).toMatchObject({ calls: 0, usd: 0 })
+    /** Puts an answer in the cache, and returns what the judge would be asked about it. */
+    function cacheAnswer(item: AnswerJob, stopReason = 'end_turn', content: unknown[] = [CITED]) {
+      cache ??= openEvalCache(':memory:')
+      cache.put(item.key, 'answer', {
+        value: {
+          message: {
+            model: 'answer',
+            content,
+            stop_reason: stopReason,
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+          latencyMs: 1,
+          firstTokenMs: 1,
+        },
+        inputTokens: 1,
+        outputTokens: 1,
+      })
+      const answer = cachedAnswer(item, cache, pricing)
+      if (answer === undefined) throw new Error('no answer')
+      return answer
+    }
+
+    it('counts the judge calls of an answer nothing has judged yet', async () => {
+      const { fake, counted } = client()
+      const item = withHit(answerable, 3)
+      cacheAnswer(item)
+
+      const result = await estimate([item], fake)
+
+      expect(counted).toHaveLength(0)
+      expect(result.answers).toMatchObject({ calls: 1, cached: 1, inputTokens: 0, usd: 0 })
+      expect(result.judge).toMatchObject({ calls: 2, cached: 0 })
+      expect(result.judge.usd).toBeGreaterThan(0)
+    })
+
+    it('charges nothing once the judge has seen them too', async () => {
+      const item = withHit(answerable, 3)
+      const answer = cacheAnswer(item)
+      for (const { key } of judgeCallsOf(answer, answerable, judge, false)) {
+        cache?.put(key, 'judge', { value: {}, inputTokens: 1, outputTokens: 1 })
+      }
+
+      const result = await estimate([item], client().fake)
+
+      expect(result.judge).toMatchObject({ calls: 2, cached: 2, usd: 0 })
+    })
+
+    it('counts second opinions asked for later', async () => {
+      const item = withHit(answerable, 3)
+      const answer = cacheAnswer(item)
+      for (const { key } of judgeCallsOf(answer, answerable, judge, false)) {
+        cache?.put(key, 'judge', { value: {}, inputTokens: 1, outputTokens: 1 })
+      }
+
+      const result = await estimate([item], client().fake, true)
+
+      expect(result.judge).toMatchObject({ calls: 3, cached: 2 })
+      expect(result.judge.usd).toBeGreaterThan(0)
+    })
+
+    it('counts a changed judge prompt as new calls, because the keys change', async () => {
+      const item = withHit(answerable, 3)
+      const answer = cacheAnswer(item)
+      for (const { key } of judgeCallsOf(answer, answerable, { ...judge, effort: 'low' }, false)) {
+        cache?.put(key, 'judge', { value: {}, inputTokens: 1, outputTokens: 1 })
+      }
+
+      const result = await estimate([item], client().fake)
+
+      expect(result.judge).toMatchObject({ calls: 2, cached: 0 })
+    })
+
+    it('counts one call for two rows that gave the same text', async () => {
+      const [row2, row3] = [withHit(answerable, 2), withHit(answerable, 3, 2)]
+      cacheAnswer(row2)
+      cacheAnswer(row3)
+
+      const result = await estimate([row2, row3], client().fake)
+
+      expect(result.judge.calls).toBe(2)
+    })
+
+    it('counts a cached call once, for two rows that gave the same text', async () => {
+      const [row2, row3] = [withHit(answerable, 2), withHit(answerable, 3, 2)]
+      const answer = cacheAnswer(row2)
+      cacheAnswer(row3)
+      for (const { key } of judgeCallsOf(answer, answerable, judge, false)) {
+        cache?.put(key, 'judge', { value: {}, inputTokens: 1, outputTokens: 1 })
+      }
+
+      const result = await estimate([row2, row3], client().fake)
+
+      expect(result.judge).toMatchObject({ calls: 2, cached: 2, usd: 0 })
+    })
+
+    it('asks nothing about an answer that did not finish', async () => {
+      const item = withHit(answerable, 3)
+      cacheAnswer(item, 'max_tokens')
+
+      const result = await estimate([item], client().fake)
+
+      expect(result.judge).toMatchObject({ calls: 0, usd: 0 })
+    })
   })
 
   it('uses what past calls measured, once there are enough of them', async () => {
@@ -120,6 +243,8 @@ describe('estimateCost', () => {
     for (let i = 0; i < 5; i++) {
       cache.put(`a${String(i)}`, 'answer', { value: {}, inputTokens: 1, outputTokens: 100 })
       cache.put(`j${String(i)}`, 'judge', { value: {}, inputTokens: 200, outputTokens: 300 })
+      // The known cases are short, and say nothing about real calls.
+      cache.put(`c${String(i)}`, 'judge-check', { value: {}, inputTokens: 1, outputTokens: 1 })
     }
 
     const result = await estimate([job(answerable, 0)], client().fake)
@@ -151,7 +276,7 @@ describe('estimateCost', () => {
         cache,
         pricing,
         answerModel: 'unknown',
-        judgeModel: 'judge',
+        judge,
         retest: false,
       }),
     ).rejects.toThrow('no price')

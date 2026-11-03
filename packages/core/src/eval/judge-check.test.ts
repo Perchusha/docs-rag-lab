@@ -89,11 +89,11 @@ describe('judgeCases', () => {
 
     expect(names.filter((name) => name.startsWith('ts-0001'))).toHaveLength(4)
     expect(names.filter((name) => name.startsWith('ts-0002'))).toHaveLength(4)
-    expect(names.filter((name) => name.startsWith('ts-0041'))).toHaveLength(2)
-    expect(names.filter((name) => name.startsWith('ts-0042'))).toHaveLength(2)
+    expect(names.filter((name) => name.startsWith('ts-0041'))).toHaveLength(3)
+    expect(names.filter((name) => name.startsWith('ts-0042'))).toHaveLength(3)
     expect(names).toContain('a claim its passage supports')
     expect(names).toContain('a claim its passage does not support')
-    expect(names).toHaveLength(14)
+    expect(names).toHaveLength(16)
   })
 
   it('gives each question the expert answer of another as the confident wrong one', () => {
@@ -114,7 +114,7 @@ describe('runJudgeCheck', () => {
     const results = await run(judgeSaying(perfect))
 
     expect(results.filter((result) => !result.passed)).toEqual([])
-    expect(results).toHaveLength(14)
+    expect(results).toHaveLength(16)
   })
 
   it('catches a judge that gives everything full marks', async () => {
@@ -136,10 +136,16 @@ describe('runJudgeCheck', () => {
     expect(wrong).not.toContain("ts-0001, the expert's answer")
   })
 
-  it('counts output it cannot read as a failed case, and goes on', async () => {
-    const results = await run(judgeSaying(() => ({ nothing: true })))
+  it('stops on output it cannot read, and does not cache it', async () => {
+    await expect(run(judgeSaying(() => ({ nothing: true })))).rejects.toThrow('5 failures in a row')
 
-    expect(results).toHaveLength(14)
-    expect(results.every((result) => !result.passed)).toBe(true)
+    expect(cache?.stats('judge-check').calls).toBe(0)
+  })
+
+  it('keeps its calls apart from the ones the estimate learns from', async () => {
+    await run(judgeSaying(perfect))
+
+    expect(cache?.stats('judge').calls).toBe(0)
+    expect(cache?.stats('judge-check').calls).toBe(16)
   })
 })

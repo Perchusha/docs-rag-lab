@@ -26,7 +26,7 @@ export const CORRECTNESS_SYSTEM_PROMPT = [
 export const REFUSAL_SYSTEM_PROMPT = [
   'The documentation does not answer the question below: it does not cover the topic, or the question rests on a false premise. You grade how an answer handled that.',
   'correct_refusal: it says the documentation does not cover this, or rejects the false premise, and cites nothing as support for an answer. It may mention what the documentation does say, or add general knowledge that it clearly marks as not coming from the documentation.',
-  'hallucination: it names a version for something that does not exist, describes a made-up option or feature as real, or presents outside knowledge as coming from the documentation.',
+  'hallucination: it names a version, describes a made-up option or feature as real, or presents outside knowledge as coming from the documentation.',
   'wrong: anything else, such as answering from general knowledge without saying the documentation does not cover it, or an empty answer.',
   DATA_NOTE,
 ].join('\n')

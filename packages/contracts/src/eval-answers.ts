@@ -119,8 +119,8 @@ export interface AnswerRowResult {
   byTag: Record<string, AnswerMetrics>
   /** The questions the docs do not answer, reported apart. */
   refusals: RefusalMetrics
-  /** Question IDs left out of the metrics, by why. */
-  excluded: { truncated: string[]; refused: string[]; failed: string[] }
+  /** Question IDs left out of the metrics, by why. unjudged: the judge's reply was unusable. */
+  excluded: { truncated: string[]; refused: string[]; failed: string[]; unjudged: string[] }
 }
 
 export const ANSWER_COMPARED_METRICS = ['correctness', 'citation-accuracy', 'support'] as const

@@ -2,6 +2,8 @@
 // without seeing the verdicts, and this says how often the two agree. The sample comes from
 // a fixed seed, so it is the same every time, and picking it from the judge's own low scores
 // is the only thing the judge has to do with it.
+import { createHash } from 'node:crypto'
+
 import type {
   AgreementResult,
   AnswerLabel,
@@ -20,6 +22,9 @@ const AGREEMENT_BAR = 13 / 15
 
 /** Answers per row. With 3 rows this makes 15. */
 const PER_ROW = 5
+
+/** At least this many answers the judge scored low, when there are that many. */
+const MIN_LOW = 3
 
 export const LABEL_SEED = 20_261_103
 
@@ -56,9 +61,9 @@ export interface SampleOptions {
 }
 
 /**
- * 5 answers per row: one unanswerable question, one the judge scored low, and three others.
- * So at least 3 of 15 are unanswerable, and at least 3 scored low when a row has any. The
- * order is shuffled, so nothing says which row an answer came from.
+ * 5 answers per row: one unanswerable question, some the judge scored low, and others. So
+ * at least 3 of 15 are unanswerable, and at least 3 scored low when there are 3. The order
+ * is shuffled, so nothing says which row an answer came from.
  */
 export function sampleForLabels(options: SampleOptions): EvalAnswer[] {
   const { rows, answers, verdicts, questions } = options
@@ -69,7 +74,11 @@ export function sampleForLabels(options: SampleOptions): EvalAnswer[] {
       .filter((verdict) => verdict.judgeSample === 1 && verdict.sample === 1)
       .map((verdict) => [`${verdict.questionId}/${String(verdict.row)}`, verdict.correctness]),
   )
-  const picked: EvalAnswer[] = []
+  const isRefusal = (answer: EvalAnswer): boolean => {
+    const question = questionOf.get(answer.questionId)
+    return question !== undefined && isUnanswerable(question)
+  }
+  const candidates: { eligible: EvalAnswer[]; refusal: EvalAnswer[]; low: EvalAnswer[] }[] = []
   for (const row of rows) {
     const eligible = shuffled(
       answers
@@ -77,25 +86,49 @@ export function sampleForLabels(options: SampleOptions): EvalAnswer[] {
         .sort((a, b) => a.questionId.localeCompare(b.questionId)),
       random,
     )
-    const unanswerable = (answer: EvalAnswer): boolean => {
-      const question = questionOf.get(answer.questionId)
-      return question !== undefined && isUnanswerable(question)
-    }
+    const unanswerable = isRefusal
     const low = (answer: EvalAnswer): boolean => {
       const value = score.get(`${answer.questionId}/${String(row)}`)
       return value === 0 || value === 1
     }
-    const chosen = [
-      ...eligible.filter(unanswerable).slice(0, 1),
-      ...eligible.filter((answer) => !unanswerable(answer) && low(answer)).slice(0, 1),
-    ]
-    for (const answer of eligible) {
-      if (chosen.length >= PER_ROW) break
-      if (!unanswerable(answer) && !chosen.includes(answer)) chosen.push(answer)
-    }
-    picked.push(...chosen)
+    candidates.push({
+      eligible,
+      refusal: eligible.filter(unanswerable).slice(0, 1),
+      low: eligible.filter((answer) => !unanswerable(answer) && low(answer)),
+    })
   }
-  return shuffled(picked, random)
+  // One low score from each row first, then more from rows that have them, up to 3 in all.
+  const lows = candidates.map((): EvalAnswer[] => [])
+  const most = Math.max(0, ...candidates.map(({ low }) => low.length))
+  for (let round = 0; round < most; round++) {
+    candidates.forEach((candidate, i) => {
+      const next = candidate.low[round]
+      if (next !== undefined && lows.flat().length < MIN_LOW) lows[i]?.push(next)
+    })
+  }
+  const picked = candidates.flatMap((candidate, i) => {
+    const chosen = [...candidate.refusal, ...(lows[i] ?? [])]
+    for (const answer of candidate.eligible) {
+      if (chosen.length >= PER_ROW) break
+      if (!isRefusal(answer) && !chosen.includes(answer)) chosen.push(answer)
+    }
+    return chosen
+  })
+  // Seeded by what was picked, so that a position says nothing across reports either.
+  return shuffled(picked, seeded(LABEL_SEED ^ parseInt(sampleHash(picked).slice(0, 8), 16)))
+}
+
+/** Names a sample, so that labels cannot be read against a different one. */
+export function sampleHash(sample: readonly Pick<EvalAnswer, 'questionId' | 'row'>[]): string {
+  return createHash('sha256')
+    .update(
+      sample
+        .map((answer) => `${answer.questionId}/${String(answer.row)}`)
+        .sort()
+        .join(),
+    )
+    .digest('hex')
+    .slice(0, 12)
 }
 
 /** Cohen's kappa over paired labels. Undefined when chance alone predicts every agreement. */

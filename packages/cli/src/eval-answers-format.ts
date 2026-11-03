@@ -28,7 +28,7 @@ export function formatCostEstimate(estimate: EvalCostEstimate, maxUsd: number): 
   const lines = [
     'estimate, at list prices checked ' + estimate.pricesChecked + ':',
     `  answers: ${String(answers.calls)} (${String(answers.cached)} cached), ${count(answers.inputTokens)} in by count_tokens, about ${count(answers.outputTokens)} out, ${usd(answers.usd)}`,
-    `  judge: ${String(judge.calls)} calls, about ${count(judge.inputTokens)} in and ${count(judge.outputTokens)} out, ${usd(judge.usd)}`,
+    `  judge: ${String(judge.calls)} calls (${String(judge.cached)} cached), about ${count(judge.inputTokens)} in and ${count(judge.outputTokens)} out, ${usd(judge.usd)}`,
     `  total: about ${usd(estimate.usd)}, against a limit of $${maxUsd.toFixed(2)}`,
   ]
   if (estimate.assumed) {
@@ -99,7 +99,8 @@ function comparisonSection(comparison: AnswerComparison): string[] {
       comparison.scopes.flatMap((scope) =>
         scope.differences.map((difference) => [
           scope.scope,
-          String(scope.questions),
+          // Citation metrics compare only the questions where both sides cite something.
+          String(difference.aBetter + difference.bBetter + difference.tied),
           difference.metric,
           mean(difference.a),
           mean(difference.b),
@@ -165,8 +166,9 @@ export function answerSections(answers: EvalAnswers): string[] {
     )
   }
   for (const row of rows) {
-    const { truncated, refused, failed } = row.excluded
+    const { truncated, refused, failed, unjudged } = row.excluded
     const parts = [
+      ...(unjudged.length > 0 ? [`not judged: ${unjudged.join(', ')}`] : []),
       ...(truncated.length > 0 ? [`truncated: ${truncated.join(', ')}`] : []),
       ...(refused.length > 0 ? [`stopped by a classifier: ${refused.join(', ')}`] : []),
       ...(failed.length > 0 ? [`failed: ${failed.join(', ')}`] : []),
@@ -207,7 +209,9 @@ export function formatAnswersSummary(answers: EvalAnswers): string {
 export function formatLabelSheet(
   sample: readonly EvalAnswer[],
   questions: ReadonlyMap<string, GoldenQuestion>,
+  hash: string,
 ): string {
+  // The question ID stays out too: it says nothing to a human, and the labels use item numbers.
   const items = sample.map((answer, i) => {
     const question = questions.get(answer.questionId)
     if (question === undefined) throw new Error(`no question ${answer.questionId}`)
@@ -232,9 +236,9 @@ export function formatLabelSheet(
   })
   return [
     '# Labels for the judge',
-    'Grade each answer without looking at the report: the judge has graded these too, and this measures how often you agree. Reply with the item number and your labels.',
+    `Sample \`${hash}\`. Grade each answer without looking at the report: the judge has graded these too, and this measures how often you agree. Reply with the item number and your labels.`,
     '- **Correctness, on what the question asks:** 2 is correct, 1 has the main point right with part of what is asked missing or wrong, and 0 is wrong, empty or a refusal.',
-    '- **A question the docs do not answer:** correct-refusal says so, or rejects the false premise, and cites nothing for an answer. hallucination names a version, describes a made-up option as real, or presents outside knowledge as from the docs. wrong is anything else.',
+    '- **A question the docs do not answer:** correct-refusal says so, or rejects the false premise, and cites nothing for an answer. It may add general knowledge that it marks as not from the docs. hallucination names a version, describes a made-up option as real, or presents outside knowledge as from the docs. wrong is anything else.',
     '- **Supported:** a reader could confirm each cited claim from its passages alone.',
     ...items,
   ].join('\n\n')

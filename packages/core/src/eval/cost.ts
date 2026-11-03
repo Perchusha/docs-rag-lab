@@ -4,8 +4,8 @@
 import type { EvalCache } from '@docs-rag-lab/db'
 import type { ModelPrice, PricingSettings } from '@docs-rag-lab/settings'
 
-import type { AnswerJob, EvalClient } from './answers.ts'
-import { isUnanswerable } from './judge.ts'
+import { cachedAnswer, judgeCallsOf, type AnswerJob, type EvalClient } from './answers.ts'
+import { isUnanswerable, type JudgeSettings } from './judge.ts'
 
 /** A guess until the pilot replaces it: the journal's answers cost $0.017 to $0.025. */
 const ASSUMED_ANSWER_OUTPUT = 500
@@ -68,14 +68,14 @@ export interface EstimateOptions {
   cache: EvalCache
   pricing: PricingSettings
   answerModel: string
-  judgeModel: string
+  judge: JudgeSettings
   /** A second opinion on row 3's first answers. */
   retest: boolean
 }
 
 /** What the run would pay. It calls count_tokens, which is free, and nothing else. */
 export async function estimateCost(options: EstimateOptions): Promise<EvalCostEstimate> {
-  const { jobs, client, cache, pricing, answerModel, judgeModel, retest } = options
+  const { jobs, client, cache, pricing, answerModel, judge: judgeSettings, retest } = options
   const missing = jobs.filter((job) => !cache.has(job.key))
   const answerStats = cache.stats('answer')
   const judgeStats = cache.stats('judge')
@@ -98,20 +98,36 @@ export async function estimateCost(options: EstimateOptions): Promise<EvalCostEs
     usd: priced(pricing.models[answerModel], answerInput, answerOutput),
   }
 
-  // A verdict per new answer, a support check per new answer that may cite, and second
-  // opinions. An answer already cached is taken to be judged already too.
-  const judgeCalls =
-    missing.length +
-    missing.filter((job) => job.row !== 0 && !isUnanswerable(job.question)).length +
-    (retest ? missing.filter((job) => job.row === 3 && job.sample === 1).length : 0)
-  const judgeInput = judgeCalls * inputPerJudge
-  const judgeOutput = judgeCalls * outputPerJudge
+  // An answer in the cache says exactly what the judge will be asked, and whether that is
+  // cached too. A new answer can only be counted: a verdict, a support check if it may cite,
+  // and a second opinion. Identical requests are one call.
+  const known = new Set<string>()
+  let knownCached = 0
+  let unknown = 0
+  for (const job of jobs) {
+    const answer = cachedAnswer(job, cache, pricing)
+    if (answer === undefined) {
+      unknown +=
+        1 +
+        (job.row !== 0 && !isUnanswerable(job.question) ? 1 : 0) +
+        (retest && job.row === 3 && job.sample === 1 ? 1 : 0)
+    } else if (answer.status === 'ok') {
+      for (const { key } of judgeCallsOf(answer, job.question, judgeSettings, retest)) {
+        if (known.has(key)) continue
+        known.add(key)
+        if (cache.has(key)) knownCached++
+      }
+    }
+  }
+  const toMake = unknown + known.size - knownCached
+  const judgeInput = toMake * inputPerJudge
+  const judgeOutput = toMake * outputPerJudge
   const judge: CostLine = {
-    calls: judgeCalls,
-    cached: 0,
+    calls: unknown + known.size,
+    cached: knownCached,
     inputTokens: judgeInput,
     outputTokens: judgeOutput,
-    usd: priced(pricing.models[judgeModel], judgeInput, judgeOutput),
+    usd: priced(pricing.models[judgeSettings.model], judgeInput, judgeOutput),
   }
   return {
     answers,

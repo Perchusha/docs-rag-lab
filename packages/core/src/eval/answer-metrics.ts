@@ -132,6 +132,14 @@ export function rowResult(
   }
   const idsWith = (status: EvalAnswer['status']): string[] =>
     all.filter(({ answer }) => answer.status === status).map(({ answer }) => answer.questionId)
+  // A failed verdict or support check leaves the means, so it must show up somewhere.
+  const unjudged = finished
+    .filter((item) => {
+      const needsSupport = item.answer.claims.length > 0 && !unanswerable(item)
+      return item.verdict === undefined || (needsSupport && item.support === undefined)
+    })
+    .map(({ answer }) => answer.questionId)
+    .sort()
   return {
     row,
     sample,
@@ -150,6 +158,7 @@ export function rowResult(
       truncated: idsWith('truncated').sort(),
       refused: idsWith('refused').sort(),
       failed: idsWith('failed').sort(),
+      unjudged,
     },
   }
 }

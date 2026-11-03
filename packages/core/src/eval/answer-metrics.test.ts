@@ -150,6 +150,7 @@ describe('rowResult', () => {
           answer(4, 3, { status: 'failed', costUsd: 50 }),
         ],
         verdicts: [verdict(1, 3, 2)],
+        support: [support(1, 3, true)],
       }),
     )
 
@@ -159,6 +160,7 @@ describe('rowResult', () => {
       truncated: [ID(2)],
       refused: [ID(3)],
       failed: [ID(4)],
+      unjudged: [],
     })
   })
 
@@ -200,10 +202,39 @@ describe('rowResult', () => {
       options({
         answers: [answer(1, 3), answer(2, 3)],
         verdicts: [verdict(1, 3, 2), verdict(2, 3, null, { status: 'failed' })],
+        support: [support(1, 3, true), support(2, 3, true)],
       }),
     )
 
     expect(result.overall).toMatchObject({ questions: 1, correctness: 2 })
+    expect(result.excluded.unjudged).toEqual([ID(2)])
+  })
+
+  it('lists an answer whose citations the judge could not read as not judged', () => {
+    const result = rowResult(
+      3,
+      1,
+      options({
+        answers: [answer(1, 3), answer(2, 3, { claims: [] })],
+        verdicts: [verdict(1, 3, 2), verdict(2, 3, 2)],
+        support: [{ ...support(1, 3), status: 'failed' }],
+      }),
+    )
+
+    expect(result.excluded.unjudged).toEqual([ID(1)])
+  })
+
+  it('needs no citation check for a question the docs do not answer', () => {
+    const result = rowResult(
+      3,
+      1,
+      options({
+        answers: [answer(11, 3)],
+        verdicts: [verdict(11, 3, null, { outcome: 'wrong' })],
+      }),
+    )
+
+    expect(result.excluded.unjudged).toEqual([])
   })
 })
 

@@ -7,7 +7,7 @@ import type {
 } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
-import { calibrate, cohensKappa, sampleForLabels, wilsonInterval } from './calibrate.ts'
+import { calibrate, cohensKappa, sampleForLabels, sampleHash, wilsonInterval } from './calibrate.ts'
 import { parseGoldenSet } from './golden.ts'
 
 const ID = (i: number): string => `ts-${String(i).padStart(4, '0')}`
@@ -147,6 +147,28 @@ describe('sampleForLabels', () => {
     ).toEqual([ID(20)])
   })
 
+  it('reaches 3 low scores from one row, when that row has them all', () => {
+    const answers = [1, 2, 3, 4, 5, 6, 7, 8].flatMap((i) => [answer(i, 0), answer(i, 3)])
+    const verdicts = [
+      ...[1, 2, 3, 4, 5, 6, 7, 8].map((i) => verdict(i, 0, i <= 3 ? 0 : 2)),
+      ...[1, 2, 3, 4, 5, 6, 7, 8].map((i) => verdict(i, 3, 2)),
+    ]
+
+    const picked = sampleForLabels({ rows: [0, 3], answers, verdicts, questions })
+
+    expect(picked.filter((item) => item.row === 0 && item.questionId <= ID(3))).toHaveLength(3)
+    expect(picked.filter((item) => item.row === 0)).toHaveLength(5)
+  })
+
+  it('takes no more low scores than it needs', () => {
+    const answers = Array.from({ length: 20 }, (_, i) => answer(i + 1, 3))
+    const verdicts = answers.map((_, i) => verdict(i + 1, 3, 0))
+
+    const picked = sampleForLabels({ rows: [3], answers, verdicts, questions })
+
+    expect(picked).toHaveLength(5)
+  })
+
   it('never fills up with more unanswerable questions than the one per row', () => {
     const answers = [41, 42, 43, 44, 45, 1, 2, 3, 4, 5].map((i) => answer(i, 3))
 
@@ -154,6 +176,19 @@ describe('sampleForLabels', () => {
 
     expect(picked).toHaveLength(5)
     expect(picked.filter((item) => item.questionId >= ID(41))).toHaveLength(1)
+  })
+})
+
+describe('sampleHash', () => {
+  it('names the set of answers, in any order', () => {
+    const [a, b] = [answer(1, 0), answer(2, 3)]
+
+    expect(sampleHash([a, b])).toBe(sampleHash([b, a]))
+  })
+
+  it('changes with the question and with the row', () => {
+    expect(sampleHash([answer(1, 0)])).not.toBe(sampleHash([answer(2, 0)]))
+    expect(sampleHash([answer(1, 0)])).not.toBe(sampleHash([answer(1, 3)]))
   })
 })
 

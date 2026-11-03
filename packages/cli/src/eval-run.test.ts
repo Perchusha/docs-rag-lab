@@ -20,6 +20,7 @@ import {
   embeddingCacheKey,
   parseGoldenSet,
   sampleForLabels,
+  sampleHash,
   type EvalClient,
   openIndexes,
 } from '@docs-rag-lab/core'
@@ -560,6 +561,54 @@ describe('drl eval answers', () => {
     expect(markdown).not.toContain('SECRET')
   })
 
+  describe('when calls fail', () => {
+    beforeEach(() => {
+      judgeBody = () => ({ nothing: true })
+    })
+
+    // Not all at once, or it stops as a broken key would.
+    const everyOtherFails = () => {
+      let calls = 0
+      judgeBody = (system, text) =>
+        ++calls % 2 === 0 ? { nothing: true } : SOUND_JUDGE(system, text)
+    }
+
+    it('writes what it has, says so, and exits non-zero', async () => {
+      everyOtherFails()
+
+      const { code, out, err } = await drl('eval', 'answers', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('calls failed, so the report leaves those out')
+      const markdown = readFileSync(reportPathIn(out).replace(/\.json$/, '.md'), 'utf8')
+      expect(markdown).toContain('not judged:')
+    })
+
+    it('a rerun pays only for those', async () => {
+      everyOtherFails()
+      await drl('eval', 'answers', '--yes')
+      const paid = claudeRequests.length
+      judgeBody = SOUND_JUDGE
+      clock += 1000
+
+      const { code } = await drl('eval', 'answers', '--yes')
+
+      expect(code).toBe(0)
+      expect(claudeRequests.length).toBeGreaterThan(paid)
+      expect(claudeRequests.length).toBeLessThan(paid * 2)
+    })
+
+    it('a named report refuses to exist with anything failed', async () => {
+      everyOtherFails()
+
+      const { code, err } = await drl('eval', 'answers', '--name', 'x', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('a named report needs them all')
+      expect(reportFiles()).toEqual([])
+    })
+  })
+
   it('a named run needs the whole set and every row', async () => {
     const only = await drl('eval', 'answers', '--name', 'x', '--only', 'ts-0001', '--yes')
     const rows = await drl('eval', 'answers', '--name', 'x', '--rows', '3', '--yes')
@@ -611,6 +660,7 @@ describe('drl eval answers', () => {
       const sheet = sheetOf(out)
       expect(sheet).toMatch(/[\\/]dev[\\/]labels-/)
       const text = readFileSync(sheet, 'utf8')
+      expect(text).toMatch(/Sample `[0-9a-f]{12}`/)
       expect(text).toContain('SECRET ANSWER TEXT.')
       expect(text).toContain('SECRET PASSAGE.')
       expect(text).toContain('## Item 1')
@@ -639,7 +689,7 @@ describe('drl eval answers', () => {
           : { item: i + 1, outcome: verdict.outcome }
       })
       const labelsPath = join(root, 'labels.json')
-      writeFileSync(labelsPath, JSON.stringify(labels))
+      writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
 
       const { code, out } = await drl('eval', 'calibrate', path, labelsPath)
 
@@ -653,26 +703,71 @@ describe('drl eval answers', () => {
       expect(readFileSync(`${written}.md`, 'utf8')).toContain('| correctness |')
     })
 
+    /** Labels of the whole sample, each with every field a kind of question can need. */
+    function allItems(path: string, line: Record<string, unknown>) {
+      const report = readReport(path)
+      const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+      const sample = sampleForLabels({
+        rows: [0, 2, 3],
+        answers: report.answers?.answers ?? [],
+        verdicts: report.answers?.verdicts ?? [],
+        questions: golden,
+      })
+      return {
+        sample: sampleHash(sample),
+        labels: sample.map((_, i) => ({ item: i + 1, ...line })),
+      }
+    }
+
     it('marks the answer metrics uncalibrated when the labels disagree', async () => {
       const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
       const labelsPath = join(root, 'labels.json')
-      writeFileSync(labelsPath, JSON.stringify([{ item: 1, correctness: 0, outcome: 'wrong' }]))
+      writeFileSync(
+        labelsPath,
+        JSON.stringify(allItems(path, { correctness: 0, outcome: 'wrong', supported: false })),
+      )
 
       const { out } = await drl('eval', 'calibrate', path, labelsPath)
 
       expect(out).toContain('uncalibrated')
     })
 
-    it('refuses an item that is not on the sheet, and a label that is missing', async () => {
+    it('refuses labels of another sample, since they would pair with the wrong answers', async () => {
       const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
       const labelsPath = join(root, 'labels.json')
+      const file = allItems(path, { correctness: 2, outcome: 'wrong' })
+      writeFileSync(labelsPath, JSON.stringify({ ...file, sample: 'other' }))
 
-      writeFileSync(labelsPath, JSON.stringify([{ item: 99, correctness: 2 }]))
-      expect((await drl('eval', 'calibrate', path, labelsPath)).err).toContain('no item 99')
+      const { code, err } = await drl('eval', 'calibrate', path, labelsPath)
 
-      writeFileSync(labelsPath, JSON.stringify([{ item: 1 }]))
+      expect(code).toBe(1)
+      expect(err).toContain('they would be read against other answers')
+    })
+
+    it('needs every item once, so that a few labels cannot calibrate anything', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+      const file = allItems(path, { correctness: 2, outcome: 'wrong' })
+
+      writeFileSync(labelsPath, JSON.stringify({ ...file, labels: file.labels.slice(1) }))
+      expect((await drl('eval', 'calibrate', path, labelsPath)).err).toContain('1 missing')
+
+      const repeated = [...file.labels, file.labels[0]]
+      writeFileSync(labelsPath, JSON.stringify({ ...file, labels: repeated }))
+      expect((await drl('eval', 'calibrate', path, labelsPath)).err).toContain('appears twice')
+
+      const beyond = [...file.labels.slice(1), { item: 99, correctness: 2 }]
+      writeFileSync(labelsPath, JSON.stringify({ ...file, labels: beyond }))
+      expect((await drl('eval', 'calibrate', path, labelsPath)).code).toBe(1)
+    })
+
+    it('needs the label a kind of question asks for', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+      writeFileSync(labelsPath, JSON.stringify(allItems(path, {})))
+
       expect((await drl('eval', 'calibrate', path, labelsPath)).err).toMatch(
-        /item 1 needs an? (outcome|correctness)/,
+        /item \d+ needs an? (outcome|correctness)/,
       )
     })
 

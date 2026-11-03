@@ -82,7 +82,9 @@ export {
 export { fieldDifferences, verifyReport, type EvalVerification } from './eval/verify.ts'
 export { readRepoState, type RepoState } from './eval/repo-state.ts'
 export {
+  cachedAnswer,
   claimsOf,
+  judgeCallsOf,
   EvalStoppedError,
   noRagSystemPrompt,
   planAnswers,
@@ -112,6 +114,7 @@ export {
   cohensKappa,
   LABEL_SEED,
   sampleForLabels,
+  sampleHash,
   wilsonInterval,
   type CalibrateOptions,
   type SampleOptions,

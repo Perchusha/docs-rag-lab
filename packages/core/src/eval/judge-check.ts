@@ -79,7 +79,7 @@ export function judgeCases(
   settings: JudgeSettings,
 ): JudgeCase[] {
   const answerable = questions.filter((question) => !isUnanswerable(question)).slice(0, 3)
-  const unanswerable = questions.filter(isUnanswerable).slice(0, 2)
+  const unanswerable = questions.filter(isUnanswerable)
   const [first, second, other] = answerable
   if (first === undefined || second === undefined || other === undefined) {
     throw new Error('the judge check needs 3 questions that have answers')
@@ -112,6 +112,17 @@ export function judgeCases(
       {
         name: `${question.id}, the expert's refusal`,
         request: refusalRequest(settings, question, question.answer, []),
+        expected: 'correct-refusal',
+        read: outcome,
+      },
+      {
+        name: `${question.id}, a refusal in other words`,
+        request: refusalRequest(
+          settings,
+          question,
+          'The search results do not say anything about this, so I cannot answer it from them.',
+          [],
+        ),
         expected: 'correct-refusal',
         read: outcome,
       },
@@ -154,7 +165,14 @@ export async function runJudgeCheck(
   const results: JudgeCaseResult[] = []
   await runner.run(cases, async ({ name, request, expected, read }) => {
     try {
-      const { call } = await runner.call('judge', request, requestKey(request, 1))
+      const { call } = await runner.call(
+        'judge-check',
+        request,
+        requestKey(request, 1),
+        (message) => {
+          read(message)
+        },
+      )
       const got = read(call.message)
       results.push({ name, expected, got, passed: got === expected })
     } catch (error) {

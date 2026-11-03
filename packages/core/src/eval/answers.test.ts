@@ -197,6 +197,23 @@ describe('claimsOf', () => {
     ])
   })
 
+  it('leaves out a citation of another kind, which is no search result', () => {
+    expect(
+      claimsOf(
+        {
+          content: [
+            {
+              type: 'text',
+              text: 'x',
+              citations: [{ type: 'char_location', cited_text: 'y', document_index: 0 }],
+            },
+          ],
+        } as unknown as Anthropic.Message,
+        [{ chunkId: 'a' }],
+      ),
+    ).toEqual([])
+  })
+
   it('refuses a citation of something that was not in the context', () => {
     expect(() =>
       claimsOf(
@@ -339,6 +356,36 @@ describe('runAnswers', () => {
     expect(requests).toHaveLength(2)
   })
 
+  it('counts another model as a failure, so that it cannot keep paying', async () => {
+    const { client, requests } = fakeClient(() => message({ model: 'other' }))
+    const jobs = Array.from({ length: 8 }, (_, i) => job(answerable, i + 1))
+
+    await expect(runAnswers(jobs, options(client))).rejects.toThrow('5 failures in a row')
+    expect(requests).toHaveLength(5)
+  })
+
+  it.each([
+    ['an empty answer', { content: [] }, 'the answer is empty'],
+    [
+      'an answer of whitespace',
+      { content: [{ type: 'text', text: ' \n', citations: null }] },
+      'the answer is empty',
+    ],
+    ['pause_turn', { stop_reason: 'pause_turn' }, 'it stopped with pause_turn'],
+    ['no stop reason', { stop_reason: null }, 'it stopped with null'],
+  ] as const)('does not take %s as an answer, and tries it again', async (_name, reply, error) => {
+    const { client, requests } = fakeClient(() =>
+      message(reply as unknown as Partial<Anthropic.Message>),
+    )
+    const run = options(client)
+
+    const [answer] = await runAnswers([job()], run)
+    await runAnswers([job()], run)
+
+    expect(answer).toMatchObject({ status: 'failed', error, text: '' })
+    expect(requests).toHaveLength(2)
+  })
+
   it('leaves thinking out of what it stores', async () => {
     const { client } = fakeClient(() =>
       message({
@@ -373,6 +420,20 @@ describe('runAnswers', () => {
 
     await expect(runAnswers(jobs, options(client))).rejects.toThrow('5 failures in a row')
     expect(requests).toHaveLength(5)
+  })
+
+  it('starts counting failures again after one that worked', async () => {
+    let calls = 0
+    const { client, requests } = fakeClient(() => {
+      calls++
+      return calls % 5 === 0 ? message() : new Error('overloaded')
+    })
+    const jobs = Array.from({ length: 12 }, (_, i) => job(answerable, i + 1))
+
+    const answers = await runAnswers(jobs, options(client))
+
+    expect(requests).toHaveLength(12)
+    expect(answers.filter(({ status }) => status === 'ok')).toHaveLength(2)
   })
 
   it('returns answers in a stable order, however they finish', async () => {
@@ -476,6 +537,15 @@ describe('runJudge', () => {
     expect(support).toEqual([])
   })
 
+  it('checks no citations of a question the docs do not answer, since a refusal cites nothing', async () => {
+    const { client, requests } = fakeClient(judgeReply)
+
+    const { support } = await runJudge([answer({ questionId: 'ts-0002' })], run(client))
+
+    expect(requests).toHaveLength(1)
+    expect(support).toEqual([])
+  })
+
   it('tells the judge nothing about the row or the strategy', async () => {
     const { client, requests } = fakeClient(judgeReply)
 
@@ -514,6 +584,48 @@ describe('runJudge', () => {
       expect(support).toEqual([])
     },
   )
+
+  it('gives one text one grade, also when two rows ask at the same moment', async () => {
+    let grade = 2
+    const { client, requests } = fakeClient(() =>
+      message({
+        model: JUDGE,
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ reasoning: 'r', correctness: grade--, false_refusal: false }),
+            citations: null,
+          },
+        ] as Anthropic.ContentBlock[],
+      }),
+    )
+
+    const { verdicts } = await runJudge(
+      [answer({ row: 2, claims: [] }), answer({ row: 3, claims: [] })],
+      { ...run(client), concurrency: 4 },
+    )
+
+    expect(requests).toHaveLength(1)
+    expect(verdicts.map(({ correctness }) => correctness)).toEqual([2, 2])
+  })
+
+  it('tries a reply it could not read again, instead of keeping it failed', async () => {
+    let calls = 0
+    const { client, requests } = fakeClient((request) => {
+      calls++
+      return calls === 1
+        ? message({ model: JUDGE, stop_reason: 'max_tokens' })
+        : judgeReply(request)
+    })
+    const options_ = run(client)
+
+    const first = await runJudge([answer({ claims: [] })], options_)
+    const second = await runJudge([answer({ claims: [] })], options_)
+
+    expect(first.verdicts[0]?.status).toBe('failed')
+    expect(second.verdicts[0]).toMatchObject({ status: 'ok', correctness: 2 })
+    expect(requests).toHaveLength(2)
+  })
 
   it('asks a second time about row 3 only, under another key, on a retest', async () => {
     const { client, requests } = fakeClient(judgeReply)

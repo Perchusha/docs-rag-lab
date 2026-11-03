@@ -33,6 +33,7 @@ import {
   runJudge,
   runJudgeCheck,
   sampleForLabels,
+  sampleHash,
   SUPPORT_SYSTEM_PROMPT,
   ANSWER_SYSTEM_PROMPT,
   type EvalCache,
@@ -166,7 +167,7 @@ export async function evalAnswersCommand(
       cache,
       pricing: settings.pricing,
       answerModel: answer.model,
-      judgeModel: judge.model,
+      judge,
       retest: args.noise,
     })
     ctx.out.write(`${formatCostEstimate(estimate, maxUsd)}\n`)
@@ -239,6 +240,15 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
+    const failures =
+      answers.filter(({ status }) => status === 'failed').length +
+      verdicts.filter(({ status }) => status === 'failed').length +
+      support.filter(({ status }) => status === 'failed').length
+    if (failures > 0 && args.name !== undefined) {
+      throw new CliError(
+        `${String(failures)} calls failed, and a named report needs them all: rerun, which pays only for those`,
+      )
+    }
     const path = writeReport(
       ctx,
       source,
@@ -247,6 +257,11 @@ export async function evalAnswersCommand(
       answerSections,
     )
     ctx.out.write(`${formatAnswersSummary(section)}\n\nreport: ${path}\n`)
+    if (failures > 0) {
+      throw new CliError(
+        `${String(failures)} calls failed, so the report leaves those out: rerun, which pays only for them`,
+      )
+    }
   })
 }
 
@@ -310,7 +325,7 @@ export function evalLabelCommand(ctx: CommandContext, args: { path: string }): v
   mkdirSync(dir, { recursive: true })
   const sheet = join(dir, `labels-${basename(args.path, '.json')}.md`)
   const questions = new Map(golden.questions.map((question) => [question.id, question]))
-  writeFileSync(sheet, `${formatLabelSheet(sample, questions)}\n`)
+  writeFileSync(sheet, `${formatLabelSheet(sample, questions, sampleHash(sample))}\n`)
   ctx.out.write(`${String(sample.length)} answers to label, with no verdicts in sight: ${sheet}\n`)
 }
 
@@ -320,6 +335,12 @@ interface LabelLine {
   correctness?: 0 | 1 | 2
   outcome?: AnswerLabel['outcome']
   supported?: boolean
+}
+
+interface LabelFile {
+  /** The sample the sheet showed, so that labels cannot be read against another one. */
+  sample: string
+  labels: LabelLine[]
 }
 
 /** `drl eval calibrate <report> <labels>`: how often the human and the judge agree. */
@@ -334,8 +355,21 @@ export function evalCalibrateCommand(
   const sample = sampleOf(report, answers, golden)
   const full = resolve(ctx.root, args.labels)
   if (!existsSync(full)) throw new CliError(`no labels at ${full}`)
-  const lines = JSON.parse(readFileSync(full, 'utf8')) as LabelLine[]
-  const labels = lines.map((line): AnswerLabel => {
+  const file = JSON.parse(readFileSync(full, 'utf8')) as LabelFile
+  const hash = sampleHash(sample)
+  if (file.sample !== hash) {
+    throw new CliError(
+      `these labels are of sample ${file.sample}, and this report gives ${hash}: they would be read against other answers`,
+    )
+  }
+  const items = file.labels.map(({ item }) => item).sort((a, b) => a - b)
+  const missing = sample.map((_, i) => i + 1).filter((item) => !items.includes(item))
+  if (missing.length > 0 || new Set(items).size !== items.length) {
+    throw new CliError(
+      `every item needs one label: ${missing.length > 0 ? `${missing.join(', ')} missing` : 'one appears twice'}`,
+    )
+  }
+  const labels = file.labels.map((line): AnswerLabel => {
     const answer = sample[line.item - 1]
     if (answer === undefined) throw new CliError(`there is no item ${String(line.item)}`)
     const question = golden.questions.find(({ id }) => id === answer.questionId)
