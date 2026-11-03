@@ -1,7 +1,7 @@
 // Every app under apps/ loads the ui tokens itself, and gives the body what Storybook gives it, so
 // a page cannot pass in one and fail in the other (ADR-0008). It sits in this app and looks at them
-// all: ts-docs depends on ui, so a change to the tokens or to Storybook's page selects it. turbo.json
-// lists the other apps' files as inputs of this test, so that a change to them is no cached pass.
+// all, so the Stop hook always runs this app's tests. turbo.json lists the other apps' files as
+// inputs of this test, so that a change to them is no cached pass.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
