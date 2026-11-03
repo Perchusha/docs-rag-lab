@@ -446,7 +446,7 @@ Hypotheses to check first, on the full golden set and not tuned to these four qu
 1. **Backticked plain words are counted twice.** A word like `satisfies`, `strict`, `unknown` or `any` is both a search term and an exact token, so BM25 enters the fusion twice. Check: limit exact tokens to code-shaped ones (identifiers, flags, source tokens, code with punctuation).
 2. **Trigram matches 3-character terms inside other words.** `any` matches "many" and "company", so 488 of 994 chunks match it. Check: match 3-character terms as whole words, for example through a second unicode61 column or table.
 
-If the M4 changes do not reach the targets, the M5 reranker (`rerank-3` over the fused top 20) is the next lever.
+Both were tested on the full set under criteria fixed first, alone and together, and neither reached the targets, so neither was adopted (ADR-0011). The three rows stay unmet, and the M5 reranker (`rerank-3` over the fused top 20) is the next lever.
 
 ## 14. Conventions
 

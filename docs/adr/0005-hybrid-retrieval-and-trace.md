@@ -5,6 +5,7 @@
 - Milestone: M2
 - Amended: 2026-11-01, M3: the trace type moved to `@docs-rag-lab/contracts` (ADR-0006), and `TRACE_VERSION` 2 adds `chunks[id].sectionPath`, the section a chunk starts in
 - Amended: 2026-11-02, M4: the RRF settings stay untuned, unlike what section 3 expected (ADR-0009, section 8)
+- Amended: 2026-11-03, M4: limiting exact tokens to code-shaped ones and matching 3-character terms as whole words were both tested on the full set and not adopted (ADR-0011)
 
 ## Context
 
