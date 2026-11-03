@@ -62,11 +62,38 @@ The bar is a share, so what it allows depends on how many answers a dimension co
 |---|---|---|
 | Refusal | 15, every answer | 2 |
 | Correctness | 12, the questions the docs answer | 1 |
-| Support | 10, the answers that cite something | 1 | The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
+| Support | 8, the answers that cite something on questions the docs answer | 1 | The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
 
 ### 6. Noise
 
 Differences between rows use the same sign test and verdicts as retrieval (ADR-0010). Unlike retrieval, answers have run-to-run noise too. `--noise` answers row 3 a second time and asks the judge a second time about row 3's first answers, so a report says how far a row differs from itself and how often the judge repeats its grade. A difference between rows that a row also shows against itself means nothing.
+
+## Measured
+
+The report `eval/reports/typescript/2026-11-03-53f5eb82-answers`, at docs `205122bb` and set version 1, on 40 questions with answers and 5 without. It cost $6.67 at list prices with its pilot and known cases.
+
+**The judge did not reach the bar, so its correctness scores are uncalibrated.** The labels are in `eval/labels/typescript/`.
+
+| Dimension | Agreed | Kappa | 95% interval | Passed |
+|---|---|---|---|---|
+| Correctness | 10 of 12 | 0.71 | 55% to 95% | no |
+| Refusal | 15 of 15 | 1.00 | 80% to 100% | yes |
+| Support | 8 of 8 | 1.00 | 68% to 100% | yes |
+
+Both disagreements are the judge scoring 2 where the human scored 1, and on ts-0038 the judge's own reasoning names a gap and still gives 2. It is stable: asked twice about 45 answers, it gave the same grade on all 45. So this is a lean, not noise.
+
+| Row | Correctness | Scored 0 / 1 / 2 | False refusals | Cites an anchor | Claims supported | Refused correctly | Cost per question |
+|---|---|---|---|---|---|---|---|
+| 0, no RAG | 1.850 | 2 / 2 / 36 | 1 | - | - | 5 of 5 | $0.0043 |
+| 2, vector | 1.875 | 2 / 1 / 37 | 1 | 35 of 40 | 241 of 243 | 5 of 5 | $0.0216 |
+| 3, hybrid | 1.775 | 3 / 3 / 34 | 2 | 36 of 40 | 236 of 244 | 5 of 5 | $0.0225 |
+| 3, again | 1.775 | 3 / 3 / 34 | 2 | 36 of 40 | 231 of 234 | 5 of 5 | $0.0225 |
+
+- **Row 2 against row 3, correctness:** row 2 is better on 3 questions and row 3 on none, with 37 tied: p = 0.25, not significant. All three are questions hybrid search handles worse: ts-0022 and ts-0038 miss the top 8, and ts-0027 is the unmet target.
+- **Row 2 against row 3, support:** 7 to 0, p = 0.016, which the verdict calls better. Row 3's second sample scores 0.990 against row 2's 0.994, 2 to 0, and row 3 differs from itself by 1 to 5. So this is run-to-run noise that one test cannot see, and it is not a difference between the rows.
+- **What correctness cannot see:** on ts-0035 and ts-0040, vector search misses the anchors and the answer still scores 2, citing no anchor. On ts-0040 it says that the search results do not define the error, and reasons from one example. Row 3 cites an anchor on both.
+- **Row 0 against row 3:** 3 to 1, noise. This set does not separate no RAG from RAG on correctness, since Claude knows much of it from memory, and row 0 cites nothing.
+- **Noise:** row 3 against itself ties on correctness on all 40 questions, so these differences are not the answers varying.
 
 ## Consequences
 

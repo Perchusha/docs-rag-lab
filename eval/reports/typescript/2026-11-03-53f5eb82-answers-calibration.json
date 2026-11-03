@@ -1,0 +1,48 @@
+{
+  "report": {
+    "repoSha": "53f5eb82df81c5b7223c6234bd4e3a6d60a43fb2",
+    "name": "answers",
+    "createdAt": "2026-11-03T11:05:08.032Z"
+  },
+  "labelled": 15,
+  "agreement": [
+    {
+      "dimension": "correctness",
+      "compared": 12,
+      "agreed": 10,
+      "kappa": 0.7142857142857144,
+      "interval": [
+        0.5519691353881888,
+        0.9530348582430792
+      ],
+      "passed": false
+    },
+    {
+      "dimension": "refusal",
+      "compared": 15,
+      "agreed": 15,
+      "kappa": 1,
+      "interval": [
+        0.7961166964035129,
+        1
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "support",
+      "compared": 8,
+      "agreed": 8,
+      "kappa": 1,
+      "interval": [
+        0.6755924316585924,
+        1
+      ],
+      "passed": true
+    }
+  ],
+  "unanswerableOnly": {
+    "compared": 3,
+    "agreed": 3
+  },
+  "calibrated": false
+}
