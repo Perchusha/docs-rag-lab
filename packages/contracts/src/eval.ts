@@ -6,6 +6,8 @@
 // recomputed from `identity`. Bump EVAL_REPORT_VERSION only when an existing field
 // changes its meaning. A new section is optional and needs no bump, so the reports
 // already committed stay readable.
+import type { EvalAnswers } from './eval-answers.ts'
+import type { DifferenceVerdict } from './eval-difference.ts'
 import type { Strategy } from './trace.ts'
 import type { Parsed } from './requests.ts'
 
@@ -70,14 +72,7 @@ export const COMPARED_METRICS = ['hit@1', 'hit@3', 'hit@5', 'hit@8', 'recall@8',
 
 export type ComparedMetric = (typeof COMPARED_METRICS)[number]
 
-/**
- * What a difference means. a or b: that side is better, beyond what chance would
- * explain. noise: the sides differ by one or two questions. not-significant: by more,
- * but p >= 0.05. mixed: significant, but the side that won more questions does not
- * have the higher total, so neither is simply better. too-few: the scope has so few
- * questions that no result could be significant.
- */
-export type DifferenceVerdict = 'a' | 'b' | 'noise' | 'not-significant' | 'mixed' | 'too-few'
+export type { DifferenceVerdict }
 
 /** One metric, compared question by question. */
 export interface MetricDifference {
@@ -179,6 +174,8 @@ export interface EvalReport {
   vectors: EvalVectors
   result: EvalResult
   run: EvalRunInfo
+  /** Answers and verdicts, when the run was asked for them. Never compared by verify. */
+  answers?: EvalAnswers
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

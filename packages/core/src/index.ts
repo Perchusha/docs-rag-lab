@@ -81,6 +81,72 @@ export {
 } from './eval/run.ts'
 export { fieldDifferences, verifyReport, type EvalVerification } from './eval/verify.ts'
 export { readRepoState, type RepoState } from './eval/repo-state.ts'
+export {
+  cachedAnswer,
+  claimsOf,
+  judgeCallsOf,
+  EvalStoppedError,
+  noRagSystemPrompt,
+  planAnswers,
+  promptHash,
+  requestKey,
+  ROW_STRATEGY,
+  rowRequest,
+  runAnswers,
+  runJudge,
+  type AnswerJob,
+  type AnswerSettings,
+  type EvalClient,
+  type JudgeOptions,
+  type JudgeResult,
+  type PlanOptions,
+  type RunnerOptions,
+} from './eval/answers.ts'
+export {
+  anchorCandidates,
+  compareRows,
+  judgeRetest,
+  rowResult,
+  type AnswerResultsOptions,
+} from './eval/answer-metrics.ts'
+export {
+  calibrate,
+  cohensKappa,
+  LABEL_SEED,
+  freshSampleForLabels,
+  sampleForLabels,
+  sampleHash,
+  wilsonInterval,
+  type CalibrateOptions,
+  type FreshSampleOptions,
+  type SampleOptions,
+} from './eval/calibrate.ts'
+export {
+  estimateCost,
+  type EvalCostEstimate,
+  type CostLine,
+  type EstimateOptions,
+} from './eval/cost.ts'
+export {
+  judgeCases,
+  runJudgeCheck,
+  type JudgeCase,
+  type JudgeCaseResult,
+} from './eval/judge-check.ts'
+export {
+  correctnessRequest,
+  CORRECTNESS_SYSTEM_PROMPT,
+  isUnanswerable,
+  JudgeOutputError,
+  parseCorrectness,
+  parseRefusal,
+  parseSupport,
+  REFUSAL_SYSTEM_PROMPT,
+  refusalRequest,
+  SUPPORT_SYSTEM_PROMPT,
+  supportRequest,
+  type JudgeSettings,
+} from './eval/judge.ts'
 export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
 export {
@@ -100,4 +166,5 @@ export {
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
+export { openEvalCache, type EvalCache } from '@docs-rag-lab/db'
 export { CHUNKER_VERSION, DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'

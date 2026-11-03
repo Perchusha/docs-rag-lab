@@ -2,6 +2,28 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M4 - Answers, the judge and what this set can show (2026-11-03)
+
+Rows 0, 2 and 3 answered the golden set, and an LLM judge graded them, with a human checking the judge (ADR-0012). The plain finding: **on this set, row 0 is about as correct as RAG, so correctness alone does not measure the value of RAG here. What RAG adds is grounding.**
+
+| | Row 0, no RAG | Row 2, vector | Row 3, hybrid | Row 3, again |
+|---|---|---|---|---|
+| Correctness, 0 to 2 | 1.850 | 1.850 | 1.775 | 1.775 |
+| Scored 2, of 40 | 36 | 36 | 34 | 34 |
+| Correct and grounded, of 40 (exploratory) | cannot score | 31 | 28 | 32 |
+| Refused correctly, of 5 | 5 | 5 | 5 | 5 |
+| Cost per question | $0.0043 | $0.0216 | $0.0225 | $0.0225 |
+
+- **Row 2 against row 3:** 3 to 0 on correctness, p = 0.25, not significant, on questions hybrid search handles worse. Hybrid stays the default until M5.
+- **Correct and grounded** was defined after seeing the first results, so it is exploratory. It counts answers that score 2, have every cited claim supported, and cite an anchor. Row 3 differs from itself by more than it differs from row 2, so it does not separate them either.
+- **The judge took two rounds.** The first missed the bar on correctness, at 10 of 12. The prompt now states the rubric outright, and a fresh blind round agreed on 9 of 10, within the 1 disagreement fixed beforehand. Refusal agreed on 15 of 15 and support on 8 of 8.
+- **That pass says less than it seems.** The new prompt changed only 1 of 120 verdicts, and the fresh round would have come out the same without it. All three disagreements are the judge scoring higher than the human, so correctness may still run slightly high.
+- **A review before anyone used the numbers** found four blocking defects, among them labels that could pair with the wrong answers, and one text getting two grades.
+
+**A candidate for golden set v2, not now:** more questions whose answers changed after the models' training cutoff, which memory cannot answer. The cited chunks listed for review, 52 in the final report, wait for the same review.
+
+**Spend:** $8.20 at list prices, against a plan of about $11. Answers $3.13, the judge $5.07.
+
 ## M4 - The two retrieval hypotheses, tested and not adopted (2026-11-03)
 
 SPEC section 13 named two causes for hybrid's lost ranks. Both were tested on the full set under criteria fixed first (ADR-0011), alone and together. No config met the targets, so the defaults did not change, and the code stays out of main, behind the tag `exp/m4-h1-h2`.

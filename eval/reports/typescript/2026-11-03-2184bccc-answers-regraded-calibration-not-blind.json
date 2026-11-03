@@ -1,0 +1,49 @@
+{
+  "report": {
+    "repoSha": "2184bccc2c565972fbc8153fbee109ed71dc2830",
+    "name": "answers-regraded",
+    "createdAt": "2026-11-03T12:18:23.187Z"
+  },
+  "blind": false,
+  "labelled": 15,
+  "agreement": [
+    {
+      "dimension": "correctness",
+      "compared": 12,
+      "agreed": 11,
+      "kappa": 0.8620689655172413,
+      "interval": [
+        0.6461200862787544,
+        0.9851349057603305
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "refusal",
+      "compared": 15,
+      "agreed": 15,
+      "kappa": 1,
+      "interval": [
+        0.7961166964035129,
+        1
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "support",
+      "compared": 8,
+      "agreed": 8,
+      "kappa": 1,
+      "interval": [
+        0.6755924316585924,
+        1
+      ],
+      "passed": true
+    }
+  ],
+  "unanswerableOnly": {
+    "compared": 3,
+    "agreed": 3
+  },
+  "calibrated": false
+}
