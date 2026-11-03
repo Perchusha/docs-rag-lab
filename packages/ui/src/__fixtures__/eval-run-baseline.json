@@ -1,0 +1,104 @@
+{
+  "id": "2026-11-03-15a96498-baseline",
+  "name": "baseline",
+  "createdAt": "2026-11-03T01:07:22.107Z",
+  "repoSha": "15a964982c33d32cf6bfdefe3d5e6eb4ad91bcd0",
+  "retrieval": {
+    "question": "Does hybrid find the right chunks more often?",
+    "summary": "No difference holds up on these 40 questions.",
+    "columns": [
+      "Vector",
+      "Hybrid"
+    ],
+    "rows": [
+      {
+        "id": "top-8",
+        "label": "Right chunk in top 8",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 2,
+            "bAhead": 2,
+            "tied": 36,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "mrr",
+        "label": "How high it ranks (MRR)",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "mean",
+            "value": 0.7507761437908497,
+            "of": 40,
+            "low": 0.6349673202614379,
+            "high": 0.8571078431372549
+          },
+          {
+            "kind": "mean",
+            "value": 0.6571734270631328,
+            "of": 40,
+            "low": 0.5486019984917043,
+            "high": 0.7635897435897434
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 14,
+            "bAhead": 7,
+            "tied": 19,
+            "p": 0.189247,
+            "verdict": "not-significant"
+          }
+        ],
+        "runToRun": null
+      }
+    ],
+    "showRunToRun": false
+  },
+  "answers": null,
+  "trust": {
+    "judge": null,
+    "goldenSet": {
+      "version": 1,
+      "hash": "0d270eac9aef91b17711bfdf01af164cb706f4218e4609e19074eb0c6a1f0bf3"
+    },
+    "docs": {
+      "repo": "https://github.com/microsoft/TypeScript-Website",
+      "branch": "v2",
+      "sha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015"
+    },
+    "indexDocsSha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
+    "stale": [],
+    "review": [],
+    "verify": {
+      "status": "identical",
+      "text": "Retrieval reproduced byte for byte at 4dc7dfac, with uncommitted changes, on the same vectors.",
+      "checkedAt": "2026-11-03T13:54:56.678Z"
+    }
+  }
+}

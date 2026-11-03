@@ -1,0 +1,504 @@
+{
+  "id": "2026-11-03-2184bccc-answers-regraded",
+  "name": "answers-regraded",
+  "createdAt": "2026-11-03T12:18:23.187Z",
+  "repoSha": "2184bccc2c565972fbc8153fbee109ed71dc2830",
+  "retrieval": {
+    "question": "Does hybrid find the right chunks more often?",
+    "summary": "No difference holds up on these 40 questions.",
+    "columns": [
+      "Vector",
+      "Hybrid"
+    ],
+    "rows": [
+      {
+        "id": "top-8",
+        "label": "Right chunk in top 8",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 2,
+            "bAhead": 2,
+            "tied": 36,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "mrr",
+        "label": "How high it ranks (MRR)",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "mean",
+            "value": 0.7507761437908497,
+            "of": 40,
+            "low": 0.6349673202614379,
+            "high": 0.8571078431372549
+          },
+          {
+            "kind": "mean",
+            "value": 0.6571734270631328,
+            "of": 40,
+            "low": 0.5486019984917043,
+            "high": 0.7635897435897434
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 14,
+            "bAhead": 7,
+            "tied": 19,
+            "p": 0.189247,
+            "verdict": "not-significant"
+          }
+        ],
+        "runToRun": null
+      }
+    ],
+    "showRunToRun": false
+  },
+  "answers": {
+    "question": "Does it give better answers, and does RAG help at all?",
+    "summary": "No difference between vector and hybrid holds up. Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding.",
+    "columns": [
+      "No RAG",
+      "Vector",
+      "Hybrid"
+    ],
+    "rows": [
+      {
+        "id": "fully-correct",
+        "label": "Fully correct",
+        "note": "may run high",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 34,
+            "of": 40,
+            "low": 0.7092767550401498,
+            "high": 0.9293881232389256
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 2,
+            "bAhead": 0,
+            "tied": 38,
+            "p": 0.5,
+            "verdict": "noise"
+          },
+          {
+            "a": "No RAG",
+            "b": "Vector",
+            "aAhead": 1,
+            "bAhead": 1,
+            "tied": 38,
+            "p": 1,
+            "verdict": "noise"
+          },
+          {
+            "a": "No RAG",
+            "b": "Hybrid",
+            "aAhead": 3,
+            "bAhead": 1,
+            "tied": 36,
+            "p": 0.625,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": 0
+      },
+      {
+        "id": "citations-hold",
+        "label": "All citations hold",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "none",
+            "reason": "cannot: no docs"
+          },
+          {
+            "kind": "share",
+            "count": 38,
+            "of": 40,
+            "low": 0.8349612250489412,
+            "high": 0.9861793327384413
+          },
+          {
+            "kind": "share",
+            "count": 33,
+            "of": 40,
+            "low": 0.6805000953869541,
+            "high": 0.9125458630150444
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 5,
+            "bAhead": 0,
+            "tied": 35,
+            "p": 0.0625,
+            "verdict": "not-significant"
+          }
+        ],
+        "runToRun": 5
+      },
+      {
+        "id": "correct-and-grounded",
+        "label": "Correct and grounded",
+        "exploratory": true,
+        "figures": [
+          {
+            "kind": "none",
+            "reason": "cannot, by design"
+          },
+          {
+            "kind": "share",
+            "count": 31,
+            "of": 40,
+            "low": 0.6249690312905765,
+            "high": 0.8768390873572685
+          },
+          {
+            "kind": "share",
+            "count": 28,
+            "of": 40,
+            "low": 0.5456998105658182,
+            "high": 0.8192515484507963
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 5,
+            "bAhead": 2,
+            "tied": 33,
+            "p": 0.453125,
+            "verdict": "not-significant"
+          }
+        ],
+        "runToRun": 4
+      },
+      {
+        "id": "cites-anchor",
+        "label": "Cites the right passage",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "none",
+            "reason": "cannot: no docs"
+          },
+          {
+            "kind": "share",
+            "count": 35,
+            "of": 40,
+            "low": 0.7388788003201471,
+            "high": 0.9454049978360052
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 1,
+            "bAhead": 2,
+            "tied": 37,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": 0
+      },
+      {
+        "id": "false-refusals",
+        "label": "Refused, though the docs answer it",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 1,
+            "of": 40,
+            "low": 0.004426831453704344,
+            "high": 0.12881369088183614
+          },
+          {
+            "kind": "share",
+            "count": 1,
+            "of": 40,
+            "low": 0.004426831453704344,
+            "high": 0.12881369088183614
+          },
+          {
+            "kind": "share",
+            "count": 2,
+            "of": 40,
+            "low": 0.01382066726155863,
+            "high": 0.16503877495105868
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 0,
+            "bAhead": 1,
+            "tied": 39,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": 0
+      },
+      {
+        "id": "right-refusals",
+        "label": "Refused rightly",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 5,
+            "of": 5,
+            "low": 0.5655175313406071,
+            "high": 1
+          },
+          {
+            "kind": "share",
+            "count": 5,
+            "of": 5,
+            "low": 0.5655175313406071,
+            "high": 1
+          },
+          {
+            "kind": "share",
+            "count": 5,
+            "of": 5,
+            "low": 0.5655175313406071,
+            "high": 1
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Vector",
+            "b": "Hybrid",
+            "aAhead": 0,
+            "bAhead": 0,
+            "tied": 5,
+            "p": 1,
+            "verdict": "too-few"
+          }
+        ],
+        "runToRun": 0
+      },
+      {
+        "id": "time-and-cost",
+        "label": "Time and cost per answer",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "text",
+            "text": "3.9 s (3.6-4.2), $0.004 ($0.004-0.005)"
+          },
+          {
+            "kind": "text",
+            "text": "4.2 s (3.8-4.5), $0.022 ($0.021-0.022)"
+          },
+          {
+            "kind": "text",
+            "text": "4.7 s (4.2-5.2), $0.023 ($0.022-0.023)"
+          }
+        ],
+        "comparisons": [],
+        "runToRun": null
+      }
+    ],
+    "showRunToRun": true
+  },
+  "trust": {
+    "judge": {
+      "calibrated": true,
+      "agreement": [
+        {
+          "dimension": "correctness",
+          "agreed": 9,
+          "compared": 10,
+          "kappa": 0.803921568627451,
+          "low": 0.5958499704752279,
+          "high": 0.982123787103926,
+          "passed": true
+        },
+        {
+          "dimension": "refusal",
+          "agreed": 15,
+          "compared": 15,
+          "kappa": 1,
+          "low": 0.7961166964035129,
+          "high": 1,
+          "passed": true
+        },
+        {
+          "dimension": "support",
+          "agreed": 8,
+          "compared": 8,
+          "kappa": 1,
+          "low": 0.6755924316585924,
+          "high": 1,
+          "passed": true
+        }
+      ],
+      "judgeHigher": 3,
+      "judgeLower": 0,
+      "bias": "All 3 disagreements are the judge scoring higher than the human: correctness may be slightly inflated.",
+      "note": "may run high",
+      "rounds": [
+        {
+          "name": "First round",
+          "blind": true,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 10,
+              "compared": 12,
+              "kappa": 0.7142857142857144,
+              "low": 0.5519691353881888,
+              "high": 0.9530348582430792,
+              "passed": false
+            },
+            {
+              "dimension": "refusal",
+              "agreed": 15,
+              "compared": 15,
+              "kappa": 1,
+              "low": 0.7961166964035129,
+              "high": 1,
+              "passed": true
+            },
+            {
+              "dimension": "support",
+              "agreed": 8,
+              "compared": 8,
+              "kappa": 1,
+              "low": 0.6755924316585924,
+              "high": 1,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "name": "Fresh round",
+          "blind": true,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 9,
+              "compared": 10,
+              "kappa": 0.803921568627451,
+              "low": 0.5958499704752279,
+              "high": 0.982123787103926,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "name": "First round, graded again",
+          "blind": false,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 11,
+              "compared": 12,
+              "kappa": 0.8620689655172413,
+              "low": 0.6461200862787544,
+              "high": 0.9851349057603305,
+              "passed": true
+            },
+            {
+              "dimension": "refusal",
+              "agreed": 15,
+              "compared": 15,
+              "kappa": 1,
+              "low": 0.7961166964035129,
+              "high": 1,
+              "passed": true
+            },
+            {
+              "dimension": "support",
+              "agreed": 8,
+              "compared": 8,
+              "kappa": 1,
+              "low": 0.6755924316585924,
+              "high": 1,
+              "passed": true
+            }
+          ]
+        }
+      ]
+    },
+    "goldenSet": {
+      "version": 1,
+      "hash": "0d270eac9aef91b17711bfdf01af164cb706f4218e4609e19074eb0c6a1f0bf3"
+    },
+    "docs": {
+      "repo": "https://github.com/microsoft/TypeScript-Website",
+      "branch": "v2",
+      "sha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015"
+    },
+    "indexDocsSha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
+    "stale": [],
+    "review": [],
+    "verify": {
+      "status": "identical",
+      "text": "Retrieval reproduced byte for byte at 4dc7dfac, with uncommitted changes, on the same vectors. Answers do not repeat, so they are not part of this check.",
+      "checkedAt": "2026-11-03T13:54:53.455Z"
+    }
+  }
+}

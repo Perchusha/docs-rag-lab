@@ -6,11 +6,21 @@ import {
   EventDecoder,
   type AnswerEvent,
   type Citation,
+  type DashboardDetails,
+  type DashboardRun,
+  type DashboardRunComparison,
+  type DashboardRunEntry,
   type DocumentChunks,
   type RetrievalTrace,
   type UsageSummary,
 } from '@docs-rag-lab/contracts'
 
+import evalCompare from './__fixtures__/eval-compare.json'
+import evalDetails from './__fixtures__/eval-details-final.json'
+import evalBaseline from './__fixtures__/eval-run-baseline.json'
+import evalFinal from './__fixtures__/eval-run-final.json'
+import evalFirst from './__fixtures__/eval-run-first.json'
+import evalRuns from './__fixtures__/eval-runs.json'
 import citationAfterCodeNdjson from './__fixtures__/answer-first-citation-moved-after-code.derived.ndjson?raw'
 import satisfiesHowNdjson from './__fixtures__/answer-satisfies-how.ndjson?raw'
 import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
@@ -22,6 +32,19 @@ import satisfies from './__fixtures__/trace-satisfies.json'
 import ts0004 from './__fixtures__/trace-ts-0004.json'
 import ts2345 from './__fixtures__/trace-ts2345.json'
 import { appendCitations, appendText, type AnswerPart } from './lib/answer.ts'
+
+/** The dashboard's real data, from the committed reports. It holds no docs text. */
+export const evalFixtures = {
+  runs: evalRuns as DashboardRunEntry[],
+  /** The final report: calibrated, with the known bias. */
+  final: evalFinal as DashboardRun,
+  /** The first report, under the old prompt: it missed the bar. */
+  first: evalFirst as DashboardRun,
+  /** A report with no answers. */
+  baseline: evalBaseline as DashboardRun,
+  details: evalDetails as DashboardDetails,
+  compare: evalCompare as DashboardRunComparison,
+}
 
 export const traces = {
   /** "In which version did `satisfies` appear?": BM25 counts `satisfies` twice. */

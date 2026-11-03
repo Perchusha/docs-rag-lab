@@ -1,13 +1,13 @@
 # packages/ui
 
-Client components for the docs assistants: chat, citations and the retrieval inspector (M3), later the eval dashboard and topic map. Decisions are in ADR-0008.
+Client components for the docs assistants: chat, citations and the retrieval inspector (M3), the eval dashboard (M4, ADR-0013), later the topic map. Decisions are in ADR-0008.
 
 ## Boundaries
 
 - Client-safe: imports no internal package but `@docs-rag-lab/contracts`, not even `import type` from core or db (rule `ui-no-internal-packages`, ADR-0006).
 - No Node.js built-ins (rule `ui-no-node-builtins`).
 - Data arrives through props and app route handlers. The shapes it renders (the retrieval trace, citations, the answer stream) come from `@docs-rag-lab/contracts`; ui does not define its own copies (ADR-0006).
-- The public entry exports `DocsAssistant`, `defineDocsApp` and the transport. Other components are its parts and stay private.
+- The public entry exports `DocsAssistant`, `EvalDashboard`, `defineDocsApp` and the transports. Other components are their parts and stay private.
 
 ## Conventions
 
@@ -22,6 +22,7 @@ Client components for the docs assistants: chat, citations and the retrieval ins
 - To override the global focus style, name `:focus-visible` in the selector. CSS comes in a different order in Storybook and in the app, so a tie on specificity can pass every story and still lose in the app.
 - A focus ring of its own reads `var(--focus-ring-style, solid)`, so it shows for the keyboard only (`useFocusRing`). No focus style on `:focus-within` or `:focus`: both match a click.
 - Reflow: at 320 CSS px nothing scrolls sideways but a table or code block, in a `ScrollRegion` (focusable and named). `Reflow320` checks it; a new view goes on that story's tab walk.
+- The dashboard's first screen stays at three sections, 3 tab stops, and 1280 by 800 with no scrolling (`FitsOneScreen`, `TabStops`). Anything more goes behind Details. Every number has its uncertainty in the same cell (ADR-0013).
 - Accessibility: state is never shown by colour alone; tables are real tables; tabs follow the WAI-ARIA tabs pattern; the streaming answer is not a live region, the polite status region announces state changes; a panel that opens on demand moves focus in, and returns it to what opened it, or to the input if that has gone; animations stop under `prefers-reduced-motion`.
 - Story tests need Chromium once per machine: `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium`.
 - No model IDs, prices or API keys in this package. Model names shown in the usage line come from the data.

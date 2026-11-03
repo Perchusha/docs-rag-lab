@@ -1,0 +1,185 @@
+{
+  "comparable": true,
+  "a": "baseline",
+  "b": "m4-h1",
+  "differences": [
+    "identity.indexSchema: baseline 3, m4-h1 4",
+    "identity.retrieval.exactTokens: baseline undefined, m4-h1 code-shaped",
+    "identity.retrieval.shortTerms: baseline undefined, m4-h1 substring"
+  ],
+  "section": {
+    "question": "baseline against m4-h1",
+    "summary": "5 right chunks moved.",
+    "columns": [
+      "baseline",
+      "m4-h1"
+    ],
+    "rows": [
+      {
+        "id": "vector-top-8",
+        "label": "Vector: right chunk in top 8",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "baseline",
+            "b": "m4-h1",
+            "aAhead": 0,
+            "bAhead": 0,
+            "tied": 40,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "vector-mrr",
+        "label": "Vector: how high it ranks (MRR)",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "mean",
+            "value": 0.7507761437908497,
+            "of": 40,
+            "low": 0.6349673202614379,
+            "high": 0.8571078431372549
+          },
+          {
+            "kind": "mean",
+            "value": 0.7507761437908497,
+            "of": 40,
+            "low": 0.6349673202614379,
+            "high": 0.8571078431372549
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "baseline",
+            "b": "m4-h1",
+            "aAhead": 0,
+            "bAhead": 0,
+            "tied": 40,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "hybrid-top-8",
+        "label": "Hybrid: right chunk in top 8",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 35,
+            "of": 40,
+            "low": 0.7388788003201471,
+            "high": 0.9454049978360052
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "baseline",
+            "b": "m4-h1",
+            "aAhead": 1,
+            "bAhead": 0,
+            "tied": 39,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "hybrid-mrr",
+        "label": "Hybrid: how high it ranks (MRR)",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "mean",
+            "value": 0.6571734270631328,
+            "of": 40,
+            "low": 0.5486019984917043,
+            "high": 0.7635897435897434
+          },
+          {
+            "kind": "mean",
+            "value": 0.6421247257644315,
+            "of": 40,
+            "low": 0.533593257232963,
+            "high": 0.7485708041958041
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "baseline",
+            "b": "m4-h1",
+            "aAhead": 2,
+            "bAhead": 3,
+            "tied": 35,
+            "p": 1,
+            "verdict": "noise"
+          }
+        ],
+        "runToRun": null
+      }
+    ],
+    "showRunToRun": false
+  },
+  "moved": [
+    {
+      "strategy": "Hybrid",
+      "questionId": "ts-0004",
+      "from": 7,
+      "to": 4
+    },
+    {
+      "strategy": "Hybrid",
+      "questionId": "ts-0010",
+      "from": 3,
+      "to": 2
+    },
+    {
+      "strategy": "Hybrid",
+      "questionId": "ts-0033",
+      "from": 3,
+      "to": 2
+    },
+    {
+      "strategy": "Hybrid",
+      "questionId": "ts-0034",
+      "from": 3,
+      "to": 5
+    },
+    {
+      "strategy": "Hybrid",
+      "questionId": "ts-0035",
+      "from": 1,
+      "to": 11
+    }
+  ]
+}

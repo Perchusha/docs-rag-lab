@@ -1282,3 +1282,17 @@ export const Failure: Story = {
     ).toHaveAttribute('role', 'status')
   },
 }
+
+/** The link to the eval results comes after the input, so it costs no tab stop before it. */
+export const EvalLink: Story = {
+  args: { evalHref: '/eval' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const link = canvas.getByRole('link', { name: 'Eval results' })
+    await expect(link).toHaveAttribute('href', '/eval')
+    const input = canvas.getByRole('textbox', { name: 'Question' })
+    await expect(
+      input.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  },
+}

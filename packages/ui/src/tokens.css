@@ -36,6 +36,9 @@
   --width-chat: 760px;
   --width-select: 11rem;
   --width-search-field: 16rem;
+  --width-dashboard: 80rem;
+  --width-interval: 6.5rem;
+  --size-interval-dot: 0.625rem;
   --height-input-max: 12rem;
 
   --radius-1: 4px;

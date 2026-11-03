@@ -1,0 +1,227 @@
+.page {
+  max-width: var(--width-dashboard);
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.picker select,
+.compareForm select {
+  max-width: 100%;
+  min-height: var(--size-control);
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-1);
+}
+
+.section {
+  margin-block-start: var(--space-3);
+}
+
+.question {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.summary {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 2px var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table thead th {
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom-color: var(--color-border-strong);
+  vertical-align: bottom;
+}
+
+.table thead th.wraps {
+  white-space: normal;
+}
+
+.rowLabel {
+  font-weight: 500;
+  min-width: 10rem;
+}
+
+.figure {
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.note {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.exploratory {
+  font-weight: 600;
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.split {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.glyph,
+.scale {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.scale {
+  font-size: var(--text-xs);
+}
+
+.graphicCell {
+  min-width: var(--width-interval);
+  width: var(--width-interval);
+}
+
+.graphic {
+  display: grid;
+  gap: 1px;
+  padding-block-start: 2px;
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: var(--size-interval-dot);
+  background: linear-gradient(var(--color-border), var(--color-border)) center / 100% 1px no-repeat;
+}
+
+.whisker {
+  position: absolute;
+  inset-block: 2px;
+  background: var(--color-text-muted);
+  border-radius: var(--radius-1);
+  opacity: 0.55;
+}
+
+.dot {
+  position: absolute;
+  inset-block-start: 0;
+  width: var(--size-interval-dot);
+  height: var(--size-interval-dot);
+  margin-inline-start: calc(var(--size-interval-dot) / -2);
+  background: var(--color-text);
+  box-sizing: border-box;
+}
+
+.dot[data-shape='circle'] {
+  background: var(--color-bg);
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+}
+
+.dot[data-shape='diamond'] {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.trust {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 1px var(--space-3);
+  margin: var(--space-1) 0;
+}
+
+.trust dt {
+  font-weight: 600;
+}
+
+.trust dd {
+  margin: 0;
+}
+
+.disclosure {
+  min-height: var(--size-control);
+  margin-block-start: var(--space-1);
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--color-accent);
+  background: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-1);
+  cursor: pointer;
+}
+
+.compareForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+
+.differences {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (width < 40rem) {
+  .trust {
+    grid-template-columns: 1fr;
+  }
+
+  .trust dd {
+    margin-block-end: var(--space-1);
+  }
+}

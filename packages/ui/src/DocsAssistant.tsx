@@ -30,6 +30,8 @@ export interface DocsAssistantProps {
   /** The source to ask; the engine's default when missing. */
   sourceId?: string | undefined
   examples: readonly string[]
+  /** Where the eval results are. A small link after the input, so it costs no tab stop before it. */
+  evalHref?: string | undefined
   /** The input's placeholder before the first question. */
   placeholder?: string | undefined
   /** The source's doc types, for the filter. */
@@ -175,6 +177,11 @@ export function DocsAssistant(props: DocsAssistantProps) {
               onSend={send}
               onStop={stop}
             />
+            {props.evalHref !== undefined && (
+              <a href={props.evalHref} className={styles.evalLink}>
+                Eval results
+              </a>
+            )}
             {empty && props.examples.length > 0 && (
               <ul className={styles.examples} aria-label="Example questions">
                 {props.examples.map((example) => (
