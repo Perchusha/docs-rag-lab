@@ -2,6 +2,40 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M4 - The eval harness is done (2026-11-03)
+
+Before M4, every claim about retrieval quality rested on a handful of searches run by hand. Now each strategy has a measured row, with its uncertainty beside every number, and a report anyone can run again.
+
+| | Before M4 | After |
+|---|---|---|
+| Evidence for a claim | A handful of searches (M2) | 40 questions and 5 the docs do not answer, frozen at set version 1 |
+| What a number comes with | Nothing | A 95% interval, a comparison question by question, and a verdict |
+| Answers graded | None | Rows 0, 2 and 3, by a judge that a human checks without seeing its verdicts |
+| Reproducible | No | `drl eval verify`: the final report byte for byte on the same vectors, and the baseline's conclusions on other vectors, from a clean worktree with no data |
+| Where to read it | Terminal output | `/eval`: three questions on one screen, and the rest behind one button |
+
+| Row | Right chunk in top 8 | MRR | Fully correct, may run high | All citations hold | Cost per answer |
+|---|---|---|---|---|---|
+| 0, Claude without RAG | no retrieval | no retrieval | 36 of 40 (77-96%) | cannot: no docs | $0.004 ($0.004-0.005) |
+| 2, vector | 36 of 40 (77-96%) | 0.751 (0.63-0.86) | 36 of 40 (77-96%) | 38 of 40 (83-99%) | $0.022 ($0.021-0.022) |
+| 3, hybrid | 36 of 40 (77-96%) | 0.657 (0.55-0.76) | 34 of 40 (71-93%) | 33 of 40 (68-91%) | $0.023 ($0.022-0.023) |
+
+Correctness may be slightly inflated in every row: all 3 disagreements with the human are the judge scoring higher.
+
+**What it showed:**
+- **Hybrid is not measurably better than vector here,** on retrieval or on answers. It stays the default until M5, by the owner's decision.
+- **The two fixes M2 pointed at did not work.** Tested under criteria fixed first, they won some questions and lost others, so the code stays behind a tag.
+- **Without any docs, Claude is about as correct as RAG on this set.** Correctness alone cannot show what RAG adds here. What it adds is grounding, and a v2 of the set needs questions memory cannot answer.
+
+**The dashboard needed more care than the numbers.** People decide from a page like this, so a claim the data does not support is the worst bug it can have.
+- **Two review passes found 23 defects.** A false refusal counted as ahead, so the side that refused more could read as better. Summaries said "what RAG adds is grounding" even at 0 of 40. A report under another judge could show as calibrated. A slow response could replace the run the picker named. A score of 1.850 was drawn at 185% of its scale.
+- **Three things only the real app or CI showed.** The live run found a contrast failure on every dark screen: Storybook paints the page body and the app did not, so a page that forgot its background passed in one and failed in the other. CI's wider Linux font took the first screen to 819 px, and pushed it sideways at 320 px. The chat's new link made 8 tab stops where the M3 pass had 7.
+- **The two environments now agree,** by a test across every app, and the marks are checked under forced colours in CI, in Playwright's emulation.
+
+**Spend:** $8.20 of Claude at list prices over all of M4. The acceptance run's full index added $0.03 of Voyage. The final run read 180 answers and 345 verdicts from the cache, for $0.00.
+
+**Next:** M5, rerank and contextual retrieval as new rows. Three targets from M2 are still unmet, and the reranker is the next lever.
+
 ## M4 - Answers, the judge and what this set can show (2026-11-03)
 
 Rows 0, 2 and 3 answered the golden set, and an LLM judge graded them, with a human checking the judge (ADR-0012). The plain finding: **on this set, row 0 is about as correct as RAG, so correctness alone does not measure the value of RAG here. What RAG adds is grounding.**

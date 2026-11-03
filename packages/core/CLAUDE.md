@@ -1,6 +1,6 @@
 # packages/core
 
-The RAG engine: ingest orchestration, embeddings and the embedding cache, contextualization, hybrid search, rerank, generation and the eval runner (SPEC sections 9 and 10). The chunker lives in source-kit (ADR-0003). M2 has ingest, hybrid search (vector, BM25 and exact tokens, fused by RRF) with the retrieval trace, and cited answers. M3 adds `ask()`, which reports an answer as `AnswerEvent`s, and `createEngine()`, the search, ask and document lookups that the CLI and the apps share (ADR-0006). M4 adds `src/eval/`: golden sets and their anchors (ADR-0009), and retrieval metrics, comparison and reports (ADR-0010).
+The RAG engine: ingest orchestration, embeddings and the embedding cache, contextualization, hybrid search, rerank, generation and the eval runner (SPEC sections 9 and 10). The chunker lives in source-kit (ADR-0003). M2 has ingest, hybrid search (vector, BM25 and exact tokens, fused by RRF) with the retrieval trace, and cited answers. M3 adds `ask()`, which reports an answer as `AnswerEvent`s, and `createEngine()`, the search, ask and document lookups that the CLI and the apps share (ADR-0006). M4 adds `src/eval/`: golden sets and their anchors (ADR-0009), retrieval metrics, comparison and reports (ADR-0010), answers, the judge and its calibration (ADR-0012), and the dashboard's data (ADR-0013).
 
 ## Boundaries
 

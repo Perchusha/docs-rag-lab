@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M4 - Eval harness (see SPEC.md section 13). M0 to M3 are done. Update this line when a milestone is done.
+M5 - Rerank + contextual (see SPEC.md section 13). M0 to M4 are done. Update this line when a milestone is done.
 
 ## Commands
 

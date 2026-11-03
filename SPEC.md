@@ -306,7 +306,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
+M4 built this, and the README has the measured rows: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -349,7 +349,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
 
-**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
+**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, the hypotheses, the answers, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
 **Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. Its known bias is stated wherever correctness is reported: all three disagreements so far are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012).
 

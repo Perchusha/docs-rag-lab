@@ -13,7 +13,7 @@ M3 adds more shapes that cross a boundary:
 - citations, which the answer shows and the inspector links to chunks;
 - a document's chunks, for the chunk-boundary view.
 
-The trace also has more readers coming: eval stores it in M4, and the dashboard reads it back.
+The trace also has more readers coming: eval stores it in M4, and the dashboard reads it back. (M4 did not store it: ADR-0010 keeps chunk IDs and ranks in a report, since any trace can be recomputed.)
 
 ## Decision
 

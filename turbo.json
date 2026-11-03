@@ -18,6 +18,15 @@
     "test": {
       "dependsOn": ["transit", "//#depcruise"]
     },
+    "@docs-rag-lab/ts-docs#test": {
+      "dependsOn": ["transit", "//#depcruise"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/*/package.json",
+        "$TURBO_ROOT$/apps/*/app/globals.css",
+        "$TURBO_ROOT$/apps/*/app/layout.tsx"
+      ]
+    },
     "build": {
       "dependsOn": ["transit"],
       "outputs": [".next/**", "!.next/cache/**"]
