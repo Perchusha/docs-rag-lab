@@ -305,7 +305,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 builds this in stages. So far: the golden set format, anchors, the lock and `drl eval check`. The metrics, reports, judge and dashboard below are coming in the later M4 PRs.
+M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`). The answer metrics, judge and dashboard below are coming in the later M4 PRs.
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -336,7 +336,7 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 
 Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by question, context, model and request settings.
 
-**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall, and mark a difference of one or two questions or p >= 0.05 as noise. A tag with 5 questions or fewer cannot reach significance at all, so it is reported as a count.
+**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall, and mark a difference of one or two questions or p >= 0.05 as noise. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
 
 **Strategy ladder.** Each strategy is one row of the README table:
 0. Claude without RAG
@@ -347,7 +347,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
 
-**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs stay local and ignored. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version and the models used, so results are reproducible.
+**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every count must match, since provider vectors are not reproducible across batches (ADR-0010).
 
 **Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree. The judge is a different model from the one that answers.
 
@@ -433,7 +433,7 @@ Every milestone ends with:
 
 ### M4 retrieval targets from M2
 
-Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer. The four questions are in the golden set as ts-0033, ts-0027, ts-0004 and ts-0040.
+Hybrid search made three anchor ranks worse than vector search alone (ADR-0005, journal M2). Ranks are the anchor chunk's position in `drl search`; the top 8 go to the answer. The four questions are in the golden set as ts-0033, ts-0027, ts-0004 and ts-0040, and every report checks them against `eval/targets.json`.
 
 | Question | M1 (vector) | M2 (hybrid) | M4 target |
 |---|---|---|---|
