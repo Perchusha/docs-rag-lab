@@ -29,20 +29,20 @@ RRF, k, weights, list depth, the targets and the golden set do not change.
 
 ## What can move
 
-From the question text alone, with no index and no ranks:
+From the query plans of the golden set under each config, with no index and no ranks:
 
 | | Questions whose query changes |
 |---|---|
-| H1 (14) | ts-0002, 0003, 0004, 0007, 0010, 0012, 0024, 0025, 0026, 0027, 0029, 0033, 0034, 0035 |
+| H1 (13) | ts-0002, 0003, 0004, 0007, 0010, 0012, 0025, 0026, 0027, 0029, 0033, 0034, 0035 |
 | H2 (15) | ts-0001, 0002, 0003, 0004, 0005, 0007, 0018, 0020, 0021, 0022, 0023, 0024, 0026, 0032, 0039 |
-| H1+H2 (24) | the union of the two |
+| H1+H2 (23) | the union of the two |
 
 This has two consequences, known before any run:
 
 - **H2 alone cannot meet the targets.** It does not touch ts-0033 or ts-0027. It is still run, because the SPEC asks for it and because H1+H2 cannot be read without it.
 - **Both ts-0040 rows cannot move,** since neither hypothesis changes that question's query.
 
-With 14 or 15 questions able to move, a significant result needs nearly all of them to move one way (6:0, 8:1, 10:2). So `not significant` is the likely verdict even for a real effect, and it does not fail a config by itself.
+With 13 or 15 questions able to move, a significant result needs nearly all of them to move one way (6:0, 8:1, 10:2). So `not significant` is the likely verdict even for a real effect, and it does not fail a config by itself.
 
 ## Integrity checks
 
