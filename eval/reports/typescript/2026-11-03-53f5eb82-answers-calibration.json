@@ -4,6 +4,28 @@
     "name": "answers",
     "createdAt": "2026-11-03T11:05:08.032Z"
   },
+  "blind": true,
+  "prompts": {
+    "answer": "78e59535b65e",
+    "noRag": "0208980f34f3",
+    "correctness": "7b8131a0a8d7",
+    "refusal": "2b76e9978a16",
+    "support": "a5e0160d7313"
+  },
+  "correctnessDisagreements": [
+    {
+      "questionId": "ts-0038",
+      "row": 2,
+      "human": 1,
+      "judge": 2
+    },
+    {
+      "questionId": "ts-0023",
+      "row": 0,
+      "human": 1,
+      "judge": 2
+    }
+  ],
   "labelled": 15,
   "agreement": [
     {

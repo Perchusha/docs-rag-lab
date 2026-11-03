@@ -5,6 +5,21 @@
     "createdAt": "2026-11-03T12:18:23.187Z"
   },
   "blind": false,
+  "prompts": {
+    "answer": "78e59535b65e",
+    "noRag": "0208980f34f3",
+    "correctness": "4efbbfbbc7b7",
+    "refusal": "2b76e9978a16",
+    "support": "a5e0160d7313"
+  },
+  "correctnessDisagreements": [
+    {
+      "questionId": "ts-0023",
+      "row": 0,
+      "human": 1,
+      "judge": 2
+    }
+  ],
   "labelled": 15,
   "agreement": [
     {
