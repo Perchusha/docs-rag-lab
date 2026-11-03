@@ -2,6 +2,7 @@
 *.md
 
 pnpm-lock.yaml
+eval/reports/**/*.json
 **/__fixtures__/**
 /data/
 /.cache/

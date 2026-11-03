@@ -26,6 +26,9 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch; the next sync without it returns to the head)
 - Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set)
+- Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree)
+- A report again, to see if it reproduces: `pnpm drl eval verify <report>`
+- Two reports, question by question: `pnpm drl eval compare <a> <b>`
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`

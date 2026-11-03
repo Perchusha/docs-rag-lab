@@ -336,11 +336,7 @@ describe('drl eval check', () => {
     expect(noSet.err).toContain('typescript has no golden set')
   })
 
-  it('asks for a subcommand, and takes --accept only there', async () => {
-    const bare = await drl('eval')
-    expect(bare.code).toBe(1)
-    expect(bare.err).toContain('eval needs a subcommand: drl eval check')
-
+  it('takes no other argument, and takes --accept only there', async () => {
     const extra = await drl('eval', 'check', 'react')
     expect(extra.code).toBe(1)
     expect(extra.err).toContain('eval check takes no arguments: use --source <id>')

@@ -4,6 +4,19 @@ import { EM_DASH, findEmDashes, isBinary, isChecked } from './em-dash.ts'
 
 const EN_DASH = String.fromCodePoint(0x2013)
 
+describe('isChecked, for eval reports', () => {
+  it('leaves out the JSON of a report, which is recorded data', () => {
+    expect(isChecked('eval/reports/typescript/2026-11-03-abc-baseline.json')).toBe(false)
+    expect(isChecked('eval/reports/typescript/dev/run.json')).toBe(false)
+  })
+
+  it('still checks its markdown, and JSON anywhere else', () => {
+    expect(isChecked('eval/reports/typescript/2026-11-03-abc-baseline.md')).toBe(true)
+    expect(isChecked('eval/questions.json')).toBe(true)
+    expect(isChecked('packages/eval/reports/typescript/run.json')).toBe(true)
+  })
+})
+
 describe('findEmDashes', () => {
   it('reports the line and column of each em dash', () => {
     const text = ['first line', `a ${EM_DASH} b ${EM_DASH} c`, EM_DASH].join('\n')

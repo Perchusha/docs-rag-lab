@@ -70,6 +70,17 @@ export {
   type GoldenCheck,
   type GoldenLock,
 } from './eval/anchors.ts'
+export { CONTEXT_CUTOFF } from './eval/metrics.ts'
+export { compareScores } from './eval/compare.ts'
+export {
+  parseEvalTargets,
+  runRetrievalEval,
+  vectorsHash,
+  type EvalTarget,
+  type RetrievalEvalOptions,
+} from './eval/run.ts'
+export { fieldDifferences, verifyReport, type EvalVerification } from './eval/verify.ts'
+export { readRepoState, type RepoState } from './eval/repo-state.ts'
 export { analyzeQuery, MIN_TERM_LENGTH, quoteTerm, type QueryPlan } from './query.ts'
 export { fuseRrf, type FusedCandidate, type RankedList } from './rrf.ts'
 export {

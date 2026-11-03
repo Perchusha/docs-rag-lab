@@ -9,13 +9,14 @@ import {
   anchorKey,
   findRepoRoot,
   goldenSetHash,
+  parseEvalTargets,
   parseGoldenLock,
   parseGoldenSet,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
 import { describe, expect, it } from 'vitest'
 
-import { goldenLockPath, goldenSetPath } from './golden.ts'
+import { goldenLockPath, goldenSetPath, goldenTargetsPath } from './golden.ts'
 import { sourcesFor } from './run.ts'
 
 const root = findRepoRoot(import.meta.dirname)
@@ -52,6 +53,14 @@ describe.each(sourceIds)('the %s golden set', (sourceId) => {
     expect(adr).toContain(
       `| ${sourceId} | ${String(lock.setVersion)} | \`${lock.setHash.slice(0, 12)}\` |`,
     )
+  })
+
+  it('has targets that name anchors of its questions', () => {
+    // Only TypeScript has targets so far, from the M2 measurements in SPEC section 13.
+    if (sourceId !== 'typescript') return
+    const text = readFileSync(goldenTargetsPath(root, sourceId), 'utf8')
+
+    expect(parseEvalTargets(text, questions).length).toBeGreaterThan(0)
   })
 
   it('records the commit its lock was written from', () => {

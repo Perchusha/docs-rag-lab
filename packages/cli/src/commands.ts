@@ -54,7 +54,7 @@ export interface CommandContext {
 // Progress lines during a long sync: at most one every this many milliseconds.
 const PROGRESS_INTERVAL_MS = 20_000
 
-function findSource(sources: readonly Source[], id: string): Source {
+export function findSource(sources: readonly Source[], id: string): Source {
   const source = sources.find((s) => s.id === id)
   if (source === undefined) {
     const known = sources.map((s) => s.id).join(', ')

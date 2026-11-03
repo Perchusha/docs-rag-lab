@@ -36,3 +36,27 @@ export {
   StreamFormatError,
 } from './ndjson.ts'
 export { MAX_QUESTION_LENGTH, parseRetrievalRequest, type Parsed } from './requests.ts'
+export {
+  COMPARED_METRICS,
+  EVAL_REPORT_VERSION,
+  HIT_CUTOFFS,
+  parseEvalReport,
+  type ComparedMetric,
+  type DifferenceVerdict,
+  type EvalAnchorRank,
+  type EvalComparison,
+  type EvalIdentity,
+  type EvalMetrics,
+  type EvalQuestionScore,
+  type EvalReport,
+  type EvalResult,
+  type EvalRunInfo,
+  type EvalStrategyResult,
+  type EvalTargetResult,
+  type EvalVectors,
+  type HitCounts,
+  type HitCutoff,
+  type MetricDifference,
+  type RankMetrics,
+  type ScopeComparison,
+} from './eval.ts'

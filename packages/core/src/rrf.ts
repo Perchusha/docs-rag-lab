@@ -1,6 +1,6 @@
 // Reciprocal Rank Fusion (Cormack et al., 2009): a chunk scores the sum of
 // 1 / (k + rank) over the lists it appears in. Lists have equal weight, and
-// k and the list depth come from config; M4 tunes them on the full golden set.
+// k and the list depth come from config, deliberately untuned (ADR-0009).
 
 export interface RankedList<Name extends string> {
   name: Name
