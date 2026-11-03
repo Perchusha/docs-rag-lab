@@ -129,21 +129,17 @@ export function EvalDashboard({
         {error !== undefined && <p role="alert">That run did not load: {error}</p>}
         <SectionTable section={run.retrieval} />
         {run.answers !== null && <SectionTable section={run.answers} />}
-        <TrustSection
-          trust={run.trust}
-          after={
-            <button
-              type="button"
-              className={styles.disclosure}
-              aria-expanded={open}
-              onClick={() => {
-                setOpen(!open)
-              }}
-            >
-              Details: per tag, per question, cited chunks, runs
-            </button>
-          }
-        />
+        <TrustSection trust={run.trust} />
+        <button
+          type="button"
+          className={styles.disclosure}
+          aria-expanded={open}
+          onClick={() => {
+            setOpen(!open)
+          }}
+        >
+          Details: per tag, per question, cited chunks, runs
+        </button>
         {open && <DetailsPanel key={run.id} runId={run.id} runs={runs} transport={client} />}
       </main>
     </div>

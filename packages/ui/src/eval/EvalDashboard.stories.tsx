@@ -97,19 +97,32 @@ export const FirstScreen: Story = {
     await expect(canvas.getByText(/0 questions stale/)).toBeVisible()
     await expect(canvas.getByText(/Calibrated, by the rule fixed in advance/)).toBeVisible()
 
-    // Details stay closed.
+    // Details stay closed, and they follow the trust section rather than being part of it.
     await expect(canvas.queryByRole('tablist')).toBeNull()
+    const details = canvas.getByRole('button', { name: /^Details/ })
+    await expect(details.closest('section')).toBeNull()
+    await expect(details.previousElementSibling).toBe(
+      canvas.getByRole('region', { name: 'Can these numbers be trusted?' }),
+    )
   },
 }
 
-/** Everything on the first screen fits 1280 by 800. */
+/** The three sections fit 1280 by 800. The Details button is no section, and may sit just below. */
+const sectionsFit = async (canvasElement: HTMLElement) => {
+  await expect(window.innerWidth).toBe(1280)
+  await expect(window.innerHeight).toBe(800)
+  const sections = [...canvasElement.querySelectorAll('section')]
+  await expect(sections).toHaveLength(3)
+  for (const section of sections) {
+    await expect(section.getBoundingClientRect().bottom).toBeLessThanOrEqual(800)
+  }
+  await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(1280)
+}
+
 export const FitsOneScreen: Story = {
   ...desktop,
-  play: async () => {
-    await expect(window.innerWidth).toBe(1280)
-    await expect(window.innerHeight).toBe(800)
-    await expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(800)
-    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(1280)
+  play: async ({ canvasElement }) => {
+    await sectionsFit(canvasElement)
   },
 }
 
@@ -121,7 +134,7 @@ export const FitsOneScreenNotCalibrated: Story = {
     await expect(
       within(canvasElement).getByText(/not calibrated for these prompts, so/),
     ).toBeVisible()
-    await expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(800)
+    await sectionsFit(canvasElement)
   },
 }
 

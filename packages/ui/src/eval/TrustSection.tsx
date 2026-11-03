@@ -1,6 +1,6 @@
 // Can these numbers be trusted? The judge's calibration and known bias, the set, the docs, and
 // whether a re-run reproduced the report (ADR-0013).
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState } from 'react'
 
 import type { DashboardAgreement, DashboardRound, DashboardTrust } from '@docs-rag-lab/contracts'
 
@@ -49,14 +49,7 @@ function Rounds({ rounds }: { rounds: readonly DashboardRound[] }) {
   )
 }
 
-export function TrustSection({
-  trust,
-  after,
-}: {
-  trust: DashboardTrust
-  /** What sits beside this section's button, so the first screen spends one line on them. */
-  after: ReactNode
-}) {
+export function TrustSection({ trust }: { trust: DashboardTrust }) {
   const id = useId()
   const [open, setOpen] = useState(false)
   const { judge, goldenSet, docs, indexDocsSha, stale, review, verify } = trust
@@ -111,8 +104,8 @@ export function TrustSection({
         <dt>Verify</dt>
         <dd>{verify === null ? 'Not checked.' : verify.text}</dd>
       </dl>
-      <div className={styles.actions}>
-        {judge !== null && judge.rounds.length > 0 && (
+      {judge !== null && judge.rounds.length > 0 && (
+        <>
           <button
             type="button"
             className={styles.disclosure}
@@ -123,10 +116,9 @@ export function TrustSection({
           >
             How this was calibrated
           </button>
-        )}
-        {after}
-      </div>
-      {open && judge !== null && judge.rounds.length > 0 && <Rounds rounds={judge.rounds} />}
+          {open && <Rounds rounds={judge.rounds} />}
+        </>
+      )}
     </section>
   )
 }

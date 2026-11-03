@@ -210,12 +210,6 @@
   margin: 0;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-}
-
 .disclosure {
   min-height: var(--size-control);
   margin-block-start: var(--space-1);
