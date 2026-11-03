@@ -8,7 +8,7 @@ Rows 0, 2 and 3 answered the golden set, and an LLM judge graded them, with a hu
 
 | | Row 0, no RAG | Row 2, vector | Row 3, hybrid | Row 3, again |
 |---|---|---|---|---|
-| Correctness, 0 to 2 | 1.850 | 1.850 | 1.775 | 1.775 |
+| Correctness, 0 to 2, may be slightly inflated | 1.850 | 1.850 | 1.775 | 1.775 |
 | Scored 2, of 40 | 36 | 36 | 34 | 34 |
 | Correct and grounded, of 40 (exploratory) | cannot score | 31 | 28 | 32 |
 | Refused correctly, of 5 | 5 | 5 | 5 | 5 |
@@ -21,6 +21,8 @@ Rows 0, 2 and 3 answered the golden set, and an LLM judge graded them, with a hu
 - **A review before anyone used the numbers** found four blocking defects, among them labels that could pair with the wrong answers, and one text getting two grades.
 
 **A candidate for golden set v2, not now:** more questions whose answers changed after the models' training cutoff, which memory cannot answer. The cited chunks listed for review, 52 in the final report, wait for the same review.
+
+**A candidate for M9:** on ts-0024, retrieval misses, so the grounded answer refuses while row 0 answers correctly. A second, agentic search is the natural fix.
 
 **Spend:** $8.20 at list prices, against a plan of about $11. Answers $3.13, the judge $5.07.
 

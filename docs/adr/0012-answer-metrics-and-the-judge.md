@@ -93,7 +93,7 @@ The final report is `eval/reports/typescript/2026-11-03-2184bccc-answers-regrade
 
 ### The judge
 
-**It is calibrated, by the rule fixed beforehand, with a lean that remains.**
+**It is calibrated, by the rule fixed beforehand, with a lean that remains.** The owner accepted the calibration as passed, because the rule was fixed in advance. The residual bias is stated wherever correctness is reported: all three disagreements go the same way, so correctness may be slightly inflated.
 
 | Round | Dimension | Agreed | Kappa | 95% interval | Passed | Decides |
 |---|---|---|---|---|---|---|
@@ -109,6 +109,8 @@ Two things limit what this shows:
 
 ### The rows
 
+Correctness below may be slightly inflated in every row, since all three disagreements with the human are the judge scoring higher.
+
 | Row | Correctness | Scored 0 / 1 / 2 | False refusals | Cites an anchor | Claims supported | Refused correctly | Cost per question |
 |---|---|---|---|---|---|---|---|
 | 0, no RAG | 1.850 | 2 / 2 / 36 | 1 | - | - | 5 of 5 | $0.0043 |
@@ -122,7 +124,7 @@ Two things limit what this shows:
 
 ### What this set can and cannot show
 
-**On this set, row 0 is about as correct as RAG, so correctness alone does not measure the value of RAG here. What RAG adds is grounding.** Without any docs, Claude scores 2 on 36 of 40, and row 0 against row 2 is 1 to 2, noise. RAG can even cost something: on ts-0024, row 0 scores 2, and both RAG rows refuse because the anchor is not in the context. Nothing in row 0 can be checked against the docs, which is what the metric below counts.
+**On this set, row 0 is about as correct as RAG, so correctness alone does not measure the value of RAG here. What RAG adds is grounding.** Without any docs, Claude scores 2 on 36 of 40, and row 0 against row 2 is 1 to 2, noise. RAG can even cost something: on ts-0024, row 0 scores 2, and both RAG rows refuse because the anchor is not in the context. That is a candidate for M9, where a second, agentic search is the natural fix. Nothing in row 0 can be checked against the docs, which is what the metric below counts.
 
 **Correct and grounded, exploratory:** defined after seeing the first results, and no target.
 
