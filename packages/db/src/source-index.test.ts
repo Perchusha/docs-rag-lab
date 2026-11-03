@@ -69,6 +69,78 @@ function memoryIndex(): SourceIndex {
   return index
 }
 
+describe('fingerprints', () => {
+  const vector = (x: number) => Float32Array.from([x, 0])
+  const chunk = (id: string, text: string, x: number): ChunkWrite => ({
+    id,
+    ordinal: 0,
+    headingPath: [],
+    anchor: '',
+    blockTypes: ['prose'],
+    text,
+    metadata: {},
+    tokenCount: 1,
+    textHash: text,
+    vector: vector(x),
+  })
+  const write = (index: SourceIndex, chunks: ChunkWrite[]) => {
+    index.applyChanges({
+      documents: [
+        {
+          path: 'a.md',
+          url: 'https://x.dev/a',
+          title: 'A',
+          docType: 'handbook',
+          contentHash: 'h',
+          lastChangedSha: 's',
+          chunks,
+        },
+      ],
+      deletePaths: [],
+      manifest: {
+        sourceId: 'demo',
+        repo: 'r',
+        branch: 'main',
+        includePaths: [],
+        commitSha: 's',
+        syncedAt: '2026-11-03T00:00:00.000Z',
+        embedModel: 'fake:hash:2',
+        embedDimensions: 2,
+        contextModel: null,
+        chunkerVersion: 1,
+        parserVersion: 1,
+      },
+    })
+  }
+  const fresh = (text: string, x: number, id = 'c1') => {
+    const index = openSourceIndex(':memory:')
+    write(index, [chunk(id, text, x)])
+    return index
+  }
+
+  it('gives one corpus one chunks hash, whatever its vectors', () => {
+    expect(fresh('text', 1).chunksHash()).toBe(fresh('text', 2).chunksHash())
+    expect(fresh('text', 1).chunksHash()).not.toBe(fresh('other', 1).chunksHash())
+    expect(fresh('text', 1, 'c1').chunksHash()).not.toBe(fresh('text', 1, 'c2').chunksHash())
+  })
+
+  it('does not depend on the order chunks were written in, since pks differ between builds', () => {
+    const one = openSourceIndex(':memory:')
+    const other = openSourceIndex(':memory:')
+    write(one, [chunk('c1', 'first', 1), chunk('c2', 'second', 2)])
+    write(other, [chunk('c2', 'second', 2), chunk('c1', 'first', 1)])
+
+    expect(other.chunksHash()).toBe(one.chunksHash())
+    expect(other.vectorsHash()).toBe(one.vectorsHash())
+  })
+
+  it('gives other vectors another vectors hash, and the same ones the same', () => {
+    expect(fresh('text', 1).vectorsHash()).toBe(fresh('other text', 1).vectorsHash())
+    expect(fresh('text', 1).vectorsHash()).not.toBe(fresh('text', 2).vectorsHash())
+    expect(fresh('text', 1, 'c1').vectorsHash()).not.toBe(fresh('text', 1, 'c2').vectorsHash())
+  })
+})
+
 describe('SourceIndex', () => {
   it('migrates a new file and reopens it without migrating again', () => {
     tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))

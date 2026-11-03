@@ -1,6 +1,8 @@
 // The per-source index: data/sources/<source-id>.sqlite (SPEC sections 4 and 6).
 // Tables: manifest, documents, chunks, the chunks_fts keyword index and the
 // chunks_vec vector table (ADR-0004, ADR-0005). Eval tables arrive in M4.
+import { createHash } from 'node:crypto'
+
 import { migrate, openDatabase, type Migration, type SqliteDatabase } from './open.ts'
 
 // The keyword index reads its text from chunks (external content), so it
@@ -533,6 +535,37 @@ export class SourceIndex {
         tokenCount: row.token_count,
       })),
     }
+  }
+
+  /** A fingerprint of every chunk's ID and text hash: the same corpus gives the same value. */
+  chunksHash(): string {
+    const hash = createHash('sha256')
+    const rows = this.#db
+      .prepare('select id, text_hash from chunks order by id')
+      .iterate() as IterableIterator<{ id: string; text_hash: string }>
+    for (const row of rows) hash.update(`${row.id} ${row.text_hash}\n`)
+    return hash.digest('hex')
+  }
+
+  /**
+   * A fingerprint of every chunk's vector, in chunk ID order, since pks differ
+   * between builds. Provider vectors depend on the batch they came in, so one
+   * corpus can have many values of this (ADR-0010).
+   */
+  vectorsHash(): string {
+    const hash = createHash('sha256')
+    const rows = this.#db
+      .prepare(
+        `select c.id, v.embedding from chunks c
+         join chunks_vec v on v.rowid = c.pk
+         order by c.id`,
+      )
+      .iterate() as IterableIterator<{ id: string; embedding: Buffer }>
+    for (const row of rows) {
+      hash.update(row.id)
+      hash.update(row.embedding)
+    }
+    return hash.digest('hex')
   }
 
   stats(): IndexStats {
