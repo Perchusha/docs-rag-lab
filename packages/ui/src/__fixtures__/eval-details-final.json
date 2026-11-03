@@ -1,0 +1,2917 @@
+{
+  "tags": [
+    {
+      "question": "Right chunk in top 8, by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "Vector",
+        "Hybrid"
+      ],
+      "scale": "0 to 100%",
+      "rows": [
+        {
+          "id": "top-8-basic",
+          "label": "basic",
+          "note": "15 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 15,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-edge",
+          "label": "edge",
+          "note": "14 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 14,
+              "low": 0.6853129533326209,
+              "high": 0.9872777848933957
+            },
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-exact-token",
+          "label": "exact-token",
+          "note": "10 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 9,
+              "of": 10,
+              "low": 0.5958499704752279,
+              "high": 0.982123787103926
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 9,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-fresh",
+          "label": "fresh",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-version",
+          "label": "version",
+          "note": "7 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 6,
+              "of": 7,
+              "low": 0.486872167860775,
+              "high": 0.9743203759421759
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 6,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        }
+      ],
+      "showRunToRun": false
+    },
+    {
+      "question": "How high it ranks (MRR), by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "Vector",
+        "Hybrid"
+      ],
+      "scale": "0 to 1",
+      "rows": [
+        {
+          "id": "mrr-basic",
+          "label": "basic",
+          "note": "15 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7685185185185185,
+              "of": 15,
+              "low": 0.5907407407407407,
+              "high": 0.9222222222222223,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.7000793650793651,
+              "of": 15,
+              "low": 0.5207936507936508,
+              "high": 0.8666666666666667,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 3,
+              "tied": 7,
+              "p": 0.726563,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.875,
+              "of": 4,
+              "low": 0.625,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.5504201680672268,
+              "of": 4,
+              "low": 0.10084033613445378,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 0,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-edge",
+          "label": "edge",
+          "note": "14 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7579365079365079,
+              "of": 14,
+              "low": 0.5674603174603174,
+              "high": 0.9285714285714286,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6709706959706959,
+              "of": 14,
+              "low": 0.4717032967032967,
+              "high": 0.8571428571428571,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 2,
+              "tied": 7,
+              "p": 0.453125,
+              "verdict": "not-significant"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-exact-token",
+          "label": "exact-token",
+          "note": "10 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7666666666666666,
+              "of": 10,
+              "low": 0.5333333333333333,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6166666666666666,
+              "of": 10,
+              "low": 0.4666666666666666,
+              "high": 0.7833333333333333,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 4,
+              "bAhead": 2,
+              "tied": 4,
+              "p": 0.6875,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-fresh",
+          "label": "fresh",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7569444444444444,
+              "of": 4,
+              "low": 0.27083333333333326,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.4089366515837104,
+              "of": 4,
+              "low": 0.06787330316742082,
+              "high": 0.7692307692307693,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 1,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-version",
+          "label": "version",
+          "note": "7 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.6988795518207283,
+              "of": 7,
+              "low": 0.40616246498599434,
+              "high": 0.9285714285714286,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6428571428571429,
+              "of": 7,
+              "low": 0.42857142857142855,
+              "high": 0.9047619047619048,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 4,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": null
+        }
+      ],
+      "showRunToRun": false
+    },
+    {
+      "question": "Fully correct, by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "No RAG",
+        "Vector",
+        "Hybrid"
+      ],
+      "scale": "0 to 100%",
+      "rows": [
+        {
+          "id": "fully-basic",
+          "label": "basic",
+          "note": "15 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 15,
+              "low": 0.6211801694601944,
+              "high": 0.9626387412357151
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 14,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 12,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "fully-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "fully-edge",
+          "label": "edge",
+          "note": "14 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            },
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            },
+            {
+              "kind": "share",
+              "count": 11,
+              "of": 14,
+              "low": 0.5241076920169465,
+              "high": 0.9242861334670647
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "fully-exact-token",
+          "label": "exact-token",
+          "note": "10 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "fully-fresh",
+          "label": "fresh",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "fully-version",
+          "label": "version",
+          "note": "7 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        }
+      ],
+      "showRunToRun": true
+    },
+    {
+      "question": "Correctness score, 0 to 2",
+      "summary": "The score keeps its own comparison: 1 and 0 count as different here.",
+      "columns": [
+        "No RAG",
+        "Vector",
+        "Hybrid"
+      ],
+      "scale": "0 to 2",
+      "rows": [
+        {
+          "id": "score-overall",
+          "label": "All questions",
+          "note": "may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.85,
+              "of": 40,
+              "low": 1.675,
+              "high": 1.975,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.85,
+              "of": 40,
+              "low": 1.675,
+              "high": 1.975,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.775,
+              "of": 40,
+              "low": 1.575,
+              "high": 1.925,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 3,
+              "bAhead": 0,
+              "tied": 37,
+              "p": 0.25,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 3,
+              "bAhead": 1,
+              "tied": 36,
+              "p": 0.625,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-basic",
+          "label": "basic",
+          "note": "15 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.9333333333333333,
+              "of": 15,
+              "low": 1.8,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.8666666666666667,
+              "of": 15,
+              "low": 1.6,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.8,
+              "of": 15,
+              "low": 1.4666666666666666,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 14,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 12,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.5,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.5,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-edge",
+          "label": "edge",
+          "note": "14 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.7857142857142858,
+              "of": 14,
+              "low": 1.4285714285714286,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.7857142857142858,
+              "of": 14,
+              "low": 1.4285714285714286,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.7142857142857142,
+              "of": 14,
+              "low": 1.3571428571428572,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-exact-token",
+          "label": "exact-token",
+          "note": "10 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-fresh",
+          "label": "fresh",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1,
+              "of": 4,
+              "low": 0,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.25,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1,
+              "of": 4,
+              "low": 0,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            }
+          ],
+          "runToRun": 0
+        },
+        {
+          "id": "score-version",
+          "label": "version",
+          "note": "7 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            }
+          ],
+          "runToRun": 0
+        }
+      ],
+      "showRunToRun": true
+    }
+  ],
+  "questions": [
+    {
+      "id": "ts-0001",
+      "question": "What is the key difference between a type alias and an interface?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 4
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0002",
+      "question": "Why is `req.method` inferred as `string` instead of `\"GET\"` in `const req = { url: \"...\", method: \"GET\" }`, and how do you fix it?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0003",
+      "question": "How do you make a `switch` over a union exhaustive, so that adding a new union member becomes a compile error?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0004",
+      "question": "В чём разница между `unknown` и `any`?",
+      "tags": [
+        "basic",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 7
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0005",
+      "question": "Should a function that accepts a string or an array use overloads or a union-typed parameter?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0006",
+      "question": "Can a function assigned to a type like `() => void` return a value?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0007",
+      "question": "Why do I get an error when I pass `{ colour: \"red\", width: 100 }` to a function whose parameter type only has optional `color` and `width`?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0008",
+      "question": "How do interface extension and intersection types differ when the same property has conflicting types?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0009",
+      "question": "How do you stop a conditional type from distributing over a union?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0010",
+      "question": "How do you remove `readonly` or `?` from every property in a mapped type?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0011",
+      "question": "Since which TypeScript version can mapped types remap keys with an `as` clause?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0012",
+      "question": "What is the difference between TypeScript `private` and JavaScript `#private` fields?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 4
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0013",
+      "question": "What does the `Omit` utility type do?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0014",
+      "question": "What does `Awaited` do, and in which version was it added?",
+      "tags": [
+        "version",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0015",
+      "question": "What problem does `NoInfer` solve, and in which version did it appear?",
+      "tags": [
+        "version",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0016",
+      "question": "Получают ли члены строкового enum обратное отображение (reverse mapping)?",
+      "tags": [
+        "edge",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0017",
+      "question": "What are the pitfalls of `const enum` when you publish declaration files?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0018",
+      "question": "When two declarations of the same interface with overloaded methods are merged, which overloads come first?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0019",
+      "question": "Why can I pass a callback `(e: MouseEvent) => void` where `(e: Event) => void` is expected?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0020",
+      "question": "In which order are multiple decorators on one declaration evaluated?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0021",
+      "question": "Which module-related compiler options do the TypeScript docs recommend for an app built with a bundler?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0022",
+      "question": "Why do you write `import \"./foo.js\"` in TypeScript when the source file is `foo.ts`?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 4
+        },
+        {
+          "column": "Hybrid",
+          "rank": 15
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0023",
+      "question": "Чем `import type` отличается от обычного импорта с точки зрения итогового JavaScript?",
+      "tags": [
+        "basic",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0024",
+      "question": "Should a declaration file use `String` or `string`?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 9
+        },
+        {
+          "column": "Hybrid",
+          "rank": 40
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0025",
+      "question": "What does enabling `composite` change for a project used through project references?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0026",
+      "question": "How do you use `satisfies` in a JavaScript file checked with JSDoc, and since which version?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0027",
+      "question": "What does the `strict` flag enable?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0028",
+      "question": "What does `noUncheckedIndexedAccess` do?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0029",
+      "question": "With `exactOptionalPropertyTypes` enabled, can you assign `undefined` to an optional property?",
+      "tags": [
+        "edge",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0030",
+      "question": "How does `verbatimModuleSyntax` decide which imports and exports stay in the output?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0031",
+      "question": "What does `isolatedModules` protect against?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0032",
+      "question": "What is the trade-off of `skipLibCheck`?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0033",
+      "question": "In which version did `satisfies` appear?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0034",
+      "question": "What are `const` type parameters, and when were they added?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0035",
+      "question": "Which TypeScript version added `using` declarations, and what are they for?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 17
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0036",
+      "question": "What does `--erasableSyntaxOnly` disallow?",
+      "tags": [
+        "fresh",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0037",
+      "question": "What does `import defer` do, and which import forms does it allow?",
+      "tags": [
+        "fresh"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0038",
+      "question": "Какие значения опций компилятора по умолчанию поменялись в TypeScript 6.0?",
+      "tags": [
+        "fresh",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 17
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused"
+        },
+        {
+          "column": "Vector",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0039",
+      "question": "Does TypeScript check side-effect imports like `import \"./styles.css\"` by default?",
+      "tags": [
+        "fresh",
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 36
+        },
+        {
+          "column": "Hybrid",
+          "rank": 13
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Wrong"
+        },
+        {
+          "column": "Vector",
+          "grade": "Wrong"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Wrong"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0040",
+      "question": "What does error TS2345 mean?",
+      "tags": [
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0041",
+      "question": "How do I clean up a subscription in React's `useEffect`?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0042",
+      "question": "Как вывести TypeScript-тип из схемы Zod?",
+      "tags": [
+        "unanswerable",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0043",
+      "question": "How do I configure the `@typescript-eslint/no-floating-promises` rule?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0044",
+      "question": "What does the `strictEnumChecks` compiler option do?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0045",
+      "question": "In which TypeScript version was the `match` expression added?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    }
+  ],
+  "gradeNote": "may run high",
+  "candidates": [
+    {
+      "questionId": "ts-0001",
+      "column": "Vector",
+      "chunkId": "3913ff930df2e0c128227533",
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md"
+    },
+    {
+      "questionId": "ts-0001",
+      "column": "Vector",
+      "chunkId": "bba9bb9f5227f2da821956f1",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0001",
+      "column": "Hybrid",
+      "chunkId": "c91a52d277a7415b79efac2c",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md"
+    },
+    {
+      "questionId": "ts-0003",
+      "column": "Vector",
+      "chunkId": "2393d08d7271318db87804a1",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Narrowing.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "29e39107bb8f58e0355d156e",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Hybrid",
+      "chunkId": "2c9764f05d9cffaa9ab871ee",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "4c1aa60200aa5ea7a49e3308",
+      "docPath": "packages/documentation/copy/en/reference/Type Compatibility.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "a049bb8c4f5f307c1a3015d8",
+      "docPath": "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Hybrid",
+      "chunkId": "b364cef04a521d7131da761a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.0.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "e00db1895e7ae73c24a72354",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md"
+    },
+    {
+      "questionId": "ts-0007",
+      "column": "Vector",
+      "chunkId": "34f6652f63e0340838ebab63",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md"
+    },
+    {
+      "questionId": "ts-0008",
+      "column": "Vector",
+      "chunkId": "27f8b210cd294fc7219a9868",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.9.md"
+    },
+    {
+      "questionId": "ts-0008",
+      "column": "Vector",
+      "chunkId": "3d111a972cb4950165226184",
+      "docPath": "packages/documentation/copy/en/reference/Declaration Merging.md"
+    },
+    {
+      "questionId": "ts-0009",
+      "column": "Hybrid",
+      "chunkId": "7e39a8c0e05c981e49583cfa",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.8.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Hybrid",
+      "chunkId": "42119b147060ab2ef5679cd0",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Classes.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "a3d542c9c7d162fbf24992a1",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "e5994f246b6464631d7313b0",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "ef50b87ed4efac4059bf8d5e",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0013",
+      "column": "Vector",
+      "chunkId": "96519721ab10de2200fcdcd5",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.8.md"
+    },
+    {
+      "questionId": "ts-0014",
+      "column": "Hybrid",
+      "chunkId": "37221569e314c5432e323635",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md"
+    },
+    {
+      "questionId": "ts-0014",
+      "column": "Vector",
+      "chunkId": "69507a14f59b2f559c682551",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.9.md"
+    },
+    {
+      "questionId": "ts-0015",
+      "column": "Vector",
+      "chunkId": "63c0108f837001f61462021c",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md"
+    },
+    {
+      "questionId": "ts-0020",
+      "column": "Vector",
+      "chunkId": "43278696478040d06b9a3e9a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "3d7d750bce6b67a2b48a6d90",
+      "docPath": "packages/documentation/copy/en/modules-reference/Reference.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Hybrid",
+      "chunkId": "617d5003d17b5ae1f3f887e8",
+      "docPath": "packages/documentation/copy/en/modules-reference/guides/Choosing Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "a1a9acdb434eecc1f8c08ad2",
+      "docPath": "packages/documentation/copy/en/modules-reference/Reference.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "bb5f2c6d372e70ffa7142919",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Hybrid",
+      "chunkId": "f5bffd4b08ef586d3975d449",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0022",
+      "column": "Vector",
+      "chunkId": "f5bffd4b08ef586d3975d449",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Vector",
+      "chunkId": "475bb29f24fe609bc17c580a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Hybrid",
+      "chunkId": "c04a028c5b492e7d58b51f47",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Modules.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Hybrid",
+      "chunkId": "92081fee7a073ae57935366e",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.4.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Vector",
+      "chunkId": "d00588fcd611814666b66831",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.7.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Hybrid",
+      "chunkId": "318410ada364d01b89fc73ec",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Hybrid",
+      "chunkId": "b03731b3aba8dd00c0951ccb",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.9.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Vector",
+      "chunkId": "ef2f7e4c85b4cdd038c3777b",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.1.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Hybrid",
+      "chunkId": "26ffa08380aab95c5d48a859",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Hybrid",
+      "chunkId": "475bb29f24fe609bc17c580a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Vector",
+      "chunkId": "588534de841ccd61359a211d",
+      "docPath": "packages/tsconfig-reference/copy/en/options/verbatimModuleSyntax.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Hybrid",
+      "chunkId": "4fed06dcecc74d802e9e79dc",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Hybrid",
+      "chunkId": "b49836ad21eb75a5276bb018",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.5.md"
+    },
+    {
+      "questionId": "ts-0032",
+      "column": "Vector",
+      "chunkId": "a2e4212991f3f3af2447b3e4",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.0.md"
+    },
+    {
+      "questionId": "ts-0033",
+      "column": "Vector",
+      "chunkId": "1ad2284b8bc3c335c9eb8292",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0034",
+      "column": "Vector",
+      "chunkId": "14a0cd1a7b121d3ea025a529",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Vector",
+      "chunkId": "33f25e6b1eaa494aba5c04bd",
+      "docPath": "packages/documentation/copy/en/reference/Variable Declarations.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Vector",
+      "chunkId": "399616a5ebde0e8af327bdf5",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.2.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Hybrid",
+      "chunkId": "d46fd26ef07127f355766de4",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.2.md"
+    },
+    {
+      "questionId": "ts-0036",
+      "column": "Hybrid",
+      "chunkId": "ae545cfa646734042bdc4096",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Hybrid",
+      "chunkId": "638128ba1a0e0abb3737cfb0",
+      "docPath": "packages/tsconfig-reference/copy/en/options/strictBindCallApply.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Hybrid",
+      "chunkId": "6faee3b4563366b370fe6a08",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Vector",
+      "chunkId": "7247be0941a8f58920b1f269",
+      "docPath": "packages/tsconfig-reference/copy/en/options/checkJs.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Vector",
+      "chunkId": "d1d92b9ad7342b8d2e4f6c8f",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Understanding Errors.md"
+    }
+  ]
+}

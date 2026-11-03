@@ -2,6 +2,7 @@
 export { migrate, openDatabase, type Migration, type SqliteDatabase } from './open.ts'
 export {
   openSourceIndex,
+  readIndexCommit,
   SourceIndex,
   type Candidate,
   type ChunkWrite,

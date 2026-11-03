@@ -10,15 +10,19 @@ import {
   STRATEGIES,
   type EvalReport,
   type EvalStrategyResult,
+  type EvalVerifyRecord,
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
   compareScores,
   fieldDifferences,
+  isSidecarName,
   openIndexes,
   parseEvalTargets,
   readRepoState,
+  reportsDir,
   runRetrievalEval,
+  verifyRecordPath,
   verifyReport,
   type Source,
 } from '@docs-rag-lab/core'
@@ -37,8 +41,19 @@ import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
 
 const NAME = /^[a-z0-9][a-z0-9-]*$/
 
-export function reportsDir(root: string, sourceId: string): string {
-  return join(root, 'eval', 'reports', sourceId)
+export { reportsDir }
+
+/** Before anything that spends: a name must fit a file, and not read as a file next to a report. */
+export function checkRunName(name: string | undefined): void {
+  if (name === undefined) return
+  if (!NAME.test(name)) {
+    throw new CliError(`--name takes lowercase words with hyphens, such as baseline, got "${name}"`)
+  }
+  if (isSidecarName(name)) {
+    throw new CliError(
+      `--name cannot be "${name}": its report would read as a calibration or verify file`,
+    )
+  }
 }
 
 export async function measure(
@@ -107,9 +122,7 @@ export async function evalRunCommand(
   args: { source: string; name: string | undefined; strategy: Strategy | undefined },
 ): Promise<void> {
   const { name } = args
-  if (name !== undefined && !NAME.test(name)) {
-    throw new CliError(`--name takes lowercase words with hyphens, such as baseline, got "${name}"`)
-  }
+  checkRunName(name)
   if (name !== undefined && args.strategy !== undefined) {
     throw new CliError('a named run measures every strategy, so that later runs can be compared')
   }
@@ -156,13 +169,17 @@ export function writeReport(
   const { jsonPath, markdownPath } = reportPaths(ctx, source, name, report.run.repoSha)
   mkdirSync(join(jsonPath, '..'), { recursive: true })
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
-  const extra = report.answers === undefined ? [] : extraSections(report.answers)
-  writeFileSync(
-    markdownPath,
-    [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n',
-    { flag: 'wx' },
-  )
+  writeFileSync(markdownPath, reportMarkdown(report, extraSections), { flag: 'wx' })
   return jsonPath
+}
+
+/** A report's markdown, from its JSON. */
+export function reportMarkdown(
+  report: EvalReport,
+  extraSections: (answers: NonNullable<EvalReport['answers']>) => string[],
+): string {
+  const extra = report.answers === undefined ? [] : extraSections(report.answers)
+  return [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n'
 }
 
 export function readReport(root: string, path: string): EvalReport {
@@ -182,7 +199,7 @@ export function readReport(root: string, path: string): EvalReport {
 /** `drl eval verify <report>`: run the same thing again, and say whether it reproduces. */
 export async function evalVerifyCommand(
   ctx: CommandContext,
-  args: { path: string },
+  args: { path: string; record: boolean },
 ): Promise<void> {
   const report = readReport(ctx.root, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
@@ -196,6 +213,20 @@ export async function evalVerifyCommand(
       `re-run at ${code}${now.run.repoDirty ? ' with uncommitted changes' : ''}\n`,
   )
   ctx.out.write(`${formatVerification(verification)}\n`)
+  if (args.record) {
+    const record: EvalVerifyRecord = {
+      status: verification.status,
+      changedVectors: 'changedVectors' in verification ? verification.changedVectors : [],
+      rerun: {
+        repoSha: now.run.repoSha,
+        repoDirty: now.run.repoDirty,
+        at: new Date(ctx.now()).toISOString(),
+      },
+    }
+    const path = verifyRecordPath(resolve(ctx.root, args.path))
+    writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`)
+    ctx.out.write(`recorded: ${path}\n`)
+  }
   if (verification.status === 'inconclusive') {
     throw new CliError(
       report.run.repoDirty

@@ -17,5 +17,6 @@ Thin Next.js App Router apps. An app is config, theme and example questions; log
 - `dev` and `start` bind to `127.0.0.1`. The routes have no authentication and `/api/ask` spends Claude credits, so never listen on other interfaces (ADR-0008).
 - `next.config.ts` keeps `sqlite-vec` in `serverExternalPackages` (it fails bundled) and `agentRules: false` (otherwise `next dev` writes an `AGENTS.md` with an em dash).
 - `typecheck` runs `next typegen` before tsc. `next-env.d.ts` is generated and gitignored.
+- `app/globals.css` imports `@docs-rag-lab/ui/tokens.css`, the one place the app loads the tokens, and gives the body the same colours and type as Storybook's `preview.css`, so a page cannot pass in one and fail in the other. A test holds both.
 - Secrets come from `.env` at the repo root and are read on the server only.
 - Source indexes are opened from `data/sources/<source-id>.sqlite`; app state lives in `data/apps/<app>.sqlite`.

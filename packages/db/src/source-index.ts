@@ -3,6 +3,9 @@
 // chunks_vec vector table (ADR-0004, ADR-0005). Eval results live in committed
 // reports, not here (ADR-0009).
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
+
+import Database from 'better-sqlite3'
 
 import { migrate, openDatabase, type Migration, type SqliteDatabase } from './open.ts'
 
@@ -732,4 +735,29 @@ export class SourceIndex {
 /** Opens data/sources/<source-id>.sqlite (or ':memory:'), migrating it if needed. */
 export function openSourceIndex(path: string): SourceIndex {
   return new SourceIndex(openDatabase(path))
+}
+
+/**
+ * The commit an index on disk is at, for a page view (ADR-0013): no migration and no file left
+ * behind. A read-only handle would leave -wal and -shm files next to a WAL database, so this is
+ * an ordinary one that refuses writes. Like any connection, it finishes what a killed writer left
+ * in the WAL, which changes no data. Null, after a short wait, for a file that is missing, empty,
+ * held by a writer or no database.
+ */
+export function readIndexCommit(path: string): string | null {
+  if (!existsSync(path)) return null
+  try {
+    const db = new Database(path, { fileMustExist: true, timeout: 250 })
+    try {
+      db.pragma('query_only = ON')
+      const row = db.prepare('select commit_sha from manifest where id = 1').get() as
+        { commit_sha: string } | undefined
+      return row?.commit_sha ?? null
+    } finally {
+      db.close()
+    }
+  } catch (error) {
+    if (error instanceof Database.SqliteError) return null
+    throw error
+  }
 }

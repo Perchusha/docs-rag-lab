@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { migrate, openDatabase } from './open.ts'
 import {
   openSourceIndex,
+  readIndexCommit,
   SOURCE_INDEX_MIGRATIONS,
   SourceIndex,
   type ChunkWrite,
@@ -153,6 +154,71 @@ describe('fingerprints', () => {
     expect(fresh('text', 1).vectorsHash()).toBe(fresh('other text', 1).vectorsHash())
     expect(fresh('text', 1).vectorsHash()).not.toBe(fresh('text', 2).vectorsHash())
     expect(fresh('text', 1, 'c1').vectorsHash()).not.toBe(fresh('text', 1, 'c2').vectorsHash())
+  })
+})
+
+describe('readIndexCommit', () => {
+  it('reads the commit, and leaves the file and its folder as they were', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'demo.sqlite')
+    const first = openSourceIndex(path)
+    first.applyChanges({ documents: [], deletePaths: [], manifest: manifest() })
+    first.close()
+    const before = readFileSync(path)
+
+    expect(readIndexCommit(path)).toBe('a'.repeat(40))
+    expect(readdirSync(tempDir)).toEqual(['demo.sqlite'])
+    expect(readFileSync(path).equals(before)).toBe(true)
+  })
+
+  it('is null for an index with no manifest yet', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'demo.sqlite')
+    openSourceIndex(path).close()
+
+    expect(readIndexCommit(path)).toBeNull()
+  })
+
+  it('is null for a missing file, and does not create it', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'no-such-folder', 'none.sqlite')
+
+    expect(readIndexCommit(path)).toBeNull()
+    expect(existsSync(path)).toBe(false)
+  })
+
+  it.each([
+    ['an empty file', ''],
+    ['a file that is no database', 'this is no database, just text long enough to be read'],
+  ])('is null for %s, and migrates nothing', (_name, content) => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'bad.sqlite')
+    writeFileSync(path, content)
+
+    expect(readIndexCommit(path)).toBeNull()
+    expect(readFileSync(path, 'utf8')).toBe(content)
+  })
+})
+
+describe('readIndexCommit with a writer', () => {
+  it('reads past a writer that has not committed, and gives up soon on one that excludes it', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'drl-db-'))
+    const path = join(tempDir, 'demo.sqlite')
+    const first = openSourceIndex(path)
+    first.applyChanges({ documents: [], deletePaths: [], manifest: manifest() })
+    first.close()
+
+    const writer = openDatabase(path)
+    writer.exec('begin immediate')
+    expect(readIndexCommit(path)).toBe('a'.repeat(40))
+    writer.exec('rollback')
+    writer.pragma('locking_mode = exclusive')
+    writer.exec('begin exclusive')
+    const started = Date.now()
+    expect(readIndexCommit(path)).toBeNull()
+    expect(Date.now() - started).toBeLessThan(2000)
+    writer.exec('rollback')
+    writer.close()
   })
 })
 

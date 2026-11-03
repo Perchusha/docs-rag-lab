@@ -10,4 +10,4 @@ Report: `53f5eb82`, answers, 2026-11-03T11:05:08.032Z. The bar is 13 of 15 on ea
 
 Refusal covers every answer: whether it refused, and whether that was right. On the unanswerable questions alone, the three outcomes agree on 3 of 3. That is too little data, so it decides nothing.
 
-The judge did not reach the bar, so the answer metrics in this report are uncalibrated.
+This round did not reach the bar, so what it measured stays uncalibrated.

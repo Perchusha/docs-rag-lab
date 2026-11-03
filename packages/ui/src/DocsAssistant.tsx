@@ -17,7 +17,6 @@ import { isRunning, statusText } from './lib/assistant.ts'
 import common from './lib/common.module.css'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
 import { useFocusRing } from './lib/useFocusRing.ts'
-import './tokens.css'
 
 export interface Theme {
   /** Must reach 4.5:1 against white (light) and against #0d1117 (dark). */
@@ -30,6 +29,8 @@ export interface DocsAssistantProps {
   /** The source to ask; the engine's default when missing. */
   sourceId?: string | undefined
   examples: readonly string[]
+  /** Where the eval results are. A small link after the input, so it costs no tab stop before it. */
+  evalHref?: string | undefined
   /** The input's placeholder before the first question. */
   placeholder?: string | undefined
   /** The source's doc types, for the filter. */
@@ -191,6 +192,12 @@ export function DocsAssistant(props: DocsAssistantProps) {
                   </li>
                 ))}
               </ul>
+            )}
+            {/* Last, so that the stops before a first question stay as they were. */}
+            {props.evalHref !== undefined && (
+              <a href={props.evalHref} className={styles.evalLink}>
+                Eval results
+              </a>
             )}
           </div>
         </main>

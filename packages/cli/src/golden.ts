@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import {
   checkGoldenSet,
   goldenSetHash,
+  goldenSetPath,
   parseGoldenLock,
   parseGoldenSet,
   type AnchorIndex,
@@ -18,9 +19,7 @@ function evalDir(root: string, sourceId: string): string {
   return join(root, 'packages', 'sources', sourceId, 'eval')
 }
 
-export function goldenSetPath(root: string, sourceId: string): string {
-  return join(evalDir(root, sourceId), 'questions.jsonl')
-}
+export { goldenSetPath }
 
 export function goldenLockPath(root: string, sourceId: string): string {
   return join(evalDir(root, sourceId), 'questions.lock.json')

@@ -131,7 +131,7 @@ Compared question by question with an exact sign test. A difference of one or tw
 
 ## Answers
 
-Answered by `claude-sonnet-5-5`, judged by `claude-opus-5-5`, which does not know the row. This run paid $1.4901 at list prices. The judge is not calibrated until a human has labelled a sample of these answers (`drl eval label`).
+Answered by `claude-sonnet-5-5`, judged by `claude-opus-5-5`, which does not know the row. This run paid $1.4901 at list prices. The judge is calibrated for these prompts. All 3 disagreements are the judge scoring higher than the human: correctness may be slightly inflated.
 
 | Row | Questions | Correctness, 0-2 | Scored 0 / 1 / 2 | False refusals | Cites an anchor | Claims supported |
 | --- | --- | --- | --- | --- | --- | --- |

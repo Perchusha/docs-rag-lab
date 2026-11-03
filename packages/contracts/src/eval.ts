@@ -6,7 +6,7 @@
 // recomputed from `identity`. Bump EVAL_REPORT_VERSION only when an existing field
 // changes its meaning. A new section is optional and needs no bump, so the reports
 // already committed stay readable.
-import type { EvalAnswers } from './eval-answers.ts'
+import type { EvalAnswers, EvalCalibration, EvalVerifyRecord } from './eval-answers.ts'
 import type { DifferenceVerdict } from './eval-difference.ts'
 import type { Strategy } from './trace.ts'
 import type { Parsed } from './requests.ts'
@@ -206,5 +206,63 @@ export function parseEvalReport(value: unknown): Parsed<EvalReport> {
   if (!isRecord(run) || typeof run.repoSha !== 'string') {
     return { ok: false, error: 'a report needs run, with repoSha' }
   }
+  if (value.answers !== undefined && !hasAnswersOutline(value.answers)) {
+    return { ok: false, error: 'a report with answers needs their models, prompts and results' }
+  }
   return { ok: true, value: value as unknown as EvalReport }
+}
+
+function hasAnswersOutline(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isRecord(value.models) &&
+    isRecord(value.prompts) &&
+    [value.rows, value.comparisons, value.answers, value.verdicts, value.support].every((list) =>
+      Array.isArray(list),
+    )
+  )
+}
+
+/** A calibration file, or why it is not one. It checks the outline, as a report's parse does. */
+export function parseEvalCalibration(value: unknown): Parsed<EvalCalibration> {
+  if (!isRecord(value)) return { ok: false, error: 'a calibration must be a JSON object' }
+  const { report, agreement } = value
+  if (!isRecord(report) || typeof report.createdAt !== 'string') {
+    return { ok: false, error: 'a calibration needs report, with createdAt' }
+  }
+  if (!Array.isArray(agreement)) return { ok: false, error: 'a calibration needs agreement' }
+  const whole = agreement.every(
+    (result) =>
+      isRecord(result) &&
+      typeof result.dimension === 'string' &&
+      typeof result.agreed === 'number' &&
+      typeof result.compared === 'number' &&
+      Array.isArray(result.interval),
+  )
+  if (!whole) return { ok: false, error: 'each agreement needs its dimension, counts and interval' }
+  return { ok: true, value: value as unknown as EvalCalibration }
+}
+
+const VERIFY_STATUSES: readonly string[] = [
+  'identical',
+  'equivalent',
+  'inconclusive',
+  'different',
+  'not-comparable',
+] satisfies EvalVerifyRecord['status'][]
+
+/** A verify record, or why it is not one. */
+export function parseEvalVerifyRecord(value: unknown): Parsed<EvalVerifyRecord> {
+  if (!isRecord(value)) return { ok: false, error: 'a verify record must be a JSON object' }
+  const { status, changedVectors, rerun } = value
+  if (typeof status !== 'string' || !VERIFY_STATUSES.includes(status)) {
+    return { ok: false, error: 'a verify record needs a status this code knows' }
+  }
+  if (!Array.isArray(changedVectors)) {
+    return { ok: false, error: 'a verify record needs changedVectors' }
+  }
+  if (!isRecord(rerun) || typeof rerun.repoSha !== 'string' || typeof rerun.at !== 'string') {
+    return { ok: false, error: 'a verify record needs rerun, with repoSha and at' }
+  }
+  return { ok: true, value: value as unknown as EvalVerifyRecord }
 }

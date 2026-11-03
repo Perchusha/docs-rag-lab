@@ -8,6 +8,7 @@ import type {
   AgreementResult,
   AnswerLabel,
   AnswerRow,
+  CalibrationDisagreement,
   EvalAnswer,
   EvalCalibration,
   EvalSupport,
@@ -15,6 +16,7 @@ import type {
   RefusalOutcome,
 } from '@docs-rag-lab/contracts'
 
+import { seeded } from './bootstrap.ts'
 import type { GoldenQuestion } from './golden.ts'
 import { isUnanswerable } from './judge.ts'
 
@@ -34,17 +36,6 @@ export const FRESH_SEED = LABEL_SEED + 1
 
 /** Answers in the second round. */
 const FRESH_ANSWERS = 10
-
-/** A small seeded generator (mulberry32): the sample needs to repeat, not to be secure. */
-function seeded(seed: number): () => number {
-  let state = seed
-  return () => {
-    state = (state + 0x6d2b79f5) | 0
-    let t = Math.imul(state ^ (state >>> 15), 1 | state)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296
-  }
-}
 
 function shuffled<T>(items: readonly T[], random: () => number): T[] {
   const result = [...items]
@@ -278,6 +269,10 @@ export interface CalibrateOptions {
   dimensions?: readonly AgreementResult['dimension'][]
   /** False when the judge's prompt changed after these labels were read. */
   blind?: boolean
+  /** The prompts these verdicts were graded under. */
+  prompts?: Record<string, string>
+  /** The model that graded them. */
+  judgeModel?: string
 }
 
 /** How often the human and the judge agree, per dimension. */
@@ -306,6 +301,12 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
       ? []
       : [[label.correctness, judged] as const]
   })
+  const correctnessDisagreements = labels.flatMap((label): CalibrationDisagreement[] => {
+    const judged = verdictOf(label)?.correctness
+    return label.correctness === null || judged == null || judged === label.correctness
+      ? []
+      : [{ questionId: label.questionId, row: label.row, human: label.correctness, judge: judged }]
+  })
   const refusal = labels.flatMap((label) => {
     const verdict = verdictOf(label)
     const human = refusalClass(label.outcome, label.refused)
@@ -332,6 +333,9 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
   return {
     report: options.report,
     blind,
+    ...(options.prompts === undefined ? {} : { prompts: options.prompts }),
+    ...(options.judgeModel === undefined ? {} : { judgeModel: options.judgeModel }),
+    correctnessDisagreements,
     labelled: labels.length,
     agreement: results,
     unanswerableOnly: {

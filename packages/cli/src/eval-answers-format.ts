@@ -119,6 +119,8 @@ function comparisonSection(comparison: AnswerComparison): string[] {
 
 /** Defined after seeing the first results, so it says so wherever it appears (ADR-0012). */
 function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
+  // A report from before the metric has no number for it, which is not a count of none.
+  if (rows.every((row) => row.overall.correctAndGrounded === undefined)) return []
   return [
     '### Correct and grounded (exploratory)',
     'Exploratory: this metric was defined after seeing the first results, and it is no target. An answer counts when it scores 2, every claim it cites is supported, and at least one cited chunk is a primary or acceptable anchor. Row 0 cannot score on it by design, so it shows what retrieval adds beyond memory.',
@@ -127,18 +129,18 @@ function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
       rows.map((row) => [
         rowName(row),
         String(row.overall.questions),
-        row.row === 0 ? '-' : String(row.overall.correctAndGrounded ?? 0),
+        row.row === 0 ? '-' : String(row.overall.correctAndGrounded ?? '-'),
       ]),
     ),
   ]
 }
 
 /** The answer sections of a report's markdown. */
-export function answerSections(answers: EvalAnswers): string[] {
+export function answerSections(answers: EvalAnswers, judgeLine: string): string[] {
   const { rows } = answers
   const sections = [
     '## Answers',
-    `Answered by \`${answers.models.answer}\`, judged by \`${answers.models.judge}\`, which does not know the row. This run paid ${usd(answers.paidUsd)} at list prices. The judge is not calibrated until a human has labelled a sample of these answers (\`drl eval label\`).`,
+    `Answered by \`${answers.models.answer}\`, judged by \`${answers.models.judge}\`, which does not know the row. This run paid ${usd(answers.paidUsd)} at list prices. ${judgeLine}`,
     table(
       CORRECT_HEADER,
       rows.map((row) => correctRow(rowName(row), row.overall)),
@@ -213,9 +215,10 @@ export function answerSections(answers: EvalAnswers): string[] {
 }
 
 /** What a run prints. */
-export function formatAnswersSummary(answers: EvalAnswers): string {
+export function formatAnswersSummary(answers: EvalAnswers, judgeLine: string): string {
   return [
     `paid ${usd(answers.paidUsd)} at list prices`,
+    judgeLine,
     ...answers.rows.map((row) => {
       const { questions, correctness, falseRefusals } = row.overall
       const { correct, hallucinations, wrong } = row.refusals
@@ -311,8 +314,8 @@ export function formatCalibration(calibration: EvalCalibration): string {
     calibration.blind === false
       ? 'Reported for comparison only.'
       : calibration.calibrated
-        ? 'The judge is calibrated for this report.'
-        : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',
+        ? 'This round reached the bar on what it measured.'
+        : 'This round did not reach the bar, so what it measured stays uncalibrated.',
   ]
     .join('\n\n')
     .concat('\n')

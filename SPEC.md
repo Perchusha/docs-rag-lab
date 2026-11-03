@@ -41,7 +41,7 @@ Everything runs locally. There is no deployment.
    - the fused ranking and what the reranker changed;
    - chunk boundaries inside the source document;
    - the final context sent to Claude.
-3. **Eval dashboard.** Runs per source and per strategy, metrics, diffs between runs, and stale questions after a docs sync.
+3. **Eval dashboard.** Its first screen answers three questions: does hybrid find the right chunks more often, does it give better answers and does RAG help at all, and can these numbers be trusted. Per-tag tables, per-question diffs, cited chunks and diffs between runs sit behind one disclosure. Every number has its uncertainty beside it, and the dashboard only reads committed reports (ADR-0013).
 4. **Interview prep.** Pick technologies and a level, then:
    - get a topic map built from the docs themselves;
    - train in different modes (see section 11);
@@ -302,10 +302,11 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 - Claude gets a `search_docs` tool (query + filters). The tool returns `search_result` blocks in its tool results.
 - Claude may search several times, up to a configurable maximum number of steps.
 - Agentic mode is compared against single-shot retrieval in eval.
+- A candidate from M4: on ts-0024, retrieval misses, so the grounded answer refuses while Claude without RAG answers correctly. A second, agentic search is the natural fix (ADR-0012).
 
 ## 10. Evaluation
 
-M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012). The dashboard below is coming in a later M4 PR.
+M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -350,7 +351,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
-**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers (ADR-0012).
+**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. Its known bias is stated wherever correctness is reported: all three disagreements so far are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012).
 
 ## 11. Interview-prep app
 

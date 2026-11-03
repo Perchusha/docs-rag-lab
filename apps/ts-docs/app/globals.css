@@ -1,4 +1,12 @@
-/* Colours, fonts and spacing come from @docs-rag-lab/ui (tokens.css). */
+/* Colours, fonts and spacing come from the ui tokens, and this is the one place the app loads
+   them. The body has the same colours and type as Storybook's preview.css, so a page that forgets
+   its own looks the same in both. */
+@import '@docs-rag-lab/ui/tokens.css';
+
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  line-height: var(--leading);
 }

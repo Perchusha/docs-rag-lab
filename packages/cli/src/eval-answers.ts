@@ -21,6 +21,11 @@ import {
   estimateCost,
   freshSampleForLabels,
   isUnanswerable,
+  judgeSentence,
+  judgeTrust,
+  listRuns,
+  readCalibrations,
+  readRun,
   judgeCases,
   judgeRetest,
   noRagSystemPrompt,
@@ -54,7 +59,14 @@ import {
   formatJudgeCheck,
   formatLabelSheet,
 } from './eval-answers-format.ts'
-import { measure, readReport, reportsDir, writeReport } from './eval-commands.ts'
+import {
+  checkRunName,
+  measure,
+  readReport,
+  reportMarkdown,
+  reportsDir,
+  writeReport,
+} from './eval-commands.ts'
 import { readGoldenFiles } from './golden.ts'
 
 /** The Claude client. Tests pass a fake through the command context. */
@@ -128,6 +140,7 @@ export async function evalAnswersCommand(
 ): Promise<void> {
   const source = findSource(ctx.sources, args.source)
   const { settings } = ctx
+  checkRunName(args.name)
   if (
     args.name !== undefined &&
     (args.only !== undefined || args.rows.length < ANSWER_ROWS.length)
@@ -241,6 +254,10 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
+    const calibrations = readCalibrations(ctx.root, source.id)
+    const judgeLine = judgeSentence(
+      judgeTrust(section, calibrations.rounds, calibrations.unreadable),
+    )
     const failures =
       answers.filter(({ status }) => status === 'failed').length +
       verdicts.filter(({ status }) => status === 'failed').length +
@@ -250,14 +267,10 @@ export async function evalAnswersCommand(
         `${String(failures)} calls failed, and a named report needs them all: rerun, which pays only for those`,
       )
     }
-    const path = writeReport(
-      ctx,
-      source,
-      args.name,
-      { ...report, answers: section },
-      answerSections,
+    const path = writeReport(ctx, source, args.name, { ...report, answers: section }, (written) =>
+      answerSections(written, judgeLine),
     )
-    ctx.out.write(`${formatAnswersSummary(section)}\n\nreport: ${path}\n`)
+    ctx.out.write(`${formatAnswersSummary(section, judgeLine)}\n\nreport: ${path}\n`)
     if (failures > 0) {
       throw new CliError(
         `${String(failures)} calls failed, so the report leaves those out: rerun, which pays only for them`,
@@ -440,6 +453,8 @@ export function evalCalibrateCommand(
     verdicts: answers.verdicts,
     support: answers.support,
     blind: earlier === undefined,
+    prompts: answers.prompts,
+    judgeModel: answers.models.judge,
     ...(args.after === undefined ? {} : { dimensions: ['correctness'] as const }),
   })
   // Next to the report, where JSON is recorded data (ADR-0010).
@@ -449,4 +464,36 @@ export function evalCalibrateCommand(
   const text = formatCalibration(calibration)
   writeFileSync(`${stem}.md`, text)
   ctx.out.write(text)
+  rewriteAnswerMarkdown(ctx, source.id)
+  const calibrations = readCalibrations(ctx.root, source.id)
+  const named = listRuns(ctx.root, source.id).runs.some(
+    ({ id }) => id === basename(args.path, '.json'),
+  )
+  ctx.out.write(
+    named
+      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable))}\n`
+      : '\nThis is a development report, so these labels count for no report the store reads.\n',
+  )
+}
+
+/**
+ * What a report's markdown says of the judge depends on the labels, which come after the report,
+ * so new labels write it again (ADR-0013). The JSON, which is the record, is not touched.
+ */
+function rewriteAnswerMarkdown(ctx: CommandContext, sourceId: string): void {
+  const { rounds, unreadable } = readCalibrations(ctx.root, sourceId)
+  for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
+    if (!hasAnswers) continue
+    try {
+      writeFileSync(
+        join(reportsDir(ctx.root, sourceId), `${id}.md`),
+        reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
+          answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
+        ),
+      )
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+    }
+  }
 }
