@@ -77,7 +77,7 @@ Targets are not part of the golden set, so changing one does not change the set 
 
 ## Measured
 
-The first named run, at docs `205122bb` and set version 1:
+The baseline, `eval/reports/typescript/2026-11-03-15a96498-baseline.json`, at docs `205122bb` and set version 1:
 
 | Primary anchors | hit@1 | hit@3 | hit@5 | hit@8 | recall@8 | MRR |
 |---|---|---|---|---|---|---|
@@ -85,6 +85,14 @@ The first named run, at docs `205122bb` and set version 1:
 | Hybrid | 19 | 34 | 35 | 36 | 0.881 | 0.657 |
 
 Vector is better on 14 questions and hybrid on 7, with 19 tied: p = 0.189, not significant. hit@1 differs by 10 against 3, p = 0.092, also not significant. The code-reviewer recomputed these independently from the raw rows and from the index, with its own KNN, anchor resolution and RRF, and found no mismatch in any of the 80 strategy-question rows.
+
+The acceptance run used a clean worktree with no data, and took the index from nothing with `drl sync typescript --at <docs sha>`: 51 minutes 21 seconds, 426,152 tokens in 154 requests, $0.0256 at list prices. That was at an earlier commit of the same branch, with the same chunker; at the report's commit the sync made no API call. `drl eval check` found every anchor, and `drl eval verify` on the baseline, at the report's commit, said:
+
+```
+reproduced: what was measured matches the report byte for byte, on other query and corpus vectors
+```
+
+So this bar was not reached on repeated vectors: the corpus and the query vectors both came from other batches, and even the ranks below the context stayed where they were. That is one run on one corpus, not a promise: the second bar still allows those ranks to move.
 
 ## Consequences
 
