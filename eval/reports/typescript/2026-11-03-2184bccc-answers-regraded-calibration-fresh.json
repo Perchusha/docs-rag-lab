@@ -12,6 +12,7 @@
     "refusal": "2b76e9978a16",
     "support": "a5e0160d7313"
   },
+  "judgeModel": "claude-opus-5-5",
   "correctnessDisagreements": [
     {
       "questionId": "ts-0028",
