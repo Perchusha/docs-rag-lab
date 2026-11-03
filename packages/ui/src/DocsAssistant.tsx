@@ -17,7 +17,6 @@ import { isRunning, statusText } from './lib/assistant.ts'
 import common from './lib/common.module.css'
 import { fetchTransport, type Endpoints, type Transport } from './lib/transport.ts'
 import { useFocusRing } from './lib/useFocusRing.ts'
-import './tokens.css'
 
 export interface Theme {
   /** Must reach 4.5:1 against white (light) and against #0d1117 (dark). */

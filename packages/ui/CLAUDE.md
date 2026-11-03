@@ -7,7 +7,7 @@ Client components for the docs assistants: chat, citations and the retrieval ins
 - Client-safe: imports no internal package but `@docs-rag-lab/contracts`, not even `import type` from core or db (rule `ui-no-internal-packages`, ADR-0006).
 - No Node.js built-ins (rule `ui-no-node-builtins`).
 - Data arrives through props and app route handlers. The shapes it renders (the retrieval trace, citations, the answer stream) come from `@docs-rag-lab/contracts`; ui does not define its own copies (ADR-0006).
-- The public entry exports `DocsAssistant`, `EvalDashboard`, `defineDocsApp` and the transports. Other components are their parts and stay private.
+- The public entry exports `DocsAssistant`, `EvalDashboard`, `defineDocsApp` and the transports. Other components are their parts and stay private. The one other export is `tokens.css`, which an app imports in its global stylesheet and no component imports.
 
 ## Conventions
 

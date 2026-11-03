@@ -6,6 +6,9 @@
  * background they are used on; the story tests check that with axe in both
  * schemes.
  *
+ * An app loads this in its global stylesheet, as @docs-rag-lab/ui/tokens.css. No component
+ * imports it, so that there is one way in.
+ *
  * The accent comes from the app (rag.config.ts): DocsAssistant sets
  * --accent-light and --accent-dark on its root, which carries data-drl-theme.
  */
