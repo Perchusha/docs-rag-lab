@@ -322,7 +322,7 @@ M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl
 **Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
 - hit@k, for k = 1, 3, 5 and 8: a primary anchor is in the top k. With `primaryMatch: all`, the best-ranked one counts;
 - recall@8: the share of primary anchors in the top 8. With `primaryMatch: any`, one is enough. The top 8 is what reaches the answer;
-- MRR: the reciprocal rank of the first primary anchor, or 0 if no candidate list has it.
+- MRR: the reciprocal rank of the first primary anchor, or 0 if it is below the depth of one candidate list, which is 50 for both strategies.
 
 Primary metrics are the headline. hit@k and MRR are also reported counting acceptable anchors, as a secondary number: many of those anchors were found by looking at what the current retrievers return, which favours those retrievers.
 
@@ -336,7 +336,7 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 
 Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by question, context, model and request settings.
 
-**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall, and mark a difference of one or two questions or p >= 0.05 as noise. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
+**Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall. A difference of one or two questions is marked as noise, a larger one with p >= 0.05 as not significant, and a win that the totals contradict as mixed. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
 
 **Strategy ladder.** Each strategy is one row of the README table:
 0. Claude without RAG
@@ -347,7 +347,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
 
-**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every count must match, since provider vectors are not reproducible across batches (ADR-0010).
+**Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
 **Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree. The judge is a different model from the one that answers.
 

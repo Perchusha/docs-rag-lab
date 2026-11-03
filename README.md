@@ -32,7 +32,7 @@ Before M3:
 
 The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
-Every claim about retrieval quality will be backed by a measured row in a results table here. No measurements exist yet; the first rows arrive with the eval harness in M4.
+Every claim about retrieval quality will be backed by a measured row in a results table here. The first measurements are in [eval/reports/typescript/](eval/reports/typescript/); the table arrives when M4 is done.
 
 ## Requirements
 
