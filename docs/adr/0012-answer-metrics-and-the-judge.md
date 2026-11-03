@@ -89,7 +89,7 @@ Differences between rows use the same sign test and verdicts as retrieval (ADR-0
 
 ## Measured
 
-The final report is `eval/reports/typescript/2026-11-03-2184bccc-answers-regraded`, at docs `205122bb` and set version 1, on 40 questions with answers and 5 without. The first report, `2026-11-03-53f5eb82-answers`, stays as what the first round of labels was read against. All of it cost $8.20 at list prices, with the pilot, the known cases and the re-grading. The labels are in `eval/labels/typescript/`.
+These numbers come from `eval/reports/typescript/2026-11-03-2184bccc-answers-regraded`, at docs `205122bb` and set version 1, on 40 questions with answers and 5 without. M4's final report, `2026-11-03-94474c83-final`, read every answer and verdict from the cache at a later commit, for $0.00, and reads the same. The first report, `2026-11-03-53f5eb82-answers`, stays as what the first round of labels was read against. All of it cost $8.20 at list prices, with the pilot, the known cases and the re-grading. The labels are in `eval/labels/typescript/`.
 
 ### The judge
 
