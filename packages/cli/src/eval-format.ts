@@ -57,7 +57,7 @@ function verdictLabel(difference: MetricDifference, comparison: EvalComparison):
     case 'not-significant':
       return 'not significant'
     case 'mixed':
-      return 'mixed: more wins, lower total'
+      return 'mixed: more wins, not a higher total'
     case 'too-few':
       return 'too few to say'
   }
@@ -98,7 +98,7 @@ function scopeOf(comparison: EvalComparison, name: string): ScopeComparison | un
 }
 
 export const NOISE_NOTE =
-  'Compared question by question with an exact sign test. A difference of one or two questions is noise. Above that, p >= 0.05 is not significant: the smallest splits that are significant are 6:0, 8:1, 10:2, 12:3, 13:4 and 15:5, so a gain of 5 questions with no losses does not reach it. Mixed means one side won more questions and the other has the higher total. A tag with 5 questions or fewer cannot reach significance. With this many tags and metrics, one low p is not proof on its own.'
+  'Compared question by question with an exact sign test. A difference of one or two questions is noise. Above that, p >= 0.05 is not significant: the smallest splits that are significant are 6:0, 8:1, 10:2, 12:3, 13:4 and 15:5, so a gain of 5 questions with no losses does not reach it. Mixed means the side that won more questions does not have the higher total. A tag with 5 questions or fewer cannot reach significance. With this many tags and metrics, one low p is not proof on its own.'
 
 function comparisonSection(comparison: EvalComparison): string[] {
   const overall = scopeOf(comparison, 'overall')

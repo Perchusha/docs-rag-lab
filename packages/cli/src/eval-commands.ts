@@ -171,14 +171,17 @@ export async function evalVerifyCommand(
   ctx.out.write(`${formatVerification(verification)}\n`)
   if (verification.status === 'inconclusive') {
     throw new CliError(
-      `run this at ${report.run.repoSha.slice(0, 8)} with a clean tree to tell code from vectors`,
+      report.run.repoDirty
+        ? 'the report came from uncommitted changes, so no commit can tell code from vectors'
+        : `run this at ${report.run.repoSha.slice(0, 8)} with a clean tree to tell code from vectors`,
     )
   }
-  if (verification.status === 'not-comparable' || verification.status === 'different') {
+  if (verification.status === 'different') throw new CliError('the report did not reproduce')
+  if (verification.status === 'not-comparable') {
     const sha = report.identity.docs.sha
     const hint =
       now.identity.docs.sha === sha ? '' : `: the report needs drl sync ${source.id} --at ${sha}`
-    throw new CliError(`the report did not reproduce${hint}`)
+    throw new CliError(`this says nothing about the report, which measured something else${hint}`)
   }
 }
 
@@ -219,7 +222,10 @@ export function evalCompareCommand(ctx: CommandContext, args: { a: string; b: st
   }
   const label = (report: EvalReport, path: string): string =>
     `${report.run.name ?? basename(path, '.json').slice(0, 19)}@${report.run.repoSha.slice(0, 8)}${report.run.repoDirty ? '+dirty' : ''}`
-  const labels = { a: label(a, args.a), b: label(b, args.b) }
+  const [labelA, labelB] = [label(a, args.a), label(b, args.b)]
+  // One name at one commit, from two dates or two machines.
+  const labels =
+    labelA === labelB ? { a: `${labelA} (1)`, b: `${labelB} (2)` } : { a: labelA, b: labelB }
   // What else differs: a change of rank means little until this is known.
   const differences = [
     ...fieldDifferences('identity', a.identity, b.identity, labels),

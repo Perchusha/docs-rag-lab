@@ -412,6 +412,22 @@ describe('drl eval verify', () => {
     expect(out).toContain('not comparable')
     expect(out).toContain('identity.docs.sha')
     expect(err).toContain(`drl sync typescript --at ${'a'.repeat(40)}`)
+    expect(err).toContain('says nothing about the report')
+    expect(err).not.toContain('did not reproduce')
+  })
+
+  it('does not call another measurement a failed reproduction, at the same docs too', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    report.identity.retrievalVersion += 1
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code, err } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(1)
+    expect(err).toContain('says nothing about the report')
+    expect(err).not.toContain('did not reproduce')
+    expect(err).not.toContain('drl sync')
   })
 
   it('reproduces byte for byte with other vector hashes, when nothing measured moved', async () => {
@@ -459,6 +475,21 @@ describe('drl eval verify', () => {
     expect(code).toBe(1)
     expect(out).toContain('inconclusive')
     expect(err).toContain('with a clean tree to tell code from vectors')
+  })
+
+  it('does not send a run to a commit that cannot settle it, when the report was dirty', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    withDeepAnchor(report)
+    report.run.repoDirty = true
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code, out, err } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(1)
+    expect(out).toContain('inconclusive')
+    expect(err).toContain('no commit can tell code from vectors')
+    expect(err).not.toContain('run this at')
   })
 
   it('calls a rank that moved inside the context different, with other vectors too', async () => {
@@ -628,6 +659,21 @@ describe('drl eval compare', () => {
     writeFileSync(b, JSON.stringify(report))
 
     expect((await drl('eval', 'compare', a, b)).out).toContain(`@${'b'.repeat(8)}`)
+  })
+
+  it('tells apart two reports with one name at one commit', async () => {
+    const { a, b } = await twoRuns()
+    for (const path of [a, b]) {
+      const report = readReport(path)
+      report.run.name = 'baseline'
+      writeFileSync(path, JSON.stringify(report))
+    }
+    const sha = readReport(a).run.repoSha.slice(0, 8)
+
+    const { out } = await drl('eval', 'compare', a, b)
+
+    expect(out).toContain(`baseline@${sha} (1)`)
+    expect(out).toContain(`baseline@${sha} (2)`)
   })
 
   it('names the questions only one report scored', async () => {

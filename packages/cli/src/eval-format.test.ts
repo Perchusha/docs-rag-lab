@@ -297,6 +297,24 @@ describe('formatEvalComparison', () => {
     expect(second).toContain('no primary rank moved')
   })
 
+  it('names no side on a mixed result, which may be a lower total or a tie', () => {
+    const mixed = {
+      ...comparison,
+      scopes: [
+        {
+          scope: 'overall',
+          questions: 40,
+          primary: [difference('mrr', 0.5, 0.5, 10, 2, 0.039, 'mixed')],
+          withAcceptable: [],
+        },
+      ],
+    }
+
+    expect(formatEvalComparison(mixed, 'hybrid', [])).toMatch(
+      /mrr\s+0\.500 -> 0\.500.*mixed: more wins, not a higher total/,
+    )
+  })
+
   it('reports tags with their size, and lists what moved', () => {
     expect(text).toMatch(/fresh \(3\)\s+mrr\s+0\.300 -> 0\.200.*too few to say/)
     expect(text).toContain('primary ranks that moved:\n  ts-0001: 3 -> 1')
