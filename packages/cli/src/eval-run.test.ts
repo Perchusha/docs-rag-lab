@@ -761,6 +761,75 @@ describe('drl eval answers', () => {
       expect((await drl('eval', 'calibrate', path, labelsPath)).code).toBe(1)
     })
 
+    it('compares refusals over every answer, and a refused answerable question counts', async () => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+      const file = allItems(path, { correctness: 2, outcome: 'correct-refusal' })
+      writeFileSync(labelsPath, JSON.stringify(file))
+
+      const agreed = await drl('eval', 'calibrate', path, labelsPath)
+
+      expect(agreed.out).toContain(`| refusal | ${String(file.labels.length)} | `)
+      expect(agreed.out).toContain('agree on 3 of 3')
+
+      // A human who says one answerable answer refused, where the judge says it did not.
+      const report = readReport(path)
+      const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+      const sample = sampleForLabels({
+        rows: [0, 2, 3],
+        answers: report.answers?.answers ?? [],
+        verdicts: report.answers?.verdicts ?? [],
+        questions: golden,
+      })
+      const item = sample.findIndex(({ questionId }) => questionId === 'ts-0001') + 1
+      writeFileSync(
+        labelsPath,
+        JSON.stringify({
+          ...file,
+          labels: file.labels.map((line) =>
+            line.item === item ? { ...line, correctness: 0, refused: true } : line,
+          ),
+        }),
+      )
+
+      const { out } = await drl('eval', 'calibrate', path, labelsPath)
+
+      expect(out).toContain(
+        `| refusal | ${String(file.labels.length - 1)} | ${String(file.labels.length)} | `,
+      )
+    })
+
+    it.each([
+      ['a refusal that scored', 'ts-0001', 'is refused, and a refusal scores 0'],
+      ['refused on a question with an outcome', 'ts-0003', 'takes an outcome, not refused'],
+    ])('refuses %s', async (_name, questionId, message) => {
+      const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+      const labelsPath = join(root, 'labels.json')
+      const file = allItems(path, { correctness: 2, outcome: 'wrong' })
+      const report = readReport(path)
+      const sample = sampleForLabels({
+        rows: [0, 2, 3],
+        answers: report.answers?.answers ?? [],
+        verdicts: report.answers?.verdicts ?? [],
+        questions: parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8')),
+      })
+      const item = sample.findIndex((answer) => answer.questionId === questionId) + 1
+      writeFileSync(
+        labelsPath,
+        JSON.stringify({
+          ...file,
+          labels: file.labels.map((line) =>
+            line.item === item ? { ...line, refused: true } : line,
+          ),
+        }),
+      )
+
+      const { code, err } = await drl('eval', 'calibrate', path, labelsPath)
+
+      expect(code).toBe(1)
+      expect(err).toContain(message)
+    })
+
     it('needs the label a kind of question asks for', async () => {
       const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
       const labelsPath = join(root, 'labels.json')

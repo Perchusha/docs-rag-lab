@@ -180,13 +180,15 @@ export interface AnswerLabel {
   questionId: string
   row: AnswerRow
   correctness: 0 | 1 | 2 | null
+  /** On a question the docs answer, whether the answer refuses it. Null on any other. */
+  refused: boolean | null
   outcome: RefusalOutcome | null
   /** Whether every cited claim is supported; null when the answer cites nothing. */
   supported: boolean | null
 }
 
 export interface AgreementResult {
-  dimension: 'correctness' | 'outcome' | 'support'
+  dimension: 'correctness' | 'refusal' | 'support'
   compared: number
   agreed: number
   /** Cohen's kappa, or null when one side used a single value and it is undefined. */
@@ -202,6 +204,8 @@ export interface EvalCalibration {
   report: { repoSha: string; name: string | null; createdAt: string }
   labelled: number
   agreement: AgreementResult[]
+  /** The three outcomes on unanswerable questions alone. Too little data to decide anything. */
+  unanswerableOnly: { compared: number; agreed: number }
   /** Every dimension passed. If not, the answer metrics are uncalibrated. */
   calibrated: boolean
 }

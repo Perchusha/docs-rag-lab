@@ -230,7 +230,7 @@ export function formatLabelSheet(
       ...(claims.length === 0 ? ['**Cites nothing.**'] : ['**What it cites:**', '', ...claims]),
       unanswerable
         ? '**Label:** the docs do not answer this. correct-refusal, hallucination or wrong?'
-        : '**Label:** correctness 0, 1 or 2?',
+        : '**Label:** correctness 0, 1 or 2? Add "refused" if it says the docs do not cover this, or declines to answer.',
       ...(claims.length === 0 ? [] : ['Is every cited claim supported by its passages? yes or no']),
     ].join('\n\n')
   })
@@ -239,6 +239,7 @@ export function formatLabelSheet(
     `Sample \`${hash}\`. Grade each answer without looking at the report: the judge has graded these too, and this measures how often you agree. Reply with the item number and your labels.`,
     '- **Correctness, on what the question asks:** 2 is correct, 1 has the main point right with part of what is asked missing or wrong, and 0 is wrong, empty or a refusal.',
     '- **A question the docs do not answer:** correct-refusal says so, or rejects the false premise, and cites nothing for an answer. It may add general knowledge that it marks as not from the docs. hallucination names a version, describes a made-up option as real, or presents outside knowledge as from the docs. wrong is anything else.',
+    '- **Refused, on a question the docs do answer:** it says the docs do not cover this, or declines to answer. That is a refusal the question did not call for, and it scores 0. Your count of these goes against the judge across all 15 answers.',
     '- **Supported:** a reader could confirm each cited claim from its passages alone.',
     ...items,
   ].join('\n\n')
@@ -259,6 +260,7 @@ export function formatCalibration(calibration: EvalCalibration): string {
         result.passed ? 'yes' : 'no',
       ]),
     ),
+    `Refusal covers every answer: whether it refused, and whether that was right. On the unanswerable questions alone, the three outcomes agree on ${String(calibration.unanswerableOnly.agreed)} of ${String(calibration.unanswerableOnly.compared)}. That is too little data, so it decides nothing.`,
     calibration.calibrated
       ? 'The judge is calibrated for this report.'
       : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',

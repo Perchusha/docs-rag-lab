@@ -333,6 +333,8 @@ export function evalLabelCommand(ctx: CommandContext, args: { path: string }): v
 interface LabelLine {
   item: number
   correctness?: 0 | 1 | 2
+  /** A question the docs answer, and this answer refuses it. Left out when it does not. */
+  refused?: boolean
   outcome?: AnswerLabel['outcome']
   supported?: boolean
 }
@@ -380,11 +382,18 @@ export function evalCalibrateCommand(
         `item ${String(line.item)} needs ${unanswerable ? 'an outcome' : 'a correctness'}`,
       )
     }
+    if (unanswerable && line.refused !== undefined) {
+      throw new CliError(`item ${String(line.item)} takes an outcome, not refused`)
+    }
+    if (line.refused === true && line.correctness !== 0) {
+      throw new CliError(`item ${String(line.item)} is refused, and a refusal scores 0`)
+    }
     return {
       questionId: answer.questionId,
       row: answer.row,
-      correctness: line.correctness ?? null,
-      outcome: line.outcome ?? null,
+      correctness: unanswerable ? null : (line.correctness ?? null),
+      refused: unanswerable ? null : (line.refused ?? false),
+      outcome: unanswerable ? (line.outcome ?? null) : null,
       supported: line.supported ?? null,
     }
   })

@@ -321,13 +321,14 @@ describe('formatLabelSheet', () => {
     expect(text).toContain('Claim 1: Cited.')
     expect(text).toContain('> A passage.')
     const [first = '', second = ''] = text.split('## Item 2')
-    expect(first).toContain('**Label:** correctness 0, 1 or 2?')
+    expect(first).toContain('**Label:** correctness 0, 1 or 2? Add "refused"')
     expect(first).not.toContain('correct-refusal, hallucination or wrong?')
     expect(first).toContain('Is every cited claim supported')
     expect(second).toContain('(empty)')
     expect(second).toContain('**Cites nothing.**')
     expect(second).toContain('correct-refusal, hallucination or wrong?')
     expect(second).not.toContain('correctness 0, 1 or 2?')
+    expect(second).not.toContain('Add "refused"')
     expect(second).not.toContain('Is every cited claim supported')
   })
 
@@ -364,14 +365,15 @@ describe('formatCalibration', () => {
           passed: true,
         },
         {
-          dimension: 'outcome',
-          compared: 3,
-          agreed: 2,
+          dimension: 'refusal',
+          compared: 15,
+          agreed: 12,
           kappa: null,
           interval: [0.2, 0.94],
           passed: false,
         },
       ],
+      unanswerableOnly: { compared: 3, agreed: 2 },
       calibrated: false,
     })
 
@@ -379,7 +381,9 @@ describe('formatCalibration', () => {
     expect(lineWith(text, '| correctness |')).toBe(
       '| correctness | 11 | 12 | 0.80 | 65% to 98% | yes |',
     )
-    expect(lineWith(text, '| outcome |')).toBe('| outcome | 2 | 3 | - | 20% to 94% | no |')
+    expect(lineWith(text, '| refusal |')).toBe('| refusal | 12 | 15 | - | 20% to 94% | no |')
+    expect(text).toContain('the three outcomes agree on 2 of 3')
+    expect(text).toContain('too little data, so it decides nothing')
     expect(text).toContain('uncalibrated')
   })
 })

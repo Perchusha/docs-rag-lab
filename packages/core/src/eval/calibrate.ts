@@ -12,6 +12,7 @@ import type {
   EvalCalibration,
   EvalSupport,
   EvalVerdict,
+  RefusalOutcome,
 } from '@docs-rag-lab/contracts'
 
 import type { GoldenQuestion } from './golden.ts'
@@ -172,6 +173,23 @@ function agreement<T>(
   }
 }
 
+/**
+ * Whether an answer refused, and whether that was right, in one value: the same question
+ * for every answer, so the bar means the same as on the other dimensions (the owner's rule).
+ * Hallucination and wrong differ, but neither is a refusal: the line for unanswerable
+ * questions alone keeps them apart.
+ */
+type RefusalClass = 'answered' | 'false-refusal' | 'correct-refusal' | 'no-refusal'
+
+function refusalClass(
+  outcome: RefusalOutcome | null | undefined,
+  refused: boolean | null | undefined,
+): RefusalClass | undefined {
+  if (outcome != null) return outcome === 'correct-refusal' ? 'correct-refusal' : 'no-refusal'
+  if (refused == null) return undefined
+  return refused ? 'false-refusal' : 'answered'
+}
+
 export interface CalibrateOptions {
   report: EvalCalibration['report']
   labels: readonly AnswerLabel[]
@@ -205,7 +223,13 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
       ? []
       : [[label.correctness, judged] as const]
   })
-  const outcome = labels.flatMap((label) => {
+  const refusal = labels.flatMap((label) => {
+    const verdict = verdictOf(label)
+    const human = refusalClass(label.outcome, label.refused)
+    const judged = refusalClass(verdict?.outcome, verdict?.falseRefusal)
+    return human === undefined || judged === undefined ? [] : [[human, judged] as const]
+  })
+  const outcomes = labels.flatMap((label) => {
     const judged = verdictOf(label)?.outcome
     return label.outcome === null || judged == null ? [] : [[label.outcome, judged] as const]
   })
@@ -217,13 +241,17 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
   })
   const results = [
     agreement('correctness', correctness),
-    agreement('outcome', outcome),
+    agreement('refusal', refusal),
     agreement('support', supported),
   ]
   return {
     report: options.report,
     labelled: labels.length,
     agreement: results,
+    unanswerableOnly: {
+      compared: outcomes.length,
+      agreed: outcomes.filter(([human, judged]) => human === judged).length,
+    },
     calibrated: results.every((result) => result.passed),
   }
 }

@@ -52,7 +52,9 @@ Two rows that give the same text share one verdict, because the request is the s
 
 `drl eval label <report>` writes a sheet of 15 answers from a fixed seed: 5 per row, each with one unanswerable question and one the judge scored low, in shuffled order. The sheet shows no verdict and no row, and it goes under `dev/`, since it quotes Claude and the docs. `drl eval calibrate <report> <labels>` reports agreement per dimension, with Cohen's kappa and a 95% Wilson interval.
 
-The sheet names its sample by a hash, and the labels file repeats it, so labels cannot be read against other answers. Every item needs one label. The bar is 13 of 15 on each dimension. Below it, or with nothing compared on a dimension, the answer metrics are marked uncalibrated. The share counts, so with 3 unanswerable questions in the sample, one disagreement on those fails the bar. The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
+The sheet names its sample by a hash, and the labels file repeats it, so labels cannot be read against other answers. Every item needs one label. The bar is 13 of 15 on each dimension. Below it, or with nothing compared on a dimension, the answer metrics are marked uncalibrated.
+
+Refusal agreement covers every answer, by the owner's rule: whether it refused, and whether that was right. So a refusal of a question the docs do answer is a disagreement like any other, and 13 of 15 means the same as on the other dimensions. The three outcomes on unanswerable questions alone, of which the sample has 3, stay on a separate line that says it is too little data and decides nothing. The interval is there because 14 of 15 still means somewhere from 70% to 99%. If the judge's prompt changes after labelling, those 15 are no longer blind, and about 5 fresh ones are needed.
 
 ### 6. Noise
 

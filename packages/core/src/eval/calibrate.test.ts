@@ -252,6 +252,7 @@ describe('calibrate', () => {
     questionId: ID(i),
     row,
     correctness: null,
+    refused: null,
     outcome: null,
     supported: null,
     ...overrides,
@@ -266,11 +267,11 @@ describe('calibrate', () => {
   })
 
   it('compares each dimension where both sides have a value', () => {
-    const { agreement } = calibrate({
+    const { agreement, unanswerableOnly } = calibrate({
       report,
       labels: [
-        label(1, 3, { correctness: 2, supported: true }),
-        label(2, 3, { correctness: 0, supported: false }),
+        label(1, 3, { correctness: 2, refused: false, supported: true }),
+        label(2, 3, { correctness: 0, refused: false, supported: false }),
         label(41, 3, { outcome: 'wrong' }),
       ],
       verdicts: [verdict(1, 3, 2), verdict(2, 3, 1), verdict(41, 3, null, { outcome: 'wrong' })],
@@ -281,9 +282,116 @@ describe('calibrate', () => {
       agreement.map(({ dimension, compared, agreed }) => [dimension, compared, agreed]),
     ).toEqual([
       ['correctness', 2, 1],
-      ['outcome', 1, 1],
+      ['refusal', 3, 3],
       ['support', 2, 2],
     ])
+    expect(unanswerableOnly).toEqual({ compared: 1, agreed: 1 })
+  })
+
+  describe('refusal agreement, over every answer', () => {
+    const refusalOf = (labels: AnswerLabel[], verdicts: EvalVerdict[]) => {
+      const result = calibrate({ report, labels, verdicts, support: [] })
+      return result.agreement.find(({ dimension }) => dimension === 'refusal')
+    }
+
+    it('counts an answerable question both sides say was answered', () => {
+      expect(
+        refusalOf([label(1, 3, { correctness: 1, refused: false })], [verdict(1, 3, 2)]),
+      ).toMatchObject({ compared: 1, agreed: 1 })
+    })
+
+    it('counts it as a disagreement when only the human says an answer refused', () => {
+      expect(
+        refusalOf([label(1, 3, { correctness: 0, refused: true })], [verdict(1, 3, 0)]),
+      ).toMatchObject({ compared: 1, agreed: 0 })
+    })
+
+    it('counts it as a disagreement when only the judge says an answer refused', () => {
+      expect(
+        refusalOf(
+          [label(1, 3, { correctness: 0, refused: false })],
+          [verdict(1, 3, 0, { falseRefusal: true })],
+        ),
+      ).toMatchObject({ compared: 1, agreed: 0 })
+    })
+
+    it('agrees when both say an answerable question was refused', () => {
+      expect(
+        refusalOf(
+          [label(1, 3, { correctness: 0, refused: true })],
+          [verdict(1, 3, 0, { falseRefusal: true })],
+        ),
+      ).toMatchObject({ compared: 1, agreed: 1 })
+    })
+
+    it('needs both sides to call a refusal right on an unanswerable question', () => {
+      expect(
+        refusalOf(
+          [label(41, 3, { outcome: 'correct-refusal' })],
+          [verdict(41, 3, null, { outcome: 'hallucination', falseRefusal: null })],
+        ),
+      ).toMatchObject({ compared: 1, agreed: 0 })
+    })
+
+    it('does not tell hallucination from wrong, which the separate line does', () => {
+      const result = calibrate({
+        report,
+        labels: [label(41, 3, { outcome: 'hallucination' })],
+        verdicts: [verdict(41, 3, null, { outcome: 'wrong', falseRefusal: null })],
+        support: [],
+      })
+
+      expect(result.agreement.find(({ dimension }) => dimension === 'refusal')).toMatchObject({
+        compared: 1,
+        agreed: 1,
+      })
+      expect(result.unanswerableOnly).toEqual({ compared: 1, agreed: 0 })
+    })
+
+    it('leaves out an answer the judge could not grade', () => {
+      expect(
+        refusalOf(
+          [label(1, 3, { correctness: 0, refused: false })],
+          [verdict(1, 3, null, { status: 'failed', falseRefusal: null })],
+        ),
+      ).toMatchObject({ compared: 0, agreed: 0 })
+    })
+
+    it('holds refusals to 13 of 15 like everything else', () => {
+      const run = (wrong: number) => {
+        const labels = Array.from({ length: 15 }, (_, i) =>
+          label(i + 1, 3, { correctness: 2, refused: false }),
+        )
+        const verdicts = Array.from({ length: 15 }, (_, i) =>
+          verdict(i + 1, 3, 2, { falseRefusal: i < wrong }),
+        )
+        return refusalOf(labels, verdicts)?.passed
+      }
+
+      expect(run(2)).toBe(true)
+      expect(run(3)).toBe(false)
+    })
+  })
+
+  it('does not let the unanswerable line decide anything', () => {
+    const answerable = Array.from({ length: 13 }, (_, i) => i + 1)
+    const result = calibrate({
+      report,
+      labels: [
+        ...answerable.map((i) => label(i, 3, { correctness: 2, refused: false, supported: true })),
+        label(41, 3, { outcome: 'hallucination' }),
+        label(42, 3, { outcome: 'hallucination' }),
+      ],
+      verdicts: [
+        ...answerable.map((i) => verdict(i, 3, 2)),
+        verdict(41, 3, null, { outcome: 'wrong', falseRefusal: null }),
+        verdict(42, 3, null, { outcome: 'wrong', falseRefusal: null }),
+      ],
+      support: answerable.map((i) => support(i, 3, true)),
+    })
+
+    expect(result.unanswerableOnly).toEqual({ compared: 2, agreed: 0 })
+    expect(result.calibrated).toBe(true)
   })
 
   it('calls an answer supported only when the judge found every claim supported', () => {
@@ -314,7 +422,7 @@ describe('calibrate', () => {
     const passing = {
       report,
       labels: [
-        label(1, 3, { correctness: 2, supported: true }),
+        label(1, 3, { correctness: 2, refused: false, supported: true }),
         label(41, 3, { outcome: 'wrong' }),
       ],
       verdicts: [verdict(1, 3, 2), verdict(41, 3, null, { outcome: 'wrong' })],

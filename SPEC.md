@@ -349,7 +349,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
-**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. The judge is a different model from the one that answers (ADR-0012).
+**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers (ADR-0012).
 
 ## 11. Interview-prep app
 
