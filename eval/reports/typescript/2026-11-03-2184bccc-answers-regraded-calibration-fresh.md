@@ -8,4 +8,4 @@ A fresh round: correctness alone, with at most 1 disagreement in 10.
 | --- | --- | --- | --- | --- | --- |
 | correctness | 9 | 10 | 0.80 | 60% to 98% | yes |
 
-The judge is calibrated for this report.
+This round reached the bar on what it measured.
