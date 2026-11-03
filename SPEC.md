@@ -305,7 +305,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`). The answer metrics, judge and dashboard below are coming in the later M4 PRs.
+M4 builds this in stages. So far: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012). The dashboard below is coming in a later M4 PR.
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -334,7 +334,7 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 - latency;
 - tokens and cost per question.
 
-Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by question, context, model and request settings.
+Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by the whole request. `--noise` answers row 3 twice and asks the judge twice, so a report says how far a row differs from itself.
 
 **Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall. A difference of one or two questions is marked as noise, a larger one with p >= 0.05 as not significant, and a win without the higher total as mixed. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
 
@@ -349,7 +349,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, after the hypotheses, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
-**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree. The judge is a different model from the one that answers.
+**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. The judge is a different model from the one that answers (ADR-0012).
 
 ## 11. Interview-prep app
 
