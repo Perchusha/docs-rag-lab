@@ -1,4 +1,4 @@
-/* The app's body sets no colours, so the page paints its own, as the chat does. */
+/* The page paints its own background from the edge of the window, as the chat does. */
 .root {
   min-height: 100vh;
   background: var(--color-bg);

@@ -131,7 +131,7 @@ Every excerpt of the docs in them is cut to 300 characters (NOTICE: short excerp
 Three things were needed to make this stable:
 - **`optimizeDeps.include: ['lucide-react', 'react-markdown', 'remark-gfm']`.** Vite found them mid-run, reloaded the page, and every running test failed. This happens on every run with an empty cache, as in CI.
 - **`api: { port: 5199 }`.** Vitest's default browser port, 63315, falls in a range Windows hands to Hyper-V, which changes at each boot. There it fails with `EACCES`, and Vitest only tries another port when one is taken.
-- **`.storybook/preview.css`** gives the canvas the app's page colours. Without it, the dark stories drew light text on Storybook's white canvas, and axe rightly failed them.
+- **`.storybook/preview.css`** gives the canvas the app's page colours. Without it, the dark stories drew light text on Storybook's white canvas, and axe rightly failed them. The app's `globals.css` now sets the same background and text colour on its body, and a test holds them equal: until then a page that forgot its own background passed here and failed in the app, which is how the first dashboard reached the live run.
 
 CI installs Playwright's headless Chromium, cached per Playwright version, and its system libraries from apt. Locally, run `pnpm --filter @docs-rag-lab/ui exec playwright install --only-shell chromium` once.
 
