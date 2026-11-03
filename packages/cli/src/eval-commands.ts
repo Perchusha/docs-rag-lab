@@ -10,6 +10,7 @@ import {
   STRATEGIES,
   type EvalReport,
   type EvalStrategyResult,
+  type EvalVerifyRecord,
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
@@ -18,7 +19,9 @@ import {
   openIndexes,
   parseEvalTargets,
   readRepoState,
+  reportsDir,
   runRetrievalEval,
+  verifyRecordPath,
   verifyReport,
   type Source,
 } from '@docs-rag-lab/core'
@@ -37,9 +40,7 @@ import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
 
 const NAME = /^[a-z0-9][a-z0-9-]*$/
 
-export function reportsDir(root: string, sourceId: string): string {
-  return join(root, 'eval', 'reports', sourceId)
-}
+export { reportsDir }
 
 export async function measure(
   ctx: CommandContext,
@@ -182,7 +183,7 @@ export function readReport(root: string, path: string): EvalReport {
 /** `drl eval verify <report>`: run the same thing again, and say whether it reproduces. */
 export async function evalVerifyCommand(
   ctx: CommandContext,
-  args: { path: string },
+  args: { path: string; record: boolean },
 ): Promise<void> {
   const report = readReport(ctx.root, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
@@ -196,6 +197,20 @@ export async function evalVerifyCommand(
       `re-run at ${code}${now.run.repoDirty ? ' with uncommitted changes' : ''}\n`,
   )
   ctx.out.write(`${formatVerification(verification)}\n`)
+  if (args.record) {
+    const record: EvalVerifyRecord = {
+      status: verification.status,
+      changedVectors: 'changedVectors' in verification ? verification.changedVectors : [],
+      rerun: {
+        repoSha: now.run.repoSha,
+        repoDirty: now.run.repoDirty,
+        at: new Date(ctx.now()).toISOString(),
+      },
+    }
+    const path = verifyRecordPath(resolve(ctx.root, args.path))
+    writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`)
+    ctx.out.write(`recorded: ${path}\n`)
+  }
   if (verification.status === 'inconclusive') {
     throw new CliError(
       report.run.repoDirty

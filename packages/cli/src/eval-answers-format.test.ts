@@ -55,6 +55,10 @@ const answers = (overrides: Partial<EvalAnswers> = {}): EvalAnswers => ({
   ...overrides,
 })
 
+const JUDGE_LINE = 'The judge is calibrated. Correctness may be slightly inflated.'
+
+const sections = (value: EvalAnswers): string[] => answerSections(value, JUDGE_LINE)
+
 const lineWith = (text: string, needle: string): string =>
   text.split('\n').find((line) => line.includes(needle)) ?? ''
 
@@ -95,7 +99,7 @@ describe('answerSections', () => {
       },
     ],
   })
-  const text = answerSections(comparison).join('\n\n')
+  const text = sections(comparison).join('\n\n')
 
   it('keeps each number on its own side, and names the winner', () => {
     expect(text).toContain(
@@ -126,13 +130,11 @@ describe('answerSections', () => {
       ],
     })
 
-    expect(lineWith(answerSections(flipped).join('\n'), '| correctness |')).toContain(
-      '| row 0 better |',
-    )
+    expect(lineWith(sections(flipped).join('\n'), '| correctness |')).toContain('| row 0 better |')
   })
 
   it('shows a row with each count in its column', () => {
-    const body = answerSections(answers()).join('\n\n')
+    const body = sections(answers()).join('\n\n')
 
     expect(lineWith(body, '| row 3 | 40 |')).toBe(
       '| row 3 | 40 | 1.500 | 3 / 14 / 23 | 2 | 25 of 30 | 80 of 90 |',
@@ -143,7 +145,7 @@ describe('answerSections', () => {
   })
 
   it('marks a second sample, and a row with no citations', () => {
-    const body = answerSections(
+    const body = sections(
       answers({
         rows: [
           row({
@@ -163,7 +165,7 @@ describe('answerSections', () => {
   })
 
   it('names the questions it left out, and why', () => {
-    const body = answerSections(
+    const body = sections(
       answers({
         rows: [
           row({
@@ -184,17 +186,17 @@ describe('answerSections', () => {
   })
 
   it('says nothing about leaving out when nothing was', () => {
-    expect(answerSections(answers()).join('\n')).not.toContain('Left out')
+    expect(sections(answers()).join('\n')).not.toContain('Left out')
   })
 
   it('reports the second opinion of the judge when there is one', () => {
-    expect(
-      answerSections(answers({ judgeRetest: { compared: 40, agreed: 37 } })).join('\n'),
-    ).toContain('gave the same grade on 37 of 40')
+    expect(sections(answers({ judgeRetest: { compared: 40, agreed: 37 } })).join('\n')).toContain(
+      'gave the same grade on 37 of 40',
+    )
   })
 
   it('lists chunks to review, and says none is added', () => {
-    const body = answerSections(
+    const body = sections(
       answers({
         candidates: [{ questionId: 'ts-0001', row: 3, chunkId: 'c1', docPath: 'a.md' }],
       }),
@@ -204,12 +206,12 @@ describe('answerSections', () => {
     expect(body).toContain('None is added automatically')
   })
 
-  it('says the judge is not calibrated until a human has labelled a sample', () => {
-    expect(answerSections(answers()).join('\n')).toContain('The judge is not calibrated')
+  it('says what is known about the judge, next to the numbers', () => {
+    expect(sections(answers()).join('\n')).toContain(JUDGE_LINE)
   })
 
   it('escapes a pipe, which would break the table', () => {
-    const body = answerSections(
+    const body = sections(
       answers({
         candidates: [{ questionId: 'ts-0001', row: 3, chunkId: 'c|1', docPath: 'a.md' }],
       }),
@@ -220,7 +222,7 @@ describe('answerSections', () => {
 })
 
 describe('the exploratory metric', () => {
-  const text = answerSections(
+  const text = sections(
     answers({
       rows: [
         row({ row: 0, overall: metrics({ correctAndGrounded: 0 }) }),
@@ -267,9 +269,10 @@ describe('the exploratory metric', () => {
 
 describe('formatAnswersSummary', () => {
   it('prints what was paid and each row', () => {
-    expect(formatAnswersSummary(answers())).toBe(
+    expect(formatAnswersSummary(answers(), JUDGE_LINE)).toBe(
       [
         'paid $1.5000 at list prices',
+        JUDGE_LINE,
         'row 3: correctness 1.500 over 40, 2 false refusals; unanswerable: 3 refused, 1 hallucinated, 1 wrong',
       ].join('\n'),
     )

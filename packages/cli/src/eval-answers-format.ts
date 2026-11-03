@@ -134,11 +134,11 @@ function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
 }
 
 /** The answer sections of a report's markdown. */
-export function answerSections(answers: EvalAnswers): string[] {
+export function answerSections(answers: EvalAnswers, judgeLine: string): string[] {
   const { rows } = answers
   const sections = [
     '## Answers',
-    `Answered by \`${answers.models.answer}\`, judged by \`${answers.models.judge}\`, which does not know the row. This run paid ${usd(answers.paidUsd)} at list prices. The judge is not calibrated until a human has labelled a sample of these answers (\`drl eval label\`).`,
+    `Answered by \`${answers.models.answer}\`, judged by \`${answers.models.judge}\`, which does not know the row. This run paid ${usd(answers.paidUsd)} at list prices. ${judgeLine}`,
     table(
       CORRECT_HEADER,
       rows.map((row) => correctRow(rowName(row), row.overall)),
@@ -213,9 +213,10 @@ export function answerSections(answers: EvalAnswers): string[] {
 }
 
 /** What a run prints. */
-export function formatAnswersSummary(answers: EvalAnswers): string {
+export function formatAnswersSummary(answers: EvalAnswers, judgeLine: string): string {
   return [
     `paid ${usd(answers.paidUsd)} at list prices`,
+    judgeLine,
     ...answers.rows.map((row) => {
       const { questions, correctness, falseRefusals } = row.overall
       const { correct, hallucinations, wrong } = row.refusals

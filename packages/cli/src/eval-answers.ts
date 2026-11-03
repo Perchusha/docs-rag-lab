@@ -21,6 +21,9 @@ import {
   estimateCost,
   freshSampleForLabels,
   isUnanswerable,
+  judgeSentence,
+  judgeTrust,
+  readCalibrations,
   judgeCases,
   judgeRetest,
   noRagSystemPrompt,
@@ -241,6 +244,7 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
+    const judgeLine = judgeSentence(judgeTrust(section, readCalibrations(ctx.root, source.id)))
     const failures =
       answers.filter(({ status }) => status === 'failed').length +
       verdicts.filter(({ status }) => status === 'failed').length +
@@ -250,14 +254,10 @@ export async function evalAnswersCommand(
         `${String(failures)} calls failed, and a named report needs them all: rerun, which pays only for those`,
       )
     }
-    const path = writeReport(
-      ctx,
-      source,
-      args.name,
-      { ...report, answers: section },
-      answerSections,
+    const path = writeReport(ctx, source, args.name, { ...report, answers: section }, (written) =>
+      answerSections(written, judgeLine),
     )
-    ctx.out.write(`${formatAnswersSummary(section)}\n\nreport: ${path}\n`)
+    ctx.out.write(`${formatAnswersSummary(section, judgeLine)}\n\nreport: ${path}\n`)
     if (failures > 0) {
       throw new CliError(
         `${String(failures)} calls failed, so the report leaves those out: rerun, which pays only for them`,
@@ -440,6 +440,7 @@ export function evalCalibrateCommand(
     verdicts: answers.verdicts,
     support: answers.support,
     blind: earlier === undefined,
+    prompts: answers.prompts,
     ...(args.after === undefined ? {} : { dimensions: ['correctness'] as const }),
   })
   // Next to the report, where JSON is recorded data (ADR-0010).

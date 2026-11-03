@@ -57,6 +57,7 @@ Commands:
       [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
       [--strategy <s>]        One strategy instead of vector and hybrid
   eval verify <report>        Run a report again, and say whether it reproduces
+      [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
       [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default
@@ -166,6 +167,7 @@ function refuseStrayEvalFlags(
     accept: boolean
     name?: string | undefined
     strategy?: string | undefined
+    record?: boolean | undefined
     after?: string | undefined
     'sample-of'?: string | undefined
     rows?: string | undefined
@@ -184,6 +186,7 @@ function refuseStrayEvalFlags(
     ...(values.name !== undefined && subcommand !== undefined && subcommand !== 'answers'
       ? ['--name']
       : []),
+    ...(values.record === true && subcommand !== 'verify' ? ['--record'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
       ? ['--after']
       : []),
@@ -237,6 +240,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
+        record: { type: 'boolean', default: false },
         after: { type: 'string' },
         'sample-of': { type: 'string' },
         rows: { type: 'string' },
@@ -365,7 +369,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')
-        await evalVerifyCommand(ctx, { path: first })
+        await evalVerifyCommand(ctx, { path: first, record: values.record })
       } else if (subcommand === 'compare') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval compare needs two report files')

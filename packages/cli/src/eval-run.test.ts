@@ -552,6 +552,56 @@ describe('drl eval answers', () => {
     expect(answers.judgeRetest).toEqual({ compared: 3, agreed: 3 })
   })
 
+  it('says what is known about the judge wherever correctness is reported', async () => {
+    const { out } = await drl('eval', 'answers', '--yes')
+
+    expect(out).toContain('The judge is not calibrated for these prompts')
+    const markdown = readFileSync(reportPathIn(out).replace(/\.json$/, '.md'), 'utf8')
+    expect(markdown).toContain('The judge is not calibrated for these prompts')
+  })
+
+  it('carries the labels through to later reports: calibrated, with the bias', async () => {
+    const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
+    const report = readReport(path)
+    const answers = report.answers?.answers ?? []
+    const verdicts = report.answers?.verdicts ?? []
+    const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+    const sample = sampleForLabels({ rows: [0, 2, 3], answers, verdicts, questions: golden })
+    const labels = sample.map((answer, i): Record<string, unknown> => {
+      const verdict = verdicts.find(
+        (item) => item.questionId === answer.questionId && item.row === answer.row,
+      )
+      return verdict?.outcome == null
+        ? {
+            item: i + 1,
+            correctness: verdict?.correctness,
+            ...(answer.claims.length > 0 ? { supported: true } : {}),
+          }
+        : { item: i + 1, outcome: verdict.outcome }
+    })
+    // One answer scored lower than the judge did, so the judge runs high on this one.
+    const lowered = labels.find((line) => line.correctness === 2)
+    if (lowered !== undefined) lowered.correctness = 1
+    const labelsPath = join(root, 'labels.json')
+    writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+    await drl('eval', 'calibrate', path, labelsPath)
+    const stored = JSON.parse(
+      readFileSync(path.replace(/\.json$/, '-calibration.json'), 'utf8'),
+    ) as { prompts: Record<string, string>; correctnessDisagreements: unknown[] }
+    expect(stored.prompts).toEqual(report.answers?.prompts)
+    expect(stored.correctnessDisagreements).toHaveLength(1)
+    // Named reports are what the store reads: copy this one's calibration beside the next run.
+    writeFileSync(
+      join(reportsDir(root, 'typescript'), '2026-11-03-abcdef12-x-calibration.json'),
+      JSON.stringify(stored),
+    )
+    clock += 1000
+
+    const { out } = await drl('eval', 'answers', '--yes')
+
+    expect(out).toContain('correctness may be slightly inflated')
+  })
+
   it('keeps the answers in the JSON, and out of the markdown', async () => {
     const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
 
@@ -984,6 +1034,8 @@ describe('drl eval answers', () => {
 
       it.each([
         [['eval', 'answers', '--after', 'x'], '--after does not apply'],
+        [['eval', '--record'], '--record does not apply'],
+        [['eval', 'check', '--record'], '--record does not apply'],
         [['eval', 'check', '--after', 'x'], '--after does not apply'],
         [['eval', 'label', 'x.json', '--sample-of', 'y'], '--sample-of does not apply'],
       ])('refuses %j', async (argv, message) => {
@@ -1049,6 +1101,42 @@ describe('drl eval verify', () => {
       'reproduced: what was measured matches the report byte for byte, on the same vectors',
     )
     expect(out).toContain('with uncommitted changes')
+  })
+
+  it('records what it found next to the report, with --record, for the dashboard', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+
+    const { code, out } = await drl('eval', 'verify', path, '--record')
+
+    expect(code).toBe(0)
+    const recordPath = path.replace(/\.json$/, '-verify.json')
+    expect(out).toContain(`recorded: ${recordPath}`)
+    expect(JSON.parse(readFileSync(recordPath, 'utf8'))).toEqual({
+      status: 'identical',
+      changedVectors: [],
+      rerun: {
+        repoSha: git('rev-parse', 'HEAD'),
+        repoDirty: false,
+        at: new Date(clock).toISOString(),
+      },
+    })
+  })
+
+  it('records nothing without --record, and records a failure too', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const recordPath = path.replace(/\.json$/, '-verify.json')
+
+    await drl('eval', 'verify', path)
+    expect(existsSync(recordPath)).toBe(false)
+
+    const report = readReport(path)
+    report.identity.docs.sha = 'a'.repeat(40)
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code } = await drl('eval', 'verify', path, '--record')
+
+    expect(code).toBe(1)
+    expect(JSON.parse(readFileSync(recordPath, 'utf8'))).toMatchObject({ status: 'not-comparable' })
   })
 
   it('fails on a report whose numbers were changed', async () => {
