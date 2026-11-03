@@ -13,7 +13,7 @@ Client components for the docs assistants: chat, citations and the retrieval ins
 
 - Styles are CSS Modules that read the custom properties in `src/tokens.css`. Never hard-code a colour, size or font; add a token, and add any new text colour to the "Foundations/Tokens" story so axe checks its contrast.
 - Logic that can be pure is pure and unit tested in `src/lib/` (the reducer, fusion rows, the answer markdown). Components stay thin.
-- Every component state gets a story. Story tests run each story in headless Chromium, in light and dark, and fail on any axe violation. Interactions get a play function, keyboard first.
+- Every component state gets a story. Story tests run each story in headless Chromium, in light and dark, and fail on any axe violation. A story tagged `forced-colors` runs only under Playwright's `forcedColors`, in both palettes. Interactions get a play function, keyboard first.
 - A story that checks anything but the final state holds the replay with a `ReplayGate` and releases it step by step, never a timer. A state then lasts as long as the test needs, however slow the machine is.
 - A test that something must not happen needs a replay that lets it happen: `ignoresAbort` and a gate per search method let a late result really arrive. Change the code and watch the story fail before you trust it.
 - Stories replay recorded data through `replayTransport`, never the network. Fixtures in `src/__fixtures__/` are real traces and answers, with every docs excerpt cut to 300 characters (NOTICE). Read them through `src/fixtures.ts`.

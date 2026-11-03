@@ -139,9 +139,8 @@ export const FitsOneScreenNotCalibrated: Story = {
 }
 
 /**
- * The app's body sets no colours, unlike the one in these stories, so the page paints its own
- * from the edge of the window. Without it axe fails every dark view of the live page, and no
- * other story can see that.
+ * The page paints its own background from the edge of the window, as the chat does, whatever the
+ * body it is given. The body here has the page colours, so no other story can see this.
  */
 const paintsItsOwnPage = async (canvasElement: HTMLElement) => {
   const root = within(canvasElement).getByRole('main').parentElement
@@ -211,6 +210,63 @@ export const IntervalsAreHidden: Story = {
         await expect(heard(row.querySelectorAll('th, td'))).toBe(headers)
       }
     }
+  },
+}
+
+const systemColour = (name: 'Canvas' | 'CanvasText' | 'GrayText'): string => {
+  const probe = document.createElement('div')
+  probe.style.setProperty('forced-color-adjust', 'none')
+  probe.style.color = name
+  document.body.append(probe)
+  const { color } = getComputedStyle(probe)
+  probe.remove()
+  return color
+}
+
+/**
+ * Forced colours drop every background, which is all that the marks are. Only the forced-colors
+ * project runs this (vitest.config.ts), in a palette per colour scheme, so a hard-coded fill
+ * cannot pass.
+ */
+export const IntervalsInForcedColors: Story = {
+  ...desktop,
+  tags: ['forced-colors'],
+  play: async ({ canvasElement }) => {
+    await expect(window.matchMedia('(forced-colors: active)').matches).toBe(true)
+    const text = systemColour('CanvasText')
+    const page = systemColour('Canvas')
+    await expect(text).not.toBe(page)
+
+    const graphic = rowNamed(canvasElement, /Fully correct/).querySelector('[data-drl-interval]')
+    const all = (selector: string) => [...(graphic?.querySelectorAll<HTMLElement>(selector) ?? [])]
+    const painted = (element: HTMLElement) => {
+      const { width, height } = element.getBoundingClientRect()
+      return width > 0 && height > 0
+    }
+
+    const tracks = all(':scope > span')
+    await expect(tracks).toHaveLength(3)
+    for (const track of tracks) {
+      await expect(getComputedStyle(track).backgroundImage).toContain(systemColour('GrayText'))
+    }
+    const whiskers = all(':scope > span > span:not([data-shape])')
+    await expect(whiskers).toHaveLength(3)
+    for (const whisker of whiskers) {
+      await expect(painted(whisker)).toBe(true)
+      await expect(getComputedStyle(whisker).backgroundColor).toBe(text)
+      await expect(getComputedStyle(whisker).opacity).toBe('1')
+    }
+    const shape = (name: string) => {
+      const [dot] = all(`[data-shape='${name}']`)
+      if (dot === undefined) throw new Error(`no ${name}`)
+      return dot
+    }
+    for (const name of ['square', 'diamond']) {
+      await expect(painted(shape(name))).toBe(true)
+      await expect(getComputedStyle(shape(name)).backgroundColor).toBe(text)
+    }
+    await expect(getComputedStyle(shape('circle')).backgroundColor).toBe(page)
+    await expect(getComputedStyle(shape('circle')).borderTopColor).toBe(text)
   },
 }
 
