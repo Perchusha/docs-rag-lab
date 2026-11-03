@@ -23,10 +23,21 @@ export interface QueryPlan {
   terms: string[]
   /** FTS5 query over the terms, each one quoted and OR-ed; '' when there are none. */
   keywordQuery: string
+  /** The terms to match as whole words instead, with shortTerms: 'whole-word'. */
+  keywordWholeWords: string
   /** Tokens to match as written: code in backticks, identifiers, flags, source tokens. */
   exactTokens: ExactToken[]
   /** FTS5 query over the exact tokens alone; '' when there are none. */
   exactQuery: string
+  /** The exact tokens to match as whole words instead, with shortTerms: 'whole-word'. */
+  exactWholeWords: string
+}
+
+export interface QueryOptions {
+  /** code-shaped drops a backticked plain word, which is a search term anyway (ADR-0011). */
+  exactTokens?: 'all' | 'code-shaped'
+  /** whole-word stops a 3-character term from matching inside longer words (ADR-0011). */
+  shortTerms?: 'substring' | 'whole-word'
 }
 
 /** An FTS5 string: inside double quotes, with quotes doubled. */
@@ -36,6 +47,21 @@ export function quoteTerm(term: string): string {
 
 function orQuery(terms: readonly string[]): string {
   return terms.map(quoteTerm).join(' OR ')
+}
+
+// Exactly 3 letters or digits. A 3-character token with punctuation stays on trigram,
+// because unicode61 would strip the punctuation.
+const SHORT_WORD = /^[\p{L}\p{N}]{3}$/u
+
+function queriesOf(
+  terms: readonly string[],
+  shortTerms: NonNullable<QueryOptions['shortTerms']>,
+): [query: string, wholeWords: string] {
+  if (shortTerms === 'substring') return [orQuery(terms), '']
+  return [
+    orQuery(terms.filter((term) => !SHORT_WORD.test(term))),
+    orQuery(terms.filter((term) => SHORT_WORD.test(term))),
+  ]
 }
 
 /** Long enough for trigram matching, counted in code points (as SQLite does), not UTF-16 units. */
@@ -50,12 +76,20 @@ const IDENTIFIER = /[A-Za-z_$][\w$]*/g
 const CAMEL_CASE = /^[a-z_$][\w$]*[a-z0-9][A-Z]/
 // A command-line flag outside backticks: --strict, --erasableSyntaxOnly.
 const FLAG = /(?:^|\s)--([A-Za-z][\w-]*)/g
+// One lowercase word: `satisfies`, `strict`. Not code-shaped, unlike `--strict` or `Omit`.
+const PLAIN_WORD = /^\p{Ll}+$/u
 
-function exactTokensOf(question: string, sourceTokens: readonly string[]): ExactToken[] {
+function exactTokensOf(
+  question: string,
+  sourceTokens: readonly string[],
+  mode: NonNullable<QueryOptions['exactTokens']>,
+): ExactToken[] {
   const found: ExactToken[] = []
   for (const match of question.matchAll(/`([^`]+)`/g)) {
+    const written = (match[1] ?? '').trim()
+    if (mode === 'code-shaped' && PLAIN_WORD.test(written)) continue
     // `--strict` is written strict on option pages and --strict in release notes.
-    found.push({ token: (match[1] ?? '').trim().replace(/^-+/, ''), from: 'backticks' })
+    found.push({ token: written.replace(/^-+/, ''), from: 'backticks' })
   }
   const outsideCode = question.replace(/`[^`]*`/g, ' ')
   for (const match of outsideCode.matchAll(FLAG))
@@ -79,7 +113,12 @@ function exactTokensOf(question: string, sourceTokens: readonly string[]): Exact
  * source (Source.exactTokens): TypeScript turns TS2345 into 2345, the way
  * its docs write error codes.
  */
-export function analyzeQuery(question: string, sourceTokens: readonly string[] = []): QueryPlan {
+export function analyzeQuery(
+  question: string,
+  sourceTokens: readonly string[] = [],
+  options: QueryOptions = {},
+): QueryPlan {
+  const { exactTokens: mode = 'all', shortTerms = 'substring' } = options
   const words = question.match(/[\p{L}\p{N}_]+/gu) ?? []
   const terms = [
     ...new Set(
@@ -88,11 +127,11 @@ export function analyzeQuery(question: string, sourceTokens: readonly string[] =
         .filter((word) => longEnough(word) && !STOPWORDS.has(word)),
     ),
   ]
-  const exactTokens = exactTokensOf(question, sourceTokens)
-  return {
-    terms,
-    keywordQuery: orQuery(terms),
-    exactTokens,
-    exactQuery: orQuery(exactTokens.map(({ token }) => token)),
-  }
+  const exactTokens = exactTokensOf(question, sourceTokens, mode)
+  const [keywordQuery, keywordWholeWords] = queriesOf(terms, shortTerms)
+  const [exactQuery, exactWholeWords] = queriesOf(
+    exactTokens.map(({ token }) => token),
+    shortTerms,
+  )
+  return { terms, keywordQuery, keywordWholeWords, exactTokens, exactQuery, exactWholeWords }
 }

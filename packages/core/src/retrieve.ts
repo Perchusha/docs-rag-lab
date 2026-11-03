@@ -93,7 +93,10 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
   const filter: SearchFilter = { docTypes }
   // Lists are at least topK deep, so the context is never cut short by the depth.
   const depth = Math.max(settings.candidates, settings.topK)
-  const plan = analyzeQuery(question, options.source.exactTokens?.(question) ?? [])
+  const plan = analyzeQuery(question, options.source.exactTokens?.(question) ?? [], {
+    exactTokens: settings.exactTokens,
+    shortTerms: settings.shortTerms,
+  })
 
   let embedFrom: 'cache' | 'api' = 'cache'
   const embedStart = now()
@@ -122,14 +125,33 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
   let fusion: TraceFusion = { method: 'none' }
   let ranking: string[] = vectorHits.map((hit) => hit.chunkId)
   if (settings.strategy === 'hybrid') {
-    const keywordList = (name: ListName, query: string, none: string): TraceList => {
-      if (query === '') return toTraceList(name, [], 0, { skipped: none })
-      const [hits, ms] = timed(() => index.searchKeywords(query, depth, filter))
-      return toTraceList(name, hits, ms, { query })
+    const keywordList = (
+      name: ListName,
+      query: string,
+      wholeWords: string,
+      none: string,
+    ): TraceList => {
+      if (query === '' && wholeWords === '') return toTraceList(name, [], 0, { skipped: none })
+      const [hits, ms] = timed(() => index.searchKeywords(query, depth, filter, wholeWords))
+      return toTraceList(name, hits, ms, {
+        query: [query, ...(wholeWords === '' ? [] : [`whole words: ${wholeWords}`])]
+          .filter((part) => part !== '')
+          .join('; '),
+      })
     }
     lists.push(
-      keywordList('keyword', plan.keywordQuery, 'no search terms in the question'),
-      keywordList('exact', plan.exactQuery, 'no exact tokens in the question'),
+      keywordList(
+        'keyword',
+        plan.keywordQuery,
+        plan.keywordWholeWords,
+        'no search terms in the question',
+      ),
+      keywordList(
+        'exact',
+        plan.exactQuery,
+        plan.exactWholeWords,
+        'no exact tokens in the question',
+      ),
     )
     const [ranked, fuseMs] = timed(() =>
       fuseRrf(

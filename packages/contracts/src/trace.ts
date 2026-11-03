@@ -38,7 +38,7 @@ export interface TraceList {
   name: ListName
   /** cosine-distance: lower is better. bm25: FTS5 BM25 with the sign flipped, higher is better. */
   scoring: 'cosine-distance' | 'bm25'
-  /** The FTS5 query, for keyword and exact lists. */
+  /** The FTS5 query, for keyword and exact lists, then any "whole words:" query (ADR-0011). */
   query?: string
   /** Why the list did not run. A skipped list has no candidates and no part in fusion. */
   skipped?: string

@@ -90,6 +90,147 @@ describe('analyzeQuery', () => {
     ])
   })
 
+  describe('with exactTokens: code-shaped (ADR-0011)', () => {
+    const codeShaped = (question: string, sourceTokens: string[] = []) =>
+      analyzeQuery(question, sourceTokens, { exactTokens: 'code-shaped' })
+
+    it('drops a backticked plain word, which stays a search term', () => {
+      const plan = codeShaped('In which version did `satisfies` appear?')
+
+      expect(plan.exactTokens).toEqual([])
+      expect(plan.exactQuery).toBe('')
+      expect(plan.terms).toContain('satisfies')
+      expect(plan.keywordQuery).toContain('"satisfies"')
+    })
+
+    it('drops a lowercase word in any script', () => {
+      expect(codeShaped('Что такое `строка`?').exactTokens).toEqual([])
+    })
+
+    it.each([
+      ['PascalCase', 'Omit'],
+      ['camelCase', 'noImplicitAny'],
+      ['digits', 'es2022'],
+      ['punctuation', 'tsconfig.json'],
+      ['a suffix', 'any[]'],
+      ['a prefix', '#private'],
+      ['spaces', 'import type'],
+      ['a signature', '() => void'],
+    ])('keeps code with %s', (_name, code) => {
+      expect(codeShaped(`What is \`${code}\`?`).exactTokens).toEqual([
+        { token: code, from: 'backticks' },
+      ])
+    })
+
+    it('keeps a flag in backticks, without its dashes', () => {
+      expect(codeShaped('What does `--strict` do?').exactTokens).toEqual([
+        { token: 'strict', from: 'backticks' },
+      ])
+    })
+
+    it('keeps flags, identifiers and source tokens outside backticks', () => {
+      expect(
+        codeShaped('Does --strict imply noImplicitAny, and what is TS2345?', ['2345']).exactTokens,
+      ).toEqual([
+        { token: 'strict', from: 'flag' },
+        { token: 'noImplicitAny', from: 'identifier' },
+        { token: '2345', from: 'source' },
+      ])
+    })
+
+    it('keeps a word that is also written as a flag', () => {
+      expect(codeShaped('Is `strict` the same as --strict?').exactTokens).toEqual([
+        { token: 'strict', from: 'flag' },
+      ])
+    })
+
+    it('changes nothing unless asked', () => {
+      const question = 'In which version did `satisfies` appear?'
+
+      expect(analyzeQuery(question, [], { exactTokens: 'all' })).toEqual(analyzeQuery(question))
+      expect(analyzeQuery(question).exactTokens).toEqual([
+        { token: 'satisfies', from: 'backticks' },
+      ])
+    })
+  })
+
+  describe('with shortTerms: whole-word (ADR-0011)', () => {
+    const wholeWord = (question: string, sourceTokens: string[] = []) =>
+      analyzeQuery(question, sourceTokens, { shortTerms: 'whole-word' })
+
+    it('moves 3-character terms and tokens to the whole-word queries, in any script', () => {
+      const plan = wholeWord('В чём разница между `unknown` и `any`?')
+
+      expect(plan.keywordQuery).toBe('"разница" OR "между" OR "unknown"')
+      expect(plan.keywordWholeWords).toBe('"чём" OR "any"')
+      expect(plan.exactQuery).toBe('"unknown"')
+      expect(plan.exactWholeWords).toBe('"any"')
+      expect(plan.terms).toEqual(['чём', 'разница', 'между', 'unknown', 'any'])
+    })
+
+    it('takes digits as part of a word, and a source token too', () => {
+      const plan = wholeWord('Is width 100 fine?', ['abc'])
+
+      expect(plan.keywordWholeWords).toBe('"100" OR "abc"')
+      expect(plan.exactWholeWords).toBe('"abc"')
+    })
+
+    it('leaves a 4-character term on trigram', () => {
+      const plan = wholeWord('What is a type?')
+
+      expect(plan.keywordQuery).toBe('"type"')
+      expect(plan.keywordWholeWords).toBe('')
+    })
+
+    it.each(['...', 'a|b', 'a_b'])(
+      'leaves %s on trigram, since unicode61 would split it',
+      (code) => {
+        const plan = wholeWord(`What is \`${code}\`?`)
+
+        expect(plan.exactQuery).toBe(`"${code}"`)
+        expect(plan.exactWholeWords).toBe('')
+      },
+    )
+
+    it('can leave the trigram query empty', () => {
+      const plan = wholeWord('any?')
+
+      expect(plan.keywordQuery).toBe('')
+      expect(plan.keywordWholeWords).toBe('"any"')
+    })
+
+    it('changes nothing unless asked', () => {
+      const plan = analyzeQuery('Why `any` over `unknown`?')
+
+      expect(plan.keywordWholeWords).toBe('')
+      expect(plan.exactWholeWords).toBe('')
+      expect(plan.keywordQuery).toBe('"any" OR "over" OR "unknown"')
+      expect(plan.exactQuery).toBe('"any" OR "unknown"')
+    })
+
+    it('works together with code-shaped tokens', () => {
+      const plan = analyzeQuery('Why `any` and `Omit`?', [], {
+        exactTokens: 'code-shaped',
+        shortTerms: 'whole-word',
+      })
+
+      expect(plan.exactQuery).toBe('"Omit"')
+      expect(plan.exactWholeWords).toBe('')
+      expect(plan.keywordQuery).toBe('"omit"')
+      expect(plan.keywordWholeWords).toBe('"any"')
+    })
+
+    it('makes queries that a real index accepts', () => {
+      const index = indexOf(['the any type', 'many a company', 'omit a key'])
+      const plan = wholeWord('Why `any` and omit?')
+
+      const found = index.searchKeywords(plan.keywordQuery, 5, {}, plan.keywordWholeWords)
+
+      expect(found.map((hit) => hit.chunkId).sort()).toEqual(['c0', 'c2'])
+      index.close()
+    })
+  })
+
   it('adds source tokens to both queries', () => {
     const plan = analyzeQuery('What does error TS2345: mean?', ['TS2345', '2345'])
     expect(plan.terms).toEqual(['error', 'ts2345', 'mean', '2345'])
@@ -109,8 +250,10 @@ describe('analyzeQuery', () => {
     expect(analyzeQuery('What is it?')).toEqual({
       terms: [],
       keywordQuery: '',
+      keywordWholeWords: '',
       exactTokens: [],
       exactQuery: '',
+      exactWholeWords: '',
     })
   })
 

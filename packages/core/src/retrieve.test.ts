@@ -21,6 +21,8 @@ const settings = (overrides: Partial<RetrievalSettings> = {}): RetrievalSettings
   topK: 2,
   candidates: 10,
   rrfK: 60,
+  exactTokens: 'all',
+  shortTerms: 'substring',
   ...overrides,
 })
 
@@ -200,6 +202,53 @@ describe('retrieve', () => {
       trace.lists.filter((list) => list.skipped !== undefined).map((list) => list.name),
     ).toEqual(['keyword', 'exact'])
     expect(hits[0]?.chunkId).toBe(trace.lists[0]?.candidates[0]?.chunkId)
+  })
+
+  it('skips the exact list for a backticked plain word, with exactTokens: code-shaped', async () => {
+    const provider = new RecordingProvider()
+    const question = 'Which `option` reports labels?'
+    const before = await retrieve(options(provider, { question }))
+    const { trace } = await retrieve(
+      options(provider, { question, settings: settings({ exactTokens: 'code-shaped' }) }),
+    )
+
+    const exact = (lists: typeof trace.lists) => lists.find((list) => list.name === 'exact')
+    expect(exact(before.trace.lists)?.query).toBe('"option"')
+    expect(exact(trace.lists)?.skipped).toBe('no exact tokens in the question')
+    expect(trace.query.exactTokens).toEqual([])
+    expect(trace.lists.find((list) => list.name === 'keyword')?.query).toContain('"option"')
+  })
+
+  it('stops a 3-character term matching inside longer words, with shortTerms: whole-word', async () => {
+    const provider = new RecordingProvider()
+    const question = 'What about `ass`?'
+    const before = await retrieve(options(provider, { question }))
+    const { trace } = await retrieve(
+      options(provider, { question, settings: settings({ shortTerms: 'whole-word' }) }),
+    )
+
+    const list = (lists: typeof trace.lists, name: string) => lists.find((l) => l.name === name)
+    // "assignability" and "classes".
+    expect(list(before.trace.lists, 'exact')?.candidates).toHaveLength(2)
+    expect(list(trace.lists, 'keyword')?.query).toBe('"about"; whole words: "ass"')
+    expect(list(trace.lists, 'exact')).toMatchObject({
+      query: 'whole words: "ass"',
+      candidates: [],
+    })
+  })
+
+  it('finds a 3-character word through the whole-word table', async () => {
+    const provider = new RecordingProvider()
+    const { trace } = await retrieve(
+      options(provider, {
+        question: 'What is `and`?',
+        settings: settings({ shortTerms: 'whole-word' }),
+      }),
+    )
+
+    const exact = trace.lists.find((list) => list.name === 'exact')
+    expect(exact?.query).toBe('whole words: "and"')
+    expect(exact?.candidates.map((c) => c.chunkId)).toEqual(['filler1'])
   })
 
   it('applies the doc type filter to every list', async () => {

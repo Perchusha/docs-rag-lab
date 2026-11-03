@@ -38,7 +38,14 @@ const settings: EngineSettings = {
   },
   models: { answer: 'claude-test', contextualize: 'claude-small' },
   answer: { effort: 'low', maxTokens: 100 },
-  retrieval: { strategy: 'hybrid', topK: 2, candidates: 10, rrfK: 60 },
+  retrieval: {
+    strategy: 'hybrid',
+    topK: 2,
+    candidates: 10,
+    rrfK: 60,
+    exactTokens: 'all',
+    shortTerms: 'substring',
+  },
   pricing: {
     checked: '2026-11-01',
     sources: [],

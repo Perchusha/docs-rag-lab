@@ -44,6 +44,10 @@ export interface RetrievalSettings {
   candidates: number
   /** The k of Reciprocal Rank Fusion. */
   rrfK: number
+  /** Which exact tokens get their own list: all, or code-shaped ones only (ADR-0011). */
+  exactTokens: 'all' | 'code-shaped'
+  /** Where a 3-character term matches: inside longer words too, or as a whole word (ADR-0011). */
+  shortTerms: 'substring' | 'whole-word'
 }
 
 /** Options for a source's factory, as data. The CLI and apps build the Source objects. */

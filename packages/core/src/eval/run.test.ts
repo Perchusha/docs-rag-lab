@@ -13,6 +13,15 @@ import {
   type RetrievalEvalOptions,
 } from './run.ts'
 
+const RETRIEVAL: RetrievalEvalOptions['retrieval'] = {
+  strategy: 'hybrid',
+  topK: 8,
+  candidates: 50,
+  rrfK: 60,
+  exactTokens: 'all',
+  shortTerms: 'substring',
+}
+
 const questions = parseGoldenSet(
   [
     { id: 'ts-0002', question: 'Second?', answer: 'A.', primary: ['b.md'], tags: ['edge'] },
@@ -138,7 +147,7 @@ function harness(overrides: Partial<RetrievalEvalOptions> = {}, totalMs = 5) {
     strategies: ['vector', 'hybrid'],
     targets: [],
     manifest,
-    retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
+    retrieval: RETRIEVAL,
     index: { chunksHash: () => 'chunks', vectorsHash: () => 'corpus', schemaVersion: () => 3 },
     meter,
     run: { name: null, createdAt: 'now', repoSha: 'repo-sha', repoDirty: false },
@@ -259,7 +268,7 @@ describe('runRetrievalEval', () => {
 
   it('judges a target by the default strategy in the settings, not by a fixed one', async () => {
     const { options } = harness({
-      retrieval: { strategy: 'vector', topK: 8, candidates: 50, rrfK: 60 },
+      retrieval: { ...RETRIEVAL, strategy: 'vector' },
       targets: [{ questionId: 'ts-0001', anchor: 'a.md', rank: 1 }],
     })
 
@@ -269,8 +278,8 @@ describe('runRetrievalEval', () => {
   })
 
   it('records a retrieval setting it has never heard of, so it cannot go unnoticed', async () => {
-    const retrieval = { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60, newSetting: 'on' }
-    const { options } = harness({ retrieval: retrieval as RetrievalEvalOptions['retrieval'] })
+    const retrieval = { ...RETRIEVAL, newSetting: 'on' }
+    const { options } = harness({ retrieval })
 
     const report = await runRetrievalEval(options)
 
@@ -278,13 +287,15 @@ describe('runRetrievalEval', () => {
       topK: 8,
       candidates: 50,
       rrfK: 60,
+      exactTokens: 'all',
+      shortTerms: 'substring',
       newSetting: 'on',
     })
   })
 
   it('refuses a top K that is not what recall@8 measures', async () => {
     const { options } = harness({
-      retrieval: { strategy: 'hybrid', topK: 5, candidates: 50, rrfK: 60 },
+      retrieval: { ...RETRIEVAL, topK: 5 },
     })
 
     await expect(runRetrievalEval(options)).rejects.toThrow('the settings send 5 chunks')
@@ -304,7 +315,7 @@ describe('runRetrievalEval', () => {
 
   it('stops both strategies at the same depth, so fusion gets no deeper ranks to count', async () => {
     const { options } = harness({
-      retrieval: { strategy: 'hybrid', topK: 8, candidates: 1, rrfK: 60 },
+      retrieval: { ...RETRIEVAL, candidates: 1 },
     })
 
     const { result } = await runRetrievalEval(options)
@@ -346,7 +357,7 @@ describe('runRetrievalEval', () => {
       chunksHash: 'chunks',
       goldenSet: { version: 3, hash: 'set-hash' },
       retrievalVersion: RETRIEVAL_VERSION,
-      retrieval: { topK: 8, candidates: 50, rrfK: 60 },
+      retrieval: { topK: 8, candidates: 50, rrfK: 60, exactTokens: 'all', shortTerms: 'substring' },
     })
     expect(report.vectors.corpusHash).toBe('corpus')
     expect(report.vectors.queryHash).toBe(
