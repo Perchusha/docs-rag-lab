@@ -264,8 +264,9 @@ export function formatCalibration(calibration: EvalCalibration): string {
     calibration.calibrated
       ? 'The judge is calibrated for this report.'
       : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',
-    '',
-  ].join('\n\n')
+  ]
+    .join('\n\n')
+    .concat('\n')
 }
 
 export function formatJudgeCheck(results: readonly JudgeCaseResult[]): string {
