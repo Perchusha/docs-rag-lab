@@ -550,6 +550,28 @@ export const CompareRefused: Story = {
   },
 }
 
+/** A long run name in the picker does not push the page sideways, whatever the font's width. */
+export const Reflow320LongName: Story = {
+  args: {
+    runs: evalFixtures.runs.map((run) => ({
+      ...run,
+      name: `${run.name}-with-a-name-long-enough-to-pass-the-width-of-any-small-screen`,
+    })),
+  },
+  parameters: {
+    viewport: {
+      options: {
+        reflow: { name: '320 CSS px', type: 'mobile', styles: { width: '320px', height: '640px' } },
+      },
+    },
+  },
+  globals: { viewport: { value: 'reflow' } },
+  play: async () => {
+    await expect(window.innerWidth).toBe(320)
+    await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320)
+  },
+}
+
 /** At 320 px nothing scrolls sideways but the tables, which the keyboard can reach. */
 export const Reflow320: Story = {
   parameters: {

@@ -16,11 +16,11 @@ SPEC section 3 asks for runs per source and strategy, metrics, diffs between run
 2. **Does it give better answers, and does RAG help at all?** All three rows, with their verdicts.
 3. **Can these numbers be trusted?** The judge's calibration and known bias, the set version, the docs commit, the verify status.
 
-No number appears twice. Per-tag tables, per-question diffs, the cited chunks and the list of runs sit behind one disclosure, closed by default, with tabs inside, and their data loads only when it opens. Tests hold this: all three sections fit 1280 by 800 without scrolling, for a calibrated report and for one that is not, and the first screen has 3 tab stops.
+No number appears twice. Per-tag tables, per-question diffs, the cited chunks and the list of runs sit behind one disclosure, closed by default, with tabs inside, and their data loads only when it opens. Tests hold this: all three sections fit 1280 by 800 without scrolling, for a calibrated report and for one that is not, and the first screen has 3 tab stops. The fit depends on the system font: CI runs it with a wider one than Windows has, which is what found how little room it had.
 
 Labels are plain, by the M3 rule: "Fully correct", "Right chunk in top 8", "Run to run (hybrid twice)" with values like "none" or "5 questions differ".
 
-Details and "How this was calibrated" are disclosures: focus stays on the button, and what they open comes next in the tab order. Moving focus in is for the inspector, a side panel that opens away from what opened it.
+Details and "How this was calibrated" are disclosures, side by side so that the first screen spends one line on them: focus stays on the button, and what they open comes after them in the tab order. Moving focus in is for the inspector, a side panel that opens away from what opened it.
 
 ### 2. Uncertainty sits next to every number
 
