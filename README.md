@@ -24,7 +24,7 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
   <img alt="The ts-docs app: the answer to 'In which version did satisfies appear?' with a citation on the left; on the right, the inspector's fusion table, where a banner says BM25 counts twice for 6 of the top 8 chunks and each such row says BM25 x2." src="docs/images/ts-docs-light.png">
 </picture>
 
-The fusion view shows the first M4 hypothesis at work: `satisfies` is both a search term and an exact token, so BM25 counts it twice, and the vector search's top hit falls to third. The inspector is keyboard-accessible, never shows state by colour alone, and reflows at 320 CSS px (1280 px at 400% zoom). Every ui component state is a Storybook story that runs as a test in Chromium, with axe, in light and dark.
+The fusion view shows BM25 counted twice: `satisfies` is both a search term and an exact token, and the vector search's top hit falls to third. Removing that second count was tested in M4 and not adopted, because it costs other questions more than it wins (ADR-0011). The inspector is keyboard-accessible, never shows state by colour alone, and reflows at 320 CSS px (1280 px at 400% zoom). Every ui component state is a Storybook story that runs as a test in Chromium, with axe, in light and dark.
 
 Before M3:
 - M1 synced the TypeScript docs incrementally, embedded them with Voyage through a shared cache, and answered with native citations from `drl ask`, with tokens and cost after every command.
