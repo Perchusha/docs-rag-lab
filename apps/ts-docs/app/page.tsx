@@ -20,6 +20,7 @@ export default function Page() {
       defaultStrategy={settings.retrieval.strategy}
       theme={config.theme}
       endpoints={{ ask: '/api/ask', search: '/api/search', documents: '/api/documents' }}
+      evalHref="/eval"
     />
   )
 }
