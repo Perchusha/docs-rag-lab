@@ -35,8 +35,10 @@ export function ScrollRegion({
       setOverflowing(element.scrollWidth > element.clientWidth)
     }
     measure()
+    // The box can keep its size while what it holds grows, as a table does with more rows.
     const observer = new ResizeObserver(measure)
     observer.observe(element)
+    for (const child of element.children) observer.observe(child)
     return () => {
       observer.disconnect()
     }
