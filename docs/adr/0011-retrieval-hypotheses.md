@@ -107,14 +107,14 @@ The reports are `eval/reports/typescript/2026-11-03-f9993e79-m4-{control,h1,h2,h
 
 ## Diagnosis
 
-Control against H1 only, for the six questions H1 moved most plainly. Reports hold no traces (ADR-0010), so the traces were recomputed at `f9993e7`, under the same two configs, with a provider that could not reach the network. Every recomputed context matches its report, and no new config was run.
+Control against H1 only, for the three regressions and the three gains under H1. Reports hold no traces (ADR-0010), so the traces were recomputed at `f9993e7`, under the same two configs, with a provider that could not reach the network. Every recomputed context matches its report, and no new config was run.
 
 `v`, `k` and `e` are the anchor's rank in the vector, keyword and exact lists under the control. Under H1 the vector and keyword ranks stay the same, and the exact list is skipped.
 
 | Question | Under H1 | v | k | e | Which list moved it |
 |---|---|---|---|---|---|
 | ts-0027, pinned | 9 to 14 | 6 | 37 | 8 | The exact list, on `strict` alone, had it at 8. The keyword list, which also ORs "flag" and "enable", has it at 37. |
-| ts-0034 | 3 to 5 | 1 | 38 | 16 | The same: exact 16, keyword 38, which also ORs "type", "parameters" and "added". Four chunks about generic type parameters pass it on keyword rank. |
+| ts-0034 | 3 to 5 | 1 | 38 | 16 | The same: exact 16, keyword 38, which also ORs "type", "parameters" and "added". Without it, four chunks with keyword ranks from 2 to 12 stand above it. |
 | ts-0035 | 1 to 11 | 17 | 47 | 5 | The same: exact 5, keyword 47, which also ORs "typescript", "version", "added" and "declarations". The two `Variable Declarations` chunks on `using` were exact 1 and 3 and not in the keyword top 50, and they fall from ranks 2 and 3 to 22 and 24. |
 | ts-0004 | 7 to 4 | 2 | 9 | 9 | The exact list repeats the keyword order: the top six chunks are k1 e1, k2 e2, k3 e3, k4 e4, k5 e5, k6 e6. BM25 counted twice outweighed the vector rank of 2. Without it, chunks at k1, k2 and k6 with good vector ranks stay above. |
 | ts-0010 | 3 to 2 | 1 | 2 | 14 | The exact list, on `readonly`, preferred two other chunks (e6, e8). Without it the anchor ties for first with a chunk at v2 k1, and the chunk ID decides. |
@@ -124,7 +124,7 @@ The six split cleanly. In all three regressions the anchor's exact rank is far b
 
 Which list moved each anchor is measured. That generic terms are what buries the anchors in the keyword list is a reading of the queries, and was not tested on its own. The six were chosen because they moved, so this describes them and proves nothing about the other questions.
 
-All six anchors stay in the fused top 20 under both configs, which is what the M5 reranker reads.
+Every anchor in the table stays in the fused top 20 under both configs, which is what the M5 reranker reads.
 
 ## Candidate for M5, not tested
 
