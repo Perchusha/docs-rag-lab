@@ -2,6 +2,22 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M4 - The two retrieval hypotheses, tested and not adopted (2026-11-03)
+
+SPEC section 13 named two causes for hybrid's lost ranks. Both were tested on the full set under criteria fixed first (ADR-0011), alone and together. No config met the targets, so the defaults did not change, and the code stays out of main, behind the tag `exp/m4-h1-h2`.
+
+| Hybrid, primary anchors | Control | H1 | H2 | H1+H2 |
+|---|---|---|---|---|
+| ts-0033, target 1 | 3 | 2 | 3 | 2 |
+| ts-0027, target 6 | 9 | 14 | 9 | 14 |
+| ts-0004, target 2 | 7 | 4 | 4 | 3 |
+| hit@8 | 36 | 35 | 36 | 35 |
+| MRR | 0.657 | 0.642 | 0.660 | 0.644 |
+
+Every overall difference is noise. The useful part is the diagnosis: BM25 counted twice is real where the exact list repeats the keyword list, but where the keyword query also holds generic words, the exact list is the only keyword list that follows the question's topic. Removing it took ts-0035 from rank 1 to 11.
+
+**Spend:** nothing. Every run read cached vectors. Going back to schema 3 meant rebuilding the index from main: 994 vectors from the cache, 0 embedded, 0 tokens, 5.4 s. The baseline then reproduced byte for byte, on the same vectors.
+
 ## M3 follow-up - A UX pass, before M4 (2026-11-02)
 
 Trying the app in Chrome showed that it read like an admin panel: it showed someone asking a question everything it knows about retrieval. Now the chat comes first, and the inspector opens on demand. Five bugs went with it. Decisions are in ADR-0008, section 9.
