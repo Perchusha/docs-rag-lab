@@ -56,11 +56,11 @@ describe.each(sourceIds)('the %s golden set', (sourceId) => {
   })
 
   it('has targets that name anchors of its questions', () => {
-    const path = goldenTargetsPath(root, sourceId)
+    // Only TypeScript has targets so far, from the M2 measurements in SPEC section 13.
+    if (sourceId !== 'typescript') return
+    const text = readFileSync(goldenTargetsPath(root, sourceId), 'utf8')
 
-    if (existsSync(path)) {
-      expect(parseEvalTargets(readFileSync(path, 'utf8'), questions).length).toBeGreaterThan(0)
-    }
+    expect(parseEvalTargets(text, questions).length).toBeGreaterThan(0)
   })
 
   it('records the commit its lock was written from', () => {

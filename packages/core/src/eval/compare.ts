@@ -1,11 +1,11 @@
 // Are two sets of scores different, or is that noise? (SPEC section 10, ADR-0010.)
 // Forty questions cannot resolve small differences, so scores are compared question
 // by question with an exact sign test, overall and per tag. A difference of one or
-// two questions is noise whatever the test says, and a scope of 5 questions or fewer
-// cannot reach p < 0.05 at all, so it is marked as too few and not as noise.
+// two questions is noise whatever the test says, a larger one needs p < 0.05, and a
+// scope of 5 questions or fewer cannot reach that at all, so it is marked as too few.
+// Wins alone do not name a winner: ten small wins can lose to two large defeats.
 import {
   COMPARED_METRICS,
-  HIT_CUTOFFS,
   type ComparedMetric,
   type DifferenceVerdict,
   type EvalComparison,
@@ -42,15 +42,22 @@ export function signTest(aBetter: number, bBetter: number): number {
   return Math.min(1, roundMean((2 * tail) / 2 ** n))
 }
 
-export function verdictOf(
-  questions: number,
-  aBetter: number,
-  bBetter: number,
-  p: number,
-): DifferenceVerdict {
+export function verdictOf(options: {
+  questions: number
+  aBetter: number
+  bBetter: number
+  p: number
+  /** The totals the report prints beside the verdict. */
+  a: number
+  b: number
+}): DifferenceVerdict {
+  const { questions, aBetter, bBetter, p, a, b } = options
   if (questions <= TOO_FEW_QUESTIONS) return 'too-few'
-  if (Math.abs(aBetter - bBetter) <= NOISE_QUESTIONS || p >= SIGNIFICANCE) return 'noise'
-  return aBetter > bBetter ? 'a' : 'b'
+  if (Math.abs(aBetter - bBetter) <= NOISE_QUESTIONS) return 'noise'
+  if (p >= SIGNIFICANCE) return 'not-significant'
+  const winner = aBetter > bBetter ? 'a' : 'b'
+  const ahead = a === b ? undefined : a > b ? 'a' : 'b'
+  return ahead === winner ? winner : 'mixed'
 }
 
 type Grade = 'primary' | 'withAcceptable'
@@ -68,17 +75,12 @@ function questionValue(score: EvalQuestionScore, metric: ComparedMetric, grade: 
   return rank !== null && rank <= k ? 1 : 0
 }
 
-function isHitCutoff(k: number): k is HitCutoff {
-  return (HIT_CUTOFFS as readonly number[]).includes(k)
-}
-
 /** The figure a report prints for a group: a count for hit@k, a mean otherwise. */
 function groupValue(metrics: EvalMetrics, metric: ComparedMetric, grade: Grade): number {
   if (metric === 'recall@8') return metrics.recallAt8
   const ranks: RankMetrics = metrics[grade]
   if (metric === 'mrr') return ranks.mrr
-  const k = Number(metric.slice('hit@'.length))
-  return isHitCutoff(k) ? ranks.hits[k] : 0
+  return ranks.hits[Number(metric.slice('hit@'.length)) as HitCutoff]
 }
 
 interface Pair {
@@ -102,15 +104,17 @@ function difference(
     else if (valueB > valueA) bBetter++
   }
   const p = signTest(aBetter, bBetter)
+  const a = groupValue(metricsA, metric, grade)
+  const b = groupValue(metricsB, metric, grade)
   return {
     metric,
-    a: groupValue(metricsA, metric, grade),
-    b: groupValue(metricsB, metric, grade),
+    a,
+    b,
     aBetter,
     bBetter,
     tied: pairs.length - aBetter - bBetter,
     p,
-    verdict: verdictOf(pairs.length, aBetter, bBetter, p),
+    verdict: verdictOf({ questions: pairs.length, aBetter, bBetter, p, a, b }),
   }
 }
 

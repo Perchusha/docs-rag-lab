@@ -136,6 +136,29 @@ function docTypesOf(values: readonly string[] | undefined): DocType[] {
   return docTypes
 }
 
+/** A flag another command takes would be ignored here, and the run would seem to honor it. */
+function refuseStrayEvalFlags(
+  subcommand: string | undefined,
+  values: {
+    accept: boolean
+    name?: string | undefined
+    strategy?: string | undefined
+    'top-k'?: string | undefined
+    'doc-type'?: string[] | undefined
+  },
+): void {
+  const stray = [
+    ...(values['top-k'] === undefined ? [] : ['--top-k']),
+    ...(values['doc-type'] === undefined ? [] : ['--doc-type']),
+    ...(values.accept && subcommand !== 'check' ? ['--accept'] : []),
+    ...(values.name !== undefined && subcommand !== undefined ? ['--name'] : []),
+    ...(values.strategy !== undefined && subcommand !== undefined ? ['--strategy'] : []),
+  ]
+  if (stray.length > 0) {
+    throw new CliError(`${stray.join(', ')} does not apply to drl eval ${subcommand ?? 'run'}`)
+  }
+}
+
 /** Errors whose message says what to do; they need no stack trace. */
 function isUsageError(error: unknown): boolean {
   return (
@@ -242,6 +265,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else if (command === 'eval') {
       const [subcommand, first, second] = rest
+      refuseStrayEvalFlags(subcommand, values)
       if (subcommand === undefined) {
         await evalRunCommand(ctx, {
           source: values.source,

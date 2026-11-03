@@ -3,7 +3,9 @@
 // may differ between two runs of the same thing: `identity` says what was
 // measured, `result` what came out, and `run` holds what is never compared. Reports
 // hold chunk IDs and ranks, not chunk text. The full trace of any question can be
-// recomputed from `identity`. Bump EVAL_REPORT_VERSION when the shape changes.
+// recomputed from `identity`. Bump EVAL_REPORT_VERSION only when an existing field
+// changes its meaning. A new section is optional and needs no bump, so the reports
+// already committed stay readable.
 import type { Strategy } from './trace.ts'
 import type { Parsed } from './requests.ts'
 
@@ -70,10 +72,12 @@ export type ComparedMetric = (typeof COMPARED_METRICS)[number]
 
 /**
  * What a difference means. a or b: that side is better, beyond what chance would
- * explain. noise: the sides differ by one or two questions, or p >= 0.05.
- * too-few: the scope has so few questions that no result could be significant.
+ * explain. noise: the sides differ by one or two questions. not-significant: by more,
+ * but p >= 0.05. mixed: significant, but one side won more questions and the other
+ * has the higher total, so neither is simply better. too-few: the scope has so few
+ * questions that no result could be significant.
  */
-export type DifferenceVerdict = 'a' | 'b' | 'noise' | 'too-few'
+export type DifferenceVerdict = 'a' | 'b' | 'noise' | 'not-significant' | 'mixed' | 'too-few'
 
 /** One metric, compared question by question. */
 export interface MetricDifference {
@@ -112,8 +116,8 @@ export interface EvalTargetResult {
   target: number
   /** The rank each strategy has now, or null. */
   ranks: Partial<Record<Strategy, number | null>>
-  /** Whether hybrid, the default strategy, reaches it. */
-  met: boolean
+  /** Whether the default strategy reaches it, or null when that strategy did not run. */
+  met: boolean | null
 }
 
 export interface EvalResult {
@@ -138,12 +142,18 @@ export interface EvalIdentity {
   docs: { repo: string; branch: string; sha: string }
   chunkerVersion: number
   parserVersion: number | null
+  /** The index's migration version: a change here can change what keyword search finds. */
+  indexSchema: number
   embedModel: string
-  /** A hash of every chunk ID and text hash, so the same SHA is known to mean the same corpus. */
+  /** The model of the contextual retrieval prefixes (M5), or null. */
+  contextModel: string | null
+  /** A hash of every chunk's ID, text hash and context, so the same SHA is known to mean the same corpus. */
   chunksHash: string
   goldenSet: { version: number; hash: string }
-  /** The retrieval settings, without the strategy, which is per result. */
-  retrieval: { topK: number; candidates: number; rrfK: number }
+  /** Bumped when the code changes what a search ranks for the same settings. */
+  retrievalVersion: number
+  /** Every retrieval setting but the strategy, which is per result. */
+  retrieval: Record<string, string | number | boolean>
 }
 
 /** The vectors behind a result. The same text can get different vectors (ADR-0010). */

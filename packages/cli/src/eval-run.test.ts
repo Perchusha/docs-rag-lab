@@ -271,6 +271,36 @@ describe('drl eval', () => {
       expect(readReport(reportPathIn(out)).run.repoDirty).toBe(true)
     })
 
+    it('counts a file git is told to hide from status as dirty', async () => {
+      writeFileSync(join(root, 'untracked.ts'), 'export {}\n')
+      git('config', 'status.showUntrackedFiles', 'no')
+
+      const { code, err } = await drl('eval', '--name', 'baseline')
+
+      expect(code).toBe(1)
+      expect(err).toContain('a named run needs a clean tree')
+    })
+
+    it('needs every strategy, so that later runs can be compared', async () => {
+      const { code, err } = await drl('eval', '--name', 'baseline', '--strategy', 'vector')
+
+      expect(code).toBe(1)
+      expect(err).toContain('a named run measures every strategy')
+      expect(reportFiles()).toEqual([])
+    })
+
+    it('needs the docs to be where the lock says', async () => {
+      const lockPath = join(root, goldenLockRelative())
+      const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { docsSha: string }
+      writeFileSync(lockPath, JSON.stringify({ ...lock, docsSha: 'a'.repeat(40) }))
+      commitAll()
+
+      const { code, err } = await drl('eval', '--name', 'baseline')
+
+      expect(code).toBe(1)
+      expect(err).toContain('a named run needs a clean golden check')
+    })
+
     it('never overwrites a report', async () => {
       const path = reportPathIn((await drl('eval', '--name', 'baseline')).out)
       const before = readFileSync(path, 'utf8')
@@ -321,6 +351,20 @@ describe('drl eval', () => {
     expect(unknown.code).toBe(1)
     expect(unknown.err).toContain('unknown eval command "nope"')
   })
+
+  it.each([
+    [['eval', '--top-k', '3'], '--top-k'],
+    [['eval', '--doc-type', 'option'], '--doc-type'],
+    [['eval', '--accept'], '--accept'],
+    [['eval', 'check', '--name', 'x'], '--name'],
+    [['eval', 'check', '--strategy', 'vector'], '--strategy'],
+    [['eval', 'verify', 'x.json', '--strategy', 'vector'], '--strategy'],
+  ])('refuses a flag it would ignore: %j', async (argv, flag) => {
+    const { code, err } = await drl(...argv)
+
+    expect(code).toBe(1)
+    expect(err).toContain(`${flag} does not apply to drl eval`)
+  })
 })
 
 function goldenLockRelative(): string {
@@ -335,7 +379,9 @@ describe('drl eval verify', () => {
 
     expect(code).toBe(0)
     expect(out).toContain('re-run at')
-    expect(out).toContain('reproduced: the result matches the report byte for byte')
+    expect(out).toContain(
+      'reproduced: what was measured matches the report byte for byte, on the same vectors',
+    )
     expect(out).toContain('with uncommitted changes')
   })
 
@@ -350,7 +396,7 @@ describe('drl eval verify', () => {
     const { code, out, err } = await drl('eval', 'verify', path)
 
     expect(code).toBe(1)
-    expect(out).toContain('the vectors are the same and the result is not')
+    expect(out).toContain('the code and the vectors are the same, and the result is not')
     expect(err).toContain('the report did not reproduce')
   })
 
@@ -368,7 +414,7 @@ describe('drl eval verify', () => {
     expect(err).toContain(`drl sync typescript --at ${'a'.repeat(40)}`)
   })
 
-  it('accepts other vectors when no number moved', async () => {
+  it('reproduces byte for byte with other vector hashes, when nothing measured moved', async () => {
     const path = reportPathIn((await drl('eval')).out)
     const report = readReport(path)
     report.vectors.corpusHash = 'other'
@@ -377,7 +423,69 @@ describe('drl eval verify', () => {
     const { code, out } = await drl('eval', 'verify', path)
 
     expect(code).toBe(0)
-    expect(out).toContain('reproduced: the result matches')
+    expect(out).toContain('byte for byte, on other corpus vectors')
+  })
+
+  /** A stored report as other vectors would have left it: an anchor deep below the context. */
+  function withDeepAnchor(report: EvalReport): void {
+    report.vectors.corpusHash = 'other'
+    const question = report.result.strategies[0]?.questions[0]
+    if (question === undefined) throw new Error('no question')
+    question.anchors.push({ anchor: 'docs/a.md#deep', role: 'acceptable', rank: 40 })
+  }
+
+  it('calls other vectors reproduced at the same commit, when only deep ranks moved', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    withDeepAnchor(report)
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code, out } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(0)
+    expect(out).toContain('reproduced: other corpus vectors')
+    expect(out).toContain('ranks below the context moved on: vector ts-0001')
+  })
+
+  it('calls other vectors and other code inconclusive, since it cannot tell them apart', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    withDeepAnchor(report)
+    report.run.repoSha = 'a'.repeat(40)
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code, out, err } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(1)
+    expect(out).toContain('inconclusive')
+    expect(err).toContain('with a clean tree to tell code from vectors')
+  })
+
+  it('calls a rank that moved inside the context different, with other vectors too', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    report.vectors.corpusHash = 'other'
+    const anchor = report.result.strategies[0]?.questions[0]?.anchors[0]
+    if (anchor === undefined) throw new Error('no anchor')
+    anchor.rank = 5
+    writeFileSync(path, JSON.stringify(report))
+
+    const { code, out } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(1)
+    expect(out).toContain('not reproduced, with other corpus vectors')
+    expect(out).toContain('from rank 5 to 1')
+  })
+
+  it('says when the stored report came from a dirty tree', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    const report = readReport(path)
+    report.run.repoDirty = true
+    writeFileSync(path, JSON.stringify(report))
+
+    const { out } = await drl('eval', 'verify', path)
+
+    expect(out).toMatch(/report from \w+ with uncommitted changes/)
   })
 
   it.each([['no such file', (path: string) => `${path}.missing`, 'no report at']])(
@@ -429,7 +537,7 @@ describe('drl eval compare', () => {
     expect(out).toContain('usage: no API calls')
   })
 
-  it('lists the ranks that moved, and calls a small difference noise', async () => {
+  it('lists the ranks that moved, and calls a difference on 2 questions too few to say', async () => {
     const { a, b } = await twoRuns()
     const report = readReport(b)
     const [vector] = report.result.strategies
@@ -470,7 +578,7 @@ describe('drl eval compare', () => {
     const report = readReport(b)
     report.identity.docs.sha = 'b'.repeat(40)
     writeFileSync(b, JSON.stringify(report))
-    expect((await drl('eval', 'compare', a, b)).out).toContain('the docs differ')
+    expect((await drl('eval', 'compare', a, b)).out).toContain('identity.docs.sha:')
 
     clock += 1000
     const one = reportPathIn((await drl('eval', '--strategy', 'vector')).out)
@@ -479,6 +587,68 @@ describe('drl eval compare', () => {
     const { code, err } = await drl('eval', 'compare', one, other)
     expect(code).toBe(1)
     expect(err).toContain('no strategy in common')
+  })
+
+  it('says what else differs, since a rank change means little until that is known', async () => {
+    const { a, b } = await twoRuns()
+    const report = readReport(b)
+    report.identity.retrieval.rrfK = 30
+    report.identity.chunkerVersion = 99
+    report.vectors.queryHash = 'other'
+    report.run.name = 'after'
+    writeFileSync(b, JSON.stringify(report))
+
+    const { out } = await drl('eval', 'compare', a, b)
+
+    expect(out).toContain('identity.retrieval.rrfK:')
+    expect(out).toContain('identity.chunkerVersion:')
+    expect(out).toContain('vectors.queryHash:')
+    expect(out).toContain('with other vectors, ranks below the context can move by themselves')
+    expect(out).toContain('@')
+    expect(out).toContain('Compared question by question')
+  })
+
+  it('says when two reports measured the same thing on the same vectors', async () => {
+    const { a, b } = await twoRuns()
+
+    expect((await drl('eval', 'compare', a, b)).out).toContain(
+      'these reports measured the same thing, on the same vectors',
+    )
+  })
+
+  it('tells two reports with one name apart by commit', async () => {
+    const { a, b } = await twoRuns()
+    for (const path of [a, b]) {
+      const report = readReport(path)
+      report.run.name = 'baseline'
+      writeFileSync(path, JSON.stringify(report))
+    }
+    const report = readReport(b)
+    report.run.repoSha = 'b'.repeat(40)
+    writeFileSync(b, JSON.stringify(report))
+
+    expect((await drl('eval', 'compare', a, b)).out).toContain(`@${'b'.repeat(8)}`)
+  })
+
+  it('names the questions only one report scored', async () => {
+    const { a, b } = await twoRuns()
+    const report = readReport(b)
+    for (const strategy of report.result.strategies) strategy.questions.pop()
+    writeFileSync(b, JSON.stringify(report))
+
+    expect((await drl('eval', 'compare', a, b)).out).toContain('scored by only one report: ts-0002')
+  })
+
+  it('refuses reports of two sources', async () => {
+    const { a, b } = await twoRuns()
+    const report = readReport(b)
+    report.identity.sourceId = 'react'
+    writeFileSync(b, JSON.stringify(report))
+
+    const { code, err } = await drl('eval', 'compare', a, b)
+
+    expect(code).toBe(1)
+    expect(err).toContain('different sources: typescript and react')
   })
 
   it('asks for two files', async () => {

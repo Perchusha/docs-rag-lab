@@ -15,7 +15,7 @@ import {
 
 import { anchorKey, type AnchorRef, type GoldenQuestion } from './golden.ts'
 
-/** Where the context comes from: the top K of what recall@8 and the MRR look at. */
+/** The context that reaches the answer: the top 8, which recall@8 counts. */
 export const CONTEXT_CUTOFF = 8
 
 /** Means to 6 places: enough to read, and the same on every platform. */

@@ -14,6 +14,7 @@ import {
 } from '@docs-rag-lab/contracts'
 import {
   compareScores,
+  fieldDifferences,
   openIndexes,
   parseEvalTargets,
   readRepoState,
@@ -29,6 +30,7 @@ import {
   formatEvalMarkdown,
   formatEvalSummary,
   formatVerification,
+  NOISE_NOTE,
 } from './eval-format.ts'
 import { formatGoldenCheck } from './format.ts'
 import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
@@ -108,6 +110,9 @@ export async function evalRunCommand(
   if (name !== undefined && !NAME.test(name)) {
     throw new CliError(`--name takes lowercase words with hyphens, such as baseline, got "${name}"`)
   }
+  if (name !== undefined && args.strategy !== undefined) {
+    throw new CliError('a named run measures every strategy, so that later runs can be compared')
+  }
   const source = findSource(ctx.sources, args.source)
   const strategies = args.strategy === undefined ? STRATEGIES : [args.strategy]
 
@@ -120,12 +125,16 @@ export async function evalRunCommand(
       ? join('dev', `${now.toISOString().replaceAll(/[:.]/g, '-')}-${sha}`)
       : `${now.toISOString().slice(0, 10)}-${sha}-${name}`
   const jsonPath = join(dir, `${stem}.json`)
-  if (existsSync(jsonPath)) throw new CliError(`${jsonPath} already exists`)
+  const markdownPath = join(dir, `${stem}.md`)
+  // Before a run that may take a while. Writing with wx below settles it for good.
+  for (const path of [jsonPath, markdownPath]) {
+    if (existsSync(path)) throw new CliError(`${path} already exists`)
+  }
 
   const report = await measure(ctx, source, name ?? null, strategies)
   mkdirSync(join(jsonPath, '..'), { recursive: true })
-  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`)
-  writeFileSync(join(dir, `${stem}.md`), formatEvalMarkdown(report))
+  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
+  writeFileSync(markdownPath, formatEvalMarkdown(report), { flag: 'wx' })
   ctx.out.write(`${formatEvalSummary(report)}\n\nreport: ${jsonPath}\n`)
 }
 
@@ -156,9 +165,15 @@ export async function evalVerifyCommand(
   const code =
     now.run.repoSha === report.run.repoSha ? 'the same commit' : now.run.repoSha.slice(0, 8)
   ctx.out.write(
-    `report from ${report.run.repoSha.slice(0, 8)}, re-run at ${code}${now.run.repoDirty ? ' with uncommitted changes' : ''}\n`,
+    `report from ${report.run.repoSha.slice(0, 8)}${report.run.repoDirty ? ' with uncommitted changes' : ''}, ` +
+      `re-run at ${code}${now.run.repoDirty ? ' with uncommitted changes' : ''}\n`,
   )
   ctx.out.write(`${formatVerification(verification)}\n`)
+  if (verification.status === 'inconclusive') {
+    throw new CliError(
+      `run this at ${report.run.repoSha.slice(0, 8)} with a clean tree to tell code from vectors`,
+    )
+  }
   if (verification.status === 'not-comparable' || verification.status === 'different') {
     const sha = report.identity.docs.sha
     const hint =
@@ -186,32 +201,59 @@ function movedRanks(a: EvalStrategyResult, b: EvalStrategyResult): string[] {
 export function evalCompareCommand(ctx: CommandContext, args: { a: string; b: string }): void {
   const a = readReport(ctx.root, args.a)
   const b = readReport(ctx.root, args.b)
-  const version = (report: EvalReport) => report.identity.goldenSet.version
-  if (
-    version(a) !== version(b) ||
-    a.identity.goldenSet.hash !== b.identity.goldenSet.hash ||
-    a.identity.sourceId !== b.identity.sourceId
-  ) {
+  if (a.identity.sourceId !== b.identity.sourceId) {
     throw new CliError(
-      `these reports measured different golden sets (version ${String(version(a))} and ${String(version(b))}), and numbers from two versions are never compared (ADR-0009): re-score both on one version`,
+      `these reports measured different sources: ${a.identity.sourceId} and ${b.identity.sourceId}`,
+    )
+  }
+  const version = (report: EvalReport) => report.identity.goldenSet.version
+  if (version(a) !== version(b)) {
+    throw new CliError(
+      `these reports measured golden set versions ${String(version(a))} and ${String(version(b))}, and numbers from two versions are never compared (ADR-0009): re-score both on one version`,
+    )
+  }
+  if (a.identity.goldenSet.hash !== b.identity.goldenSet.hash) {
+    throw new CliError(
+      `these reports both say golden set version ${String(version(a))}, with different contents, so one of them cannot be trusted`,
     )
   }
   const label = (report: EvalReport, path: string): string =>
-    report.run.name ?? basename(path, '.json')
-  if (a.identity.docs.sha !== b.identity.docs.sha) {
-    ctx.out.write(
-      `the docs differ: ${a.identity.docs.sha.slice(0, 8)} and ${b.identity.docs.sha.slice(0, 8)}\n\n`,
-    )
+    `${report.run.name ?? basename(path, '.json').slice(0, 19)}@${report.run.repoSha.slice(0, 8)}${report.run.repoDirty ? '+dirty' : ''}`
+  const labels = { a: label(a, args.a), b: label(b, args.b) }
+  // What else differs: a change of rank means little until this is known.
+  const differences = [
+    ...fieldDifferences('identity', a.identity, b.identity, labels),
+    ...fieldDifferences('vectors', a.vectors, b.vectors, labels),
+  ]
+  ctx.out.write(
+    differences.length > 0
+      ? `these reports also differ in:\n${differences.map((line) => `  ${line}`).join('\n')}\n`
+      : `these reports measured the same thing, on the same vectors\n`,
+  )
+  if (
+    a.vectors.queryHash !== b.vectors.queryHash ||
+    a.vectors.corpusHash !== b.vectors.corpusHash
+  ) {
+    ctx.out.write('with other vectors, ranks below the context can move by themselves (ADR-0010)\n')
   }
+  ctx.out.write(`\n${NOISE_NOTE}\n\n`)
   const sections = STRATEGIES.flatMap((strategy) => {
     const before = strategyOf(a, strategy)
     const after = strategyOf(b, strategy)
     if (before === undefined || after === undefined) return []
     const comparison = compareScores(
-      { name: label(a, args.a), questions: before.questions },
-      { name: label(b, args.b), questions: after.questions },
+      { name: labels.a, questions: before.questions },
+      { name: labels.b, questions: after.questions },
     )
-    return [formatEvalComparison(comparison, strategy, movedRanks(before, after))]
+    const ids = (result: EvalStrategyResult) => new Set(result.questions.map(({ id }) => id))
+    const dropped = [
+      ...[...ids(before)].filter((id) => !ids(after).has(id)),
+      ...[...ids(after)].filter((id) => !ids(before).has(id)),
+    ]
+    return [
+      formatEvalComparison(comparison, strategy, movedRanks(before, after)) +
+        (dropped.length > 0 ? `\nscored by only one report: ${dropped.join(', ')}` : ''),
+    ]
   })
   if (sections.length === 0) throw new CliError('these reports have no strategy in common')
   ctx.out.write(`${sections.join('\n\n')}\n`)

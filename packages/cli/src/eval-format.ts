@@ -1,7 +1,8 @@
 // How an eval report reads: the markdown next to the JSON, and what the commands
-// print. Primary anchors come first, because they are the headline (ADR-0009). This
-// text is checked for em dashes, so it holds question IDs, numbers and anchors,
-// never chunk labels or anything else written by the docs or by Claude.
+// print. Primary anchors come first, because they are the headline (ADR-0009). The
+// markdown is checked for em dashes, so it holds question IDs, numbers and document
+// paths, never chunk labels, pinned passages or anything else written by the docs or
+// by Claude.
 import {
   COMPARED_METRICS,
   HIT_CUTOFFS,
@@ -13,13 +14,14 @@ import {
   type MetricDifference,
   type ScopeComparison,
 } from '@docs-rag-lab/contracts'
-import type { EvalVerification } from '@docs-rag-lab/core'
+import { CONTEXT_CUTOFF, type EvalVerification } from '@docs-rag-lab/core'
 
 const mean = (value: number): string => value.toFixed(3)
 const rank = (value: number | null): string => (value === null ? '-' : String(value))
 
 function table(header: readonly string[], rows: readonly (readonly string[])[]): string {
-  const line = (cells: readonly string[]): string => `| ${cells.join(' | ')} |`
+  const cell = (text: string): string => text.replaceAll('|', '\\|')
+  const line = (cells: readonly string[]): string => `| ${cells.map(cell).join(' | ')} |`
   return [line(header), line(header.map(() => '---')), ...rows.map(line)].join('\n')
 }
 
@@ -52,6 +54,10 @@ function verdictLabel(difference: MetricDifference, comparison: EvalComparison):
       return `${comparison.b} better`
     case 'noise':
       return 'noise'
+    case 'not-significant':
+      return 'not significant'
+    case 'mixed':
+      return 'mixed: more wins, lower total'
     case 'too-few':
       return 'too few to say'
   }
@@ -91,15 +97,14 @@ function scopeOf(comparison: EvalComparison, name: string): ScopeComparison | un
   return comparison.scopes.find((scope) => scope.scope === name)
 }
 
-const NOISE_NOTE =
-  'Compared question by question with an exact sign test. A difference of one or two questions, or p >= 0.05, is noise. A tag with 5 questions or fewer cannot reach significance. With this many tags and metrics, one low p is not proof on its own.'
+export const NOISE_NOTE =
+  'Compared question by question with an exact sign test. A difference of one or two questions is noise. Above that, p >= 0.05 is not significant: the smallest splits that are significant are 6:0, 8:1, 10:2, 12:3, 13:4 and 15:5, so a gain of 5 questions with no losses does not reach it. Mixed means one side won more questions and the other has the higher total. A tag with 5 questions or fewer cannot reach significance. With this many tags and metrics, one low p is not proof on its own.'
 
-/** The headline metrics and what the difference means, for the screen and for reports. */
 function comparisonSection(comparison: EvalComparison): string[] {
   const overall = scopeOf(comparison, 'overall')
   if (overall === undefined) return []
   const tagged = comparison.scopes.filter((scope) => scope.scope !== 'overall')
-  // The two figures the context depends on most, per tag.
+  // Per tag, the three figures that say most about what reaches the answer.
   const perTag = tagged.flatMap((scope) =>
     (['hit@1', 'hit@8', 'mrr'] as const).flatMap((name) => {
       const difference = scope.primary.find(({ metric }) => metric === name)
@@ -151,6 +156,16 @@ function perQuestionTable(strategies: readonly EvalStrategyResult[]): string {
   )
 }
 
+/** An anchor without its pin: a pin is a passage of the docs, and this file quotes none. */
+function withoutPin(anchor: string): string {
+  return anchor.split(' contains ')[0] ?? anchor
+}
+
+function yesNo(met: boolean | null): string {
+  if (met === null) return 'did not run'
+  return met ? 'yes' : 'no'
+}
+
 /** The report as a reader wants it. The JSON next to it holds everything else. */
 export function formatEvalMarkdown(report: EvalReport): string {
   const { identity, result, run, vectors } = report
@@ -158,6 +173,9 @@ export function formatEvalMarkdown(report: EvalReport): string {
   const names = strategies.map(({ strategy }) => strategy)
   const tags = [...new Set(strategies.flatMap(({ byTag }) => Object.keys(byTag)))].sort()
   const title = run.name ?? 'development run'
+  const settings = Object.entries(identity.retrieval)
+    .map(([key, value]) => `${key} ${String(value)}`)
+    .join(', ')
   const sections = [
     `# Eval report: ${title}`,
     table(
@@ -177,12 +195,9 @@ export function formatEvalMarkdown(report: EvalReport): string {
         ],
         [
           'Index',
-          `chunker ${String(identity.chunkerVersion)}, parser ${String(identity.parserVersion ?? 'none')}, \`${identity.embedModel}\``,
+          `chunker ${String(identity.chunkerVersion)}, parser ${String(identity.parserVersion ?? 'none')}, schema ${String(identity.indexSchema)}, \`${identity.embedModel}\`, context \`${identity.contextModel ?? 'none'}\``,
         ],
-        [
-          'Retrieval',
-          `top ${String(identity.retrieval.topK)}, ${String(identity.retrieval.candidates)} candidates per list, RRF k=${String(identity.retrieval.rrfK)}`,
-        ],
+        ['Retrieval', `version ${String(identity.retrievalVersion)}: ${settings}`],
         [
           'Vectors',
           `queries \`${vectors.queryHash.slice(0, 12)}\`, corpus \`${vectors.corpusHash.slice(0, 12)}\``,
@@ -220,20 +235,21 @@ export function formatEvalMarkdown(report: EvalReport): string {
     sections.push(
       '## Targets from SPEC section 13',
       table(
-        ['Question', 'Anchor', 'Target', ...names, 'Met by hybrid'],
+        ['Question', 'Anchor', 'Target', ...names, 'Met'],
         targets.map((target) => [
           target.questionId,
-          target.anchor,
+          withoutPin(target.anchor),
           String(target.target),
           ...names.map((name) => rank(target.ranks[name] ?? null)),
-          target.met ? 'yes' : 'no',
+          yesNo(target.met),
         ]),
       ),
     )
   }
   if (result.stale.length > 0) sections.push(`Stale, left out: ${result.stale.join(', ')}.`)
-  if (result.review.length > 0)
+  if (result.review.length > 0) {
     sections.push(`To review, still scored: ${result.review.join(', ')}.`)
+  }
   sections.push('## Per question', perQuestionTable(strategies))
   return `${sections.join('\n\n')}\n`
 }
@@ -258,23 +274,24 @@ export function formatEvalSummary(report: EvalReport): string {
   if (comparison !== null && mrr !== undefined) {
     lines.push(
       '',
-      `${comparison.a} better on ${String(mrr.aBetter)} questions, ${comparison.b} on ${String(mrr.bBetter)}, ` +
+      `by MRR, ${comparison.a} better on ${String(mrr.aBetter)} questions, ${comparison.b} on ${String(mrr.bBetter)}, ` +
         `${String(mrr.tied)} tied: p = ${mean(mrr.p)}, ${verdictLabel(mrr, comparison)}`,
     )
   }
   for (const { strategy, questions } of result.strategies) {
-    const missed = questions.filter(({ primaryRank }) => primaryRank === null || primaryRank > 8)
+    const missed = questions.filter(
+      ({ primaryRank }) => primaryRank === null || primaryRank > CONTEXT_CUTOFF,
+    )
     lines.push(
-      `${strategy} misses the top 8 on: ${missed.map(({ id }) => id).join(', ') || 'none'}`,
+      `${strategy} misses the top ${String(CONTEXT_CUTOFF)} on: ${missed.map(({ id }) => id).join(', ') || 'none'}`,
     )
   }
   for (const target of result.targets) {
     const ranks = Object.entries(target.ranks)
       .map(([name, value]) => `${name} ${rank(value)}`)
       .join(', ')
-    lines.push(
-      `target ${target.questionId} <= ${String(target.target)}: ${ranks}, ${target.met ? 'met' : 'not met'}`,
-    )
+    const met = target.met === null ? 'not run' : target.met ? 'met' : 'not met'
+    lines.push(`target ${target.questionId} <= ${String(target.target)}: ${ranks}, ${met}`)
   }
   return lines.join('\n')
 }
@@ -301,30 +318,48 @@ export function formatEvalComparison(
           .filter(({ metric }) => metric === 'hit@8' || metric === 'mrr')
           .map((difference) => line(`${scope.scope} (${String(scope.questions)})`, difference)),
       ),
-    moved.length > 0 ? 'ranks that moved:' : 'no primary rank moved',
+    moved.length > 0 ? 'primary ranks that moved:' : 'no primary rank moved',
     ...moved.map((entry) => `  ${entry}`),
   ].join('\n')
 }
 
 /** What a re-run found, in the terms of ADR-0010. */
 export function formatVerification(verification: EvalVerification): string {
+  const indent = (lines: readonly string[]): string[] => lines.map((line) => `  ${line}`)
+  const deep = (moved: readonly string[]): string[] =>
+    moved.length > 0 ? [`  ranks below the context moved on: ${moved.join(', ')}`] : []
   switch (verification.status) {
     case 'identical':
-      return 'reproduced: the result matches the report byte for byte'
+      return [
+        `reproduced: what was measured matches the report byte for byte, ${
+          verification.changedVectors.length > 0
+            ? `on other ${verification.changedVectors.join(' and ')} vectors`
+            : 'on the same vectors'
+        }`,
+        ...indent(verification.notes),
+      ].join('\n')
     case 'not-comparable':
       return [
         'not comparable: the re-run did not measure the same thing',
-        ...verification.differences.map((line) => `  ${line}`),
+        ...indent(verification.differences),
       ].join('\n')
     case 'equivalent':
       return [
-        `reproduced: other ${verification.changedVectors.join(' and ')} vectors, and every count came out the same`,
-        ...verification.mrr.map((line) => `  ${line}`),
-        ...(verification.moved.length > 0
-          ? [`  ranks or contexts moved on: ${verification.moved.join(', ')}`]
-          : []),
+        `reproduced: other ${verification.changedVectors.join(' and ')} vectors, and every context, count, verdict and target came out the same`,
+        ...deep(verification.moved),
+        ...indent(verification.notes),
+      ].join('\n')
+    case 'inconclusive':
+      return [
+        `inconclusive: other ${verification.changedVectors.join(' and ')} vectors and other code came to the same conclusions, which cannot tell the two apart`,
+        ...deep(verification.moved),
+        ...indent(verification.notes),
       ].join('\n')
     case 'different':
-      return ['not reproduced:', ...verification.differences.map((line) => `  ${line}`)].join('\n')
+      return [
+        `not reproduced${verification.changedVectors.length > 0 ? `, with other ${verification.changedVectors.join(' and ')} vectors` : ''}:`,
+        ...indent(verification.differences),
+        ...deep(verification.moved),
+      ].join('\n')
   }
 }

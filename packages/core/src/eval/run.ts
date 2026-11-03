@@ -20,11 +20,12 @@ import type { Manifest, SourceIndex } from '@docs-rag-lab/db'
 import type { RetrievalSettings } from '@docs-rag-lab/settings'
 
 import type { Engine } from '../engine.ts'
+import { RETRIEVAL_VERSION } from '../retrieve.ts'
 import type { UsageMeter } from '../usage.ts'
 import type { GoldenCheck } from './anchors.ts'
 import { compareScores } from './compare.ts'
 import { anchorKey, GoldenSetError, type AnchorRef, type GoldenQuestion } from './golden.ts'
-import { rankingOf, scoreQuestion, strategyResult } from './metrics.ts'
+import { CONTEXT_CUTOFF, rankingOf, scoreQuestion, strategyResult } from './metrics.ts'
 
 /** A rank a question should reach, from the source's eval/targets.json. */
 export interface EvalTarget {
@@ -90,7 +91,7 @@ export interface RetrievalEvalOptions {
   manifest: Manifest
   retrieval: RetrievalSettings
   /** The index the corpus fingerprints come from. */
-  index: Pick<SourceIndex, 'chunksHash' | 'vectorsHash'>
+  index: Pick<SourceIndex, 'chunksHash' | 'vectorsHash' | 'schemaVersion'>
   meter: UsageMeter
   /** Who ran it and when: everything a report does not compare. */
   run: Pick<EvalRunInfo, 'name' | 'createdAt' | 'repoSha' | 'repoDirty'>
@@ -99,25 +100,31 @@ export interface RetrievalEvalOptions {
 function targetResult(
   target: EvalTarget,
   strategies: readonly EvalStrategyResult[],
+  defaultStrategy: Strategy,
 ): EvalTargetResult {
   const ranks: EvalTargetResult['ranks'] = {}
   for (const { strategy, questions } of strategies) {
     const score = questions.find((question) => question.id === target.questionId)
     ranks[strategy] = score?.anchors.find(({ anchor }) => anchor === target.anchor)?.rank ?? null
   }
-  const hybrid = ranks.hybrid
+  const rank = ranks[defaultStrategy]
   return {
     questionId: target.questionId,
     anchor: target.anchor,
     target: target.rank,
     ranks,
-    met: hybrid !== undefined && hybrid !== null && hybrid <= target.rank,
+    met: rank === undefined ? null : rank !== null && rank <= target.rank,
   }
 }
 
 /** Runs retrieval over the golden set and returns the whole report. */
 export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<EvalReport> {
   const { engine, sourceId, check, strategies, manifest, retrieval, index, meter } = options
+  if (retrieval.topK !== CONTEXT_CUTOFF) {
+    throw new Error(
+      `recall@${String(CONTEXT_CUTOFF)} measures the context, and the settings send ${String(retrieval.topK)} chunks`,
+    )
+  }
   const stale = new Set(check.stale)
   const unanswerable = options.questions.filter((question) => question.primary.length === 0)
   const scored = options.questions
@@ -125,7 +132,8 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
   const queryVectors = await engine.embedQueries(
-    { source: sourceId, questions: scored.map((question) => question.question) },
+    // Trimmed as a search trims it, so this is the vector the search will find.
+    { source: sourceId, questions: scored.map((question) => question.question.trim()) },
     meter,
   )
 
@@ -147,7 +155,16 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
       maxMs = Math.max(maxMs, trace.totalMs)
       const context = trace.context.map((chunk) => chunk.chunkId)
       recordChunks(chunks, trace, context)
-      scores.push(scoreQuestion(question, rankingOf(trace), context, chunksOf))
+      // Fusion can rank deeper than one list reaches. Both strategies stop at the same
+      // depth, or a hybrid rank of 60 would beat a vector search that stopped at 50.
+      const ranking = rankingOf(trace).slice(0, retrieval.candidates)
+      const top = ranking.slice(0, context.length)
+      if (JSON.stringify(top) !== JSON.stringify(context)) {
+        throw new Error(
+          `${question.id}: the ranking and the context disagree, so the metrics would measure another order than what reaches the answer`,
+        )
+      }
+      scores.push(scoreQuestion(question, ranking, context, chunksOf))
     }
     timings[strategy] = { meanMs: totalMs / Math.max(scored.length, 1), maxMs }
     results.push(strategyResult(strategy, scores))
@@ -155,6 +172,9 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
 
   const [a, b] = results
   const usage = meter.entries().filter(([, entry]) => entry.kind === 'embedding')
+  const settings = Object.fromEntries(
+    Object.entries(retrieval).filter(([key]) => key !== 'strategy'),
+  )
   return {
     version: EVAL_REPORT_VERSION,
     identity: {
@@ -162,14 +182,13 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
       docs: { repo: manifest.repo, branch: manifest.branch, sha: manifest.commitSha },
       chunkerVersion: manifest.chunkerVersion,
       parserVersion: manifest.parserVersion,
+      indexSchema: index.schemaVersion(),
       embedModel: manifest.embedModel,
+      contextModel: manifest.contextModel,
       chunksHash: index.chunksHash(),
       goldenSet: { version: check.setVersion, hash: check.lock.setHash },
-      retrieval: {
-        topK: retrieval.topK,
-        candidates: retrieval.candidates,
-        rrfK: retrieval.rrfK,
-      },
+      retrievalVersion: RETRIEVAL_VERSION,
+      retrieval: settings,
     },
     vectors: { queryHash: vectorsHash(queryVectors), corpusHash: index.vectorsHash() },
     result: {
@@ -185,7 +204,7 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
               { name: a.strategy, questions: a.questions },
               { name: b.strategy, questions: b.questions },
             ),
-      targets: options.targets.map((target) => targetResult(target, results)),
+      targets: options.targets.map((target) => targetResult(target, results, retrieval.strategy)),
       chunks: Object.fromEntries(
         Object.entries(chunks).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)),
       ),

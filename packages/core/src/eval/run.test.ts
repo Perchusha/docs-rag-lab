@@ -2,6 +2,7 @@ import type { RetrievalTrace, Strategy } from '@docs-rag-lab/contracts'
 import type { Manifest } from '@docs-rag-lab/db'
 import { describe, expect, it } from 'vitest'
 
+import { RETRIEVAL_VERSION } from '../retrieve.ts'
 import { UsageMeter } from '../usage.ts'
 import type { GoldenCheck } from './anchors.ts'
 import { GoldenSetError, parseGoldenSet } from './golden.ts'
@@ -138,7 +139,7 @@ function harness(overrides: Partial<RetrievalEvalOptions> = {}, totalMs = 5) {
     targets: [],
     manifest,
     retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
-    index: { chunksHash: () => 'chunks', vectorsHash: () => 'corpus' },
+    index: { chunksHash: () => 'chunks', vectorsHash: () => 'corpus', schemaVersion: () => 3 },
     meter,
     run: { name: null, createdAt: 'now', repoSha: 'repo-sha', repoDirty: false },
     ...overrides,
@@ -245,7 +246,7 @@ describe('runRetrievalEval', () => {
     ])
   })
 
-  it('does not call a target met when hybrid did not run', async () => {
+  it('says nothing about a target when the default strategy did not run', async () => {
     const { options } = harness({
       strategies: ['vector'],
       targets: [{ questionId: 'ts-0001', anchor: 'a.md', rank: 8 }],
@@ -253,7 +254,80 @@ describe('runRetrievalEval', () => {
 
     const { result } = await runRetrievalEval(options)
 
-    expect(result.targets[0]).toMatchObject({ ranks: { vector: 1 }, met: false })
+    expect(result.targets[0]).toMatchObject({ ranks: { vector: 1 }, met: null })
+  })
+
+  it('judges a target by the default strategy in the settings, not by a fixed one', async () => {
+    const { options } = harness({
+      retrieval: { strategy: 'vector', topK: 8, candidates: 50, rrfK: 60 },
+      targets: [{ questionId: 'ts-0001', anchor: 'a.md', rank: 1 }],
+    })
+
+    const { result } = await runRetrievalEval(options)
+
+    expect(result.targets[0]).toMatchObject({ ranks: { vector: 1, hybrid: 2 }, met: true })
+  })
+
+  it('records a retrieval setting it has never heard of, so it cannot go unnoticed', async () => {
+    const retrieval = { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60, newSetting: 'on' }
+    const { options } = harness({ retrieval: retrieval as RetrievalEvalOptions['retrieval'] })
+
+    const report = await runRetrievalEval(options)
+
+    expect(report.identity.retrieval).toEqual({
+      topK: 8,
+      candidates: 50,
+      rrfK: 60,
+      newSetting: 'on',
+    })
+  })
+
+  it('refuses a top K that is not what recall@8 measures', async () => {
+    const { options } = harness({
+      retrieval: { strategy: 'hybrid', topK: 5, candidates: 50, rrfK: 60 },
+    })
+
+    await expect(runRetrievalEval(options)).rejects.toThrow('the settings send 5 chunks')
+  })
+
+  it('refuses a context that is not the top of the ranking', async () => {
+    const { options } = harness()
+    const { search } = options.engine
+    options.engine.search = async (request, meter) => {
+      const { hits, trace: found } = await search(request, meter)
+      const context = [{ ...found.context[0], chunkId: 'chunk-z' }] as RetrievalTrace['context']
+      return { hits, trace: { ...found, context } }
+    }
+
+    await expect(runRetrievalEval(options)).rejects.toThrow('the ranking and the context disagree')
+  })
+
+  it('stops both strategies at the same depth, so fusion gets no deeper ranks to count', async () => {
+    const { options } = harness({
+      retrieval: { strategy: 'hybrid', topK: 8, candidates: 1, rrfK: 60 },
+    })
+
+    const { result } = await runRetrievalEval(options)
+
+    // Under hybrid, First? ranks chunk-a second, which is past a depth of 1.
+    expect(result.strategies[1]?.questions[0]).toMatchObject({ primaryRank: null })
+  })
+
+  it('embeds a question as a search will trim it', async () => {
+    const padded = parseGoldenSet(
+      JSON.stringify({
+        id: 'ts-0001',
+        question: ' First? ',
+        answer: 'A.',
+        primary: ['a.md'],
+        tags: ['basic'],
+      }),
+    )
+    const { options, calls } = harness({ questions: padded, check: { ...check, stale: [] } })
+
+    await runRetrievalEval(options)
+
+    expect(calls[0]).toBe('embed First?')
   })
 
   it('records what was measured, without the strategy, which is per result', async () => {
@@ -266,9 +340,12 @@ describe('runRetrievalEval', () => {
       docs: { repo: 'https://x.dev/repo', branch: 'main', sha: 'docs-sha' },
       chunkerVersion: 5,
       parserVersion: 1,
+      indexSchema: 3,
       embedModel: 'fake:hash:2',
+      contextModel: null,
       chunksHash: 'chunks',
       goldenSet: { version: 3, hash: 'set-hash' },
+      retrievalVersion: RETRIEVAL_VERSION,
       retrieval: { topK: 8, candidates: 50, rrfK: 60 },
     })
     expect(report.vectors.corpusHash).toBe('corpus')

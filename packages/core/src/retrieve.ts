@@ -29,6 +29,13 @@ import { analyzeQuery } from './query.ts'
 import { fuseRrf } from './rrf.ts'
 import type { UsageMeter } from './usage.ts'
 
+/**
+ * Bump when the code changes what a search ranks for the same settings, so a report
+ * says which retrieval it measured (ADR-0010).
+ * 1: M2 and M3.
+ */
+export const RETRIEVAL_VERSION = 1
+
 export interface RetrieveOptions {
   question: string
   /** The source the index belongs to; its exactTokens hook feeds keyword search. */

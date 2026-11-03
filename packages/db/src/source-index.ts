@@ -1,6 +1,7 @@
 // The per-source index: data/sources/<source-id>.sqlite (SPEC sections 4 and 6).
 // Tables: manifest, documents, chunks, the chunks_fts keyword index and the
-// chunks_vec vector table (ADR-0004, ADR-0005). Eval tables arrive in M4.
+// chunks_vec vector table (ADR-0004, ADR-0005). Eval results live in committed
+// reports, not here (ADR-0009).
 import { createHash } from 'node:crypto'
 
 import { migrate, openDatabase, type Migration, type SqliteDatabase } from './open.ts'
@@ -537,13 +538,23 @@ export class SourceIndex {
     }
   }
 
-  /** A fingerprint of every chunk's ID and text hash: the same corpus gives the same value. */
+  /** The migration this file is at: a new one can change what keyword search finds. */
+  schemaVersion(): number {
+    const version = this.#db.pragma('user_version', { simple: true })
+    if (typeof version !== 'number') throw new Error('PRAGMA user_version did not return a number')
+    return version
+  }
+
+  /**
+   * A fingerprint of every chunk's ID, text hash and context, all of which keyword
+   * search reads: the same corpus gives the same value.
+   */
   chunksHash(): string {
     const hash = createHash('sha256')
     const rows = this.#db
-      .prepare('select id, text_hash from chunks order by id')
-      .iterate() as IterableIterator<{ id: string; text_hash: string }>
-    for (const row of rows) hash.update(`${row.id} ${row.text_hash}\n`)
+      .prepare('select id, text_hash, context from chunks order by id')
+      .iterate() as IterableIterator<{ id: string; text_hash: string; context: string | null }>
+    for (const row of rows) hash.update(JSON.stringify([row.id, row.text_hash, row.context]))
     return hash.digest('hex')
   }
 

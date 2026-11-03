@@ -45,27 +45,36 @@ describe('signTest', () => {
 })
 
 describe('verdictOf', () => {
+  const verdict = (questions: number, aBetter: number, bBetter: number, p: number, a = 1, b = 0) =>
+    verdictOf({ questions, aBetter, bBetter, p, a, b })
+
   it('calls a side better only beyond both the noise rule and the test', () => {
-    expect(verdictOf(40, 6, 0, 0.03125)).toBe('a')
-    expect(verdictOf(40, 0, 6, 0.03125)).toBe('b')
+    expect(verdict(40, 6, 0, 0.03125, 30, 24)).toBe('a')
+    expect(verdict(40, 0, 6, 0.03125, 24, 30)).toBe('b')
   })
 
   it('calls a difference of one or two questions noise, whatever the test says', () => {
-    expect(verdictOf(40, 2, 0, 0.5)).toBe('noise')
-    expect(verdictOf(40, 7, 5, 0.01)).toBe('noise')
-    expect(verdictOf(40, 0, 2, 0.01)).toBe('noise')
+    expect(verdict(40, 2, 0, 0.5)).toBe('noise')
+    expect(verdict(40, 7, 5, 0.01)).toBe('noise')
+    expect(verdict(40, 0, 2, 0.01)).toBe('noise')
   })
 
-  it('calls a larger difference noise while p >= 0.05', () => {
-    expect(verdictOf(40, 5, 0, 0.0625)).toBe('noise')
-    expect(verdictOf(40, 14, 7, 0.189)).toBe('noise')
-    expect(verdictOf(40, 3, 0, 0.05)).toBe('noise')
+  it('calls a larger difference not significant while p >= 0.05', () => {
+    expect(verdict(40, 5, 0, 0.0625)).toBe('not-significant')
+    expect(verdict(40, 14, 7, 0.189)).toBe('not-significant')
+    expect(verdict(40, 3, 0, 0.05)).toBe('not-significant')
   })
 
   it('calls a scope of 5 or fewer too few, even at a clean sweep', () => {
-    expect(verdictOf(5, 5, 0, 0.0625)).toBe('too-few')
-    expect(verdictOf(4, 0, 0, 1)).toBe('too-few')
-    expect(verdictOf(6, 6, 0, 0.03125)).toBe('a')
+    expect(verdict(5, 5, 0, 0.0625)).toBe('too-few')
+    expect(verdict(4, 0, 0, 1)).toBe('too-few')
+    expect(verdict(6, 6, 0, 0.03125)).toBe('a')
+  })
+
+  it('names no winner when the wins and the totals disagree', () => {
+    expect(verdict(40, 10, 2, 0.0386, 0.756, 0.792)).toBe('mixed')
+    expect(verdict(40, 2, 10, 0.0386, 0.792, 0.756)).toBe('mixed')
+    expect(verdict(40, 10, 2, 0.0386, 0.75, 0.75)).toBe('mixed')
   })
 })
 
@@ -97,6 +106,18 @@ describe('compareScores', () => {
     expect(metric(primary, 'hit@3')).toMatchObject({ a: 2, b: 1, aBetter: 1, bBetter: 0, tied: 2 })
     expect(metric(primary, 'hit@8')).toMatchObject({ a: 2, b: 3, aBetter: 0, bBetter: 1, tied: 2 })
     expect(metric(primary, 'mrr')).toMatchObject({ aBetter: 2, bBetter: 1, tied: 0 })
+  })
+
+  it('does not call a side better for many small wins against a few large defeats', () => {
+    // a wins ten questions by a little (5 against 6) and loses two by a lot (8 against 1).
+    const a = ids(12).map((id, i) => score(id, i < 10 ? 5 : 8))
+    const b = ids(12).map((id, i) => score(id, i < 10 ? 6 : 1))
+
+    const { primary } = overall(a, b)
+
+    const mrr = metric(primary, 'mrr')
+    expect(mrr).toMatchObject({ aBetter: 10, bBetter: 2, verdict: 'mixed' })
+    expect(mrr.a).toBeLessThan(mrr.b)
   })
 
   it('finds a real win when one side wins enough questions', () => {

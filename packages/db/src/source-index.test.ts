@@ -134,6 +134,21 @@ describe('fingerprints', () => {
     expect(other.vectorsHash()).toBe(one.vectorsHash())
   })
 
+  it('changes the chunks hash with the context, which keyword search reads', () => {
+    const db = openDatabase(':memory:')
+    const index = new SourceIndex(db)
+    write(index, [chunk('c1', 'text', 1)])
+    const before = index.chunksHash()
+
+    db.prepare('update chunks set context = ?').run('Where this chunk sits.')
+
+    expect(index.chunksHash()).not.toBe(before)
+  })
+
+  it('reports the migration the file is at', () => {
+    expect(fresh('text', 1).schemaVersion()).toBe(SOURCE_INDEX_MIGRATIONS.length)
+  })
+
   it('gives other vectors another vectors hash, and the same ones the same', () => {
     expect(fresh('text', 1).vectorsHash()).toBe(fresh('other text', 1).vectorsHash())
     expect(fresh('text', 1).vectorsHash()).not.toBe(fresh('text', 2).vectorsHash())
