@@ -342,6 +342,121 @@ describe('drl eval', () => {
     expect(reportFiles('dev')).toEqual([])
   })
 
+  describe('choosing a configuration (ADR-0011)', () => {
+    it('uses the settings by default, and records what it ran', async () => {
+      const { retrieval } = readReport(reportPathIn((await drl('eval')).out)).identity
+
+      expect(retrieval).toMatchObject({
+        exactTokens: settings.retrieval.exactTokens,
+        shortTerms: settings.retrieval.shortTerms,
+      })
+    })
+
+    it('runs what the flags choose, and a report verifies under what it chose', async () => {
+      const { out } = await drl(
+        'eval',
+        '--exact-tokens',
+        'code-shaped',
+        '--short-terms',
+        'whole-word',
+      )
+      const path = reportPathIn(out)
+
+      expect(readReport(path).identity.retrieval).toMatchObject({
+        exactTokens: 'code-shaped',
+        shortTerms: 'whole-word',
+      })
+
+      const verify = await drl('eval', 'verify', path)
+      expect(verify.code).toBe(0)
+      expect(verify.out).toContain('byte for byte, on the same vectors')
+    })
+
+    it('says a report did not measure what the settings now do, when it chose nothing', async () => {
+      const path = reportPathIn((await drl('eval')).out)
+      const report = readReport(path)
+      delete report.identity.retrieval.exactTokens
+      writeFileSync(path, JSON.stringify(report))
+
+      const { code, out } = await drl('eval', 'verify', path)
+
+      expect(code).toBe(1)
+      expect(out).toContain('identity.retrieval.exactTokens')
+    })
+
+    /** A set of one question, whose vector is nearest the chunk at `nearest`. */
+    async function askOnly(question: string, nearest: number, primary: string): Promise<void> {
+      const { dimensions } = settings.embeddings
+      const providerId = createEmbeddingProvider(settings.embeddings).id
+      const indexes = openIndexes(join(root, settings.dataDir), 'typescript')
+      indexes.cache.putMany([
+        {
+          key: embeddingCacheKey(providerId, 'query', question),
+          provider: providerId,
+          inputType: 'query',
+          vector: Float32Array.from({ length: dimensions }, (_, j) => (j === nearest ? 1 : 0)),
+        },
+      ])
+      indexes.close()
+      writeFileSync(
+        goldenSetPath(root, 'typescript'),
+        `${JSON.stringify({ id: 'ts-0001', question, answer: 'A.', primary: [primary], tags: ['basic'] })}\n`,
+      )
+      await drl('eval', 'check', '--accept', '--set-version', '2')
+    }
+
+    const hybridRank = (path: string): number | null | undefined =>
+      readReport(path)
+        .result.strategies.find(({ strategy }) => strategy === 'hybrid')
+        ?.questions.find(({ id }) => id === 'ts-0001')?.primaryRank
+
+    it('reaches the search with --exact-tokens, and moves a rank', async () => {
+      // "two" and "text" find both chunks, chunk two first. The vector prefers chunk one.
+      // Counted twice, chunk two wins. Counted once, they tie, and the ID decides.
+      await askOnly('What `two` text?', 0, 'docs/a.md#one')
+
+      const all = reportPathIn((await drl('eval', '--exact-tokens', 'all')).out)
+      clock += 1000
+      const codeShaped = reportPathIn((await drl('eval', '--exact-tokens', 'code-shaped')).out)
+
+      expect(hybridRank(all)).toBe(2)
+      expect(hybridRank(codeShaped)).toBe(1)
+    })
+
+    it('reaches the search with --short-terms, and moves a rank', async () => {
+      // "ext" is inside "Text" in both chunks, and as a whole word in neither.
+      await askOnly('What ext?', 1, 'docs/a.md#two')
+
+      const substring = reportPathIn((await drl('eval', '--short-terms', 'substring')).out)
+      clock += 1000
+      const wholeWord = reportPathIn((await drl('eval', '--short-terms', 'whole-word')).out)
+
+      expect(hybridRank(substring)).toBe(2)
+      expect(hybridRank(wholeWord)).toBe(1)
+    })
+
+    it.each([
+      ['--exact-tokens', 'some', '--exact-tokens must be all or code-shaped'],
+      ['--short-terms', 'some', '--short-terms must be substring or whole-word'],
+    ])('refuses %s %s', async (flag, value, message) => {
+      const { code, err } = await drl('eval', flag, value)
+
+      expect(code).toBe(1)
+      expect(err).toContain(message)
+    })
+
+    it.each([
+      [['search', 'q', '--exact-tokens', 'all']],
+      [['ask', 'q', '--short-terms', 'whole-word']],
+      [['sync', 'typescript', '--short-terms', 'whole-word']],
+    ])('takes the flags only with eval: %j', async (argv) => {
+      const { code, err } = await drl(...argv)
+
+      expect(code).toBe(2)
+      expect(err).toContain('work only with eval')
+    })
+  })
+
   it('takes --name only with eval, and refuses an unknown subcommand', async () => {
     const misplaced = await drl('search', 'q', '--name', 'x')
     expect(misplaced.code).toBe(2)
@@ -359,6 +474,9 @@ describe('drl eval', () => {
     [['eval', 'check', '--name', 'x'], '--name'],
     [['eval', 'check', '--strategy', 'vector'], '--strategy'],
     [['eval', 'verify', 'x.json', '--strategy', 'vector'], '--strategy'],
+    [['eval', 'check', '--exact-tokens', 'all'], '--exact-tokens'],
+    [['eval', 'verify', 'x.json', '--short-terms', 'substring'], '--short-terms'],
+    [['eval', 'compare', 'a', 'b', '--exact-tokens', 'all'], '--exact-tokens'],
   ])('refuses a flag it would ignore: %j', async (argv, flag) => {
     const { code, err } = await drl(...argv)
 

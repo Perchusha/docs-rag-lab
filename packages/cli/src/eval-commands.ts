@@ -14,6 +14,7 @@ import {
 } from '@docs-rag-lab/contracts'
 import {
   compareScores,
+  createEngine,
   fieldDifferences,
   openIndexes,
   parseEvalTargets,
@@ -22,6 +23,8 @@ import {
   verifyReport,
   type Source,
 } from '@docs-rag-lab/core'
+
+import type { RetrievalSettings } from '@docs-rag-lab/settings'
 
 import { findSource, type CommandContext } from './commands.ts'
 import { CliError } from './errors.ts'
@@ -37,6 +40,9 @@ import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
 
 const NAME = /^[a-z0-9][a-z0-9-]*$/
 
+/** What a run may choose on the command line, so one commit can measure each (ADR-0011). */
+export type RetrievalChoice = Partial<Pick<RetrievalSettings, 'exactTokens' | 'shortTerms'>>
+
 export function reportsDir(root: string, sourceId: string): string {
   return join(root, 'eval', 'reports', sourceId)
 }
@@ -46,8 +52,10 @@ async function measure(
   source: Source,
   name: string | null,
   strategies: readonly Strategy[],
+  choice: RetrievalChoice,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
+  const retrieval = { ...settings.retrieval, ...choice }
   const repo = await readRepoState(root)
   if (name !== null && repo.dirty) {
     throw new CliError(
@@ -77,7 +85,7 @@ async function measure(
     if (manifest === undefined) throw new CliError(`the index of ${source.id} is empty`)
     const targetsPath = goldenTargetsPath(root, source.id)
     return await runRetrievalEval({
-      engine: ctx.engine,
+      engine: createEngine({ settings: { ...settings, retrieval }, sources: ctx.sources, root }),
       sourceId: source.id,
       questions,
       check,
@@ -86,7 +94,7 @@ async function measure(
         ? parseEvalTargets(readFileSync(targetsPath, 'utf8'), questions)
         : [],
       manifest,
-      retrieval: settings.retrieval,
+      retrieval,
       index: indexes.index,
       meter,
       run: {
@@ -104,7 +112,12 @@ async function measure(
 /** `drl eval`: measure, write the report, and say where. */
 export async function evalRunCommand(
   ctx: CommandContext,
-  args: { source: string; name: string | undefined; strategy: Strategy | undefined },
+  args: {
+    source: string
+    name: string | undefined
+    strategy: Strategy | undefined
+    choice: RetrievalChoice
+  },
 ): Promise<void> {
   const { name } = args
   if (name !== undefined && !NAME.test(name)) {
@@ -131,7 +144,7 @@ export async function evalRunCommand(
     if (existsSync(path)) throw new CliError(`${path} already exists`)
   }
 
-  const report = await measure(ctx, source, name ?? null, strategies)
+  const report = await measure(ctx, source, name ?? null, strategies, args.choice)
   mkdirSync(join(jsonPath, '..'), { recursive: true })
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
   writeFileSync(markdownPath, formatEvalMarkdown(report), { flag: 'wx' })
@@ -152,6 +165,15 @@ function readReport(root: string, path: string): EvalReport {
   return parsed.value
 }
 
+/** What the report's run chose. A report from before these settings chose nothing. */
+function choiceOf(report: EvalReport): RetrievalChoice {
+  const { exactTokens, shortTerms } = report.identity.retrieval
+  return {
+    ...(exactTokens === 'all' || exactTokens === 'code-shaped' ? { exactTokens } : {}),
+    ...(shortTerms === 'substring' || shortTerms === 'whole-word' ? { shortTerms } : {}),
+  }
+}
+
 /** `drl eval verify <report>`: run the same thing again, and say whether it reproduces. */
 export async function evalVerifyCommand(
   ctx: CommandContext,
@@ -160,7 +182,7 @@ export async function evalVerifyCommand(
   const report = readReport(ctx.root, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const strategies = report.result.strategies.map(({ strategy }) => strategy)
-  const now = await measure(ctx, source, null, strategies)
+  const now = await measure(ctx, source, null, strategies, choiceOf(report))
   const verification = verifyReport(report, now)
   const code =
     now.run.repoSha === report.run.repoSha ? 'the same commit' : now.run.repoSha.slice(0, 8)

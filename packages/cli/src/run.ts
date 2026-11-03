@@ -30,7 +30,12 @@ import {
   type Writer,
 } from './commands.ts'
 import { CliError } from './errors.ts'
-import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
+import {
+  evalCompareCommand,
+  evalRunCommand,
+  evalVerifyCommand,
+  type RetrievalChoice,
+} from './eval-commands.ts'
 import { formatDuration } from './format.ts'
 
 export const USAGE = `Usage: drl <command> [options]
@@ -48,6 +53,8 @@ Commands:
                               No Claude call. Without --name it is a development run
       [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
       [--strategy <s>]        One strategy instead of vector and hybrid
+      [--exact-tokens <m>]    all or code-shaped (default: retrieval.exactTokens, ADR-0011)
+      [--short-terms <m>]     substring or whole-word (default: retrieval.shortTerms, ADR-0011)
   eval verify <report>        Run a report again, and say whether it reproduces
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
@@ -114,6 +121,28 @@ function commitOf(value: string | undefined): string | undefined {
   return value
 }
 
+function oneOf<T extends string>(
+  flag: string,
+  value: string | undefined,
+  allowed: readonly [T, T],
+): T | undefined {
+  if (value === undefined) return undefined
+  const found = allowed.find((item) => item === value)
+  if (found === undefined) {
+    throw new CliError(`${flag} must be ${allowed.join(' or ')}, got "${value}"`)
+  }
+  return found
+}
+
+function choiceOf(values: { 'exact-tokens'?: string; 'short-terms'?: string }): RetrievalChoice {
+  const exactTokens = oneOf('--exact-tokens', values['exact-tokens'], ['all', 'code-shaped'])
+  const shortTerms = oneOf('--short-terms', values['short-terms'], ['substring', 'whole-word'])
+  return {
+    ...(exactTokens === undefined ? {} : { exactTokens }),
+    ...(shortTerms === undefined ? {} : { shortTerms }),
+  }
+}
+
 function strategyOf(value: string | undefined, fallback: Strategy): Strategy {
   if (value === undefined) return fallback
   const strategy = STRATEGIES.find((s) => s === value)
@@ -143,6 +172,8 @@ function refuseStrayEvalFlags(
     accept: boolean
     name?: string | undefined
     strategy?: string | undefined
+    'exact-tokens'?: string | undefined
+    'short-terms'?: string | undefined
     'top-k'?: string | undefined
     'doc-type'?: string[] | undefined
   },
@@ -153,6 +184,8 @@ function refuseStrayEvalFlags(
     ...(values.accept && subcommand !== 'check' ? ['--accept'] : []),
     ...(values.name !== undefined && subcommand !== undefined ? ['--name'] : []),
     ...(values.strategy !== undefined && subcommand !== undefined ? ['--strategy'] : []),
+    ...(values['exact-tokens'] !== undefined && subcommand !== undefined ? ['--exact-tokens'] : []),
+    ...(values['short-terms'] !== undefined && subcommand !== undefined ? ['--short-terms'] : []),
   ]
   if (stray.length > 0) {
     throw new CliError(`${stray.join(', ')} does not apply to drl eval ${subcommand ?? 'run'}`)
@@ -194,6 +227,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
+        'exact-tokens': { type: 'string' },
+        'short-terms': { type: 'string' },
         'doc-type': { type: 'string', multiple: true },
         json: { type: 'boolean', default: false },
         verbose: { type: 'boolean', short: 'v', default: false },
@@ -228,6 +263,13 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   if (values.name !== undefined && command !== 'eval') {
     err.write(`drl: --name works only with eval\n\n${USAGE}`)
+    return 2
+  }
+  if (
+    (values['exact-tokens'] !== undefined || values['short-terms'] !== undefined) &&
+    command !== 'eval'
+  ) {
+    err.write(`drl: --exact-tokens and --short-terms work only with eval\n\n${USAGE}`)
     return 2
   }
   if (values['set-version'] !== undefined && !values.accept) {
@@ -274,6 +316,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
             values.strategy === undefined
               ? undefined
               : strategyOf(values.strategy, settings.retrieval.strategy),
+          choice: choiceOf(values),
         })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')
