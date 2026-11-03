@@ -32,7 +32,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit). Reruns pay only for what is not cached.
 - The judge on answers whose grade is known, spends real tokens: `pnpm drl eval judge-check --yes`
 - The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions)
-- How often those labels agree with the judge: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, or `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind)
+- How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, or `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind)
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Embedding rate limits: `pnpm drl limits`
