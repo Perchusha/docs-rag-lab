@@ -89,30 +89,53 @@ Differences between rows use the same sign test and verdicts as retrieval (ADR-0
 
 ## Measured
 
-The report `eval/reports/typescript/2026-11-03-53f5eb82-answers`, at docs `205122bb` and set version 1, on 40 questions with answers and 5 without. It cost $6.67 at list prices with its pilot and known cases.
+The final report is `eval/reports/typescript/2026-11-03-2184bccc-answers-regraded`, at docs `205122bb` and set version 1, on 40 questions with answers and 5 without. The first report, `2026-11-03-53f5eb82-answers`, stays as what the first round of labels was read against. All of it cost $8.20 at list prices, with the pilot, the known cases and the re-grading. The labels are in `eval/labels/typescript/`.
 
-**The judge did not reach the bar, so its correctness scores are uncalibrated.** The labels are in `eval/labels/typescript/`.
+### The judge
 
-| Dimension | Agreed | Kappa | 95% interval | Passed |
-|---|---|---|---|---|
-| Correctness | 10 of 12 | 0.71 | 55% to 95% | no |
-| Refusal | 15 of 15 | 1.00 | 80% to 100% | yes |
-| Support | 8 of 8 | 1.00 | 68% to 100% | yes |
+**It is calibrated, by the rule fixed beforehand, with a lean that remains.**
 
-Both disagreements are the judge scoring 2 where the human scored 1, and on ts-0038 the judge's own reasoning names a gap and still gives 2. It is stable: asked twice about 45 answers, it gave the same grade on all 45. So this is a lean, not noise.
+| Round | Dimension | Agreed | Kappa | 95% interval | Passed | Decides |
+|---|---|---|---|---|---|---|
+| Fresh, blind, new prompt | Correctness | 9 of 10 | 0.80 | 60% to 98% | yes | yes |
+| First, blind | Refusal | 15 of 15 | 1.00 | 80% to 100% | yes | yes |
+| First, blind | Support | 8 of 8 | 1.00 | 68% to 100% | yes | yes |
+| First, blind, old prompt | Correctness | 10 of 12 | 0.71 | 55% to 95% | no | replaced by the fresh round |
+| First 15 graded again, **not blind** | Correctness | 11 of 12 | 0.86 | 65% to 99% | - | no |
+
+Two things limit what this shows:
+- **The lean remains.** All three disagreements across both rounds are the judge scoring 2 where the human scored 1: ts-0038, which the new prompt moved, ts-0023 and ts-0028. On ts-0028 the judge again names an overstatement in the answer and scores 2. So correctness may still run slightly high. It is stable: asked twice about 45 answers, it gave the same grade on all 45.
+- **The new prompt did little.** It changed 1 of the 120 first-sample correctness verdicts, ts-0038 in row 2, from 2 to 1. The fresh round would have come out the same under the old prompt, so its pass reflects another sample of answers. It does not show that the prompt fixed the lean.
+
+### The rows
 
 | Row | Correctness | Scored 0 / 1 / 2 | False refusals | Cites an anchor | Claims supported | Refused correctly | Cost per question |
 |---|---|---|---|---|---|---|---|
 | 0, no RAG | 1.850 | 2 / 2 / 36 | 1 | - | - | 5 of 5 | $0.0043 |
-| 2, vector | 1.875 | 2 / 1 / 37 | 1 | 35 of 40 | 241 of 243 | 5 of 5 | $0.0216 |
+| 2, vector | 1.850 | 2 / 2 / 36 | 1 | 35 of 40 | 241 of 243 | 5 of 5 | $0.0216 |
 | 3, hybrid | 1.775 | 3 / 3 / 34 | 2 | 36 of 40 | 236 of 244 | 5 of 5 | $0.0225 |
 | 3, again | 1.775 | 3 / 3 / 34 | 2 | 36 of 40 | 231 of 234 | 5 of 5 | $0.0225 |
 
-- **Row 2 against row 3, correctness:** row 2 is better on 3 questions and row 3 on none, with 37 tied: p = 0.25, not significant. All three are questions hybrid search handles worse: ts-0022 and ts-0038 miss the top 8, and ts-0027 is the unmet target.
+- **Row 2 against row 3, correctness:** row 2 is better on 3 questions and row 3 on none, with 37 tied: p = 0.25, not significant. All three are questions hybrid search handles worse: ts-0022 and ts-0038 miss the top 8, and ts-0027 is the unmet target. Hybrid stays the default until M5, by the owner's decision.
 - **Row 2 against row 3, support:** 7 to 0, p = 0.016, which the verdict calls better. Row 3's second sample scores 0.990 against row 2's 0.994, 2 to 0, and row 3 differs from itself by 1 to 5. So this is run-to-run noise that one test cannot see, and it is not a difference between the rows.
-- **What correctness cannot see:** on ts-0035 and ts-0040, vector search misses the anchors and the answer still scores 2, citing no anchor. On ts-0040 it says that the search results do not define the error, and reasons from one example. Row 3 cites an anchor on both.
-- **Row 0 against row 3:** 3 to 1, noise. This set does not separate no RAG from RAG on correctness, since Claude knows much of it from memory, and row 0 cites nothing.
 - **Noise:** row 3 against itself ties on correctness on all 40 questions, so these differences are not the answers varying.
+
+### What this set can and cannot show
+
+**On this set, row 0 is about as correct as RAG, so correctness alone does not measure the value of RAG here. What RAG adds is grounding.** Without any docs, Claude scores 2 on 36 of 40, and row 0 against row 2 is 1 to 2, noise. RAG can even cost something: on ts-0024, row 0 scores 2, and both RAG rows refuse because the anchor is not in the context. Nothing in row 0 can be checked against the docs, which is what the metric below counts.
+
+**Correct and grounded, exploratory:** defined after seeing the first results, and no target.
+
+| Row | Correct and grounded, of 40 |
+|---|---|
+| 0, no RAG | cannot score, by design |
+| 2, vector | 31 |
+| 3, hybrid | 28 |
+| 3, again | 32 |
+
+Row 2 against row 3 is 5 to 2, p = 0.453, not significant. Row 3 against itself is 0 to 4, which is a larger swing than the gap between the rows, so this metric does not separate them either. The questions differ: row 2 alone is grounded on ts-0001, 0005, 0026, 0027 and 0030, and row 3 alone on ts-0035 and ts-0040, where vector search misses the anchors and the answer still scores 2.
+
+**A candidate for golden set v2, not now:** more questions whose answers changed after the models' training cutoff, which memory cannot answer. The cited chunks listed for review, 52 in the final report and 54 in the first, wait for the same review. Nothing changes the frozen set until then (ADR-0009).
 
 ## Consequences
 

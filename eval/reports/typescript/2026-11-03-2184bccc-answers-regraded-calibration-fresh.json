@@ -1,0 +1,27 @@
+{
+  "report": {
+    "repoSha": "2184bccc2c565972fbc8153fbee109ed71dc2830",
+    "name": "answers-regraded",
+    "createdAt": "2026-11-03T12:18:23.187Z"
+  },
+  "blind": true,
+  "labelled": 10,
+  "agreement": [
+    {
+      "dimension": "correctness",
+      "compared": 10,
+      "agreed": 9,
+      "kappa": 0.803921568627451,
+      "interval": [
+        0.5958499704752279,
+        0.982123787103926
+      ],
+      "passed": true
+    }
+  ],
+  "unanswerableOnly": {
+    "compared": 0,
+    "agreed": 0
+  },
+  "calibrated": true
+}

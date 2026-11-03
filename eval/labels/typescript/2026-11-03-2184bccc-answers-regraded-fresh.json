@@ -1,0 +1,15 @@
+{
+  "sample": "7b2a7d0fb890",
+  "labels": [
+    { "item": 1, "correctness": 1 },
+    { "item": 2, "correctness": 2 },
+    { "item": 3, "correctness": 0 },
+    { "item": 4, "correctness": 2 },
+    { "item": 5, "correctness": 2 },
+    { "item": 6, "correctness": 1 },
+    { "item": 7, "correctness": 2 },
+    { "item": 8, "correctness": 1 },
+    { "item": 9, "correctness": 2 },
+    { "item": 10, "correctness": 2 }
+  ]
+}
