@@ -152,12 +152,14 @@ export {
 } from './eval/report-store.ts'
 export { judgeSentence, judgeTrust, verifyWords } from './eval/trust.ts'
 export {
+  dashboardPage,
   dashboardRuns,
   defaultRun,
   loadDashboardDetails,
   loadDashboardRun,
   loadRunComparison,
   runToShow,
+  type DashboardPage,
   type DashboardStore,
 } from './eval/dashboard-store.ts'
 export {

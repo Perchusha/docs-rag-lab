@@ -106,12 +106,10 @@ export function againstItself(split: EvalSplit, runToRun: number | null): EvalSp
     : split
 }
 
-/** How many questions differ between two samples. */
+/** How many questions differ between two samples. One that only one sample has is not a match. */
 function differing(a: Values, b: Values): number {
-  return [...a].filter(([id, value]) => {
-    const other = b.get(id)
-    return other !== undefined && other !== value
-  }).length
+  const ids = new Set([...a.keys(), ...b.keys()])
+  return [...ids].filter((id) => a.get(id) !== b.get(id)).length
 }
 
 const strategyOf = (report: EvalReport, strategy: Strategy): EvalStrategyResult | undefined =>
@@ -129,7 +127,15 @@ function mrrValues(result: EvalStrategyResult, tag?: string): number[] {
 const namedSide = ({ verdict, a, b }: EvalSplit): string | undefined =>
   verdict === 'a' ? a : verdict === 'b' ? b : undefined
 
-const inSentence = (label: string): string => label.charAt(0).toLowerCase() + label.slice(1)
+/** Rows whose label does not read well after "better on". */
+const IN_SENTENCE: Record<string, string> = {
+  'citations-hold': 'citations that hold',
+  'false-refusals': 'wrong refusals',
+  'right-refusals': 'right refusals',
+}
+
+const inSentence = ({ id, label }: DashboardRow): string =>
+  IN_SENTENCE[id] ?? label.charAt(0).toLowerCase() + label.slice(1)
 
 /**
  * What the verdicts between two sides say, in sentences, or `nothing` when none names a side.
@@ -145,7 +151,7 @@ function verdictsBetween(
     .flatMap((row) =>
       row.comparisons
         .filter(({ a, b }) => a === sides[0] && b === sides[1])
-        .map((split) => ({ label: inSentence(row.label), split })),
+        .map((split) => ({ label: inSentence(row), split })),
     )
   if (found.length === 0) return ''
   if (found.every(({ split }) => split.verdict === 'too-few')) return 'Too few questions to say.'
@@ -253,7 +259,8 @@ class Grades {
             item.row === row &&
             item.sample === sample &&
             item.status === 'ok' &&
-            item.claims.length > 0,
+            item.claims.length > 0 &&
+            !this.#unanswerable.has(item.questionId),
         )
         .map((item) => [item.questionId, item.claims.every((claim) => claim.supported) ? 1 : 0]),
     )
@@ -473,7 +480,7 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
         ['Vector', 'Hybrid'],
         'No difference between vector and hybrid holds up.',
       ),
-      ragClaim(sectionRows[0]?.comparisons ?? [], grounds),
+      ragClaim(fullyCorrect.comparisons, sectionRows[0]?.comparisons ?? [], grounds),
     ]
       .filter((sentence) => sentence !== '')
       .join(' '),
@@ -484,9 +491,18 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
   }
 }
 
-/** Whether RAG helps, from fully correct alone, and grounding only if the answers show it. */
-function ragClaim(fullyCorrect: readonly EvalSplit[], grounds: boolean): string {
-  const splits = fullyCorrect.filter(({ a }) => a === ROW_NAMES[0])
+/**
+ * Whether RAG helps, from fully correct alone, and grounding only if the answers show it. `original`
+ * holds the verdicts before run-to-run noise: one that noise took away says that nothing holds up,
+ * which is not the same as the two being about as correct.
+ */
+function ragClaim(
+  original: readonly EvalSplit[],
+  shown: readonly EvalSplit[],
+  grounds: boolean,
+): string {
+  const fromNoRag = ({ a }: EvalSplit): boolean => a === ROW_NAMES[0]
+  const splits = shown.filter(fromNoRag)
   if (splits.length === 0) return ''
   if (splits.every(({ verdict }) => verdict === 'too-few')) {
     return 'Too few questions to say whether RAG helps.'
@@ -500,7 +516,7 @@ function ragClaim(fullyCorrect: readonly EvalSplit[], grounds: boolean): string 
   if (splits.some(({ verdict }) => verdict === 'mixed')) {
     return 'Mixed between no RAG and RAG on fully correct.'
   }
-  if (splits.every(({ verdict }) => verdict === 'noise')) {
+  if (original.filter(fromNoRag).every(({ verdict }) => verdict === 'noise')) {
     const about =
       'Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds.'
     return grounds
@@ -614,18 +630,29 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
   )
   const inTag = (tag?: string) => (id: string) =>
     tag === undefined || (tagsOf.get(id)?.includes(tag) ?? false)
-  const fully = (row: AnswerRow, tag?: string): Values =>
-    grades.valuesOf(row, 1, ({ correctness }) => (correctness === 2 ? 1 : 0), inTag(tag))
-  const score = (row: AnswerRow, tag?: string): Values =>
-    grades.valuesOf(row, 1, ({ correctness }) => correctness ?? 0, inTag(tag))
+  const second = hasSecondRun(answers)
+  const fully = (row: AnswerRow, tag?: string, sample = 1): Values =>
+    grades.valuesOf(row, sample, ({ correctness }) => (correctness === 2 ? 1 : 0), inTag(tag))
+  const score = (row: AnswerRow, tag?: string, sample = 1): Values =>
+    grades.valuesOf(row, sample, ({ correctness }) => correctness ?? 0, inTag(tag))
   const pairs: [AnswerRow, AnswerRow][] = (
     [
       [2, 3],
       [0, 3],
     ] as [AnswerRow, AnswerRow][]
   ).filter(([a, b]) => rows.includes(a) && rows.includes(b))
-  const splits = (values: (row: AnswerRow) => Values): EvalSplit[] =>
-    pairs.map(([a, b]) => splitOf(ROW_NAMES[a], values(a), ROW_NAMES[b], values(b)))
+  // The same rule as the first screen, on the same data (ADR-0013).
+  const measured = (
+    values: (row: AnswerRow, sample: number) => Values,
+  ): Pick<DashboardRow, 'comparisons' | 'runToRun'> => {
+    const runToRun = second ? differing(values(3, 1), values(3, 2)) : null
+    return {
+      comparisons: pairs.map(([a, b]) =>
+        againstItself(splitOf(ROW_NAMES[a], values(a, 1), ROW_NAMES[b], values(b, 1)), runToRun),
+      ),
+      runToRun,
+    }
+  }
   const note = correctnessNote(judge)
   const noteFor = (tag: string): string =>
     [`${String(countOf(tag))} questions`, ...(note === null ? [] : [note])].join(', ')
@@ -645,10 +672,9 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
           const values = fully(row, tag)
           return shareFigure(sum(values.values()), values.size)
         }),
-        comparisons: splits((row) => fully(row, tag)),
-        runToRun: null,
+        ...measured((row, sample) => fully(row, tag, sample)),
       })),
-      showRunToRun: false,
+      showRunToRun: second,
     },
     {
       question: 'Correctness score, 0 to 2',
@@ -661,10 +687,9 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
         ...(tag === undefined ? (note === null ? {} : { note }) : { note: noteFor(tag) }),
         exploratory: false,
         figures: rows.map((row) => meanFigure([...score(row, tag).values()], 2)),
-        comparisons: splits((row) => score(row, tag)),
-        runToRun: null,
+        ...measured((row, sample) => score(row, tag, sample)),
       })),
-      showRunToRun: false,
+      showRunToRun: second,
     },
   )
   return sections

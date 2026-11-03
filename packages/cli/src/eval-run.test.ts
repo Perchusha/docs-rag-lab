@@ -763,7 +763,9 @@ describe('drl eval answers', () => {
       const { code, out } = await drl('eval', 'calibrate', path, labelsPath)
 
       expect(code).toBe(0)
-      expect(out).toContain('The judge is calibrated for this report')
+      expect(out).toContain('This round reached the bar on what it measured.')
+      expect(out).toContain('This is a development report, so these labels count for no report')
+      expect(out).not.toContain('The judge is calibrated')
       const written = path.replace(/\.json$/, '-calibration')
       expect(JSON.parse(readFileSync(`${written}.json`, 'utf8'))).toMatchObject({
         labelled: sample.length,
@@ -797,8 +799,10 @@ describe('drl eval answers', () => {
       const labelsPath = join(root, 'labels.json')
       writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
 
-      expect((await drl('eval', 'calibrate', path, labelsPath)).code).toBe(0)
+      const calibrated = await drl('eval', 'calibrate', path, labelsPath)
 
+      expect(calibrated.code).toBe(0)
+      expect(calibrated.out).toContain('The judge is calibrated for these prompts.')
       const text = readFileSync(markdown, 'utf8')
       expect(text).toContain('The judge is calibrated for these prompts.')
       expect(text).not.toContain('The judge is not calibrated')
@@ -1022,7 +1026,7 @@ describe('drl eval answers', () => {
         write(1)
         const passed = await drl('eval', 'calibrate', second, labelsPath, '--after', first)
         expect(passed.out).toContain('| correctness | 9 | 10 |')
-        expect(passed.out).toContain('The judge is calibrated for this report')
+        expect(passed.out).toContain('This round reached the bar on what it measured.')
         expect(passed.out).not.toContain('| refusal |')
         expect(existsSync(second.replace(/\.json$/, '-calibration-fresh.md'))).toBe(true)
 

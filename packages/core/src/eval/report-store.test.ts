@@ -24,7 +24,19 @@ const report = (name: string | null, createdAt: string, answers = false) => ({
   vectors: {},
   result: { strategies: [], targets: [] },
   run: { name, createdAt, repoSha: 'abcdef1234567890' },
-  ...(answers ? { answers: {} } : {}),
+  ...(answers
+    ? {
+        answers: {
+          models: {},
+          prompts: {},
+          rows: [],
+          comparisons: [],
+          answers: [],
+          verdicts: [],
+          support: [],
+        },
+      }
+    : {}),
 })
 
 function write(name: string, value: unknown): void {
@@ -49,7 +61,8 @@ beforeEach(() => {
   })
   write('2026-11-03-abcdef12-answers-verify.json', {
     status: 'identical',
-    rerun: { repoSha: 'abc' },
+    changedVectors: [],
+    rerun: { repoSha: 'abc', at: 'then' },
   })
   writeFileSync(
     join(reportsDir(root, 'demo'), 'dev', '2026-11-03-abcdef12-dev.json'),

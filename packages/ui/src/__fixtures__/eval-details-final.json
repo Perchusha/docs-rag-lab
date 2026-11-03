@@ -502,7 +502,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "fully-cross-lingual",
@@ -552,7 +552,7 @@
               "verdict": "too-few"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "fully-edge",
@@ -602,7 +602,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "fully-exact-token",
@@ -652,7 +652,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "fully-fresh",
@@ -702,7 +702,7 @@
               "verdict": "too-few"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "fully-version",
@@ -752,10 +752,10 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         }
       ],
-      "showRunToRun": false
+      "showRunToRun": true
     },
     {
       "question": "Correctness score, 0 to 2",
@@ -818,7 +818,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-basic",
@@ -871,7 +871,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-cross-lingual",
@@ -924,7 +924,7 @@
               "verdict": "too-few"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-edge",
@@ -977,7 +977,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-exact-token",
@@ -1030,7 +1030,7 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-fresh",
@@ -1083,7 +1083,7 @@
               "verdict": "too-few"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         },
         {
           "id": "score-version",
@@ -1136,10 +1136,10 @@
               "verdict": "noise"
             }
           ],
-          "runToRun": null
+          "runToRun": 0
         }
       ],
-      "showRunToRun": false
+      "showRunToRun": true
     }
   ],
   "questions": [

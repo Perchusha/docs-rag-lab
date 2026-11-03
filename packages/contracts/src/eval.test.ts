@@ -44,8 +44,35 @@ describe('parseEvalReport', () => {
   })
 })
 
+describe('a report with answers', () => {
+  const answers = {
+    models: {},
+    prompts: {},
+    rows: [],
+    comparisons: [],
+    answers: [],
+    verdicts: [],
+    support: [],
+  }
+
+  it('takes the outline of the answers', () => {
+    expect(parseEvalReport({ ...outline, answers }).ok).toBe(true)
+  })
+
+  it.each([
+    ['nothing in them', {}],
+    ['no models', { ...answers, models: undefined }],
+    ['no verdicts', { ...answers, verdicts: undefined }],
+  ])('refuses answers with %s', (_name, value) => {
+    expect(parseEvalReport({ ...outline, answers: value }).ok).toBe(false)
+  })
+})
+
 describe('parseEvalCalibration', () => {
-  const calibration = { report: { createdAt: 'then' }, agreement: [] }
+  const calibration = {
+    report: { createdAt: 'then' },
+    agreement: [{ dimension: 'correctness', agreed: 9, compared: 10, interval: [0.6, 0.98] }],
+  }
 
   it('takes the outline of a calibration', () => {
     expect(parseEvalCalibration(calibration)).toEqual({ ok: true, value: calibration })
@@ -56,6 +83,14 @@ describe('parseEvalCalibration', () => {
     ['no report', { agreement: [] }, 'report'],
     ['a report with no date', { report: {}, agreement: [] }, 'createdAt'],
     ['no agreement', { report: { createdAt: 'then' } }, 'agreement'],
+    [
+      'an agreement with no interval',
+      {
+        report: { createdAt: 'then' },
+        agreement: [{ dimension: 'support', agreed: 1, compared: 1 }],
+      },
+      'interval',
+    ],
   ])('refuses %s', (_name, value, message) => {
     const parsed = parseEvalCalibration(value)
 
@@ -65,7 +100,7 @@ describe('parseEvalCalibration', () => {
 })
 
 describe('parseEvalVerifyRecord', () => {
-  const record = { status: 'identical', rerun: { repoSha: 'abc' } }
+  const record = { status: 'identical', changedVectors: [], rerun: { repoSha: 'abc', at: 'then' } }
 
   it('takes the outline of a verify record', () => {
     expect(parseEvalVerifyRecord(record)).toEqual({ ok: true, value: record })
@@ -73,9 +108,11 @@ describe('parseEvalVerifyRecord', () => {
 
   it.each([
     ['something that is not an object', null, 'a JSON object'],
-    ['no status', { rerun: { repoSha: 'abc' } }, 'status'],
-    ['no re-run', { status: 'identical' }, 'rerun'],
-    ['a re-run with no SHA', { status: 'identical', rerun: {} }, 'repoSha'],
+    ['no status', { ...record, status: undefined }, 'status'],
+    ['a status this code does not know', { ...record, status: 'bogus' }, 'status'],
+    ['no changed vectors', { ...record, changedVectors: undefined }, 'changedVectors'],
+    ['no re-run', { ...record, rerun: undefined }, 'rerun'],
+    ['a re-run with no SHA', { ...record, rerun: { at: 'then' } }, 'repoSha'],
   ])('refuses %s', (_name, value, message) => {
     const parsed = parseEvalVerifyRecord(value)
 

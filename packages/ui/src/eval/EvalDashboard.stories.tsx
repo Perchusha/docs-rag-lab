@@ -113,6 +113,18 @@ export const FitsOneScreen: Story = {
   },
 }
 
+/** A report under another prompt says more on the first screen, and still fits. */
+export const FitsOneScreenNotCalibrated: Story = {
+  ...desktop,
+  args: { initial: evalFixtures.first },
+  play: async ({ canvasElement }) => {
+    await expect(
+      within(canvasElement).getByText(/not calibrated for these prompts, so/),
+    ).toBeVisible()
+    await expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(800)
+  },
+}
+
 /**
  * The app's body sets no colours, unlike the one in these stories, so the page paints its own
  * from the edge of the window. Without it axe fails every dark view of the live page, and no
@@ -270,7 +282,9 @@ export const NoIndex: Story = {
     }),
   },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(/there is no index to compare with/)).toBeVisible()
+    await expect(
+      within(canvasElement).getByText(/no index could be read to compare with/),
+    ).toBeVisible()
   },
 }
 

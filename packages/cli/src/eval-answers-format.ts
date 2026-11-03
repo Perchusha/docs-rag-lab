@@ -314,8 +314,8 @@ export function formatCalibration(calibration: EvalCalibration): string {
     calibration.blind === false
       ? 'Reported for comparison only.'
       : calibration.calibrated
-        ? 'The judge is calibrated for this report.'
-        : 'The judge did not reach the bar, so the answer metrics in this report are uncalibrated.',
+        ? 'This round reached the bar on what it measured.'
+        : 'This round did not reach the bar, so what it measured stays uncalibrated.',
   ]
     .join('\n\n')
     .concat('\n')

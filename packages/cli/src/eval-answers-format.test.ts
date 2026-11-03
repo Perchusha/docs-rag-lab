@@ -489,7 +489,7 @@ describe('formatCalibration, on later rounds', () => {
     })
 
     expect(text).toContain('A fresh round: correctness alone, with at most 1 disagreement in 10.')
-    expect(text).toContain('The judge is calibrated for this report.')
+    expect(text).toContain('This round reached the bar on what it measured.')
     expect(text).not.toContain('Refusal covers every answer')
     expect(text).not.toContain('Not blind')
   })
@@ -507,7 +507,7 @@ describe('formatCalibration, on later rounds', () => {
     expect(text).toContain('**Not blind.**')
     expect(text).toContain('decides nothing')
     expect(text).toContain('Reported for comparison only.')
-    expect(text).not.toContain('calibrated for this report')
+    expect(text).not.toContain('reached the bar')
     expect(text).not.toContain('uncalibrated')
   })
 })

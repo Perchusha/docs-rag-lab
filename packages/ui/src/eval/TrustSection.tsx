@@ -61,7 +61,7 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
         )
   const indexWords =
     indexDocsSha === null
-      ? 'there is no index to compare with'
+      ? 'no index could be read to compare with'
       : indexDocsSha === docs.sha
         ? 'the index is at the same commit'
         : `the index is now at ${indexDocsSha.slice(0, 8)}, so this describes other docs`

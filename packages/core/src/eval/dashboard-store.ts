@@ -47,7 +47,43 @@ export function runToShow(
   const found = runs.find((run) => run.id === id)
   return found !== undefined
     ? { shown: found, missing: undefined }
-    : { shown: defaultRun(runs), missing: id }
+    : { shown: defaultRun(runs), missing: id === '' ? undefined : id }
+}
+
+export interface DashboardPage extends DashboardRunList {
+  /** The run to show first, or undefined when none can be shown. */
+  initial: DashboardRun | undefined
+  /** What the address asked for, when no run has that name. */
+  missing: string | undefined
+}
+
+/**
+ * What the page shows. A report that lists and then does not build is named with those that
+ * could not be read, and the next run shows instead: one bad file never takes the page down.
+ */
+export function dashboardPage(
+  store: DashboardStore,
+  asked: string | string[] | undefined,
+): DashboardPage {
+  const list = dashboardRuns(store)
+  const unreadable = [...list.unreadable]
+  let { runs } = list
+  const chosen = runToShow(runs, asked)
+  // A report that exists and cannot be read is not a run that does not exist.
+  const missing =
+    chosen.missing !== undefined && unreadable.includes(chosen.missing) ? undefined : chosen.missing
+  let shown = chosen.shown
+  while (shown !== undefined) {
+    const { id } = shown
+    try {
+      return { runs, unreadable, initial: loadDashboardRun(store, id), missing }
+    } catch {
+      unreadable.push(id)
+      runs = runs.filter((run) => run.id !== id)
+      shown = defaultRun(runs)
+    }
+  }
+  return { runs, unreadable, initial: undefined, missing }
 }
 
 export function loadDashboardRun(store: DashboardStore, id: string): DashboardRun {

@@ -534,12 +534,33 @@ describe('buildDashboardRun', () => {
       expect(rowOf(twice, 'citations-hold').runToRun).toBe(1)
     })
 
-    it('does not count a question the second run did not reach as differing', () => {
+    it('counts a question only one run has as differing, rather than vouching for it', () => {
       const value = answered()
       value.rows = [...value.rows, rowResult(3, 2)]
       value.verdicts = [...value.verdicts, verdict(1, 3, 2, { sample: 2 })]
 
-      expect(rowOf(build(report({ answers: value })).answers, 'fully-correct').runToRun).toBe(0)
+      expect(rowOf(build(report({ answers: value })).answers, 'fully-correct').runToRun).toBe(7)
+    })
+
+    it('counts an answer that lost its citations in the second run as differing', () => {
+      const value = answered()
+      value.rows = [...value.rows, rowResult(3, 2)]
+      value.support = [
+        ...value.support,
+        ...[1, 2, 3, 4, 5, 6].map((i) => ({ ...support(i, 3, i === 1 ? false : true), sample: 2 })),
+      ]
+
+      expect(rowOf(build(report({ answers: value })).answers, 'citations-hold').runToRun).toBe(2)
+    })
+
+    it('leaves citations on a question the docs do not answer out of what holds', () => {
+      const value = answered({
+        support: [...answered().support, support(41, 2, true), support(41, 3, true)],
+      })
+
+      expect(
+        rowOf(build(report({ answers: value })).answers, 'citations-hold').figures[1],
+      ).toMatchObject({ count: 8, of: 8 })
     })
 
     it('counts false refusals on answerable questions, and right refusals apart', () => {
@@ -697,7 +718,7 @@ describe('buildDashboardRun', () => {
       })
       const { summary } = build(report({ answers: value })).answers ?? {}
 
-      expect(summary).toContain('Vector better on all citations hold.')
+      expect(summary).toContain('Vector better on citations that hold.')
       expect(summary).not.toContain('No difference between vector and hybrid')
     })
 
@@ -731,6 +752,30 @@ describe('buildDashboardRun', () => {
       expect(row.runToRun).toBe(4)
       expect(row.comparisons[0]).toMatchObject({ aAhead: 8, bAhead: 0, verdict: 'noise' })
       expect(section?.summary).toContain('No difference between vector and hybrid holds up.')
+    })
+
+    it('never says about as correct for a gap that noise took the verdict from', () => {
+      const value = answered({
+        verdicts: Array.from({ length: 8 }, (_, i) => i + 1).flatMap((i) => [
+          verdict(i, 0, 0),
+          verdict(i, 2, 2),
+          verdict(i, 3, 2),
+          verdict(i, 3, i <= 4 ? 2 : 0, { sample: 2 }),
+        ]),
+      })
+      value.rows = [...value.rows, rowResult(3, 2)]
+      const section = build(report({ answers: value })).answers
+
+      expect(rowOf(section, 'fully-correct').comparisons[1]).toMatchObject({
+        a: 'No RAG',
+        aAhead: 0,
+        bAhead: 8,
+        verdict: 'noise',
+      })
+      expect(section?.summary).not.toContain('about as correct')
+      expect(section?.summary).toContain(
+        'No difference between no RAG and RAG holds up on fully correct.',
+      )
     })
 
     it('says so at the top when the judge is not calibrated, and beside the numbers', () => {
@@ -897,6 +942,33 @@ describe('buildDashboardDetails', () => {
     expect(tags.map(({ question }) => question)).toContain('Fully correct, by tag')
     expect(score_?.rows[0]?.label).toBe('All questions')
     expect(score_?.rows[0]?.comparisons[0]).toMatchObject({ a: 'Vector', aAhead: 1, bAhead: 0 })
+  })
+
+  it('gives the same verdict by tag as the first screen, on the same data', () => {
+    const eight = Array.from({ length: 8 }, (_, i) => i + 1)
+    const answers = answersFixture({
+      rows: [rowResult(0), rowResult(2), rowResult(3), rowResult(3, 2)],
+      verdicts: eight.flatMap((i) => [
+        verdict(i, 2, 2),
+        verdict(i, 3, 0),
+        verdict(i, 3, i <= 4 ? 2 : 0, { sample: 2 }),
+      ]),
+    })
+    const { tags } = buildDashboardDetails({
+      report: report({ answers }),
+      questions,
+      calibrations: [],
+    })
+    const row = (question: string) =>
+      tags
+        .find((section) => section.question === question)
+        ?.rows.find(({ label }) => label === 'basic')
+
+    for (const question of ['Fully correct, by tag', 'Correctness score, 0 to 2']) {
+      expect(tags.find((section) => section.question === question)?.showRunToRun).toBe(true)
+      expect(row(question)?.runToRun).toBe(4)
+      expect(row(question)?.comparisons[0]).toMatchObject({ aAhead: 8, verdict: 'noise' })
+    }
   })
 
   it('puts the score on a scale of 0 to 2, and says so', () => {

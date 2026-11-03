@@ -463,8 +463,17 @@ export function evalCalibrateCommand(
   writeFileSync(`${stem}.json`, `${JSON.stringify(calibration, null, 2)}\n`)
   const text = formatCalibration(calibration)
   writeFileSync(`${stem}.md`, text)
-  rewriteAnswerMarkdown(ctx, source.id)
   ctx.out.write(text)
+  rewriteAnswerMarkdown(ctx, source.id)
+  const calibrations = readCalibrations(ctx.root, source.id)
+  const named = listRuns(ctx.root, source.id).runs.some(
+    ({ id }) => id === basename(args.path, '.json'),
+  )
+  ctx.out.write(
+    named
+      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable))}\n`
+      : '\nThis is a development report, so these labels count for no report the store reads.\n',
+  )
 }
 
 /**
@@ -475,12 +484,16 @@ function rewriteAnswerMarkdown(ctx: CommandContext, sourceId: string): void {
   const { rounds, unreadable } = readCalibrations(ctx.root, sourceId)
   for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
     if (!hasAnswers) continue
-    const report = readRun(ctx.root, sourceId, id)
-    writeFileSync(
-      join(reportsDir(ctx.root, sourceId), `${id}.md`),
-      reportMarkdown(report, (answers) =>
-        answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
-      ),
-    )
+    try {
+      writeFileSync(
+        join(reportsDir(ctx.root, sourceId), `${id}.md`),
+        reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
+          answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
+        ),
+      )
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+    }
   }
 }
