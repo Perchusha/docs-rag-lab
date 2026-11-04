@@ -70,6 +70,89 @@ function memoryIndex(): SourceIndex {
   return index
 }
 
+describe('a chunk with a context', () => {
+  const chunkWith = (context: string | null | undefined): ChunkWrite => ({
+    id: 'c1',
+    ordinal: 0,
+    headingPath: ['A'],
+    anchor: 'a',
+    blockTypes: ['prose'],
+    text: 'Plain text of the chunk.',
+    context,
+    metadata: {},
+    tokenCount: 5,
+    textHash: 'hash',
+    vector: Float32Array.from([1, 0, 0, 0]),
+  })
+  const write = (index: SourceIndex, context: string | null | undefined, resetVectors?: number) => {
+    index.applyChanges({
+      documents: [
+        {
+          path: 'a.md',
+          url: 'https://x.dev/a',
+          title: 'A',
+          docType: 'handbook',
+          contentHash: 'h',
+          lastChangedSha: 's',
+          chunks: [chunkWith(context)],
+        },
+      ],
+      deletePaths: [],
+      manifest: manifest(),
+      resetVectors,
+    })
+  }
+
+  it('stores none when none is given, and keyword search reads no such word', () => {
+    const index = openSourceIndex(':memory:')
+    write(index, undefined, DIMS)
+    expect(index.chunksById(['c1']).get('c1')?.context).toBeNull()
+    expect(index.chunkContexts('a.md')).toEqual(new Map([['c1', null]]))
+    expect(index.searchKeywords('"zebrafinch"', 5)).toEqual([])
+    index.close()
+  })
+
+  it('hands it to retrieval next to the text, which stays as it was', () => {
+    const index = openSourceIndex(':memory:')
+    write(index, 'About zebrafinch.', DIMS)
+    expect(index.chunksById(['c1']).get('c1')).toMatchObject({
+      context: 'About zebrafinch.',
+      text: 'Plain text of the chunk.',
+    })
+    expect(index.chunkContexts('a.md')).toEqual(new Map([['c1', 'About zebrafinch.']]))
+    index.close()
+  })
+
+  it('finds it by keyword, also after a later sync changes it, and not by the old word', () => {
+    const index = openSourceIndex(':memory:')
+    write(index, 'About zebrafinch.', DIMS)
+    expect(index.searchKeywords('"zebrafinch"', 5).map((c) => c.chunkId)).toEqual(['c1'])
+
+    write(index, 'About hummingbird.')
+    expect(index.searchKeywords('"zebrafinch"', 5)).toEqual([])
+    expect(index.searchKeywords('"hummingbird"', 5).map((c) => c.chunkId)).toEqual(['c1'])
+    index.close()
+  })
+
+  it('goes into the chunks hash, so a report knows which contexts it measured', () => {
+    const index = openSourceIndex(':memory:')
+    write(index, undefined, DIMS)
+    const plain = index.chunksHash()
+    write(index, 'About zebrafinch.')
+    expect(index.chunksHash()).not.toBe(plain)
+    index.close()
+  })
+
+  it('lists every chunk for comparing two indexes', () => {
+    const index = openSourceIndex(':memory:')
+    write(index, 'About zebrafinch.', DIMS)
+    expect(index.chunkFingerprints()).toEqual([
+      { id: 'c1', textHash: 'hash', context: 'About zebrafinch.' },
+    ])
+    index.close()
+  })
+})
+
 describe('fingerprints', () => {
   const vector = (x: number) => Float32Array.from([x, 0])
   const chunk = (id: string, text: string, x: number): ChunkWrite => ({

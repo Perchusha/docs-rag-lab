@@ -48,6 +48,19 @@ export type RerankSettings = VoyageRerankSettings
 
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
+/** The contexts of contextual retrieval (ADR-0014). The model is in `models.contextualize`. */
+export interface ContextualizeSettings {
+  effort: Effort
+  /** A context is a few sentences. A reply cut off by this is not kept. */
+  maxTokens: number
+  /** Calls at once for one document's chunks, after the first has written the cache. */
+  concurrency: number
+  /** The smallest prompt the model caches. Only the estimate reads it. */
+  minCacheableTokens: number
+  /** A run stops before the next call past this. */
+  maxUsd: number
+}
+
 export interface RetrievalSettings {
   /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
   strategy: 'vector' | 'hybrid' | 'rerank'
@@ -80,6 +93,7 @@ export interface Settings {
     judge: string
   }
   answer: { effort: Effort; maxTokens: number }
+  contextualize: ContextualizeSettings
   /** Answer metrics in eval (ADR-0012). */
   evalAnswers: {
     judge: { effort: Effort; maxTokens: number }

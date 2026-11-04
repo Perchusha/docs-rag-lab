@@ -4,6 +4,7 @@
 export { settings } from './settings.ts'
 export {
   defineSettings,
+  type ContextualizeSettings,
   type Effort,
   type EmbeddingsSettings,
   type ModelPrice,

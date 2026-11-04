@@ -53,15 +53,49 @@ export {
   type SetComparison,
 } from './rerank/batching-check.ts'
 export {
+  contextIdentity,
+  contextPromptHash,
+  ContextsStoppedError,
+  forecastContexts,
+  generateContexts,
+  pilotChunks,
+  planContexts,
+  type ContextChunk,
+  type ContextDocument,
+  type ContextPlan,
+  type GenerateContextsOptions,
+  type PlanContextsOptions,
+} from './contexts/generate.ts'
+export {
+  appendContext,
+  contextsPath,
+  readContexts,
+  writeContexts,
+  type ContextsHeader,
+  type StoredContext,
+} from './contexts/store.ts'
+export { checkVariantIndex, type VariantIndexCheck } from './contexts/check.ts'
+export { CONTROL_IDENTITY, controlContexts, headingPrefix } from './contexts/control.ts'
+export { contextualText } from './contexts/text.ts'
+export {
+  variantIndexPath,
   embeddingCachePath,
   IndexNotFoundError,
   openIndexes,
   rerankCachePath,
   sourceIndexPath,
+  type IndexVariant,
   type OpenIndexes,
   type OpenIndexesOptions,
 } from './indexes.ts'
-export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
+export {
+  contextDocumentsAt,
+  syncSource,
+  type SyncContexts,
+  type SyncProgress,
+  type SyncReport,
+  type SyncSourceOptions,
+} from './ingest.ts'
 export { retrieve, type RerankStep, type Retrieval, type RetrieveOptions } from './retrieve.ts'
 export { ask, usageSummary, type AskOptions } from './ask.ts'
 export {
@@ -229,5 +263,11 @@ export {
   type StreamHandlers,
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
-export { openEvalCache, type EvalCache } from '@docs-rag-lab/db'
-export { CHUNKER_VERSION, DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'
+export { openEvalCache, readIndexCommit, type EvalCache } from '@docs-rag-lab/db'
+export {
+  CHUNKER_VERSION,
+  DOC_TYPES,
+  estimateTokens,
+  type DocType,
+  type Source,
+} from '@docs-rag-lab/source-kit'

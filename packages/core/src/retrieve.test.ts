@@ -31,7 +31,7 @@ const settings = (overrides: Partial<RetrievalSettings> = {}): RetrievalSettings
   ...overrides,
 })
 
-function seeded(provider: RecordingProvider) {
+function seeded(provider: RecordingProvider, contexts: Record<string, string> = {}) {
   const index = openSourceIndex(':memory:')
   const cache = openEmbeddingCache(':memory:')
   const chunk = (id: string, text: string, vectorOf = text): ChunkWrite => ({
@@ -41,6 +41,7 @@ function seeded(provider: RecordingProvider) {
     anchor: id,
     blockTypes: ['prose'],
     text,
+    context: contexts[id] ?? null,
     metadata: {},
     tokenCount: 2,
     textHash: id,
@@ -326,11 +327,32 @@ describe('retrieve', () => {
       expect(second.trace.rerank?.ranked).toEqual(first.trace.rerank?.ranked)
     })
 
-    it('sends only the text today: the context does not reach the reranker in row 4', async () => {
+    it('sends the text alone from a plain index, as row 4 asks', async () => {
       const provider = new RecordingProvider()
       const { step, calls } = rerankStep(() => 0.5)
       const { hits } = await retrieve(rerankOptions(provider, step, { topK: 3 }))
       expect(calls[0]?.documents).toEqual(hits.map((hit) => hit.text))
+    })
+
+    it('sends the context and the text from a contextual index, and still answers from the text', async () => {
+      const provider = new RecordingProvider()
+      const contexts = { near: 'CONTEXT of near.', code: 'CONTEXT of code.' }
+      const { step, calls } = rerankStep(() => 0.5)
+      const { hits, trace } = await retrieve({
+        ...options(provider, {
+          settings: settings({ strategy: 'rerank', topK: 3 }),
+          rerank: step,
+        }),
+        ...seeded(provider, contexts),
+      })
+      const hitOf = (id: string) => hits.find((hit) => hit.chunkId === id)
+      const documents = calls[0]?.documents ?? []
+      expect(documents).toContain(`CONTEXT of near.\n\n${hitOf('near')?.text ?? ''}`)
+      expect(documents).toContain(`CONTEXT of code.\n\n${hitOf('code')?.text ?? ''}`)
+      expect(hitOf('near')?.context).toBe('CONTEXT of near.')
+      // What goes to the answer, and what the judge checks citations against, is the docs' text.
+      expect(JSON.stringify(trace.context)).not.toContain('CONTEXT')
+      expect(trace.context.map((chunk) => chunk.text)).toEqual(hits.map((hit) => hit.text))
     })
 
     it('refuses the strategy with no reranker', async () => {
@@ -353,6 +375,21 @@ describe('retrieve', () => {
         expect(hits.map((hit) => hit.chunkId)).toEqual(without.hits.map((hit) => hit.chunkId))
       },
     )
+  })
+
+  it('finds a chunk by a word only its context has: BM25 reads the context', async () => {
+    const provider = new RecordingProvider()
+    const question = 'zebrafinch?'
+    const contexts = { filler1: 'This part is about zebrafinch declarations.' }
+    const { trace } = await retrieve({
+      ...options(provider, { question }),
+      ...seeded(provider, contexts),
+    })
+    const keyword = trace.lists.find((list) => list.name === 'keyword')
+    expect(keyword?.candidates.map((candidate) => candidate.chunkId)).toEqual(['filler1'])
+    // And the plain index has no such word.
+    const plain = await retrieve(options(provider, { question }))
+    expect(plain.trace.lists.find((list) => list.name === 'keyword')?.candidates).toEqual([])
   })
 
   it('returns a versioned trace that survives JSON, with timings from the clock', async () => {

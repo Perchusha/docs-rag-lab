@@ -176,6 +176,8 @@ export interface ChunkWrite {
   metadata: Record<string, unknown>
   tokenCount: number
   textHash: string
+  /** The contextual retrieval prefix (M5). Missing means none, as in a plain index. */
+  context?: string | null | undefined
   /** A new vector, or undefined to keep the stored one (the chunk text did not change). */
   vector?: Float32Array | undefined
 }
@@ -213,7 +215,10 @@ export interface Candidate {
 /** A chunk with its document, as retrieval hands it to generation. */
 export interface SearchHit {
   chunkId: string
+  /** The chunk as the docs have it. Claude only ever gets this, and cites it. */
   text: string
+  /** The contextual retrieval prefix (M5), or null. For retrieval only (ADR-0014). */
+  context: string | null
   headingPath: string[]
   anchor: string
   blockTypes: string[]
@@ -280,6 +285,7 @@ interface ManifestRow {
 interface ChunkRow {
   id: string
   text: string
+  context: string | null
   heading_path: string
   anchor: string
   block_types: string
@@ -311,6 +317,7 @@ function toSearchHit(row: ChunkRow): SearchHit {
   return {
     chunkId: row.id,
     text: row.text,
+    context: row.context,
     headingPath: parseStringArray(row.heading_path),
     anchor: row.anchor,
     blockTypes: parseStringArray(row.block_types),
@@ -397,6 +404,24 @@ export class SourceIndex {
       )
       .all(path) as { id: string; text_hash: string }[]
     return new Map(rows.map((row) => [row.id, row.text_hash]))
+  }
+
+  /** Each chunk of a document with its context, by chunk ID. */
+  chunkContexts(path: string): Map<string, string | null> {
+    const rows = this.#db
+      .prepare(
+        'select c.id, c.context from chunks c join documents d on d.id = c.doc_id where d.path = ?',
+      )
+      .all(path) as { id: string; context: string | null }[]
+    return new Map(rows.map((row) => [row.id, row.context]))
+  }
+
+  /** Every chunk's ID, text hash and context, to compare two indexes. */
+  chunkFingerprints(): { id: string; textHash: string; context: string | null }[] {
+    const rows = this.#db
+      .prepare('select id, text_hash, context from chunks order by id')
+      .all() as { id: string; text_hash: string; context: string | null }[]
+    return rows.map((row) => ({ id: row.id, textHash: row.text_hash, context: row.context }))
   }
 
   /**
@@ -490,8 +515,8 @@ export class SourceIndex {
   chunksById(ids: readonly string[]): Map<string, SearchHit> {
     const rows = this.#db
       .prepare(
-        `select c.id, c.text, c.heading_path, c.anchor, c.block_types, c.metadata, c.token_count,
-                d.path, d.url, d.title, d.doc_type
+        `select c.id, c.text, c.context, c.heading_path, c.anchor, c.block_types, c.metadata,
+                c.token_count, d.path, d.url, d.title, d.doc_type
          from chunks c join documents d on d.id = c.doc_id
          where c.id in (select value from json_each(?))`,
       )
@@ -682,12 +707,12 @@ export class SourceIndex {
     const upsertChunk = db.prepare(
       `insert into chunks (id, doc_id, ordinal, heading_path, anchor, block_types, text, context,
                            metadata, token_count, text_hash)
-       values (@id, @docId, @ordinal, @headingPath, @anchor, @blockTypes, @text, null,
+       values (@id, @docId, @ordinal, @headingPath, @anchor, @blockTypes, @text, @context,
                @metadata, @tokenCount, @textHash)
        on conflict (id) do update set
          doc_id = excluded.doc_id, ordinal = excluded.ordinal, heading_path = excluded.heading_path,
          anchor = excluded.anchor, block_types = excluded.block_types, text = excluded.text,
-         metadata = excluded.metadata, token_count = excluded.token_count,
+         context = excluded.context, metadata = excluded.metadata, token_count = excluded.token_count,
          text_hash = excluded.text_hash
        returning pk`,
     )
@@ -700,6 +725,7 @@ export class SourceIndex {
         anchor: chunk.anchor,
         blockTypes: JSON.stringify(chunk.blockTypes),
         text: chunk.text,
+        context: chunk.context ?? null,
         metadata: JSON.stringify(chunk.metadata),
         tokenCount: chunk.tokenCount,
         textHash: chunk.textHash,

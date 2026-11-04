@@ -1,7 +1,7 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
 - Status: accepted as the test, before any run. The results come later, in this file.
-- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run.
+- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed.
 - Milestone: M5
 
 ## Context
@@ -17,6 +17,7 @@ M5 adds ladder rows 4 and 5. This ADR fixes the test before any run, so that the
 | Baseline | plain | hybrid, from M4's final report | 3 | from M4 |
 | H3 | plain | hybrid, then rerank | 4 | yes, twice |
 | Contextual alone | contextual | hybrid | none, retrieval only | no |
+| Control | control, a prefix from the headings instead of Claude | hybrid | none, retrieval only | no |
 | H4 | contextual | hybrid, then rerank | 5 | yes, twice |
 | H5 | plain | hybrid, with one weighted BM25 list | none | only if it passes, after asking |
 
@@ -28,6 +29,8 @@ The first four make a two-by-two, so that each effect can be read on its own:
 | Baseline against contextual alone | contextual retrieval alone |
 | Contextual alone against H4 | the reranker, on top of contexts |
 | H3 against H4 | contexts, on top of the reranker |
+| Baseline against control | saying the headings a second time, as a prefix |
+| Control against contextual alone | what Haiku's words add beyond that |
 
 RRF, k, weights, list depth, the targets and the golden set do not change.
 
@@ -61,7 +64,7 @@ This section first said to split each top 20 under the limit if every score matc
 
 ### H4: contextual retrieval
 
-For each chunk, `settings.models.contextualize` writes a short context from the whole document and the chunk, with the prompt from Anthropic's write-up. The document is sent with prompt caching: the first request for a document finishes before the others start, since a cache entry only exists once a response has begun.
+For each chunk, `settings.models.contextualize` writes a short context from the whole document and the chunk, with the prompt from Anthropic's write-up. The document is sent with prompt caching: the first request for a document finishes before the others start, since a cache entry only exists once a response has begun. A document with one chunk to write pays for no cache entry. The document is the chunks of that document joined, which is what the index holds. Thinking is off and effort is low, since a context is a sentence or two, and a reply cut off at 300 tokens or refused is not kept: the run stops, and keeps what it has. An em dash in a context becomes a hyphen, since the file is committed and the repository holds none.
 
 **The contexts feed both indexes, as in that write-up.**
 - **BM25:** `chunks_fts` already has a `context` column, kept current by triggers, and `bm25()` weighs its columns equally. Filling `context` is enough, and both keyword lists read it.
@@ -70,9 +73,43 @@ For each chunk, `settings.models.contextualize` writes a short context from the 
 
 **The contexts are for retrieval only.** Claude receives and cites the original chunk text, never the generated prefix, and the judge checks citations against that same text. Otherwise a citation would quote generated text instead of the docs. `generate.ts` builds its `search_result` blocks from `hit.text` alone today, and a test holds that with a chunk whose context is set. This differs on purpose from Anthropic's write-up, which recommends passing the contextualized chunk to the model. The reranker in row 5 does read the context, since that is retrieval. The inspector may show it, labelled as generated.
 
-**Stored, so that the index is reproducible without Haiku.** The contexts are committed as `eval/contexts/typescript/<docs sha>.jsonl`: a header with the model, the prompt hash and the docs commit, then one line per chunk with its ID, text hash and context. A sync reads this file first, and calls Haiku only for a chunk that is missing or whose text hash, model or prompt differs. They are not left only in `data/`, because a clean clone would then call Haiku again and get other text. The manifest and a report's identity record the model and prompt hash, and `chunksHash` already covers the context text. NOTICE gets a line, since the file is derived from the docs.
+**Stored, so that the index is reproducible without Haiku.** The contexts are committed as `eval/contexts/typescript/<docs sha>.jsonl`: a header with the model, the prompt hash and the docs commit, then one line per chunk with its ID, text hash and context. A sync reads this file first, and calls Haiku only for a chunk that is missing or whose text hash, model or prompt differs. They are not left only in `data/`, because a clean clone would then call Haiku again and get other text. The manifest and a report's identity record the model and prompt hash, as `model:hash` in the existing `contextModel`, and `chunksHash` already covers the context text. There is no schema change, since a migration would write the plain index and change `indexSchema`, and M4's reports could no longer be compared. The file is per docs commit, so a later commit starts a new one and pays again. That is enough while this index stays at one commit, and the estimate says so before anything is spent. NOTICE gets a line, since the file is derived from the docs.
 
-**A second index, so that M4 stays reproducible.** The contextual index is `data/sources/typescript.contextual.sqlite`, built at the same docs commit. `data/sources/typescript.sqlite` is never written, and its sha256 is `403465a8e1bd8296a8440aa35e78cb5d13f74ad121c5453e08936404900ca1c7` before this work. `data/cache.sqlite` only gains entries. A report has one index, so H3 and H4 are separate named reports, `m5-rerank` and `m5-contextual`, compared with `drl eval compare`.
+**A second index, so that M4 stays reproducible.** The contextual index is `data/sources/typescript.contextual.sqlite`, built at the same docs commit, which it takes from the plain index, so a contextual sync takes no `--at`. It reads every chunk each time, and embeds only what the index and the cache do not hold. `data/sources/typescript.sqlite` is never written, and its sha256 is `403465a8e1bd8296a8440aa35e78cb5d13f74ad121c5453e08936404900ca1c7` before this work. `data/cache.sqlite` only gains entries. A report has one index, so H3 and H4 are separate named reports, `m5-rerank` and `m5-contextual`, compared with `drl eval compare`.
+
+### The contextual index as built
+
+Built on 2026-11-04, after a pilot of 10 chunks that came to $0.0023 and forecast $0.27. No retrieval number exists yet.
+
+| | Estimate | Measured |
+|---|---|---|
+| Haiku, 994 contexts | $0.20, up to $0.30 | $0.28, or about $0.91 without caching |
+| Tokens in | | 790,228 uncached, 7,175,817 cache read, 597,294 cache write |
+| Tokens out | about 100 per context | 107,225, or 108 per context |
+| Voyage embeddings | 490K to 575K tokens, 59 to 69 minutes | 491,265 tokens in 183 requests, about 60 minutes |
+
+The contexts are 152 to 522 characters, with a median of 312, and the committed file is 445 KB. 993 of the 994 open with "This chunk" or "This section", so those words are in almost every chunk's context.
+
+Checked with no API call:
+- **Integrity check 3, after this sync:** `drl eval verify` on M4's final report says byte for byte, and the plain index's sha256 is unchanged.
+- **Integrity check 4, so far:** `drl eval check --contextual` finds the same 994 chunk IDs and text hashes at the same commit, 994 contexts that are not empty, and a clean golden check. The query hash waits for the first run.
+- **The contexts feed both indexes, on the real data, for all 994 chunks:** the stored vector is the cached vector of the context and the text, and the plain index holds no such vector. A word that only the context has finds the chunk by keyword.
+- **The file holds what the index holds,** in chunk ID order, with model `claude-haiku-5-5` and prompt hash `75010bc9e7d5`.
+
+### The control: a prefix from the headings
+
+The owner added this row to tell whether Haiku's contexts add anything beyond the heading metadata. It is the contextual pipeline, but each chunk's context is `document title > section path`, written by code with no call to Claude. It feeds the embeddings and BM25 the same way. It is `data/sources/typescript.control.sqlite`, at the same docs commit, and nothing needs committing, since the prefix comes from the chunk. It is measured for retrieval only, under `vector` and `hybrid`, with no answers and no reranker. A row with the reranker would be a separate hypothesis.
+
+**The chunk text already holds these headings, which changes what the control means.** Measured on the plain index, with no API call, for all 994 chunks:
+- Every chunk starts with a line `title > heading path`, so the title and the heading path are in the text of all 994.
+- For 751 chunks that line is exactly the control's prefix.
+- For the other 243, a pack of sections whose heading path is only their common parent, the prefix also names the section the chunk starts in. Each of those headings is in the text too, as a heading line of its own.
+- `chunks_fts` also indexes `heading_path` as a column of its own.
+
+So the prefix adds no word that a chunk does not already hold, and the baseline is already "the chunk with its headings". The control cannot show what headings are worth against none. What it can show:
+- **Baseline against contextual alone** already asks whether Haiku's contexts add anything beyond headings said once.
+- **Baseline against control** shows what saying them twice does: more weight on heading words in BM25, and a vector that leans on them.
+- **Control against contextual alone** tells apart two reasons contexts could help. Both rows put a prefix in the same place, so if contextual alone beats the baseline but not the control, the gain came from repeating what the chunk already says, not from what Haiku wrote.
 
 ### H5: the backtick-weighted BM25 candidate from ADR-0011
 
@@ -97,8 +134,8 @@ These come first. If one fails, the numbers are not read as a result: find the c
 
 1. Every run on the plain index has the baseline's hashes: queries `3cbc8c2527dd`, corpus `8224c2d1af73`, chunks `ba7aae0e36d9`.
 2. `vector` and `hybrid` in `m5-rerank` equal M4's final report in every field of `result`.
-3. `drl eval verify` on M4's final report says byte for byte, on the same vectors, at the start, after the contextual sync and at the end. The plain index's sha256 is unchanged.
-4. The contextual index has the same 994 chunk IDs and text hashes as the plain one, and 994 contexts that are not empty. `drl eval check` is clean, and the query hash is the baseline's.
+3. `drl eval verify` on M4's final report says byte for byte, on the same vectors, at the start, after the contextual and control syncs and at the end. The plain index's sha256 is unchanged.
+4. The contextual and control indexes each have the same 994 chunk IDs and text hashes as the plain one, and 994 contexts that are not empty. `drl eval check` is clean, and the query hash is the baseline's.
 5. Each question's rerank is one call, which scores each of its documents exactly once, and the top 8 comes from the fused top 20.
 6. `drl eval verify` on each M5 report says byte for byte, from the caches.
 7. Every cited text in rows 4 and 5 is found in that chunk's original text.
@@ -116,6 +153,7 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 | H3 | T and G |
 | H4 | T and G |
 | Contextual alone | T and G are reported. It has no answers, so it cannot be adopted by itself |
+| Control | T and G are reported. It has no answers, so it cannot be adopted by itself |
 | H5 | G on all 40 and on the 34 questions that did not suggest it, and among ts-0033, ts-0027 and ts-0004 none is worse and at least one is better |
 
 **A. No harm on answers,** for rows 4 and 5 against row 3. On fully correct, all citations hold and wrongly refused, row 3 is ahead by at most 2 questions net, and no verdict names row 3. Refused rightly has 5 questions, which is too few to decide.
@@ -131,6 +169,7 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 - **Only one passes:** it becomes the candidate.
 - **Both pass:** H3, the simpler one, unless H4 alone meets T, or `drl eval compare` of H3 and H4 calls H4 better on overall MRR or hit@1.
 - **Contextual alone passes, and neither H3 nor H4 does:** stop and ask.
+- **The control decides nothing by itself.** `drl eval compare` of the control and contextual alone is reported with the rest. If it does not call contextual alone better on overall MRR or hit@1, stop and ask before H4 is adopted, since Haiku's contexts would then show nothing that a prefix from the headings does not.
 - **H5 passes:** stop and ask, since rows 4 and 5 would then be run again on top of it, for about $3.70.
 - **A candidate does not change the app by itself.** On the free trial a rerank takes up to about a minute per question, which a chat cannot wait for. Whether the app's default moves is the owner's decision, after the result.
 
@@ -142,6 +181,7 @@ Made from the index and from M4's recorded costs, with no API call. Prices were 
 |---|---|
 | Haiku 5.5, 994 contexts, with prompt caching | $0.20, up to $0.30 at 300 tokens out per chunk. $0.62 without caching |
 | Voyage embeddings, 490K to 575K tokens | 59 to 69 minutes on the free trial, at M4's measured pace |
+| Voyage embeddings of the control, about 430K tokens | 50 to 60 minutes, and no Claude |
 | Voyage rerank, two passes, about 935K tokens | 45 to 55 minutes per pass |
 | Rows 4 and 5, answers and judge | $3.70, at $1.85 per row as M4 measured |
 | A second run of both rows | $3.70 |

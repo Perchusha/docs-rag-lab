@@ -27,6 +27,7 @@ import type { DocType, Source } from '@docs-rag-lab/source-kit'
 import { embedWithCache } from './embeddings/cached.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import type { RateLimiter } from './embeddings/rate-limit.ts'
+import { contextualText } from './contexts/text.ts'
 import { citationSource, citationTitle, sectionPartOf, sectionPathOf } from './generate.ts'
 import { analyzeQuery } from './query.ts'
 import { rerankWithCache } from './rerank/cached.ts'
@@ -190,7 +191,10 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
     const scored = ranking.slice(0, step.depth)
     const { scores, from } = await rerankWithCache(
       question,
-      scored.map((id) => recordOf(id).text),
+      scored.map((id) => {
+        const { context, text } = recordOf(id)
+        return contextualText(context, text)
+      }),
       { provider: step.provider, cache: step.cache, limiter: step.limiter, meter: options.meter },
     )
     const ranked = rerankedOrder(scored, scores)

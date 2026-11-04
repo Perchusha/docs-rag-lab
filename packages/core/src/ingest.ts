@@ -16,6 +16,8 @@ import {
   type SourceFile,
 } from '@docs-rag-lab/source-kit'
 
+import type { ContextDocument } from './contexts/generate.ts'
+import { contextualText } from './contexts/text.ts'
 import { embedWithCache, type EmbedProgress } from './embeddings/cached.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
 import type { RateLimiter } from './embeddings/rate-limit.ts'
@@ -26,6 +28,14 @@ export type SyncProgress =
   | { phase: 'parse'; files: number; mode: 'full' | 'incremental'; reason?: string }
   | { phase: 'embed'; progress: EmbedProgress }
   | { phase: 'write' }
+
+/** What makes a sync contextual (ADR-0014). Without it, a chunk is embedded as it is. */
+export interface SyncContexts {
+  /** The model and prompt hash that wrote them, for the manifest. */
+  identity: string
+  /** Each chunk's context, by chunk ID, from wherever the caller keeps them. */
+  resolve(documents: readonly ContextDocument[]): Promise<ReadonlyMap<string, string>>
+}
 
 export interface SyncSourceOptions {
   source: Source
@@ -40,6 +50,8 @@ export interface SyncSourceOptions {
   full?: boolean | undefined
   /** Index this commit instead of the head of the branch, for example to reproduce a report. */
   at?: string | undefined
+  /** Build a contextual index. Every chunk is then read again, and needs a context. */
+  contexts?: SyncContexts | undefined
   onProgress?: ((event: SyncProgress) => void) | undefined
   now?: () => Date
 }
@@ -70,6 +82,7 @@ function fullRebuildReason(options: SyncSourceOptions): string | undefined {
   const { index, provider, source } = options
   const manifest = index.getManifest()
   if (options.full === true) return 'requested'
+  if (options.contexts !== undefined) return 'a contextual sync reads every chunk'
   if (manifest === undefined) return 'no previous sync'
   if (manifest.embedModel !== provider.id) {
     return `embedding model changed from ${manifest.embedModel} to ${provider.id}`
@@ -94,6 +107,31 @@ interface ParsedFile {
   docType: string
   metadata: Record<string, unknown>
   chunks: Chunk[]
+}
+
+async function parseFile(source: Source, file: SourceFile, commitSha: string): Promise<ParsedFile> {
+  const doc = await source.parse(file, { commitSha })
+  return {
+    file,
+    url: doc.url,
+    title: doc.title,
+    docType: doc.docType,
+    metadata: doc.metadata,
+    chunks: chunkDocument(file.path, doc),
+  }
+}
+
+/** Every document at this commit as a contextual sync would read it, with no index and no call. */
+export async function contextDocumentsAt(
+  source: Source,
+  checkoutDir: string,
+  commit: string,
+): Promise<ContextDocument[]> {
+  const repo = await syncRepo(source, { checkoutDir, full: true, at: commit })
+  const parsed = await Promise.all(
+    listSourceFiles(checkoutDir, source).map((file) => parseFile(source, file, repo.headSha)),
+  )
+  return parsed.map(({ file, title, chunks }) => ({ path: file.path, title, chunks }))
 }
 
 export async function syncSource(options: SyncSourceOptions): Promise<SyncReport> {
@@ -133,16 +171,20 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
   })
 
   const parsed: ParsedFile[] = []
-  for (const file of files) {
-    const doc = await source.parse(file, { commitSha: repo.headSha })
-    parsed.push({
-      file,
-      url: doc.url,
-      title: doc.title,
-      docType: doc.docType,
-      metadata: doc.metadata,
-      chunks: chunkDocument(file.path, doc),
-    })
+  for (const file of files) parsed.push(await parseFile(source, file, repo.headSha))
+
+  const contexts = await options.contexts?.resolve(
+    parsed.map(({ file, title, chunks: docChunks }) => ({
+      path: file.path,
+      title,
+      chunks: docChunks,
+    })),
+  )
+  const contextOf = (chunk: Chunk): string | null => {
+    if (contexts === undefined) return null
+    const context = contexts.get(chunk.id)
+    if (context === undefined || context === '') throw new Error(`no context for ${chunk.id}`)
+    return context
   }
 
   // Which chunks need a vector: new ones, changed ones, or all after a model change.
@@ -151,6 +193,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
   const needVector: Chunk[] = []
   for (const { file, chunks: docChunks } of parsed) {
     const stored = index.chunkHashes(file.path)
+    const storedContexts = contexts === undefined ? undefined : index.chunkContexts(file.path)
     let touched = false
     for (const chunk of docChunks) {
       const storedHash = stored.get(chunk.id)
@@ -158,7 +201,9 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
       else if (storedHash !== chunk.textHash) chunks.changed++
       else chunks.unchanged++
       if (storedHash !== chunk.textHash) touched = true
-      if (resetVectors || storedHash !== chunk.textHash) needVector.push(chunk)
+      const newContext =
+        storedContexts !== undefined && storedContexts.get(chunk.id) !== contextOf(chunk)
+      if (resetVectors || storedHash !== chunk.textHash || newContext) needVector.push(chunk)
     }
     const kept = new Set(docChunks.map((chunk) => chunk.id))
     const dropped = [...stored.keys()].filter((id) => !kept.has(id)).length
@@ -169,7 +214,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
   }
   for (const path of deletePaths) chunks.deleted += index.chunkHashes(path).size
 
-  const texts = needVector.map((chunk) => chunk.text)
+  const texts = needVector.map((chunk) => contextualText(contextOf(chunk), chunk.text))
   let progress: EmbedProgress = {
     embedded: 0,
     toEmbed: 0,
@@ -206,6 +251,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
         anchor: chunk.anchor,
         blockTypes: chunk.blockTypes,
         text: chunk.text,
+        context: contextOf(chunk),
         metadata: {
           ...metadata,
           spans: chunk.spans,
@@ -231,7 +277,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
       syncedAt: (options.now?.() ?? new Date()).toISOString(),
       embedModel: provider.id,
       embedDimensions: provider.dimensions,
-      contextModel: null,
+      contextModel: options.contexts?.identity ?? null,
       chunkerVersion: CHUNKER_VERSION,
       parserVersion: source.parserVersion,
     },

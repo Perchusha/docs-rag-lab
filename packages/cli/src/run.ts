@@ -16,6 +16,8 @@ import {
   UnknownSourceError,
   UsageMeter,
   type DocType,
+  ContextsStoppedError,
+  type EmbeddingProvider,
   type EvalClient,
   type RerankProvider,
   type Source,
@@ -42,6 +44,7 @@ import {
 } from './eval-answers.ts'
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
+import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
 import { formatDuration } from './format.ts'
 
 export const USAGE = `Usage: drl <command> [options]
@@ -50,6 +53,14 @@ Commands:
   sync <source> [--full]      Sync, parse, chunk and embed a source (incremental by default)
       [--at <sha>]            Index this commit (a full SHA) instead of the head of the branch;
                               the next sync without it returns to the head
+      [--contextual]          Build the contextual index instead, at the plain index's commit
+                              (ADR-0014): Claude writes a context per chunk, kept under
+                              eval/contexts/, and each chunk is embedded with its context.
+                              Spends money: prints the estimate, and needs --yes to go on
+      [--pilot <n>]           With --contextual: only write contexts for n chunks, and print
+                              them with the forecast for the rest
+      [--control]             Build its control instead: the same, with the prefix "title >
+                              section path" from code, and no call to Claude. Needs --yes
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -85,6 +96,8 @@ Commands:
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
       [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
+      [--contextual]          That index, also against the plain one's chunks
+      [--control]             That index, also against the plain one's chunks
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
@@ -106,6 +119,8 @@ Set DRL_DEBUG=1 to print stack traces of failures.
 
 /** More than any golden set will reach; it only keeps the flag's error message sensible. */
 const MAX_SET_VERSION = 9999
+/** A pilot is a look at the prompt and the cost, not a first part of the run. */
+const MAX_PILOT = 50
 
 /** The Source objects for the configured sources. Settings hold their options as data. */
 export function sourcesFor(settings: Settings): Source[] {
@@ -127,6 +142,8 @@ export interface RunOptions {
   createEvalClient?: () => EvalClient
   /** For tests: the reranker. */
   createReranker?: () => RerankProvider
+  /** For tests: the embedding provider. */
+  createProvider?: () => EmbeddingProvider
 }
 
 function positiveInteger(
@@ -183,6 +200,8 @@ function refuseStrayEvalFlags(
     record?: boolean | undefined
     after?: string | undefined
     'sample-of'?: string | undefined
+    contextual?: boolean | undefined
+    control?: boolean | undefined
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
@@ -200,6 +219,8 @@ function refuseStrayEvalFlags(
       ? ['--name']
       : []),
     ...(values.record === true && subcommand !== 'verify' ? ['--record'] : []),
+    ...(values.contextual === true && subcommand !== 'check' ? ['--contextual'] : []),
+    ...(values.control === true && subcommand !== 'check' ? ['--control'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
       ? ['--after']
       : []),
@@ -231,7 +252,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof IndexNotFoundError ||
     error instanceof InvalidRequestError ||
     error instanceof GoldenSetError ||
-    error instanceof RerankRejectedError
+    error instanceof RerankRejectedError ||
+    error instanceof ContextsStoppedError
   )
 }
 
@@ -252,6 +274,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       options: {
         full: { type: 'boolean', default: false },
         at: { type: 'string' },
+        contextual: { type: 'boolean', default: false },
+        control: { type: 'boolean', default: false },
+        pilot: { type: 'string' },
         accept: { type: 'boolean', default: false },
         'set-version': { type: 'string' },
         name: { type: 'string' },
@@ -294,6 +319,29 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --at works only with sync\n\n${USAGE}`)
     return 2
   }
+  const variant = values.contextual ? 'contextual' : values.control ? 'control' : undefined
+  if (values.contextual && values.control) {
+    err.write(`drl: --contextual and --control are two different indexes\n\n${USAGE}`)
+    return 2
+  }
+  if (variant !== undefined && command !== 'sync' && command !== 'eval') {
+    err.write(`drl: --${variant} works only with sync and eval check\n\n${USAGE}`)
+    return 2
+  }
+  if (values.pilot !== undefined && !(command === 'sync' && values.contextual)) {
+    err.write(`drl: --pilot works only with sync --contextual\n\n${USAGE}`)
+    return 2
+  }
+  if (command === 'sync' && variant !== undefined && (values.full || values.at !== undefined)) {
+    err.write(
+      `drl: sync --${variant} always reads every chunk, at the plain index's commit, so it takes no --full or --at\n\n${USAGE}`,
+    )
+    return 2
+  }
+  if (command === 'sync' && values.yes && variant === undefined) {
+    err.write(`drl: --yes works with sync only together with --contextual or --control\n\n${USAGE}`)
+    return 2
+  }
   if (values.accept && command !== 'eval') {
     err.write(`drl: --accept works only with eval check\n\n${USAGE}`)
     return 2
@@ -317,6 +365,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       sources,
       root,
       createReranker: options.createReranker,
+      createProvider: options.createProvider,
     })
     const ctx = {
       settings,
@@ -328,12 +377,26 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       now,
       createEvalClient: options.createEvalClient,
       createReranker: options.createReranker,
+      createProvider: options.createProvider,
     }
     if (command === 'sync') {
       const source = rest[0]
       if (source === undefined)
         throw new CliError('sync needs a source id, for example: drl sync typescript')
-      await syncCommand(ctx, { source, full: values.full, at: commitOf(values.at) })
+      if (values.control) {
+        await syncControlCommand(ctx, { source, yes: values.yes })
+      } else if (values.contextual) {
+        await syncContextualCommand(ctx, {
+          source,
+          yes: values.yes,
+          pilot:
+            values.pilot === undefined
+              ? undefined
+              : positiveInteger(values.pilot, 10, '--pilot', MAX_PILOT),
+        })
+      } else {
+        await syncCommand(ctx, { source, full: values.full, at: commitOf(values.at) })
+      }
     } else if (command === 'ask' || command === 'search') {
       const question = rest.join(' ').trim()
       if (question === '') {
@@ -408,6 +471,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         evalCheckCommand(ctx, {
           source: values.source,
           accept: values.accept,
+          variant,
           setVersion:
             setVersion === undefined
               ? undefined

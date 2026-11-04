@@ -140,7 +140,7 @@ export interface EvalIdentity {
   /** The index's migration version: a change here can change what keyword search finds. */
   indexSchema: number
   embedModel: string
-  /** The model of the contextual retrieval prefixes (M5), or null. */
+  /** The model and prompt hash of the contextual retrieval prefixes (ADR-0014), or null. */
   contextModel: string | null
   /** A hash of every chunk's ID, text hash and context, so the same SHA is known to mean the same corpus. */
   chunksHash: string

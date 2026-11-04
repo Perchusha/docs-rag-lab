@@ -38,6 +38,14 @@ export const settings = defineSettings({
     judge: 'claude-opus-5-5',
   },
   answer: { effort: 'low', maxTokens: 16_000 },
+  contextualize: {
+    effort: 'low',
+    maxTokens: 300,
+    concurrency: 4,
+    minCacheableTokens: 512,
+    // ADR-0014 estimates $0.20, and up to $0.30.
+    maxUsd: 1,
+  },
   evalAnswers: {
     judge: { effort: 'medium', maxTokens: 8_000 },
     concurrency: 4,

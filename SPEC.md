@@ -113,6 +113,7 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 - The embedding cache is shared: `data/cache.sqlite`.
 - Eval answers and judge verdicts are cached in `data/eval-cache.sqlite`, so a rerun does not pay twice (ADR-0009).
 - Rerank calls are cached in `data/rerank-cache.sqlite`, one entry per call, since a score depends on the rest of its call (ADR-0014).
+- Two more indexes of a source are measured against the plain one: `data/sources/<source-id>.contextual.sqlite` and `.control.sqlite` (ADR-0014). A sync never writes one of them while it builds another.
 - `data/` and `.cache/` are gitignored.
 
 ## 5. Tech stack
@@ -469,7 +470,7 @@ Both were tested on the full set under criteria fixed first, alone and together,
 **Costs:**
 - The Anthropic API is billed separately from a Claude subscription.
 - Voyage is billed per token.
-- Contextualization runs once per chunk and is cached. Re-syncs only pay for changed chunks.
+- Contextualization runs once per chunk and is kept in a committed file per docs commit, so a re-sync at that commit pays nothing. A later commit starts a new file and pays again, and the estimate says so first (ADR-0014).
 
 ## 15. Open decisions
 

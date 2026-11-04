@@ -182,7 +182,7 @@ function costOf(message: Anthropic.Message, pricing: PricingSettings): number {
 }
 
 /** Runs work with a limited number at once, and stops starting more once told to. */
-async function forEachLimit<T>(
+export async function forEachLimit<T>(
   items: readonly T[],
   limit: number,
   work: (item: T) => Promise<void>,
