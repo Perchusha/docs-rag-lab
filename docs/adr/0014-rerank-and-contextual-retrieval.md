@@ -1,7 +1,7 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
 - Status: accepted as the test, before any run. The results come later, in this file.
-- Date: 2026-11-03
+- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run.
 - Milestone: M5
 
 ## Context
@@ -35,19 +35,29 @@ RRF, k, weights, list depth, the targets and the golden set do not change.
 
 `rerank-3` scores the fused top 20, and the top 8 of that order go to the answer. Ties keep the fused order. Ranks below 20 keep the fused order too, so MRR still has a depth of 50. Row 4 sends the chunk's text. Row 5 sends the context and the text.
 
-**Batching.** Rerank is on the Atlas free trial, and the owner's standing decision is to add no payment method. Measured from the index with no API call, a rerank of the fused top 20 weighs a median of about 9,700 billed tokens and at most about 11,200. 17 of 45 requests would pass the limit of 10K tokens a minute by themselves, and with contexts of 100 tokens per chunk 42 of 45 would. So each question's top 20 is split into calls under the limit, with the existing rate limiter waiting between them. That takes about a minute per question, so about an hour per pass.
+**One call per question.** Each question's top 20 goes to Voyage as one call, so that all its scores come from the same set of documents. The check below ruled out splitting it.
 
-**This rests on a check, made first in PR 2.** A cross-encoder should score each pair of query and document on its own, so splitting should not change a score, but Voyage's embeddings do depend on the rest of the batch. So, with real documents:
-- rerank the same documents in one call, then split across two calls, then in another order, and compare every score exactly;
-- rerank the first call again, to tell jitter from an effect of the batch.
+**Paced, with no spend.** Rerank is on the Atlas free trial, and the owner's standing decision is to add no payment method. The real constraint is no spend. The limit of 10K tokens a minute only mattered as a way to avoid rejections. Measured from the index, at the largest billed-to-estimated ratio the check saw, a top 20 weighs at most about 11,100 billed tokens, and 17 of 45 pass 10K by themselves. With contexts of 100 tokens per chunk it is at most about 13,100, and 44 of 45 do. Voyage accepted the largest call as one request, a minute after the check, and again a minute later with about 100 tokens more per document: 10,936 and 12,871 billed tokens. So calls over 10K are sent, and the rate limiter paces them so that the average stays under 10K a minute: a call of 12K holds the next one for 72 seconds. A pass takes 45 to 55 minutes.
 
-If every score matches, the depth stays at 20, and the result and the batching are recorded in the section below before any run. If any differs, stop and tell the owner, and a smaller depth is fixed here before any run.
+**The fallback, fixed before any result.** If Voyage rejects a rerank call for its limits or its size, the run stops and the owner is told. The reranker does not retry those. A server error or a network failure is not a rejection, and is retried as usual. The fallback is a depth of 15 for both rows, and no other depth: at 15 the largest call stays under 10K with contexts of up to 100 tokens per chunk. What was measured before the switch is not read as a result, so the calls for rows 4 and 5 are made before either row's numbers are read, and both rows run again at 15. At that depth ts-0038, at rank 17, is out of the reranker's reach.
 
-**Cache.** Scores are cached per pair, by model, query and document text, in `data/cache.sqlite`. Reruns and `drl eval verify` then cost nothing. A cache per pair is only sound if the check passes.
+**Cache.** Scores are cached per call, by model, query and the documents as sent, in `data/rerank-cache.sqlite`, not per pair: a pair's score depends on the rest of its call. A cached call replays the scores exactly, so reruns and `drl eval verify` cost nothing. It is a file of its own, so that `data/cache.sqlite` keeps its schema and M4's reports never touch it.
 
 ### The batching check
 
-To be filled in by PR 2, before any run.
+A finding, made first in PR 2, on 2026-11-04, with `drl eval rerank-check`. A cross-encoder should score each pair of query and document on its own, but Voyage's embeddings depend on the rest of the batch, so this was measured before any run. Each of ts-0025, ts-0032 and ts-0036, the first answerable questions whose fused top 20 fits the limit, was scored in one call of all 20. Then every score was compared exactly with that call's:
+
+| Composition | Scores compared | Differ | Largest difference |
+|---|---|---|---|
+| The same call again | 60 | 0 | 0 |
+| The same documents, reversed | 60 | 0 | 0 |
+| Two halves | 60 | 4 | 0.00000006 |
+| The split first planned here, three calls under 3,600 estimated tokens each | 60 | 11 | 0.00047 |
+| The shortest, middle and longest document, each alone | 9 | 6 | 0.00047 |
+
+**Identical sets give identical scores, in any order. Different sets shift some scores, by up to 0.0005.** So the split first planned here, and a cache per pair, were not sound: a question's scores would have come from different sets and been compared with each other. The order of the compared documents did not change in any of these, but three questions are too few to rely on that. Why scores shift is not known. Padding within a batch would explain it, and that was not tested.
+
+This section first said to split each top 20 under the limit if every score matched, and otherwise to fix a smaller depth. The owner chose to keep the depth, in one call per question, with the fallback above.
 
 ### H4: contextual retrieval
 
@@ -74,8 +84,8 @@ The weight of 2 is fixed here, because it is what the word gets today, and there
 
 Known before any run, from M4's final report:
 
-- **The reranker can reach 39 of 40 primary anchors.** Hybrid has 19 at rank 1, 15 at ranks 2 to 3, 2 at ranks 4 to 8 and 3 at ranks 9 to 20 (ts-0039, ts-0022, ts-0038). ts-0024 is at rank 40, out of reach, so row 4's hit@8 cannot pass 39 of 40.
-- **Every target anchor is in reach:** ts-0033 at 3, ts-0027 at 9, ts-0004 at 7, and the two ts-0040 anchors at 3 and 6. The reranker can also push those last two out of the top 8.
+- **The reranker can reach 39 of 40 primary anchors.** Hybrid has 19 at rank 1, 15 at ranks 2 to 3, 2 at ranks 4 to 8 and 3 at ranks 9 to 20 (ts-0039, ts-0022, ts-0038). ts-0024 is at rank 40, out of reach, so row 4's hit@8 cannot pass 39 of 40, or 38 of 40 at the fallback's depth.
+- **Every target anchor is in reach, also at the fallback's depth:** ts-0033 at 3, ts-0027 at 9, ts-0004 at 7, and the two ts-0040 anchors at 3 and 6. The reranker can also push those last two out of the top 8.
 - **Contexts change every list,** so ts-0024 can come into reach in rows with contexts.
 - **All 40 questions can move under H3 and H4,** so a significant result is possible, at 6 to 0 for example.
 - **H5 changes the query of 13 questions,** H1's list in ADR-0011: ts-0002, 0003, 0004, 0007, 0010, 0012, 0025, 0026, 0027, 0029, 0033, 0034, 0035. Six of them suggested the idea (ts-0004, 0010, 0027, 0033, 0034, 0035), so they cannot be its evidence.
@@ -89,7 +99,7 @@ These come first. If one fails, the numbers are not read as a result: find the c
 2. `vector` and `hybrid` in `m5-rerank` equal M4's final report in every field of `result`.
 3. `drl eval verify` on M4's final report says byte for byte, on the same vectors, at the start, after the contextual sync and at the end. The plain index's sha256 is unchanged.
 4. The contextual index has the same 994 chunk IDs and text hashes as the plain one, and 994 contexts that are not empty. `drl eval check` is clean, and the query hash is the baseline's.
-5. Each rerank scores each of its documents exactly once, and the top 8 comes from the fused top 20.
+5. Each question's rerank is one call, which scores each of its documents exactly once, and the top 8 comes from the fused top 20.
 6. `drl eval verify` on each M5 report says byte for byte, from the caches.
 7. Every cited text in rows 4 and 5 is found in that chunk's original text.
 
@@ -132,7 +142,7 @@ Made from the index and from M4's recorded costs, with no API call. Prices were 
 |---|---|
 | Haiku 5.5, 994 contexts, with prompt caching | $0.20, up to $0.30 at 300 tokens out per chunk. $0.62 without caching |
 | Voyage embeddings, 490K to 575K tokens | 59 to 69 minutes on the free trial, at M4's measured pace |
-| Voyage rerank, two passes, about 935K tokens | about an hour per pass |
+| Voyage rerank, two passes, about 935K tokens | 45 to 55 minutes per pass |
 | Rows 4 and 5, answers and judge | $3.70, at $1.85 per row as M4 measured |
 | A second run of both rows | $3.70 |
 | **Claude, in all** | **about $7.60**, or about $11.30 if H5 passes |
@@ -144,7 +154,8 @@ Voyage's tokens stay inside the 200M free tokens per model, and without a paymen
 ## Alternatives considered
 
 - **A payment method on Atlas.** It would end the waiting and the batching. The owner has decided against it.
-- **A smaller depth from the start.** It would fit the limit, but the SPEC says 20, and depth below 20 is only for the case where the batching check fails.
+- **Splitting each top 20 under the limit.** It would stay under 10K a minute for every call, but the batching check shows that a question's scores would then come from different sets.
+- **A smaller depth from the start.** It would fit the limit, but the SPEC says 20, and it loses reach. It is the fallback, at 15, if Voyage rejects calls.
 - **Contexts in the existing index, with a toggle.** It would change `chunksHash`, and M4's reports could no longer be verified.
 - **Passing the contexts to Claude,** as Anthropic's write-up recommends. Native citations quote what Claude receives, so they could quote generated text.
 - **Contextual alone as a ladder row.** The ladder in the SPEC is unchanged. It is measured so that H4 can be read, and it has no answers.
