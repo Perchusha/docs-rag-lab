@@ -83,7 +83,7 @@ export interface Settings {
   /** Source checkouts, relative to the repository root (gitignored). */
   cacheDir: string
   /** Options per source, keyed by source ID. Hosts build the Source objects (the CLI in sourcesFor). */
-  sources: { typescript: SourceSettings }
+  sources: { typescript: SourceSettings; react: SourceSettings }
   embeddings: EmbeddingsSettings
   rerank: RerankSettings
   models: {

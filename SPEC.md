@@ -213,11 +213,11 @@ Sync, diffing, hashing and chunking live in `source-kit`, and the embedding cach
 
 ## 8. Initial sources
 
-Measured on 2026-10-31:
-- React learn + reference: about 183 files, about 3.2 MB of markdown.
-- TypeScript, the indexed set below: 248 files, 1.85 MB (from the GitHub tree at `205122bb`).
+Measured:
+- React, the indexed set below: 180 files, 3.14 MB (at `2177e28d`, 2026-11-05).
+- TypeScript, the indexed set below: 248 files, 1.85 MB (from the GitHub tree at `205122bb`, 2026-10-31).
 
-That is roughly 0.8M and 0.5M tokens (TypeScript: about 506K estimated tokens in 994 chunks), well above the ~200k-token size where Anthropic suggests putting a whole knowledge base in the prompt instead of using RAG.
+That is roughly 0.8M and 0.5M tokens (React: about 838K estimated tokens in 1,586 chunks; TypeScript: about 506K in 994), well above the ~200k-token size where Anthropic suggests putting a whole knowledge base in the prompt instead of using RAG.
 
 Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 
@@ -247,12 +247,22 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 
 ### React
 - **Repo and license:** `reactjs/react.dev`, branch `main`. Content is CC BY 4.0 (`LICENSE-DOCS.md`).
-- **Paths:** `src/content/learn/` and `src/content/reference/`.
-- **MDX components:** `useState.md` uses `<Sandpack>`, `<Solution>`, `<Recipes>`, `<Pitfall>`, `<Intro>`, `<InlineToc>` and `<DeepDive>`. Survey all components in M6.
-  - Keep code from `<Sandpack>` as code blocks.
-  - Keep `<Pitfall>`, `<DeepDive>` and `<Note>` as `callout` blocks with a variant.
-  - Drop pure layout components.
-- **URLs:** the path maps to `https://react.dev/<section>/<slug>`.
+- **Paths** (markdown files and bytes at `2177e28d`; `docType` in the last column):
+
+  | Path | Files | Bytes | docType |
+  |---|---|---|---|
+  | `src/content/learn/` (without `rsc-sandbox-test.md`, which tests the site's sandbox and is no page) | 51 | 1,437,594 | handbook |
+  | `src/content/reference/` | 129 | 1,704,322 | reference |
+  | **Total** | **180** | **3,141,916** | |
+
+- **MDX components:** ADR-0016 records what becomes of each, from a survey of every file. A component not in that survey stops the parser, with its file and line.
+  - Each visible file of a `<Sandpack>` is a code block, with its language and file name. Files marked `hidden` are dropped.
+  - `<Pitfall>`, `<DeepDive>`, `<Note>` and other boxes are `callout` blocks, with the label the site shows as the variant. A long one is cut between its blocks.
+  - `<Recap>`, `<Challenges>` and `<Recipes>` are sections, since each is a heading with an anchor on the site.
+  - Pictures give their alt text and caption, and pure layout components leave no trace.
+- **URLs:** the path under `src/content/` maps to `https://react.dev/<path>`, keeping the case, and an `index.md` stands for its folder. All 180 verified on the live site.
+- **Anchors:** every heading writes its id, as `## Usage {/*usage*/}`, and the anchor is that id.
+- **Status:** a page's `version` frontmatter (`experimental`, `canary`, `rc`) goes in `metadata` and beside the title, which starts every chunk, as the site shows it. Pages state no dates of their own.
 
 ## 9. Pipeline
 

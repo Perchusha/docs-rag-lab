@@ -103,8 +103,10 @@ describe('run', () => {
   it('names the configured sources when the source is unknown', async () => {
     vi.stubEnv('VOYAGE_API_KEY', 'pa-test')
     const err = capture()
-    expect(await run(['sync', 'react'], { out: capture().writer, err: err.writer, root })).toBe(1)
-    expect(err.text()).toContain('unknown source "react" (configured: typescript)')
+    expect(await run(['sync', 'rust-book'], { out: capture().writer, err: err.writer, root })).toBe(
+      1,
+    )
+    expect(err.text()).toContain('unknown source "rust-book" (configured: typescript, react)')
   })
 
   it('validates --strategy and --doc-type before calling any API', async () => {
