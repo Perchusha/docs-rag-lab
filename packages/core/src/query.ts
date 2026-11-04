@@ -50,12 +50,25 @@ const IDENTIFIER = /[A-Za-z_$][\w$]*/g
 const CAMEL_CASE = /^[a-z_$][\w$]*[a-z0-9][A-Z]/
 // A command-line flag outside backticks: --strict, --erasableSyntaxOnly.
 const FLAG = /(?:^|\s)--([A-Za-z][\w-]*)/g
+// One lowercase word: `satisfies`, `strict`. Not code-shaped, unlike `--strict` or `Omit`.
+const PLAIN_WORD = /^\p{Ll}+$/u
 
-function exactTokensOf(question: string, sourceTokens: readonly string[]): ExactToken[] {
+export interface QueryOptions {
+  /** weighted: H5 of ADR-0014, a plain word in backticks counts twice in the keyword query. */
+  backtickWords?: 'weighted' | undefined
+}
+
+function exactTokensOf(
+  question: string,
+  sourceTokens: readonly string[],
+  weighted: boolean,
+): ExactToken[] {
   const found: ExactToken[] = []
   for (const match of question.matchAll(/`([^`]+)`/g)) {
+    const written = (match[1] ?? '').trim()
+    if (weighted && PLAIN_WORD.test(written)) continue
     // `--strict` is written strict on option pages and --strict in release notes.
-    found.push({ token: (match[1] ?? '').trim().replace(/^-+/, ''), from: 'backticks' })
+    found.push({ token: written.replace(/^-+/, ''), from: 'backticks' })
   }
   const outsideCode = question.replace(/`[^`]*`/g, ' ')
   for (const match of outsideCode.matchAll(FLAG))
@@ -79,7 +92,12 @@ function exactTokensOf(question: string, sourceTokens: readonly string[]): Exact
  * source (Source.exactTokens): TypeScript turns TS2345 into 2345, the way
  * its docs write error codes.
  */
-export function analyzeQuery(question: string, sourceTokens: readonly string[] = []): QueryPlan {
+export function analyzeQuery(
+  question: string,
+  sourceTokens: readonly string[] = [],
+  options: QueryOptions = {},
+): QueryPlan {
+  const weighted = options.backtickWords === 'weighted'
   const words = question.match(/[\p{L}\p{N}_]+/gu) ?? []
   const terms = [
     ...new Set(
@@ -88,10 +106,17 @@ export function analyzeQuery(question: string, sourceTokens: readonly string[] =
         .filter((word) => longEnough(word) && !STOPWORDS.has(word)),
     ),
   ]
-  const exactTokens = exactTokensOf(question, sourceTokens)
+  const exactTokens = exactTokensOf(question, sourceTokens, weighted)
+  const twice = new Set(
+    weighted
+      ? [...question.matchAll(/`([^`]+)`/g)]
+          .map((match) => (match[1] ?? '').trim())
+          .filter((written) => PLAIN_WORD.test(written))
+      : [],
+  )
   return {
     terms,
-    keywordQuery: orQuery(terms),
+    keywordQuery: orQuery(terms.flatMap((term) => (twice.has(term) ? [term, term] : [term]))),
     exactTokens,
     exactQuery: orQuery(exactTokens.map(({ token }) => token)),
   }

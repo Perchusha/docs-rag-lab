@@ -48,6 +48,38 @@ function indexOf(texts: string[]) {
   return index
 }
 
+describe('analyzeQuery, with plain backticked words weighted (H5)', () => {
+  const weighted = { backtickWords: 'weighted' as const }
+
+  it('moves a plain word from the exact list to count twice in the keyword list', () => {
+    const plan = analyzeQuery('What does `satisfies` check?', [], weighted)
+    expect(plan.keywordQuery).toBe('"satisfies" OR "satisfies" OR "check"')
+    expect(plan.terms).toEqual(['satisfies', 'check'])
+    expect(plan.exactTokens).toEqual([])
+    expect(plan.exactQuery).toBe('')
+  })
+
+  it('leaves code-shaped tokens in the exact list, as H1 did', () => {
+    const plan = analyzeQuery('Does `--strict` or `Omit` or `a.b` matter?', [], weighted)
+    expect(plan.exactTokens.map(({ token }) => token)).toEqual(['strict', 'Omit', 'a.b'])
+    expect(plan.keywordQuery).not.toContain('"strict" OR "strict"')
+  })
+
+  it('changes nothing without the setting', () => {
+    const question = 'What does `satisfies` check?'
+    const plan = analyzeQuery(question)
+    expect(plan.keywordQuery).toBe('"satisfies" OR "check"')
+    expect(plan.exactTokens).toEqual([{ token: 'satisfies', from: 'backticks' }])
+    expect(analyzeQuery(question, [], {})).toEqual(plan)
+  })
+
+  it('keeps flags and identifiers outside backticks in the exact list', () => {
+    const plan = analyzeQuery('Is --strict like noImplicitAny and `unknown`?', [], weighted)
+    expect(plan.exactTokens.map(({ token }) => token)).toEqual(['strict', 'noImplicitAny'])
+    expect(plan.keywordQuery).toContain('"unknown" OR "unknown"')
+  })
+})
+
 describe('analyzeQuery', () => {
   it('keeps topic words, lowercased and unique, and drops stopwords and short words', () => {
     const plan = analyzeQuery('What does the Strict flag do? Is strict on by default?')

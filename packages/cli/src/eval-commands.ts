@@ -147,7 +147,9 @@ export async function evalRunCommand(
   const strategies =
     args.strategy !== undefined
       ? [args.strategy]
-      : name === undefined || variant === 'control'
+      : name === undefined ||
+          variant === 'control' ||
+          ctx.settings.retrieval.backtickWords !== undefined
         ? LOCAL_STRATEGIES
         : STRATEGIES
   if (args.yes && !strategies.includes('rerank')) {

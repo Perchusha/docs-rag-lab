@@ -75,9 +75,11 @@ Commands:
       [--strategy <s>]        One strategy instead of vector and hybrid
       [--contextual]          Measure the contextual index instead of the plain one
       [--control]             Measure the control index, under vector and hybrid only
+      [--weight-backticks]    H5 of ADR-0014, on this experimental branch, under vector and hybrid
       [--yes]                 Go on with rerank calls that are not cached: without it, a run
                               that needs them prints their estimate and stops
   eval verify <report>        Run a report again, and say whether it reproduces
+      [--weight-backticks]    A report of H5
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
@@ -290,8 +292,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   const out = options.out ?? process.stdout
   const err = options.err ?? process.stderr
   const now = options.now ?? (() => Date.now())
-  const settings = options.settings ?? defaultSettings
-  const sources = options.sources ?? sourcesFor(settings)
+  const baseSettings = options.settings ?? defaultSettings
+  const sources = options.sources ?? sourcesFor(baseSettings)
 
   let parsed
   try {
@@ -312,6 +314,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
         strategies: { type: 'string' },
+        'weight-backticks': { type: 'boolean', default: false },
         record: { type: 'boolean', default: false },
         after: { type: 'string' },
         'sample-of': { type: 'string' },
@@ -332,6 +335,12 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   const { values, positionals } = parsed
   const [command, ...rest] = positionals
+  const settings: Settings = values['weight-backticks']
+    ? {
+        ...baseSettings,
+        retrieval: { ...baseSettings.retrieval, backtickWords: 'weighted' },
+      }
+    : baseSettings
   if (values.help || command === undefined || command === 'help') {
     out.write(USAGE)
     return command === undefined && !values.help ? 2 : 0

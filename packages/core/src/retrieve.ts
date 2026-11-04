@@ -125,7 +125,9 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
   const filter: SearchFilter = { docTypes }
   // Lists are at least topK deep, so the context is never cut short by the depth.
   const depth = Math.max(settings.candidates, settings.topK)
-  const plan = analyzeQuery(question, options.source.exactTokens?.(question) ?? [])
+  const plan = analyzeQuery(question, options.source.exactTokens?.(question) ?? [], {
+    backtickWords: settings.backtickWords,
+  })
 
   let embedFrom: 'cache' | 'api' = 'cache'
   const embedStart = now()

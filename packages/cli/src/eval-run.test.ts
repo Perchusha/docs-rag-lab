@@ -402,6 +402,21 @@ describe('drl eval', () => {
     expect(rerankCalls).toHaveLength(2)
   })
 
+  it('measures H5 under vector and hybrid, says so in the identity, and verifies with the flag', async () => {
+    rerankCalls = []
+    const { code, out } = await drl('eval', '--name', 'h5', '--weight-backticks')
+    expect(code).toBe(0)
+    const path = reportPathIn(out)
+    const report = readReport(path)
+    expect(report.identity.retrieval.backtickWords).toBe('weighted')
+    expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual(['vector', 'hybrid'])
+    expect(rerankCalls).toEqual([])
+    const verified = await drl('eval', 'verify', path, '--weight-backticks')
+    expect(verified.out).toContain('byte for byte')
+    const without = await drl('eval', 'verify', path)
+    expect(without.code).toBe(1)
+  })
+
   describe('the other indexes', () => {
     beforeEach(() => {
       rerankCalls = []

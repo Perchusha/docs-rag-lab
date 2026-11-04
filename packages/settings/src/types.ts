@@ -70,6 +70,8 @@ export interface RetrievalSettings {
   candidates: number
   /** The k of Reciprocal Rank Fusion. */
   rrfK: number
+  /** H5 of ADR-0014: a plain word in backticks counts twice in the keyword list instead. */
+  backtickWords?: 'weighted' | undefined
 }
 
 /** Options for a source's factory, as data. The CLI and apps build the Source objects. */
