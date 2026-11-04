@@ -8,8 +8,10 @@ export {
   type EmbeddingsSettings,
   type ModelPrice,
   type PricingSettings,
+  type RerankSettings,
   type RetrievalSettings,
   type Settings,
   type SourceSettings,
   type VoyageEmbeddingsSettings,
+  type VoyageRerankSettings,
 } from './types.ts'

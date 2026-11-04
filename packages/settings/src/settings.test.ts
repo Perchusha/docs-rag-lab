@@ -28,7 +28,12 @@ describe('settings', () => {
   })
 
   it('has a price for every model it uses', () => {
-    const used = [settings.embeddings.model, settings.models.answer, settings.models.contextualize]
+    const used = [
+      settings.embeddings.model,
+      settings.rerank.model,
+      settings.models.answer,
+      settings.models.contextualize,
+    ]
     for (const model of used) expect(Object.keys(settings.pricing.models)).toContain(model)
   })
 

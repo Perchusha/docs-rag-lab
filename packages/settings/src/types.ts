@@ -33,6 +33,21 @@ export interface VoyageEmbeddingsSettings {
 
 export type EmbeddingsSettings = VoyageEmbeddingsSettings
 
+export interface VoyageRerankSettings {
+  provider: 'voyage'
+  /** The Voyage API through MongoDB Atlas, the same as embeddings. */
+  endpoint: string
+  model: string
+  /** How many of the fused candidates are scored. */
+  depth: number
+  /** Per request, in estimated tokens, with the query counted once per document (ADR-0014). */
+  batch: { maxTokens: number }
+  /** Requests and billed tokens per minute. Limits are per model, so these are separate from embeddings'. */
+  rateLimit: { rpm: number; tpm: number }
+}
+
+export type RerankSettings = VoyageRerankSettings
+
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 export interface RetrievalSettings {
@@ -59,6 +74,7 @@ export interface Settings {
   /** Options per source, keyed by source ID. Hosts build the Source objects (the CLI in sourcesFor). */
   sources: { typescript: SourceSettings }
   embeddings: EmbeddingsSettings
+  rerank: RerankSettings
   models: {
     answer: string
     contextualize: string

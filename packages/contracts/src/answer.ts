@@ -33,13 +33,13 @@ export interface Citation {
 /** What one model used while answering. */
 export interface ModelUsageSummary {
   model: string
-  kind: 'embedding' | 'messages'
+  kind: 'embedding' | 'rerank' | 'messages'
   requests: number
   inputTokens: number
   outputTokens: number
   cacheWriteTokens: number
   cacheReadTokens: number
-  /** Embedding inputs served from the local cache. */
+  /** Embedding inputs or rerank scores served from the local cache. */
   cacheHits: number
 }
 
