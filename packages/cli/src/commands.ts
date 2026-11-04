@@ -11,6 +11,7 @@ import {
 } from '@docs-rag-lab/contracts'
 import {
   createEmbeddingProvider,
+  createRerankProvider,
   GoldenSetError,
   openIndexes,
   RateLimiter,
@@ -239,20 +240,39 @@ export async function askCommand(
   })
 }
 
+/** Limits are per model, so embeddings and rerank each make one tiny request. */
 export async function limitsCommand(ctx: CommandContext): Promise<void> {
-  const { settings, out } = ctx
+  const { settings, meter } = ctx
   const { provider } = embeddingsFor(settings)
   if (provider.probeRateLimits === undefined) {
     throw new CliError(`${provider.id} cannot report rate limits`)
   }
   const probe = await provider.probeRateLimits()
-  ctx.meter.recordEmbedding(provider.model, probe.tokens)
-  const { rpm, tpm } = settings.embeddings.rateLimit
+  meter.recordEmbedding(provider.model, probe.tokens)
+  writeLimits(ctx, provider.model, settings.embeddings, probe.headers)
+
+  const reranker = createRerankProvider(settings.rerank)
+  if (reranker.probeRateLimits === undefined) {
+    throw new CliError(`${reranker.id} cannot report rate limits`)
+  }
+  const rerankProbe = await reranker.probeRateLimits()
+  meter.recordRerank(reranker.model, rerankProbe.tokens)
+  writeLimits(ctx, reranker.model, settings.rerank, rerankProbe.headers)
+}
+
+function writeLimits(
+  { out }: CommandContext,
+  model: string,
+  {
+    endpoint,
+    rateLimit: { rpm, tpm },
+  }: { endpoint: string; rateLimit: { rpm: number; tpm: number } },
+  headers: Record<string, string>,
+): void {
   out.write(
-    `configured: ${String(rpm)} requests and ${tpm.toLocaleString('en-US')} tokens per minute\n`,
+    `${model} configured: ${String(rpm)} requests and ${tpm.toLocaleString('en-US')} tokens per minute\n`,
   )
-  const entries = Object.entries(probe.headers)
-  if (entries.length === 0)
-    out.write(`${settings.embeddings.endpoint} sent no rate-limit headers.\n`)
+  const entries = Object.entries(headers)
+  if (entries.length === 0) out.write(`${endpoint} sent no rate-limit headers.\n`)
   else for (const [name, value] of entries) out.write(`${name}: ${value}\n`)
 }

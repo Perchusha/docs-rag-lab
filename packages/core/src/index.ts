@@ -30,6 +30,26 @@ export {
 export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.ts'
 export { createEmbeddingProvider } from './embeddings/factory.ts'
 export {
+  batchForRerank,
+  estimateRerankTokens,
+  type RerankProvider,
+  type RerankResult,
+} from './rerank/provider.ts'
+export { createVoyageReranker, type VoyageRerankApi } from './rerank/voyage.ts'
+export { createRerankProvider } from './rerank/factory.ts'
+export {
+  compositionsOf,
+  planBatchingCheck,
+  runBatchingCheck,
+  type BatchingCheck,
+  type BatchingCheckOptions,
+  type BatchingCheckQuestion,
+  type Composition,
+  type CompositionName,
+  type CompositionResult,
+  type QuestionCheck,
+} from './rerank/batching-check.ts'
+export {
   embeddingCachePath,
   IndexNotFoundError,
   openIndexes,

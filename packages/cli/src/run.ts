@@ -39,6 +39,7 @@ import {
   parseRows,
 } from './eval-answers.ts'
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
+import { evalRerankCheckCommand } from './eval-rerank.ts'
 import { formatDuration } from './format.ts'
 
 export const USAGE = `Usage: drl <command> [options]
@@ -51,7 +52,8 @@ Commands:
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
-  limits                      Show the embedding API's rate-limit headers (one tiny request)
+  limits                      Show the rate-limit headers of embeddings and of rerank
+                              (one tiny request each)
   eval                        Retrieval metrics over the golden set, written as a report.
                               No Claude call. Without --name it is a development run
       [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
@@ -66,6 +68,8 @@ Commands:
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
+  eval rerank-check           Whether a rerank score depends on the rest of its batch, compared
+                              exactly (ADR-0014). Uses free tokens, and needs --yes to go on
   eval label <report>         Write the sheet a human labels from, with no verdicts
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
   eval calibrate <r> <labels> How often the human and the judge agree
@@ -195,7 +199,10 @@ function refuseStrayEvalFlags(
     ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
     ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
     ...(values['max-usd'] !== undefined && subcommand !== 'answers' ? ['--max-usd'] : []),
-    ...(values.yes === true && subcommand !== 'answers' && subcommand !== 'judge-check'
+    ...(values.yes === true &&
+    subcommand !== 'answers' &&
+    subcommand !== 'judge-check' &&
+    subcommand !== 'rerank-check'
       ? ['--yes']
       : []),
     ...(values.strategy !== undefined && subcommand !== undefined ? ['--strategy'] : []),
@@ -354,6 +361,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         })
       } else if (subcommand === 'judge-check') {
         await evalJudgeCheckCommand(ctx, { source: values.source, yes: values.yes })
+      } else if (subcommand === 'rerank-check') {
+        await evalRerankCheckCommand(ctx, { source: values.source, yes: values.yes })
       } else if (subcommand === 'label') {
         if (first === undefined) throw new CliError('eval label needs a report file')
         evalLabelCommand(ctx, { path: first, after: values.after })
@@ -388,7 +397,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         })
       } else {
         throw new CliError(
-          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, verify)`,
+          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, rerank-check, verify)`,
         )
       }
     } else {
