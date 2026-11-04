@@ -6,6 +6,7 @@ import { basename, join, resolve } from 'node:path'
 
 import {
   ANSWER_ROWS,
+  STRATEGIES,
   type AnswerLabel,
   type AnswerRow,
   type EvalAnswers,
@@ -15,6 +16,7 @@ import {
   anchorCandidates,
   anchorKey,
   calibrate,
+  checkVariantIndex,
   compareRows,
   createClaudeClient,
   CORRECTNESS_SYSTEM_PROMPT,
@@ -24,6 +26,8 @@ import {
   judgeSentence,
   judgeTrust,
   listRuns,
+  newRowsSampleForLabels,
+  NOISE_ROWS,
   readCalibrations,
   readRun,
   judgeCases,
@@ -34,6 +38,8 @@ import {
   planAnswers,
   promptHash,
   REFUSAL_SYSTEM_PROMPT,
+  ROW_STRATEGY,
+  ROW_VARIANT,
   rowResult,
   runAnswers,
   runJudge,
@@ -67,6 +73,7 @@ import {
   reportsDir,
   writeReport,
 } from './eval-commands.ts'
+import { durationOf, planRerankRun } from './eval-rerank.ts'
 import { readGoldenFiles } from './golden.ts'
 
 /** The Claude client. Tests pass a fake through the command context. */
@@ -111,8 +118,20 @@ function goldenOf(ctx: CommandContext, source: Source): Golden {
   }
 }
 
+/** Rows 4 and 5 take up to a minute a question on the free trial, so they are asked for by name. */
+const DEFAULT_ROWS: readonly AnswerRow[] = [0, 2, 3]
+
+/** Pairs a report compares when it has both rows. Rows 4 and 5 are measured against row 3. */
+const COMPARED_ROWS: readonly (readonly [AnswerRow, AnswerRow])[] = [
+  [2, 3],
+  [0, 3],
+  [3, 4],
+  [3, 5],
+  [4, 5],
+]
+
 export function parseRows(text: string | undefined): AnswerRow[] {
-  if (text === undefined) return [...ANSWER_ROWS]
+  if (text === undefined) return [...DEFAULT_ROWS]
   return text.split(',').map((part) => {
     const row = ANSWER_ROWS.find((known) => String(known) === part.trim())
     if (row === undefined) {
@@ -133,6 +152,53 @@ export interface EvalAnswersArgs {
   yes: boolean
 }
 
+/** The index row 5 reads, checked against the plain one before anything is spent. */
+function contextualIndexOf(
+  ctx: CommandContext,
+  source: Source,
+  rows: readonly AnswerRow[],
+): EvalAnswers['contextualIndex'] {
+  const reading = rows.filter((row) => ROW_VARIANT[row] === 'contextual')
+  if (reading.length === 0) return undefined
+  const dataDir = join(ctx.root, ctx.settings.dataDir)
+  const indexes = openIndexes(dataDir, source.id, { create: false, variant: 'contextual' })
+  try {
+    const plain = openIndexes(dataDir, source.id, { create: false })
+    try {
+      const { problems } = checkVariantIndex(plain.index, indexes.index, 'contextual')
+      if (problems.length > 0) {
+        throw new CliError(`the contextual index differs:\n${problems.join('\n')}`)
+      }
+    } finally {
+      plain.close()
+    }
+    const contextModel = indexes.index.getManifest()?.contextModel
+    if (contextModel == null) throw new CliError('the contextual index names no context model')
+    return { rows: reading, contextModel, chunksHash: indexes.index.chunksHash() }
+  } finally {
+    indexes.close()
+  }
+}
+
+/** The rerank calls these rows and questions still need. They are free, and they take a while. */
+async function missingRerankCalls(
+  ctx: CommandContext,
+  source: Source,
+  rows: readonly AnswerRow[],
+  questions: readonly GoldenQuestion[],
+): Promise<{ calls: number; estimatedTokens: number }> {
+  const variants = new Set(
+    rows.filter((row) => ROW_STRATEGY[row] === 'rerank').map((row) => ROW_VARIANT[row]),
+  )
+  const missing = { calls: 0, estimatedTokens: 0 }
+  for (const variant of variants) {
+    const plan = await planRerankRun(ctx, source.id, variant, questions)
+    missing.calls += plan.calls
+    missing.estimatedTokens += plan.estimatedTokens
+  }
+  return missing
+}
+
 /** `drl eval answers`: answer the set under each row, judge the answers, and write a report. */
 export async function evalAnswersCommand(
   ctx: CommandContext,
@@ -143,9 +209,11 @@ export async function evalAnswersCommand(
   checkRunName(args.name)
   if (
     args.name !== undefined &&
-    (args.only !== undefined || args.rows.length < ANSWER_ROWS.length)
+    (args.only !== undefined || !DEFAULT_ROWS.every((row) => args.rows.includes(row)))
   ) {
-    throw new CliError('a named run answers the whole set under every row')
+    throw new CliError(
+      `a named run answers the whole set under every row, at least ${DEFAULT_ROWS.join(', ')}`,
+    )
   }
   const golden = goldenOf(ctx, source)
   const questions =
@@ -156,6 +224,16 @@ export async function evalAnswersCommand(
           if (question === undefined) throw new CliError(`there is no scored question ${id}`)
           return question
         })
+  const contextualIndex = contextualIndexOf(ctx, source, args.rows)
+  if (!args.yes) {
+    const { calls, estimatedTokens } = await missingRerankCalls(ctx, source, args.rows, questions)
+    if (calls > 0) {
+      ctx.out.write(
+        `this would first make ${String(calls)} calls to ${settings.rerank.model}, about ${estimatedTokens.toLocaleString('en-US')} estimated tokens and ${durationOf(ctx, calls, estimatedTokens)} at the free-trial limits, and only then show the estimate of the paid calls: add --yes for both, or take a pilot of these questions with --only\n`,
+      )
+      return
+    }
+  }
   const maxUsd = args.maxUsd ?? settings.evalAnswers.maxUsd
   const client = clientOf(ctx)
   const answer = {
@@ -168,6 +246,7 @@ export async function evalAnswersCommand(
   await withEvalCache(ctx, async (cache) => {
     const jobs = await planAnswers({
       engine: ctx.engine,
+      engineFor: ctx.engineFor,
       sourceId: source.id,
       questions,
       rows: args.rows,
@@ -196,7 +275,14 @@ export async function evalAnswersCommand(
     }
 
     // Fails before any paid call if the tree or the golden set cannot make this report.
-    const report = await measure(ctx, source, args.name ?? null, undefined)
+    // A named run says what row 4 retrieved too. A pilot stays quick.
+    const reranks = args.rows.some((row) => ROW_STRATEGY[row] === 'rerank')
+    const report = await measure(
+      ctx,
+      source,
+      args.name ?? null,
+      args.name !== undefined && reranks ? STRATEGIES : undefined,
+    )
     let lastProgress = 0
     const runner = (label: string): RunnerOptions => ({
       client,
@@ -221,20 +307,16 @@ export async function evalAnswersCommand(
       retest: args.noise,
     })
     const options = { questions, answers, verdicts, support, anchorChunks: golden.anchorChunks }
+    const twice = args.noise ? args.rows.filter((row) => NOISE_ROWS.includes(row)) : []
     const rows = [
       ...args.rows.map((row) => rowResult(row, 1, options)),
-      ...(args.noise && args.rows.includes(3) ? [rowResult(3, 2, options)] : []),
+      ...twice.map((row) => rowResult(row, 2, options)),
     ]
     const comparisons = [
-      ...(args.rows.includes(2) && args.rows.includes(3)
-        ? [compareRows({ row: 2, sample: 1 }, { row: 3, sample: 1 }, options)]
-        : []),
-      ...(args.rows.includes(0) && args.rows.includes(3)
-        ? [compareRows({ row: 0, sample: 1 }, { row: 3, sample: 1 }, options)]
-        : []),
-      ...(args.noise && args.rows.includes(3)
-        ? [compareRows({ row: 3, sample: 1 }, { row: 3, sample: 2 }, options)]
-        : []),
+      ...COMPARED_ROWS.filter(([a, b]) => args.rows.includes(a) && args.rows.includes(b)).map(
+        ([a, b]) => compareRows({ row: a, sample: 1 }, { row: b, sample: 1 }, options),
+      ),
+      ...twice.map((row) => compareRows({ row, sample: 1 }, { row, sample: 2 }, options)),
     ]
     const section: EvalAnswers = {
       models: { answer: answer.model, judge: judge.model },
@@ -249,6 +331,7 @@ export async function evalAnswersCommand(
       comparisons,
       judgeRetest: judgeRetest(verdicts),
       candidates: anchorCandidates(options, (id) => report.result.chunks[id]?.docPath ?? ''),
+      ...(contextualIndex === undefined ? {} : { contextualIndex }),
       paidUsd: ctx.meter.estimateCost(settings.pricing).total,
       answers,
       verdicts,
@@ -341,22 +424,36 @@ function freshSampleOf(ctx: CommandContext, answers: EvalAnswers, golden: Golden
   })
 }
 
+/** The round for rows new in a milestone, from their first answers. */
+function newRowsSampleOf(answers: EvalAnswers, golden: Golden, rows: readonly AnswerRow[]) {
+  return newRowsSampleForLabels({
+    rows,
+    answers: answers.answers,
+    verdicts: answers.verdicts,
+    questions: golden.questions,
+  })
+}
+
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */
 export function evalLabelCommand(
   ctx: CommandContext,
-  args: { path: string; after: string | undefined },
+  args: { path: string; after: string | undefined; rows?: readonly AnswerRow[] | undefined },
 ): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const golden = goldenOf(ctx, source)
   const fresh = args.after !== undefined
+  if (fresh && args.rows !== undefined) throw new CliError('--after and --rows cannot go together')
   const sample =
-    args.after !== undefined
-      ? freshSampleOf(ctx, answers, golden, args.after)
-      : sampleOf(report, answers, golden)
+    args.rows !== undefined
+      ? newRowsSampleOf(answers, golden, args.rows)
+      : args.after !== undefined
+        ? freshSampleOf(ctx, answers, golden, args.after)
+        : sampleOf(report, answers, golden)
   const dir = join(reportsDir(ctx.root, source.id), 'dev')
   mkdirSync(dir, { recursive: true })
-  const sheet = join(dir, `labels-${basename(args.path, '.json')}${fresh ? '-fresh' : ''}.md`)
+  const round = fresh ? '-fresh' : args.rows !== undefined ? '-new-rows' : ''
+  const sheet = join(dir, `labels-${basename(args.path, '.json')}${round}.md`)
   const questions = new Map(golden.questions.map((question) => [question.id, question]))
   writeFileSync(
     sheet,
@@ -384,10 +481,19 @@ interface LabelFile {
 /** `drl eval calibrate <report> <labels>`: how often the human and the judge agree. */
 export function evalCalibrateCommand(
   ctx: CommandContext,
-  args: { path: string; labels: string; after: string | undefined; sampleOf: string | undefined },
+  args: {
+    path: string
+    labels: string
+    after: string | undefined
+    sampleOf: string | undefined
+    rows?: readonly AnswerRow[] | undefined
+  },
 ): void {
   if (args.after !== undefined && args.sampleOf !== undefined) {
     throw new CliError('--after and --sample-of cannot go together')
+  }
+  if (args.rows !== undefined && (args.after !== undefined || args.sampleOf !== undefined)) {
+    throw new CliError('--rows goes with neither --after nor --sample-of')
   }
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
@@ -396,11 +502,13 @@ export function evalCalibrateCommand(
   // earlier round graded again, it is that report's sample, and this report's verdicts.
   const earlier = args.sampleOf === undefined ? undefined : reportWithAnswers(ctx, args.sampleOf)
   const sample =
-    args.after !== undefined
-      ? freshSampleOf(ctx, answers, golden, args.after)
-      : earlier !== undefined
-        ? sampleOf(earlier.report, earlier.answers, golden)
-        : sampleOf(report, answers, golden)
+    args.rows !== undefined
+      ? newRowsSampleOf(answers, golden, args.rows)
+      : args.after !== undefined
+        ? freshSampleOf(ctx, answers, golden, args.after)
+        : earlier !== undefined
+          ? sampleOf(earlier.report, earlier.answers, golden)
+          : sampleOf(report, answers, golden)
   const full = resolve(ctx.root, args.labels)
   if (!existsSync(full)) throw new CliError(`no labels at ${full}`)
   const file = JSON.parse(readFileSync(full, 'utf8')) as LabelFile

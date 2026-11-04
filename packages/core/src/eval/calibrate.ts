@@ -37,6 +37,11 @@ export const FRESH_SEED = LABEL_SEED + 1
 /** Answers in the second round. */
 const FRESH_ANSWERS = 10
 
+/** The round of a milestone's new rows (ADR-0014), with a seed of its own. */
+export const NEW_ROWS_SEED = LABEL_SEED + 2
+const NEW_ROWS_ANSWERS = 15
+const NEW_ROWS_UNANSWERABLE = 3
+
 function shuffled<T>(items: readonly T[], random: () => number): T[] {
   const result = [...items]
   for (let i = result.length - 1; i > 0; i--) {
@@ -119,6 +124,10 @@ export function sampleForLabels(options: SampleOptions): EvalAnswer[] {
 export interface FreshSampleOptions extends SampleOptions {
   /** The answers of the earlier round. Their questions are left out altogether. */
   exclude: readonly Pick<EvalAnswer, 'questionId'>[]
+  /** How many answers. The second round's 10 by default. */
+  total?: number
+  /** How many of them are on questions the docs do not answer. None by default. */
+  unanswerable?: number
 }
 
 /**
@@ -128,7 +137,10 @@ export interface FreshSampleOptions extends SampleOptions {
  */
 export function freshSampleForLabels(options: FreshSampleOptions): EvalAnswer[] {
   const { rows, answers, verdicts, questions, exclude } = options
-  const random = seeded(options.seed ?? FRESH_SEED)
+  const seed = options.seed ?? FRESH_SEED
+  const total = options.total ?? FRESH_ANSWERS
+  const refusals = options.unanswerable ?? 0
+  const random = seeded(seed)
   const answerable = new Set(
     questions.filter((question) => !isUnanswerable(question)).map(({ id }) => id),
   )
@@ -153,16 +165,16 @@ export function freshSampleForLabels(options: FreshSampleOptions): EvalAnswer[] 
             answer.row === row &&
             answer.sample === 1 &&
             answer.status === 'ok' &&
-            answerable.has(answer.questionId) &&
+            (refusals > 0 || answerable.has(answer.questionId)) &&
             !used.has(answer.questionId),
         )
         .sort((a, b) => a.questionId.localeCompare(b.questionId)),
       random,
     ),
   )
-  const extra = FRESH_ANSWERS % rows.length
+  const extra = total % rows.length
   const quota = rows.map(
-    (_, i) => Math.floor(FRESH_ANSWERS / rows.length) + (i >= rows.length - extra ? 1 : 0),
+    (_, i) => Math.floor(total / rows.length) + (i >= rows.length - extra ? 1 : 0),
   )
   const picked = rows.map((): EvalAnswer[] => [])
   const taken = new Set<string>()
@@ -176,17 +188,36 @@ export function freshSampleForLabels(options: FreshSampleOptions): EvalAnswer[] 
     taken.add(next.questionId)
     return true
   }
+  const isAnswerable = (answer: EvalAnswer): boolean => answerable.has(answer.questionId)
+  for (let round = 0, taken = 0; round < total && taken < refusals; round++) {
+    const i = round % rows.length
+    if (take(i, (answer) => !isAnswerable(answer))) taken++
+  }
   // One low score per row in turn, up to the minimum, then whatever else fills each row.
-  for (let round = 0, lows = 0; round < FRESH_ANSWERS && lows < MIN_LOW; round++) {
+  for (let round = 0, lows = 0; round < total && lows < MIN_LOW; round++) {
     for (let i = 0; i < rows.length && lows < MIN_LOW; i++) {
       if (take(i, isLow)) lows++
     }
   }
   rows.forEach((_, i) => {
-    while (take(i, () => true));
+    while (take(i, isAnswerable));
   })
   const sample = picked.flat()
-  return shuffled(sample, seeded(FRESH_SEED ^ parseInt(sampleHash(sample).slice(0, 8), 16)))
+  return shuffled(sample, seeded(seed ^ parseInt(sampleHash(sample).slice(0, 8), 16)))
+}
+
+/**
+ * The round for rows new in a milestone (ADR-0014): 15 answers with all three dimensions to label,
+ * 3 of them on questions the docs do not answer, none on the same question twice.
+ */
+export function newRowsSampleForLabels(options: SampleOptions): EvalAnswer[] {
+  return freshSampleForLabels({
+    ...options,
+    exclude: [],
+    total: NEW_ROWS_ANSWERS,
+    unanswerable: NEW_ROWS_UNANSWERABLE,
+    seed: options.seed ?? NEW_ROWS_SEED,
+  })
 }
 
 /** Names a sample, so that labels cannot be read against a different one. */

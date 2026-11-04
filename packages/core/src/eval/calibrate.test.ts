@@ -13,6 +13,7 @@ import {
   FRESH_SEED,
   freshSampleForLabels,
   LABEL_SEED,
+  newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
   wilsonInterval,
@@ -186,6 +187,55 @@ describe('sampleForLabels', () => {
 
     expect(picked).toHaveLength(5)
     expect(picked.filter((item) => item.questionId >= ID(41))).toHaveLength(1)
+  })
+})
+
+describe('newRowsSampleForLabels', () => {
+  const rows = [4, 5] as const
+  const answers = rows.flatMap((row) => Array.from({ length: 45 }, (_, i) => answer(i + 1, row)))
+  const verdicts = rows.flatMap((row) =>
+    Array.from({ length: 45 }, (_, i) => verdict(i + 1, row, i < 40 ? 2 : null)),
+  )
+  const pick = (scores = verdicts) =>
+    newRowsSampleForLabels({ rows, answers, verdicts: scores, questions })
+
+  it('takes 15 answers: 7 and 8 by row, and only from those rows', () => {
+    const picked = pick()
+
+    expect(picked).toHaveLength(15)
+    expect(picked.filter(({ row }) => row === 4)).toHaveLength(7)
+    expect(picked.filter(({ row }) => row === 5)).toHaveLength(8)
+  })
+
+  it('takes exactly 3 questions the docs do not answer', () => {
+    expect(pick().filter(({ questionId }) => questionId >= ID(41))).toHaveLength(3)
+  })
+
+  it('takes no question twice', () => {
+    const ids = pick().map(({ questionId }) => questionId)
+
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('takes at least 3 low scores when there are 3', () => {
+    const low = ['ts-0011', 'ts-0012', 'ts-0013']
+    const scores = verdicts.map((item) =>
+      item.row === 5 && low.includes(item.questionId) ? { ...item, correctness: 1 as const } : item,
+    )
+
+    const picked = pick(scores).filter(({ questionId }) => low.includes(questionId))
+
+    expect(picked.every(({ row }) => row === 5)).toBe(true)
+    expect(picked).toHaveLength(3)
+  })
+
+  it('is the same every time, and differs from the other rounds', () => {
+    expect(sampleHash(pick())).toBe(sampleHash(pick()))
+    expect(sampleHash(pick())).not.toBe(
+      sampleHash(
+        freshSampleForLabels({ rows, answers, verdicts, questions, exclude: [], total: 15 }),
+      ),
+    )
   })
 })
 

@@ -282,6 +282,71 @@ describe('planAnswers', () => {
     expect(embedded).toEqual([])
   })
 
+  it('row 4 reranks on the plain index, and row 5 on the contextual one', async () => {
+    const plain = engine()
+    const contextual = engine()
+    const variants: string[] = []
+
+    const jobs = await planAnswers({
+      engine: plain.fake,
+      engineFor: (variant) => {
+        variants.push(variant)
+        return contextual.fake
+      },
+      sourceId: 'demo',
+      questions: [answerable],
+      rows: [4, 5],
+      noise: false,
+      settings,
+      meter: new UsageMeter(),
+    })
+
+    expect(plain.strategies).toEqual(['rerank'])
+    expect(contextual.strategies).toEqual(['rerank'])
+    expect(variants).toEqual(['contextual'])
+    expect(plain.embedded).toEqual([['First?']])
+    expect(contextual.embedded).toEqual([])
+    expect(jobs.map(({ row }) => row)).toEqual([4, 5])
+  })
+
+  it('row 5 cannot run on the plain index by accident', async () => {
+    await expect(
+      planAnswers({
+        engine: engine().fake,
+        sourceId: 'demo',
+        questions: [answerable],
+        rows: [5],
+        noise: false,
+        settings,
+        meter: new UsageMeter(),
+      }),
+    ).rejects.toThrow('row 5 needs another index')
+  })
+
+  it('a noise run sends rows 3, 4 and 5 twice, and rows 0 and 2 once', async () => {
+    const jobs = await planAnswers({
+      engine: engine().fake,
+      engineFor: () => engine().fake,
+      sourceId: 'demo',
+      questions: [answerable],
+      rows: [0, 2, 3, 4, 5],
+      noise: true,
+      settings,
+      meter: new UsageMeter(),
+    })
+
+    expect(jobs.map(({ row, sample }) => [row, sample])).toEqual([
+      [0, 1],
+      [2, 1],
+      [3, 1],
+      [3, 2],
+      [4, 1],
+      [4, 2],
+      [5, 1],
+      [5, 2],
+    ])
+  })
+
   it('a noise run sends row 3 twice, under two keys, and no other row', async () => {
     const jobs = await planAnswers({
       engine: engine().fake,

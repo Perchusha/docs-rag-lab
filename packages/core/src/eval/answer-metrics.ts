@@ -187,6 +187,15 @@ function valueOf(
   anchorChunks: (id: string) => ReadonlySet<string>,
 ): number | undefined {
   if (metric === 'correctness') return item.verdict?.correctness ?? undefined
+  if (metric === 'fully-correct') {
+    const score = item.verdict?.correctness
+    return score == null ? undefined : score === 2 ? 1 : 0
+  }
+  // Fewer false refusals is better, so this counts the answers that did not refuse wrongly.
+  if (metric === 'not-wrongly-refused') {
+    if (item.verdict?.correctness == null) return undefined
+    return item.verdict.falseRefusal === true ? 0 : 1
+  }
   if (metric === 'correct-and-grounded') {
     // An answer with no citations scores 0 here. Row 0 has no retrieval to ground it.
     if (item.answer.row === 0 || item.verdict?.correctness == null) return undefined
@@ -198,6 +207,7 @@ function valueOf(
   }
   const claims = item.support?.claims
   if (claims === undefined || claims.length === 0) return undefined
+  if (metric === 'citations-hold') return claims.every((claim) => claim.supported) ? 1 : 0
   return claims.filter((claim) => claim.supported).length / claims.length
 }
 

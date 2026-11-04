@@ -21,6 +21,7 @@ import {
   embeddingCacheKey,
   freshSampleForLabels,
   parseGoldenSet,
+  newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
   type EvalClient,
@@ -904,6 +905,119 @@ describe('drl eval answers', () => {
     })
   })
 
+  describe('rows 4 and 5', () => {
+    beforeEach(() => {
+      rerankCalls = []
+      rerankJitter = 0
+    })
+
+    it('makes no rerank call without --yes, and says how many it would', async () => {
+      const { code, out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(code).toBe(0)
+      expect(out).toContain('this would first make 3 calls')
+      expect(rerankCalls).toEqual([])
+      expect(claudeRequests).toEqual([])
+    })
+
+    it('reranks every question, also those the docs do not answer, before the estimate', async () => {
+      const refused = await drl('eval', 'answers', '--rows', '4', '--yes', '--max-usd', '0.0001')
+
+      expect(refused.err).toContain('the estimate is over the limit')
+      expect(rerankCalls).toHaveLength(3)
+      expect(claudeRequests).toEqual([])
+
+      const { out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(out).toContain('answers: 3 (0 cached)')
+      expect(rerankCalls).toHaveLength(3)
+    })
+
+    it('row 5 says which index it read, reranks the contexts, and sends Claude the text alone', async () => {
+      seedIndex('contextual')
+
+      const { code, out } = await drl('eval', 'answers', '--rows', '4,5', '--yes')
+
+      expect(code).toBe(0)
+      const answers = answersOf(out)
+      expect(answers.contextualIndex).toMatchObject({
+        rows: [5],
+        contextModel: 'claude-test:abc',
+      })
+      expect(answers.rows.map(({ row }) => row)).toEqual([4, 5])
+      expect(answers.comparisons.map(({ a, b }) => [a, b])).toEqual([['row 4', 'row 5']])
+      expect(rerankCalls.flat().some((text) => text.startsWith('Context of '))).toBe(true)
+      expect(JSON.stringify(claudeRequests)).not.toContain('Context of ')
+      const markdown = readFileSync(reportPathIn(out).replace(/\.json$/, '.md'), 'utf8')
+      expect(markdown).toContain('Row 5 read the contextual index')
+    })
+
+    it('says what to run when the contextual index is not built', async () => {
+      const { code, err } = await drl('eval', 'answers', '--rows', '5')
+
+      expect(code).toBe(1)
+      expect(err).toContain('run drl sync typescript --contextual first')
+      expect(rerankCalls).toEqual([])
+    })
+
+    it('a noise run answers rows 3, 4 and 5 twice, and asks the judge twice about row 3', async () => {
+      seedIndex('contextual')
+
+      const { out } = await drl('eval', 'answers', '--rows', '3,4,5', '--noise', '--yes')
+
+      const answers = answersOf(out)
+      expect(answers.rows.map(({ row, sample }) => [row, sample])).toEqual([
+        [3, 1],
+        [4, 1],
+        [5, 1],
+        [3, 2],
+        [4, 2],
+        [5, 2],
+      ])
+      expect(answers.comparisons.map(({ a, b }) => [a, b])).toEqual([
+        ['row 3', 'row 4'],
+        ['row 3', 'row 5'],
+        ['row 4', 'row 5'],
+        ['row 3', 'row 3 again'],
+        ['row 4', 'row 4 again'],
+        ['row 5', 'row 5 again'],
+      ])
+      expect(answers.judgeRetest).toEqual({ compared: 3, agreed: 3 })
+    })
+
+    it('a named run also says what row 4 retrieved', async () => {
+      seedIndex('contextual')
+
+      const { code, out } = await drl(
+        'eval',
+        'answers',
+        '--name',
+        'x',
+        '--rows',
+        '0,2,3,4,5',
+        '--yes',
+      )
+
+      expect(code).toBe(0)
+      const report = reportOf(out)
+      expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual([
+        'vector',
+        'hybrid',
+        'rerank',
+      ])
+      expect(report.identity.rerank).toBeDefined()
+      expect(report.answers?.rows.map(({ row }) => row)).toEqual([0, 2, 3, 4, 5])
+    })
+
+    it('a named run still needs rows 0, 2 and 3', async () => {
+      const { code, err } = await drl('eval', 'answers', '--name', 'x', '--rows', '4,5', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('a named run answers the whole set under every row')
+      expect(rerankCalls).toEqual([])
+    })
+  })
+
   it('a named run needs the whole set and every row', async () => {
     const only = await drl('eval', 'answers', '--name', 'x', '--only', 'ts-0001', '--yes')
     const rows = await drl('eval', 'answers', '--name', 'x', '--rows', '3', '--yes')
@@ -932,7 +1046,7 @@ describe('drl eval answers', () => {
   })
 
   it.each([
-    [['eval', 'answers', '--rows', '1'], '--rows takes 0, 2, 3'],
+    [['eval', 'answers', '--rows', '1'], '--rows takes 0, 2, 3, 4, 5'],
     [['eval', 'answers', '--only', 'ts-9999'], 'there is no scored question ts-9999'],
     [['eval', 'answers', '--max-usd', 'lots'], '--max-usd must be a number above 0'],
     [['eval', '--yes'], '--yes does not apply'],
@@ -949,6 +1063,55 @@ describe('drl eval answers', () => {
 
   describe('labels', () => {
     const sheetOf = (out: string): string => /: (.+labels-.+\.md)/.exec(out)?.[1] ?? ''
+
+    it('takes a round from the new rows alone, and reads its labels against it', async () => {
+      seedIndex('contextual')
+      const path = reportPathIn((await drl('eval', 'answers', '--rows', '4,5', '--yes')).out)
+      const report = readReport(path)
+      const answers = report.answers?.answers ?? []
+      const verdicts = report.answers?.verdicts ?? []
+      const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+      const sample = newRowsSampleForLabels({
+        rows: [4, 5],
+        answers,
+        verdicts,
+        questions: golden,
+      })
+
+      const { code, out } = await drl('eval', 'label', path, '--rows', '4,5')
+
+      expect(code).toBe(0)
+      expect(sheetOf(out)).toMatch(/-new-rows\.md$/)
+      expect(out).toContain(`${String(sample.length)} answers to label`)
+      const labels = sample.map((answer, i) => {
+        const verdict = verdicts.find(
+          (item) => item.questionId === answer.questionId && item.row === answer.row,
+        )
+        return verdict?.outcome == null
+          ? { item: i + 1, correctness: verdict?.correctness, supported: true }
+          : { item: i + 1, outcome: verdict.outcome }
+      })
+      const labelsPath = join(root, 'labels.json')
+      writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+
+      const wrong = await drl('eval', 'calibrate', path, labelsPath)
+      expect(wrong.err).toContain('these labels are of sample')
+
+      const right = await drl('eval', 'calibrate', path, labelsPath, '--rows', '4,5')
+      expect(right.code).toBe(0)
+      const written = JSON.parse(
+        readFileSync(path.replace(/\.json$/, '-calibration.json'), 'utf8'),
+      ) as { labelled: number; agreement: { dimension: string }[] }
+      expect(written.labelled).toBe(sample.length)
+      expect(written.agreement.map(({ dimension }) => dimension)).toEqual([
+        'correctness',
+        'refusal',
+        'support',
+      ])
+
+      const both = await drl('eval', 'label', path, '--rows', '4,5', '--after', path)
+      expect(both.err).toContain('--after and --rows cannot go together')
+    })
 
     it('writes a sheet with the answers and no verdict, under dev/', async () => {
       judgeBody = (system, text) => {

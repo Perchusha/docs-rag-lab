@@ -363,7 +363,49 @@ describe('compareRows', () => {
       }),
     )
 
-    expect(result.scopes[0]?.differences.map((item) => item.metric)).toEqual(['correctness'])
+    expect(result.scopes[0]?.differences.map((item) => item.metric)).toEqual([
+      'correctness',
+      'fully-correct',
+      'not-wrongly-refused',
+    ])
+  })
+
+  it('compares what ADR-0014 decides on: fully correct, citations that hold, wrong refusals', () => {
+    const result = compareRows(
+      { row: 3, sample: 1 },
+      { row: 4, sample: 1 },
+      options({
+        answers: [1, 2, 3].flatMap((i) => [answer(i, 3), answer(i, 4)]),
+        verdicts: [
+          verdict(1, 3, 1),
+          verdict(1, 4, 2),
+          verdict(2, 3, 0, { falseRefusal: true }),
+          verdict(2, 4, 2),
+          verdict(3, 3, 2),
+          verdict(3, 4, 2),
+        ],
+        support: [
+          support(1, 3, true, false),
+          support(1, 4, true, true),
+          support(2, 3, true),
+          support(2, 4, true),
+          support(3, 3, true),
+          support(3, 4, true),
+        ],
+      }),
+    )
+    const of = (metric: string) =>
+      result.scopes[0]?.differences.find((item) => item.metric === metric)
+
+    expect(of('fully-correct')).toMatchObject({ aBetter: 0, bBetter: 2, tied: 1 })
+    expect(of('citations-hold')).toMatchObject({
+      a: 0.666667,
+      b: 1,
+      aBetter: 0,
+      bBetter: 1,
+      tied: 2,
+    })
+    expect(of('not-wrongly-refused')).toMatchObject({ aBetter: 0, bBetter: 1, tied: 2 })
   })
 
   it('reports per tag too, and labels a second sample', () => {
@@ -458,7 +500,11 @@ describe('correct and grounded, exploratory', () => {
       }),
     )
 
-    expect(result.scopes[0]?.differences.map(({ metric }) => metric)).toEqual(['correctness'])
+    expect(result.scopes[0]?.differences.map(({ metric }) => metric)).toEqual([
+      'correctness',
+      'fully-correct',
+      'not-wrongly-refused',
+    ])
   })
 })
 

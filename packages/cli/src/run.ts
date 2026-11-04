@@ -81,9 +81,11 @@ Commands:
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
-      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default
+      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, or 5,
+                              rerank on the contextual index, when asked for
       [--only <ids>]          Only these questions, for a pilot
-      [--noise]               Answer row 3 twice and ask the judge twice, to measure noise
+      [--noise]               Answer rows 3, 4 and 5 twice, and ask the judge twice about row
+                              3, to measure noise
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
@@ -253,7 +255,12 @@ function refuseStrayEvalFlags(
       ? ['--after']
       : []),
     ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
-    ...(values.rows !== undefined && subcommand !== 'answers' ? ['--rows'] : []),
+    ...(values.rows !== undefined &&
+    subcommand !== 'answers' &&
+    subcommand !== 'label' &&
+    subcommand !== 'calibrate'
+      ? ['--rows']
+      : []),
     ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
     ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
     ...(values['max-usd'] !== undefined && subcommand !== 'answers' ? ['--max-usd'] : []),
@@ -479,7 +486,11 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         await evalRerankCheckCommand(ctx, { source: values.source, yes: values.yes })
       } else if (subcommand === 'label') {
         if (first === undefined) throw new CliError('eval label needs a report file')
-        evalLabelCommand(ctx, { path: first, after: values.after })
+        evalLabelCommand(ctx, {
+          path: first,
+          after: values.after,
+          rows: values.rows === undefined ? undefined : parseRows(values.rows),
+        })
       } else if (subcommand === 'calibrate') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval calibrate needs a report file and a labels file')
@@ -489,6 +500,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           labels: second,
           after: values.after,
           sampleOf: values['sample-of'],
+          rows: values.rows === undefined ? undefined : parseRows(values.rows),
         })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')
