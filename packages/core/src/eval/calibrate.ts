@@ -11,6 +11,7 @@ import type {
   CalibrationDisagreement,
   EvalAnswer,
   EvalCalibration,
+  EvalSpotCheck,
   EvalSupport,
   EvalVerdict,
   RefusalOutcome,
@@ -41,6 +42,15 @@ const FRESH_ANSWERS = 10
 export const NEW_ROWS_SEED = LABEL_SEED + 2
 const NEW_ROWS_ANSWERS = 15
 const NEW_ROWS_UNANSWERABLE = 3
+
+/** The spot check of a new source (ADR-0016), with a seed of its own. */
+export const SPOT_CHECK_SEED = LABEL_SEED + 3
+export const SPOT_CHECK_ANSWERS = 10
+const SPOT_CHECK_UNANSWERABLE = 2
+/** The last row gets the extra answer, so this is 3 from row 0, 3 from row 4 and 4 from row 3. */
+export const SPOT_CHECK_ROWS: readonly AnswerRow[] = [0, 4, 3]
+/** What ADR-0012's bar allows at 8 and at 12 compared. */
+const SPOT_CHECK_ALLOWED = 1
 
 function shuffled<T>(items: readonly T[], random: () => number): T[] {
   const result = [...items]
@@ -220,6 +230,21 @@ export function newRowsSampleForLabels(options: SampleOptions): EvalAnswer[] {
   })
 }
 
+/**
+ * The spot check of a new source (ADR-0016): 10 answers with all three dimensions to label, 2 of
+ * them on questions the docs do not answer, none on the same question twice.
+ */
+export function spotCheckSampleForLabels(options: Omit<SampleOptions, 'rows'>): EvalAnswer[] {
+  return freshSampleForLabels({
+    ...options,
+    rows: SPOT_CHECK_ROWS,
+    exclude: [],
+    total: SPOT_CHECK_ANSWERS,
+    unanswerable: SPOT_CHECK_UNANSWERABLE,
+    seed: options.seed ?? SPOT_CHECK_SEED,
+  })
+}
+
 /** Names a sample, so that labels cannot be read against a different one. */
 export function sampleHash(sample: readonly Pick<EvalAnswer, 'questionId' | 'row'>[]): string {
   return createHash('sha256')
@@ -375,5 +400,36 @@ export function calibrate(options: CalibrateOptions): EvalCalibration {
     },
     // Labels the judge's prompt was changed after cannot vouch for it, whatever they say.
     calibrated: blind && results.every((result) => result.passed),
+  }
+}
+
+export interface SpotCheckOptions extends CalibrateOptions {
+  prompts: Record<string, string>
+  judgeModel: string
+}
+
+/**
+ * How often the human and the judge agree on a spot check. It counts the same way as a round, and
+ * only the bar differs: at most one disagreement on each dimension it could compare.
+ */
+export function spotCheck(options: SpotCheckOptions): EvalSpotCheck {
+  const { report, correctnessDisagreements, labelled, agreement, unanswerableOnly } =
+    calibrate(options)
+  const compared = agreement
+    .filter((result) => result.compared > 0)
+    .map((result) => ({
+      ...result,
+      passed: result.compared - result.agreed <= SPOT_CHECK_ALLOWED,
+    }))
+  return {
+    report,
+    prompts: options.prompts,
+    judgeModel: options.judgeModel,
+    correctnessDisagreements: correctnessDisagreements ?? [],
+    labelled,
+    agreement: compared,
+    unanswerableOnly,
+    allowed: SPOT_CHECK_ALLOWED,
+    passed: compared.length > 0 && compared.every((result) => result.passed),
   }
 }

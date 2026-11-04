@@ -235,6 +235,8 @@ export interface EvalVerifyRecord {
 export interface EvalCalibration {
   /** The report these labels are of. */
   report: { repoSha: string; name: string | null; createdAt: string }
+  /** The source whose answers were labelled. The store fills it in, from the folder it read. */
+  sourceId?: string
   /** False when the judge's prompt changed after the labels were read. It then decides nothing. */
   blind?: boolean
   /** The prompts graded under, so that a change of prompt shows as not calibrated. */
@@ -248,4 +250,25 @@ export interface EvalCalibration {
   unanswerableOnly: { compared: number; agreed: number }
   /** Every dimension passed. If not, the answer metrics are uncalibrated. */
   calibrated: boolean
+}
+
+/**
+ * The judge spot-checked on a new source's answers (ADR-0016). It is no calibration round: it has a
+ * file of its own, which nothing that decides calibration reads, so it says nothing of any other
+ * report, and each dimension's `passed` means at most `allowed` disagreements.
+ */
+export interface EvalSpotCheck {
+  /** The report these labels are of. */
+  report: EvalCalibration['report']
+  /** The prompts and the model that graded these answers. */
+  prompts: Record<string, string>
+  judgeModel: string
+  correctnessDisagreements: CalibrationDisagreement[]
+  labelled: number
+  /** The dimensions it could compare. */
+  agreement: AgreementResult[]
+  unanswerableOnly: { compared: number; agreed: number }
+  /** The disagreements each dimension may have. */
+  allowed: number
+  passed: boolean
 }

@@ -9,8 +9,10 @@ import {
   STRATEGIES,
   type AnswerLabel,
   type AnswerRow,
+  type EvalAnswer,
   type EvalAnswers,
   type EvalReport,
+  type EvalSpotCheck,
 } from '@docs-rag-lab/contracts'
 import {
   anchorCandidates,
@@ -30,6 +32,7 @@ import {
   NOISE_ROWS,
   readCalibrations,
   readRun,
+  reportSources,
   judgeCases,
   judgeRetest,
   noRagSystemPrompt,
@@ -46,6 +49,13 @@ import {
   runJudgeCheck,
   sampleForLabels,
   sampleHash,
+  spotCheck,
+  spotCheckPath,
+  spotCheckSampleForLabels,
+  spotCheckSentence,
+  readSpotCheck,
+  SPOT_CHECK_ANSWERS,
+  SPOT_CHECK_ROWS,
   SUPPORT_SYSTEM_PROMPT,
   ANSWER_SYSTEM_PROMPT,
   type EvalCache,
@@ -61,6 +71,7 @@ import {
   answerSections,
   formatAnswersSummary,
   formatCalibration,
+  formatSpotCheck,
   formatCostEstimate,
   formatJudgeCheck,
   formatLabelSheet,
@@ -338,9 +349,9 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
-    const calibrations = readCalibrations(ctx.root, source.id)
+    const calibrations = readCalibrations(ctx.root)
     const judgeLine = judgeSentence(
-      judgeTrust(section, calibrations.rounds, calibrations.unreadable),
+      judgeTrust(section, calibrations.rounds, calibrations.unreadable, source.id),
     )
     const failures =
       answers.filter(({ status }) => status === 'failed').length +
@@ -437,25 +448,56 @@ function newRowsSampleOf(answers: EvalAnswers, golden: Golden, rows: readonly An
   })
 }
 
+/** The spot check's sample (ADR-0016). It needs the rows it takes its answers from. */
+function spotCheckSampleOf(answers: EvalAnswers, golden: Golden) {
+  const present = new Set(answers.answers.map(({ row }) => row))
+  const missing = SPOT_CHECK_ROWS.filter((row) => !present.has(row))
+  if (missing.length > 0) {
+    throw new CliError(
+      `a spot check takes answers from rows ${[...SPOT_CHECK_ROWS].sort().join(', ')}, and this report has no row ${missing.join(', ')}`,
+    )
+  }
+  return spotCheckSampleForLabels({
+    answers: answers.answers,
+    verdicts: answers.verdicts,
+    questions: golden.questions,
+  })
+}
+
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */
 export function evalLabelCommand(
   ctx: CommandContext,
-  args: { path: string; after: string | undefined; rows?: readonly AnswerRow[] | undefined },
+  args: {
+    path: string
+    after: string | undefined
+    rows?: readonly AnswerRow[] | undefined
+    spot?: boolean
+  },
 ): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const golden = goldenOf(ctx, source)
   const fresh = args.after !== undefined
+  const spot = args.spot === true
   if (fresh && args.rows !== undefined) throw new CliError('--after and --rows cannot go together')
-  const sample =
-    args.rows !== undefined
+  if (spot && (fresh || args.rows !== undefined)) {
+    throw new CliError('--spot goes with neither --after nor --rows')
+  }
+  const sample = spot
+    ? spotCheckSampleOf(answers, golden)
+    : args.rows !== undefined
       ? newRowsSampleOf(answers, golden, args.rows)
       : args.after !== undefined
         ? freshSampleOf(ctx, answers, golden, args.after)
         : sampleOf(report, answers, golden)
+  if (spot && sample.length < SPOT_CHECK_ANSWERS) {
+    ctx.out.write(
+      `this report has too few questions for ${String(SPOT_CHECK_ANSWERS)} answers, so the sheet has ${String(sample.length)}\n`,
+    )
+  }
   const dir = join(reportsDir(ctx.root, source.id), 'dev')
   mkdirSync(dir, { recursive: true })
-  const round = fresh ? '-fresh' : args.rows !== undefined ? '-new-rows' : ''
+  const round = spot ? '-spot-check' : fresh ? '-fresh' : args.rows !== undefined ? '-new-rows' : ''
   const sheet = join(dir, `labels-${basename(args.path, '.json')}${round}.md`)
   const questions = new Map(golden.questions.map((question) => [question.id, question]))
   writeFileSync(
@@ -479,6 +521,92 @@ interface LabelFile {
   /** The sample the sheet showed, so that labels cannot be read against another one. */
   sample: string
   labels: LabelLine[]
+}
+
+/** A labels file, read against the sample it says it is of. */
+function readLabels(
+  ctx: CommandContext,
+  path: string,
+  sample: readonly EvalAnswer[],
+  golden: Golden,
+): AnswerLabel[] {
+  const full = resolve(ctx.root, path)
+  if (!existsSync(full)) throw new CliError(`no labels at ${full}`)
+  const file = JSON.parse(readFileSync(full, 'utf8')) as LabelFile
+  const hash = sampleHash(sample)
+  if (file.sample !== hash) {
+    throw new CliError(
+      `these labels are of sample ${file.sample}, and this report gives ${hash}: they would be read against other answers`,
+    )
+  }
+  const items = file.labels.map(({ item }) => item).sort((a, b) => a - b)
+  const missing = sample.map((_, i) => i + 1).filter((item) => !items.includes(item))
+  if (missing.length > 0 || new Set(items).size !== items.length) {
+    throw new CliError(
+      `every item needs one label: ${missing.length > 0 ? `${missing.join(', ')} missing` : 'one appears twice'}`,
+    )
+  }
+  return file.labels.map((line): AnswerLabel => {
+    const answer = sample[line.item - 1]
+    if (answer === undefined) throw new CliError(`there is no item ${String(line.item)}`)
+    const question = golden.questions.find(({ id }) => id === answer.questionId)
+    if (question === undefined) throw new CliError(`no question ${answer.questionId}`)
+    const unanswerable = isUnanswerable(question)
+    if (unanswerable ? line.outcome === undefined : line.correctness === undefined) {
+      throw new CliError(
+        `item ${String(line.item)} needs ${unanswerable ? 'an outcome' : 'a correctness'}`,
+      )
+    }
+    if (unanswerable && line.refused !== undefined) {
+      throw new CliError(`item ${String(line.item)} takes an outcome, not refused`)
+    }
+    if (line.refused === true && line.correctness !== 0) {
+      throw new CliError(`item ${String(line.item)} is refused, and a refusal scores 0`)
+    }
+    return {
+      questionId: answer.questionId,
+      row: answer.row,
+      correctness: unanswerable ? null : (line.correctness ?? null),
+      refused: unanswerable ? null : (line.refused ?? false),
+      outcome: unanswerable ? (line.outcome ?? null) : null,
+      supported: line.supported ?? null,
+    }
+  })
+}
+
+const spotCheckWords = (spot: EvalSpotCheck | null): string[] =>
+  spot === null ? [] : [spotCheckSentence(spot)]
+
+/**
+ * `drl eval spot-check <report> <labels>`: the judge on a new source's answers (ADR-0016). Its file
+ * is next to the report, and nothing that decides calibration reads it.
+ */
+export function evalSpotCheckCommand(
+  ctx: CommandContext,
+  args: { path: string; labels: string },
+): void {
+  const { report, answers } = reportWithAnswers(ctx, args.path)
+  const source = findSource(ctx.sources, report.identity.sourceId)
+  const golden = goldenOf(ctx, source)
+  const sample = spotCheckSampleOf(answers, golden)
+  const found = spotCheck({
+    report: {
+      repoSha: report.run.repoSha,
+      name: report.run.name,
+      createdAt: report.run.createdAt,
+    },
+    labels: readLabels(ctx, args.labels, sample, golden),
+    verdicts: answers.verdicts,
+    support: answers.support,
+    prompts: answers.prompts,
+    judgeModel: answers.models.judge,
+  })
+  const path = spotCheckPath(resolve(ctx.root, args.path))
+  writeFileSync(path, `${JSON.stringify(found, null, 2)}\n`)
+  const text = formatSpotCheck(found)
+  writeFileSync(path.replace(/\.json$/, '.md'), text)
+  ctx.out.write(text)
+  rewriteAnswerMarkdown(ctx)
 }
 
 /** `drl eval calibrate <report> <labels>`: how often the human and the judge agree. */
@@ -512,48 +640,7 @@ export function evalCalibrateCommand(
         : earlier !== undefined
           ? sampleOf(earlier.report, earlier.answers, golden)
           : sampleOf(report, answers, golden)
-  const full = resolve(ctx.root, args.labels)
-  if (!existsSync(full)) throw new CliError(`no labels at ${full}`)
-  const file = JSON.parse(readFileSync(full, 'utf8')) as LabelFile
-  const hash = sampleHash(sample)
-  if (file.sample !== hash) {
-    throw new CliError(
-      `these labels are of sample ${file.sample}, and this report gives ${hash}: they would be read against other answers`,
-    )
-  }
-  const items = file.labels.map(({ item }) => item).sort((a, b) => a - b)
-  const missing = sample.map((_, i) => i + 1).filter((item) => !items.includes(item))
-  if (missing.length > 0 || new Set(items).size !== items.length) {
-    throw new CliError(
-      `every item needs one label: ${missing.length > 0 ? `${missing.join(', ')} missing` : 'one appears twice'}`,
-    )
-  }
-  const labels = file.labels.map((line): AnswerLabel => {
-    const answer = sample[line.item - 1]
-    if (answer === undefined) throw new CliError(`there is no item ${String(line.item)}`)
-    const question = golden.questions.find(({ id }) => id === answer.questionId)
-    if (question === undefined) throw new CliError(`no question ${answer.questionId}`)
-    const unanswerable = isUnanswerable(question)
-    if (unanswerable ? line.outcome === undefined : line.correctness === undefined) {
-      throw new CliError(
-        `item ${String(line.item)} needs ${unanswerable ? 'an outcome' : 'a correctness'}`,
-      )
-    }
-    if (unanswerable && line.refused !== undefined) {
-      throw new CliError(`item ${String(line.item)} takes an outcome, not refused`)
-    }
-    if (line.refused === true && line.correctness !== 0) {
-      throw new CliError(`item ${String(line.item)} is refused, and a refusal scores 0`)
-    }
-    return {
-      questionId: answer.questionId,
-      row: answer.row,
-      correctness: unanswerable ? null : (line.correctness ?? null),
-      refused: unanswerable ? null : (line.refused ?? false),
-      outcome: unanswerable ? (line.outcome ?? null) : null,
-      supported: line.supported ?? null,
-    }
-  })
+  const labels = readLabels(ctx, args.labels, sample, golden)
   const calibration = calibrate({
     report: {
       repoSha: report.run.repoSha,
@@ -575,36 +662,45 @@ export function evalCalibrateCommand(
   const text = formatCalibration(calibration)
   writeFileSync(`${stem}.md`, text)
   ctx.out.write(text)
-  rewriteAnswerMarkdown(ctx, source.id)
-  const calibrations = readCalibrations(ctx.root, source.id)
+  rewriteAnswerMarkdown(ctx)
+  const calibrations = readCalibrations(ctx.root)
   const named = listRuns(ctx.root, source.id).runs.some(
     ({ id }) => id === basename(args.path, '.json'),
   )
   ctx.out.write(
     named
-      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable))}\n`
+      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable, source.id))}\n`
       : '\nThis is a development report, so these labels count for no report the store reads.\n',
   )
 }
 
 /**
  * What a report's markdown says of the judge depends on the labels, which come after the report,
- * so new labels write it again (ADR-0013). The JSON, which is the record, is not touched.
+ * so new labels write it again, on every source (ADR-0013). The JSON, which is the record, is not
+ * touched.
  */
-function rewriteAnswerMarkdown(ctx: CommandContext, sourceId: string): void {
-  const { rounds, unreadable } = readCalibrations(ctx.root, sourceId)
-  for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
-    if (!hasAnswers) continue
-    try {
-      writeFileSync(
-        join(reportsDir(ctx.root, sourceId), `${id}.md`),
-        reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
-          answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
-        ),
-      )
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+function rewriteAnswerMarkdown(ctx: CommandContext): void {
+  const { rounds, unreadable } = readCalibrations(ctx.root)
+  for (const sourceId of reportSources(ctx.root)) {
+    for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
+      if (!hasAnswers) continue
+      try {
+        writeFileSync(
+          join(reportsDir(ctx.root, sourceId), `${id}.md`),
+          reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
+            answerSections(
+              answers,
+              [
+                judgeSentence(judgeTrust(answers, rounds, unreadable, sourceId)),
+                ...spotCheckWords(readSpotCheck(ctx.root, sourceId, id)),
+              ].join(' '),
+            ),
+          ),
+        )
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+      }
     }
   }
 }

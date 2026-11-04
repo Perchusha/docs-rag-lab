@@ -16,6 +16,10 @@ import {
   newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
+  spotCheck,
+  spotCheckSampleForLabels,
+  SPOT_CHECK_ROWS,
+  SPOT_CHECK_SEED,
   wilsonInterval,
   type FreshSampleOptions,
 } from './calibrate.ts'
@@ -361,6 +365,84 @@ describe('sampleHash', () => {
   it('changes with the question and with the row', () => {
     expect(sampleHash([answer(1, 0)])).not.toBe(sampleHash([answer(2, 0)]))
     expect(sampleHash([answer(1, 0)])).not.toBe(sampleHash([answer(1, 3)]))
+  })
+})
+
+describe('spotCheckSampleForLabels', () => {
+  const answers = SPOT_CHECK_ROWS.flatMap((row) =>
+    Array.from({ length: 45 }, (_, i) => answer(i + 1, row)),
+  )
+  const unanswerable = new Set(
+    questions.filter(({ primary }) => primary.length === 0).map(({ id }) => id),
+  )
+  const sample = spotCheckSampleForLabels({ answers, verdicts: [], questions })
+
+  it('takes 3 from row 0, 4 from row 3 and 3 from row 4', () => {
+    const inRow = (row: number) => sample.filter((answer) => answer.row === row).length
+
+    expect(sample).toHaveLength(10)
+    expect([inRow(0), inRow(3), inRow(4)]).toEqual([3, 4, 3])
+  })
+
+  it('has 2 questions the docs do not answer, and none twice', () => {
+    expect(sample.filter(({ questionId }) => unanswerable.has(questionId))).toHaveLength(2)
+    expect(new Set(sample.map(({ questionId }) => questionId)).size).toBe(10)
+  })
+
+  it('is the same every time, from a seed of its own', () => {
+    expect(spotCheckSampleForLabels({ answers, verdicts: [], questions })).toEqual(sample)
+    expect(sample).not.toEqual(
+      spotCheckSampleForLabels({ answers, verdicts: [], questions, seed: SPOT_CHECK_SEED + 1 }),
+    )
+  })
+})
+
+describe('spotCheck', () => {
+  const REPORT = { repoSha: 'x', name: 'final', createdAt: 'then' }
+  const label = (i: number, correctness: 0 | 1 | 2): AnswerLabel => ({
+    questionId: ID(i),
+    row: 3,
+    correctness,
+    refused: false,
+    outcome: null,
+    supported: null,
+  })
+  const check = (labels: AnswerLabel[]) =>
+    spotCheck({
+      report: REPORT,
+      labels,
+      verdicts: [1, 2, 3].map((i) => verdict(i, 3, 2)),
+      support: [],
+      prompts: { correctness: 'c' },
+      judgeModel: 'j',
+    })
+
+  it('passes with one disagreement, where a round of this size would miss the bar', () => {
+    const found = check([label(1, 2), label(2, 2), label(3, 1)])
+
+    expect(found.passed).toBe(true)
+    expect(found.agreement.find(({ dimension }) => dimension === 'correctness')).toMatchObject({
+      agreed: 2,
+      compared: 3,
+      passed: true,
+    })
+    expect(found.correctnessDisagreements).toEqual([
+      { questionId: ID(3), row: 3, human: 1, judge: 2 },
+    ])
+  })
+
+  it('misses with two on one dimension', () => {
+    expect(check([label(1, 2), label(2, 1), label(3, 1)]).passed).toBe(false)
+  })
+
+  it('leaves out a dimension it could not compare', () => {
+    const found = check([label(1, 2)])
+
+    expect(found.agreement.map(({ dimension }) => dimension)).toEqual(['correctness', 'refusal'])
+  })
+
+  it('does not pass with nothing compared', () => {
+    expect(check([]).passed).toBe(false)
   })
 })
 

@@ -4,7 +4,13 @@ import { useId, useState } from 'react'
 
 import type { DashboardAgreement, DashboardRound, DashboardTrust } from '@docs-rag-lab/contracts'
 
-import { dimensionWords, percentRange, staleWords } from '../lib/eval.ts'
+import {
+  calibratedWords,
+  dimensionWords,
+  percentRange,
+  spotCheckIntro,
+  staleWords,
+} from '../lib/eval.ts'
 import { ScrollRegion } from '../lib/ScrollRegion.tsx'
 import styles from './EvalDashboard.module.css'
 
@@ -25,9 +31,9 @@ function Rounds({ rounds }: { rounds: readonly DashboardRound[] }) {
           </tr>
         </thead>
         <tbody>
-          {rounds.flatMap((round) =>
+          {rounds.flatMap((round, index) =>
             round.agreement.map((result) => (
-              <tr key={`${round.name}-${result.dimension}`}>
+              <tr key={`${String(index)}-${result.dimension}`}>
                 <th scope="row" className={styles.rowLabel}>
                   {round.name}
                   {!round.blind && <span className={styles.exploratory}> Not blind</span>}
@@ -52,7 +58,7 @@ function Rounds({ rounds }: { rounds: readonly DashboardRound[] }) {
 export function TrustSection({ trust }: { trust: DashboardTrust }) {
   const id = useId()
   const [open, setOpen] = useState(false)
-  const { judge, goldenSet, docs, indexDocsSha, stale, review, verify, index } = trust
+  const { judge, goldenSet, docs, indexDocsSha, stale, review, verify, index, spotCheck } = trust
   const missing =
     judge === null
       ? []
@@ -77,11 +83,7 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
             'This run has no answers, so no judge graded it.'
           ) : (
             <>
-              <strong>
-                {judge.calibrated
-                  ? 'Calibrated, by the rule fixed in advance.'
-                  : 'Not calibrated for these prompts.'}
-              </strong>{' '}
+              <strong>{calibratedWords(judge)}</strong>{' '}
               {[
                 ...judge.agreement.map(agreementWords),
                 ...missing.map((dimension) => `${dimensionWords[dimension]} not labelled`),
@@ -94,6 +96,18 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
           <>
             <dt>Known bias</dt>
             <dd>{judge.bias}</dd>
+          </>
+        )}
+        {spotCheck !== undefined && (
+          <>
+            <dt>Spot check</dt>
+            <dd>
+              <strong>
+                {spotCheck.passed ? 'Passed on these answers.' : 'Missed on these answers.'}
+              </strong>{' '}
+              {spotCheckIntro(spotCheck)} {spotCheck.agreement.map(agreementWords).join(', ')}.
+              {spotCheck.bias !== null && ` ${spotCheck.bias}`}
+            </dd>
           </>
         )}
         <dt>Set and docs</dt>

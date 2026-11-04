@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import {
   againstVerdictWords,
   againstWords,
+  calibratedWords,
   figurePosition,
   figureWords,
   percentRange,
   runToRunsWords,
   runToRunWords,
   shapeFor,
+  spotCheckIntro,
   splitWords,
   staleWords,
   verdictWords,
@@ -166,5 +168,32 @@ describe('staleWords', () => {
     [2, 3, '2 questions stale, 3 to re-read'],
   ])('says %i and %i as "%s"', (stale, review, words) => {
     expect(staleWords(stale, review)).toBe(words)
+  })
+})
+
+describe('calibratedWords', () => {
+  it('says only that it is calibrated, when the labels are its own', () => {
+    expect(calibratedWords({ calibrated: true })).toBe('Calibrated, by the rule fixed in advance.')
+  })
+
+  it("says whose answers calibrated it, when they are another source's", () => {
+    expect(calibratedWords({ calibrated: true, calibratedOn: ['typescript'] })).toBe(
+      "Calibrated on typescript's answers, by the rule fixed in advance.",
+    )
+  })
+
+  it('says not calibrated, wherever the labels were', () => {
+    expect(calibratedWords({ calibrated: false, calibratedOn: ['typescript'] })).toBe(
+      'Not calibrated for these prompts.',
+    )
+  })
+})
+
+describe('spotCheckIntro', () => {
+  it('says how many were labelled, and what it allows', () => {
+    expect(spotCheckIntro({ labelled: 10, allowed: 1 })).toBe(
+      '10 labelled blind, with 1 disagreement allowed on each measure:',
+    )
+    expect(spotCheckIntro({ labelled: 10, allowed: 2 })).toContain('2 disagreements allowed')
   })
 })

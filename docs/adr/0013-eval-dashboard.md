@@ -87,6 +87,10 @@ No RAG, Vector, "Cites the right passage", "Refused rightly", and time and cost 
 
 The three sections end at 684 px on Windows' system font and at 729 px under Verdana, which came close to CI before (section 1).
 
+### 8. A report whose labels came from elsewhere
+
+Added in M6, for a source with no labels of its own (ADR-0015, ADR-0016). The trust section says whose answers calibrated the judge: "Calibrated on typescript's answers, by the rule fixed in advance." The known bias says the same, and each round in "How this was calibrated" names its source. A spot check on the report's own answers has a line of its own, "Spot check", which says whether it passed, what it allowed and which way any disagreement leans. It adds no tab stop, and it changes no calibration. A report with labels of its own builds what it did before: what TypeScript's 14 reports build is unchanged, checked against what they built before this.
+
 ## Consequences
 
 - A calibration file from before this has no prompts and no disagreements. The three in the repository were written again from their labels, which is free.

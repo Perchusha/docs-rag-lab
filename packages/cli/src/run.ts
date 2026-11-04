@@ -46,6 +46,7 @@ import { CliError } from './errors.ts'
 import {
   evalAnswersCommand,
   evalCalibrateCommand,
+  evalSpotCheckCommand,
   evalJudgeCheckCommand,
   evalLabelCommand,
   parseRows,
@@ -100,9 +101,14 @@ Commands:
                               exactly (ADR-0014). Uses free tokens, and needs --yes to go on
   eval label <report>         Write the sheet a human labels from, with no verdicts
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
+      [--rows <list>]         A round on those rows: 15 answers, for rows new in a milestone
+      [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016)
   eval calibrate <r> <labels> How often the human and the judge agree
       [--after <report>]      Those labels are of a fresh round after that report
       [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind
+      [--rows <list>]         Those labels are of a round on those rows
+  eval spot-check <r> <labels> How often the human and the judge agree on a spot check, which
+                              decides nothing for any other report
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
       [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
@@ -237,6 +243,7 @@ function refuseStrayEvalFlags(
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
+    spot?: boolean | undefined
     'max-usd'?: string | undefined
     yes?: boolean | undefined
     'top-k'?: string | undefined
@@ -262,6 +269,7 @@ function refuseStrayEvalFlags(
       ? ['--after']
       : []),
     ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
+    ...(values.spot === true && subcommand !== 'label' ? ['--spot'] : []),
     ...(values.rows !== undefined &&
     subcommand !== 'answers' &&
     subcommand !== 'label' &&
@@ -334,6 +342,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         rows: { type: 'string' },
         only: { type: 'string' },
         noise: { type: 'boolean', default: false },
+        spot: { type: 'boolean', default: false },
         'max-usd': { type: 'string' },
         yes: { type: 'boolean', default: false },
         'doc-type': { type: 'string', multiple: true },
@@ -509,7 +518,13 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           path: first,
           after: values.after,
           rows: values.rows === undefined ? undefined : parseRows(values.rows),
+          spot: values.spot,
         })
+      } else if (subcommand === 'spot-check') {
+        if (first === undefined || second === undefined) {
+          throw new CliError('eval spot-check needs a report file and a labels file')
+        }
+        evalSpotCheckCommand(ctx, { path: first, labels: second })
       } else if (subcommand === 'calibrate') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval calibrate needs a report file and a labels file')
@@ -547,7 +562,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         })
       } else {
         throw new CliError(
-          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, rerank-check, verify)`,
+          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, spot-check, rerank-check, verify)`,
         )
       }
     } else {

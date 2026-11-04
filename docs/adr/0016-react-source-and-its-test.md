@@ -116,7 +116,7 @@ These come first. If one fails, the numbers are not read as a result.
 **In the harness, before React:**
 - `drl eval` embeds the queries in one batch before it plans its rerank calls, as a run does, and says so. Today it searches question by question, before its estimate (journal, open items for M6).
 - A report reads the judge's rounds for its prompts and model from every source's folder, not only its own.
-- `drl eval label` and a new command for the spot check, as above.
+- `drl eval label --spot` for the sheet and `drl eval spot-check` for what it found, as above.
 
 **The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and this ADR records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 

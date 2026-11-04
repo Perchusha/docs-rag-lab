@@ -5,6 +5,7 @@ import type {
   EvalCalibration,
   EvalQuestionScore,
   EvalReport,
+  EvalSpotCheck,
   EvalSupport,
   EvalVerdict,
   EvalVerifyRecord,
@@ -452,6 +453,88 @@ describe('a report with the reranker', () => {
       const { trust } = buildWith(withRerank({ answers: ladderAnswers() }), contextualResult())
 
       expect(trust.index).toBe('Rerank + contexts read the contextual index: haiku:abc.')
+    })
+  })
+
+  describe('with no row 5, as on a source that does not measure it', () => {
+    const noRow5 = (): EvalAnswers => {
+      const all = ladderAnswers()
+      const without = <T extends { row: AnswerRow }>(items: readonly T[]): T[] =>
+        items.filter(({ row }) => row !== 5)
+      const answers: EvalAnswers = {
+        ...all,
+        rows: without(all.rows),
+        answers: without(all.answers),
+        verdicts: without(all.verdicts),
+        support: without(all.support),
+      }
+      delete answers.contextualIndex
+      return answers
+    }
+
+    it('has two columns on the first screen, and says nothing of contexts', () => {
+      const { retrieval, answers, trust } = buildWith(withRerank({ answers: noRow5() }))
+
+      expect(retrieval.columns).toEqual(['Hybrid', 'Rerank'])
+      expect(answers?.columns).toEqual(['Hybrid', 'Rerank'])
+      expect(answers?.rows[0]?.comparisons.map(({ b }) => b)).toEqual(['Rerank'])
+      expect(JSON.stringify([retrieval, answers]).toLowerCase()).not.toContain('contexts')
+      expect(trust.index).toBeUndefined()
+    })
+
+    it('still gives the reference without docs, and why the app stays on hybrid', () => {
+      const { answers } = buildWith(withRerank({ answers: noRow5() }))
+
+      expect(answers?.notes?.[0]).toMatch(/^Without docs: 8 of 8 fully correct/)
+      expect(answers?.notes?.[1]).toContain('The app stays on hybrid')
+    })
+  })
+
+  describe('a spot check', () => {
+    const spot: EvalSpotCheck = {
+      report: { repoSha: 'x', name: 'final', createdAt: 'then' },
+      prompts: {},
+      judgeModel: 'j',
+      correctnessDisagreements: [{ questionId: ID(1), row: 3, human: 1, judge: 2 }],
+      labelled: 10,
+      agreement: [
+        {
+          dimension: 'correctness',
+          agreed: 7,
+          compared: 8,
+          kappa: 0.5,
+          interval: [0.5, 1],
+          passed: true,
+        },
+      ],
+      unanswerableOnly: { compared: 2, agreed: 2 },
+      allowed: 1,
+      passed: true,
+    }
+    const build = (spotCheck: EvalSpotCheck | null) =>
+      buildDashboardRun({
+        id: 'run-id',
+        report: withRerank({ answers: ladderAnswers() }),
+        calibrations: [],
+        verify: null,
+        spotCheck,
+        indexDocsSha: 'docs-sha',
+      }).trust
+
+    it('goes in the trust section, with which way it leans', () => {
+      expect(build(spot).spotCheck).toMatchObject({
+        passed: true,
+        labelled: 10,
+        allowed: 1,
+        bias: 'The 1 disagreement is the judge scoring higher than the human: correctness may be slightly inflated.',
+      })
+    })
+
+    it('adds nothing for a report that has none, and changes no calibration', () => {
+      const without = build(null)
+
+      expect(without).not.toHaveProperty('spotCheck')
+      expect(build(spot).judge).toEqual(without.judge)
     })
   })
 

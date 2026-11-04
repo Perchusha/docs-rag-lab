@@ -6,7 +6,12 @@
 // recomputed from `identity`. Bump EVAL_REPORT_VERSION only when an existing field
 // changes its meaning. A new section is optional and needs no bump, so the reports
 // already committed stay readable.
-import type { EvalAnswers, EvalCalibration, EvalVerifyRecord } from './eval-answers.ts'
+import type {
+  EvalAnswers,
+  EvalCalibration,
+  EvalSpotCheck,
+  EvalVerifyRecord,
+} from './eval-answers.ts'
 import type { DifferenceVerdict } from './eval-difference.ts'
 import type { Strategy } from './trace.ts'
 import type { Parsed } from './requests.ts'
@@ -227,14 +232,13 @@ function hasAnswersOutline(value: unknown): boolean {
   )
 }
 
-/** A calibration file, or why it is not one. It checks the outline, as a report's parse does. */
-export function parseEvalCalibration(value: unknown): Parsed<EvalCalibration> {
-  if (!isRecord(value)) return { ok: false, error: 'a calibration must be a JSON object' }
+/** Why this is not labels against a judge, as both kinds of file record them, if it is not. */
+function labelsOutlineError(value: Record<string, unknown>, what: string): string | undefined {
   const { report, agreement } = value
   if (!isRecord(report) || typeof report.createdAt !== 'string') {
-    return { ok: false, error: 'a calibration needs report, with createdAt' }
+    return `${what} needs report, with createdAt`
   }
-  if (!Array.isArray(agreement)) return { ok: false, error: 'a calibration needs agreement' }
+  if (!Array.isArray(agreement)) return `${what} needs agreement`
   const whole = agreement.every(
     (result) =>
       isRecord(result) &&
@@ -243,8 +247,26 @@ export function parseEvalCalibration(value: unknown): Parsed<EvalCalibration> {
       typeof result.compared === 'number' &&
       Array.isArray(result.interval),
   )
-  if (!whole) return { ok: false, error: 'each agreement needs its dimension, counts and interval' }
+  return whole ? undefined : 'each agreement needs its dimension, counts and interval'
+}
+
+/** A calibration file, or why it is not one. It checks the outline, as a report's parse does. */
+export function parseEvalCalibration(value: unknown): Parsed<EvalCalibration> {
+  if (!isRecord(value)) return { ok: false, error: 'a calibration must be a JSON object' }
+  const error = labelsOutlineError(value, 'a calibration')
+  if (error !== undefined) return { ok: false, error }
   return { ok: true, value: value as unknown as EvalCalibration }
+}
+
+/** A spot check's file, or why it is not one. */
+export function parseEvalSpotCheck(value: unknown): Parsed<EvalSpotCheck> {
+  if (!isRecord(value)) return { ok: false, error: 'a spot check must be a JSON object' }
+  const error = labelsOutlineError(value, 'a spot check')
+  if (error !== undefined) return { ok: false, error }
+  if (typeof value.passed !== 'boolean' || typeof value.allowed !== 'number') {
+    return { ok: false, error: 'a spot check needs passed and allowed' }
+  }
+  return { ok: true, value: value as unknown as EvalSpotCheck }
 }
 
 const VERIFY_STATUSES: readonly string[] = [

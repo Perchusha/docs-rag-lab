@@ -22,11 +22,14 @@ import {
   freshSampleForLabels,
   parseGoldenSet,
   newRowsSampleForLabels,
+  readCalibrations,
   sampleForLabels,
   sampleHash,
+  spotCheckSampleForLabels,
   type EvalClient,
   openIndexes,
   type IndexVariant,
+  type EmbeddingProvider,
   type RerankProvider,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
@@ -149,6 +152,25 @@ const fakeReranker: RerankProvider = {
   },
 }
 
+/** What reached the embedding model. Every test but one finds its queries in the cache. */
+let embedCalls: string[][] = []
+
+function fakeEmbeddings(): EmbeddingProvider {
+  const { dimensions, model } = settings.embeddings
+  return {
+    id: createEmbeddingProvider(settings.embeddings).id,
+    model,
+    dimensions,
+    limits: { maxInputs: 1_000, maxTokens: 1_000_000 },
+    embed: (texts) => {
+      embedCalls.push([...texts])
+      const vector = (text: string) =>
+        Float32Array.from({ length: dimensions }, (_, j) => (j === QUESTIONS.indexOf(text) ? 1 : 0))
+      return Promise.resolve({ vectors: texts.map(vector), tokens: texts.length })
+    },
+  }
+}
+
 // The real limits would make these tests wait a minute between calls.
 const unlimited = {
   ...settings,
@@ -167,6 +189,7 @@ async function drl(...argv: string[]) {
     now: () => clock,
     createEvalClient: () => fakeEvalClient,
     createReranker: () => fakeReranker,
+    createProvider: fakeEmbeddings,
   })
   return { code, out: out.text(), err: err.text() }
 }
@@ -851,6 +874,38 @@ describe('drl eval answers', () => {
     expect(out).toContain('correctness may be slightly inflated')
   })
 
+  it("takes the judge's rounds from another source's folder, and says whose answers they were", async () => {
+    const report = readReport(reportPathIn((await drl('eval', 'answers', '--yes')).out))
+    const elsewhere = reportsDir(root, 'elsewhere')
+    mkdirSync(elsewhere, { recursive: true })
+    writeFileSync(
+      join(elsewhere, '2026-11-01-abcdef12-x-calibration.json'),
+      JSON.stringify({
+        report: { repoSha: 'abcdef12', name: 'x', createdAt: '2026-11-01T00:00:00.000Z' },
+        blind: true,
+        prompts: report.answers?.prompts,
+        judgeModel: report.answers?.models.judge,
+        correctnessDisagreements: [],
+        labelled: 15,
+        agreement: ['correctness', 'refusal', 'support'].map((dimension) => ({
+          dimension,
+          compared: 8,
+          agreed: 8,
+          kappa: 1,
+          interval: [0.6, 1],
+          passed: true,
+        })),
+        unanswerableOnly: { compared: 3, agreed: 3 },
+        calibrated: true,
+      }),
+    )
+    clock += 1000
+
+    const { out } = await drl('eval', 'answers', '--yes')
+
+    expect(out).toContain("The judge is calibrated for these prompts, on elsewhere's answers.")
+  })
+
   it('keeps the answers in the JSON, and out of the markdown', async () => {
     const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
 
@@ -988,6 +1043,28 @@ describe('drl eval answers', () => {
     beforeEach(() => {
       rerankCalls = []
       rerankJitter = 0
+    })
+
+    it('embeds cold queries in one request before its estimate, and says so', async () => {
+      rmSync(join(root, settings.dataDir, 'cache.sqlite'))
+      embedCalls = []
+
+      const { code, out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(code).toBe(0)
+      expect(embedCalls).toEqual([['First?', 'Second?', 'Not covered?']])
+      expect(out).toContain('3 queries were embedded first, in one free request')
+      expect(out).toContain('this would first make 3 calls')
+      expect(rerankCalls).toEqual([])
+    })
+
+    it('embeds nothing for its estimate when the queries are cached', async () => {
+      embedCalls = []
+
+      const { out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(embedCalls).toEqual([])
+      expect(out).not.toContain('queries were embedded first')
     })
 
     it('makes no rerank call without --yes, and says how many it would', async () => {
@@ -1133,6 +1210,8 @@ describe('drl eval answers', () => {
     [['eval', 'check', '--rows', '0'], '--rows does not apply'],
     [['eval', 'verify', 'x.json', '--only', 'a'], '--only does not apply'],
     [['eval', 'label', 'x.json', '--yes'], '--yes does not apply'],
+    [['eval', 'calibrate', 'x.json', 'y.json', '--spot'], '--spot does not apply'],
+    [['eval', 'spot-check', 'x.json'], 'eval spot-check needs a report file and a labels file'],
   ])('refuses %j', async (argv, message) => {
     const { code, err } = await drl(...argv)
 
@@ -1142,6 +1221,97 @@ describe('drl eval answers', () => {
 
   describe('labels', () => {
     const sheetOf = (out: string): string => /: (.+labels-.+\.md)/.exec(out)?.[1] ?? ''
+
+    describe('a spot check', () => {
+      /** A report with the rows a spot check takes, and labels that agree with its judge. */
+      async function spotChecked() {
+        const path = reportPathIn((await drl('eval', 'answers', '--rows', '0,3,4', '--yes')).out)
+        const report = readReport(path)
+        const answers = report.answers?.answers ?? []
+        const verdicts = report.answers?.verdicts ?? []
+        const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+        const sample = spotCheckSampleForLabels({ answers, verdicts, questions: golden })
+        const labels = sample.map((answer, i): Record<string, unknown> => {
+          const verdict = verdicts.find(
+            (item) => item.questionId === answer.questionId && item.row === answer.row,
+          )
+          return verdict?.outcome == null
+            ? { item: i + 1, correctness: verdict?.correctness, supported: true }
+            : { item: i + 1, outcome: verdict.outcome }
+        })
+        const labelsPath = join(root, 'labels.json')
+        writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+        return { path, labelsPath, labels, sample }
+      }
+
+      it('writes its sheet, and says when the set is too small for 10 answers', async () => {
+        const { path, sample } = await spotChecked()
+
+        const { code, out } = await drl('eval', 'label', path, '--spot')
+
+        expect(code).toBe(0)
+        expect(sheetOf(out)).toMatch(/-spot-check\.md$/)
+        expect(out).toContain('too few questions for 10 answers')
+        expect(readFileSync(sheetOf(out), 'utf8')).toContain(sampleHash(sample))
+      })
+
+      it('has a file of its own, which decides no calibration', async () => {
+        const { path, labelsPath } = await spotChecked()
+
+        const { code, out } = await drl('eval', 'spot-check', path, labelsPath)
+
+        expect(code).toBe(0)
+        expect(out).toContain('This spot check passed.')
+        const stored = JSON.parse(
+          readFileSync(path.replace(/\.json$/, '-spot-check.json'), 'utf8'),
+        ) as { passed: boolean; allowed: number }
+        expect(stored).toMatchObject({ passed: true, allowed: 1 })
+        expect(existsSync(path.replace(/\.json$/, '-calibration.json'))).toBe(false)
+        expect(readCalibrations(root).rounds).toEqual([])
+      })
+
+      it('says in a named report what it found', async () => {
+        const { path, labelsPath } = await spotChecked()
+        const named = join(reportsDir(root, 'typescript'), '2026-11-03-abcdef12-x.json')
+        writeFileSync(named, readFileSync(path, 'utf8'))
+
+        await drl('eval', 'spot-check', named, labelsPath)
+
+        expect(readFileSync(named.replace(/\.json$/, '.md'), 'utf8')).toContain(
+          'A spot check of 3 of these answers, labelled blind, passed',
+        )
+      })
+
+      it('misses at a second disagreement on one dimension, and says so', async () => {
+        const { path, labelsPath, labels, sample } = await spotChecked()
+        const answerable = labels.filter((line) => line.correctness !== undefined)
+        for (const line of answerable) line.correctness = line.correctness === 0 ? 2 : 0
+        writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+        expect(answerable.length).toBeGreaterThanOrEqual(2)
+
+        const { out } = await drl('eval', 'spot-check', path, labelsPath)
+
+        expect(out).toContain('This spot check missed')
+      })
+
+      it('refuses a report without the rows it takes', async () => {
+        const path = reportPathIn((await drl('eval', 'answers', '--rows', '0,3', '--yes')).out)
+
+        const { code, err } = await drl('eval', 'label', path, '--spot')
+
+        expect(code).toBe(1)
+        expect(err).toContain('this report has no row 4')
+      })
+
+      it('goes with no other kind of round', async () => {
+        const { path } = await spotChecked()
+
+        const { code, err } = await drl('eval', 'label', path, '--spot', '--rows', '4')
+
+        expect(code).toBe(1)
+        expect(err).toContain('--spot goes with neither --after nor --rows')
+      })
+    })
 
     it('takes a round from the new rows alone, and reads its labels against it', async () => {
       seedIndex('contextual')

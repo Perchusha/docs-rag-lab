@@ -53,12 +53,24 @@ function scoredQuestions(
   }
   if (golden === undefined) throw new CliError(`${source.id} has no golden set`)
   const stale = new Set(golden.check.stale)
-  return golden.questions.filter(
-    (candidate) => !isUnanswerable(candidate) && !stale.has(candidate.id),
-  )
+  return golden.questions
+    .filter((candidate) => !isUnanswerable(candidate) && !stale.has(candidate.id))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 }
 
-/** The fused top documents of these questions, or of the scored ones. */
+/** Embedding requests this command has made so far. */
+const embeddingRequests = (meter: CommandContext['meter']): number =>
+  meter
+    .entries()
+    .filter(([, usage]) => usage.kind === 'embedding')
+    .reduce((sum, [, usage]) => sum + usage.requests, 0)
+
+/**
+ * The fused top documents of these questions, or of the scored ones. A search embeds its question
+ * alone, so the queries go first, in one request and in the order a run sends them: the vectors
+ * depend on the batch (ADR-0010), and whatever this caches is what the run will read. On a cold
+ * cache that is one free request before any estimate, so this says so.
+ */
 async function fusedTops(
   ctx: CommandContext,
   sourceId: string,
@@ -69,6 +81,18 @@ async function fusedTops(
   const engine = variant === undefined ? ctx.engine : ctx.engineFor(variant)
   const source = findSource(ctx.sources, sourceId)
   const picked = questions ?? scoredQuestions(ctx, source, variant)
+
+  const before = embeddingRequests(meter)
+  await engine.embedQueries(
+    { source: source.id, questions: picked.map(({ question }) => question.trim()) },
+    meter,
+  )
+  if (embeddingRequests(meter) > before) {
+    ctx.out.write(
+      `${String(picked.length)} queries were embedded first, in one free request, since the estimate needs them and a run would read the same vectors
+`,
+    )
+  }
 
   const tops: BatchingCheckQuestion[] = []
   for (const { id, question } of picked) {
