@@ -3,7 +3,7 @@ conformance suite. Never reformat them.
 
 Repository: https://github.com/reactjs/react.dev
 Branch:     main
-Commit:     the full SHA and its date, once the first fixture is copied
+Commit:     2177e28d3c3c16a8183346b9140f11ce0ee6af25 (2026-11-04)
 License:    CC BY 4.0, see NOTICE
 
 repo/ mirrors the upstream paths.
