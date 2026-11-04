@@ -112,6 +112,7 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 - App-specific state lives in its own file, for example `data/apps/interview-prep.sqlite` (progress, sessions).
 - The embedding cache is shared: `data/cache.sqlite`.
 - Eval answers and judge verdicts are cached in `data/eval-cache.sqlite`, so a rerun does not pay twice (ADR-0009).
+- Rerank calls are cached in `data/rerank-cache.sqlite`, one entry per call, since a score depends on the rest of its call (ADR-0014).
 - `data/` and `.cache/` are gitignored.
 
 ## 5. Tech stack

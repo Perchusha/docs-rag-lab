@@ -26,7 +26,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch; the next sync without it returns to the head)
 - Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set)
-- Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree)
+- Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree, measures rerank too, one paced call per question, and prints its estimate until `--yes`)
 - A report again, to see if it reproduces: `pnpm drl eval verify <report>` (add `--record` to write what it found next to the report, for the dashboard)
 - Two reports, question by question: `pnpm drl eval compare <a> <b>`
 - Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit). Reruns pay only for what is not cached.
@@ -35,7 +35,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, or `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind)
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
-- Embedding rate limits: `pnpm drl limits`
+- Rate limits of embeddings and rerank: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
 - The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)

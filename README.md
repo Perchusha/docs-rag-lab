@@ -91,14 +91,15 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
 | `pnpm drl sync typescript [--full] [--at <sha>]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`, at the head of the branch or at that commit (the next sync without `--at` returns to the head). Re-embeds only new or changed chunks |
-| `pnpm drl ask "<question>" [--strategy vector\|hybrid] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
-| `pnpm drl search "<question>" [--strategy vector\|hybrid] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
-| `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request) |
-| `pnpm drl eval [--name <name>] [--strategy vector\|hybrid]` | Retrieval metrics over the golden set, written as a report under `eval/reports/`. No Claude call. A named run is committed; without a name it goes to `dev/`, which git ignores |
+| `pnpm drl ask "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
+| `pnpm drl search "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
+| `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request per model) |
+| `pnpm drl eval [--name <name>] [--strategy vector\|hybrid\|rerank] [--yes]` | Retrieval metrics over the golden set, written as a report under `eval/reports/`. No Claude call. A named run is committed; without a name it goes to `dev/`, which git ignores. A named run measures rerank too, in one paced call per question: without `--yes` it prints the estimate for the calls that are not cached, and stops |
 | `pnpm drl eval verify <report> [--record]` | Run a report again and say whether it reproduces. `--record` writes what it found next to the report, for the dashboard |
 | `pnpm drl eval compare <a> <b>` | Compare two reports question by question, and mark what is noise |
 | `pnpm drl eval answers [--only <ids>] [--noise] [--name <name>] [--yes]` | Answer metrics. Spends real tokens: without `--yes` it prints the estimate and stops. Reruns pay only for what is not cached |
 | `pnpm drl eval judge-check --yes` | The judge on answers whose grade is known. Spends real tokens |
+| `pnpm drl eval rerank-check` | How a rerank score depends on the rest of its call ([ADR-0014](docs/adr/0014-rerank-and-contextual-retrieval.md)). Prints its plan, and takes about 15 minutes of free tokens with `--yes` |
 | `pnpm drl eval label <report> [--after <report>]` | The sheet a human labels from, with no verdicts |
 | `pnpm drl eval calibrate <report> <labels> [--after <report>] [--sample-of <report>]` | How often the labels agree with the judge. Also writes what named reports' markdown says of the judge |
 | `pnpm drl eval check [--accept]` | Check the golden set against the index, with no API calls: which questions are stale, and which anchors changed since the lock |
