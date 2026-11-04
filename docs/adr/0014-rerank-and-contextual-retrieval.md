@@ -1,7 +1,7 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
 - Status: accepted as the test, before any run. The results come later, in this file.
-- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run.
+- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed.
 - Milestone: M5
 
 ## Context
@@ -17,6 +17,7 @@ M5 adds ladder rows 4 and 5. This ADR fixes the test before any run, so that the
 | Baseline | plain | hybrid, from M4's final report | 3 | from M4 |
 | H3 | plain | hybrid, then rerank | 4 | yes, twice |
 | Contextual alone | contextual | hybrid | none, retrieval only | no |
+| Control | control, a prefix from the headings instead of Claude | hybrid | none, retrieval only | no |
 | H4 | contextual | hybrid, then rerank | 5 | yes, twice |
 | H5 | plain | hybrid, with one weighted BM25 list | none | only if it passes, after asking |
 
@@ -28,6 +29,8 @@ The first four make a two-by-two, so that each effect can be read on its own:
 | Baseline against contextual alone | contextual retrieval alone |
 | Contextual alone against H4 | the reranker, on top of contexts |
 | H3 against H4 | contexts, on top of the reranker |
+| Baseline against control | saying the headings a second time, as a prefix |
+| Control against contextual alone | what Haiku's words add beyond that |
 
 RRF, k, weights, list depth, the targets and the golden set do not change.
 
@@ -74,6 +77,21 @@ For each chunk, `settings.models.contextualize` writes a short context from the 
 
 **A second index, so that M4 stays reproducible.** The contextual index is `data/sources/typescript.contextual.sqlite`, built at the same docs commit. `data/sources/typescript.sqlite` is never written, and its sha256 is `403465a8e1bd8296a8440aa35e78cb5d13f74ad121c5453e08936404900ca1c7` before this work. `data/cache.sqlite` only gains entries. A report has one index, so H3 and H4 are separate named reports, `m5-rerank` and `m5-contextual`, compared with `drl eval compare`.
 
+### The control: a prefix from the headings
+
+The owner added this row to tell whether Haiku's contexts add anything beyond the heading metadata. It is the contextual pipeline, but each chunk's context is `document title > section path`, written by code with no call to Claude. It feeds the embeddings and BM25 the same way. It is `data/sources/typescript.control.sqlite`, at the same docs commit, and nothing needs committing, since the prefix comes from the chunk. It is measured for retrieval only, under `vector` and `hybrid`, with no answers and no reranker. A row with the reranker would be a separate hypothesis.
+
+**The chunk text already holds these headings, which changes what the control means.** Measured on the plain index, with no API call, for all 994 chunks:
+- Every chunk starts with a line `title > heading path`, so the title and the heading path are in the text of all 994.
+- For 751 chunks that line is exactly the control's prefix.
+- For the other 243, a pack of sections whose heading path is only their common parent, the prefix also names the section the chunk starts in. Each of those headings is in the text too, as a heading line of its own.
+- `chunks_fts` also indexes `heading_path` as a column of its own.
+
+So the prefix adds no word that a chunk does not already hold, and the baseline is already "the chunk with its headings". The control cannot show what headings are worth against none. What it can show:
+- **Baseline against contextual alone** already asks whether Haiku's contexts add anything beyond headings said once.
+- **Baseline against control** shows what saying them twice does: more weight on heading words in BM25, and a vector that leans on them.
+- **Control against contextual alone** tells apart two reasons contexts could help. Both rows put a prefix in the same place, so if contextual alone beats the baseline but not the control, the gain came from repeating what the chunk already says, not from what Haiku wrote.
+
 ### H5: the backtick-weighted BM25 candidate from ADR-0011
 
 A word that came from backticks and is one lowercase word with no leading dashes, H1's rule, leaves the exact list. It counts twice in the keyword list, by appearing twice in the query. Other exact tokens stay in the exact list. So BM25 no longer enters the fusion twice for that word, and it keeps the topic signal of the keyword query.
@@ -97,8 +115,8 @@ These come first. If one fails, the numbers are not read as a result: find the c
 
 1. Every run on the plain index has the baseline's hashes: queries `3cbc8c2527dd`, corpus `8224c2d1af73`, chunks `ba7aae0e36d9`.
 2. `vector` and `hybrid` in `m5-rerank` equal M4's final report in every field of `result`.
-3. `drl eval verify` on M4's final report says byte for byte, on the same vectors, at the start, after the contextual sync and at the end. The plain index's sha256 is unchanged.
-4. The contextual index has the same 994 chunk IDs and text hashes as the plain one, and 994 contexts that are not empty. `drl eval check` is clean, and the query hash is the baseline's.
+3. `drl eval verify` on M4's final report says byte for byte, on the same vectors, at the start, after the contextual and control syncs and at the end. The plain index's sha256 is unchanged.
+4. The contextual and control indexes each have the same 994 chunk IDs and text hashes as the plain one, and 994 contexts that are not empty. `drl eval check` is clean, and the query hash is the baseline's.
 5. Each question's rerank is one call, which scores each of its documents exactly once, and the top 8 comes from the fused top 20.
 6. `drl eval verify` on each M5 report says byte for byte, from the caches.
 7. Every cited text in rows 4 and 5 is found in that chunk's original text.
@@ -116,6 +134,7 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 | H3 | T and G |
 | H4 | T and G |
 | Contextual alone | T and G are reported. It has no answers, so it cannot be adopted by itself |
+| Control | T and G are reported. It has no answers, so it cannot be adopted by itself |
 | H5 | G on all 40 and on the 34 questions that did not suggest it, and among ts-0033, ts-0027 and ts-0004 none is worse and at least one is better |
 
 **A. No harm on answers,** for rows 4 and 5 against row 3. On fully correct, all citations hold and wrongly refused, row 3 is ahead by at most 2 questions net, and no verdict names row 3. Refused rightly has 5 questions, which is too few to decide.
@@ -131,6 +150,7 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 - **Only one passes:** it becomes the candidate.
 - **Both pass:** H3, the simpler one, unless H4 alone meets T, or `drl eval compare` of H3 and H4 calls H4 better on overall MRR or hit@1.
 - **Contextual alone passes, and neither H3 nor H4 does:** stop and ask.
+- **The control decides nothing by itself.** `drl eval compare` of the control and contextual alone is reported with the rest. If it does not call contextual alone better on overall MRR or hit@1, stop and ask before H4 is adopted, since Haiku's contexts would then show nothing that a prefix from the headings does not.
 - **H5 passes:** stop and ask, since rows 4 and 5 would then be run again on top of it, for about $3.70.
 - **A candidate does not change the app by itself.** On the free trial a rerank takes up to about a minute per question, which a chat cannot wait for. Whether the app's default moves is the owner's decision, after the result.
 
@@ -142,6 +162,7 @@ Made from the index and from M4's recorded costs, with no API call. Prices were 
 |---|---|
 | Haiku 5.5, 994 contexts, with prompt caching | $0.20, up to $0.30 at 300 tokens out per chunk. $0.62 without caching |
 | Voyage embeddings, 490K to 575K tokens | 59 to 69 minutes on the free trial, at M4's measured pace |
+| Voyage embeddings of the control, about 430K tokens | 50 to 60 minutes, and no Claude |
 | Voyage rerank, two passes, about 935K tokens | 45 to 55 minutes per pass |
 | Rows 4 and 5, answers and judge | $3.70, at $1.85 per row as M4 measured |
 | A second run of both rows | $3.70 |
