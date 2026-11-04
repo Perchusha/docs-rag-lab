@@ -99,17 +99,17 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl eval [--name <name>] [--strategy vector\|hybrid\|rerank] [--contextual] [--control] [--yes]` | Retrieval metrics over the golden set, written as a report under `eval/reports/`. No Claude call. A named run is committed; without a name it goes to `dev/`, which git ignores. A named run measures rerank too, in one paced call per question: without `--yes` it prints the estimate for the calls that are not cached, and stops. `--contextual` and `--control` measure those indexes, the control under `vector` and `hybrid` only. A run that survived 429s says so in its output and its report |
 | `pnpm drl eval verify <report> [--record]` | Run a report again and say whether it reproduces. `--record` writes what it found next to the report, for the dashboard |
 | `pnpm drl eval compare <a> <b> [--strategies <x>,<y>]` | Compare two reports question by question, and mark what is noise. `--strategies hybrid,rerank` compares a's `hybrid` with b's `rerank`, instead of like with like |
-| `pnpm drl eval answers [--only <ids>] [--noise] [--name <name>] [--yes]` | Answer metrics. Spends real tokens: without `--yes` it prints the estimate and stops. Reruns pay only for what is not cached |
+| `pnpm drl eval answers [--rows <list>] [--only <ids>] [--noise] [--name <name>] [--yes]` | Answer metrics. Spends real tokens: without `--yes` it prints the estimate and stops. Reruns pay only for what is not cached. Rows 0, 2 and 3 by default. Row 4 reranks, and row 5 reranks on the contextual index, so they are asked for by name, and any rerank calls not yet cached come first, with `--yes` |
 | `pnpm drl eval judge-check --yes` | The judge on answers whose grade is known. Spends real tokens |
 | `pnpm drl eval rerank-check` | How a rerank score depends on the rest of its call ([ADR-0014](docs/adr/0014-rerank-and-contextual-retrieval.md)). Prints its plan, and takes about 15 minutes of free tokens with `--yes` |
-| `pnpm drl eval label <report> [--after <report>]` | The sheet a human labels from, with no verdicts |
-| `pnpm drl eval calibrate <report> <labels> [--after <report>] [--sample-of <report>]` | How often the labels agree with the judge. Also writes what named reports' markdown says of the judge |
+| `pnpm drl eval label <report> [--after <report>] [--rows <list>]` | The sheet a human labels from, with no verdicts. `--rows 4,5` takes 15 answers from those rows |
+| `pnpm drl eval calibrate <report> <labels> [--after <report>] [--sample-of <report>] [--rows <list>]` | How often the labels agree with the judge. Also writes what named reports' markdown says of the judge |
 | `pnpm drl eval check [--accept]` | Check the golden set against the index, with no API calls: which questions are stale, and which anchors changed since the lock |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, and `/eval` only reads committed reports |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
-Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices.
+Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices. It also stops before its next paid call if HEAD or the branch changes under it, so that a report cannot name the wrong commit ([ADR-0010](docs/adr/0010-eval-reports-and-reproducibility.md)).
 
 ## Repository layout
 

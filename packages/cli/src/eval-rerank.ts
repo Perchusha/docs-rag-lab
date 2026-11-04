@@ -16,7 +16,9 @@ import {
   runBatchingCheck,
   type BatchingCheck,
   type BatchingCheckQuestion,
+  type GoldenQuestion,
   type IndexVariant,
+  type Source,
 } from '@docs-rag-lab/core'
 
 import { findSource, rerankerFor, type CommandContext } from './commands.ts'
@@ -33,16 +35,13 @@ const SPLIT_TOKENS = 3_600
 const count = (n: number): string => n.toLocaleString('en-US')
 const calls = (n: number): string => `${String(n)} call${n === 1 ? '' : 's'}`
 
-/** The fused top documents of every answerable question that is not stale, in the set's order. */
-async function fusedTops(
+/** Every answerable question that is not stale, in the set's order. */
+function scoredQuestions(
   ctx: CommandContext,
-  sourceId: string,
-  variant?: IndexVariant,
-): Promise<BatchingCheckQuestion[]> {
-  const { settings, meter } = ctx
-  const engine = variant === undefined ? ctx.engine : ctx.engineFor(variant)
-  const source = findSource(ctx.sources, sourceId)
-  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, {
+  source: Source,
+  variant: IndexVariant | undefined,
+): GoldenQuestion[] {
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, {
     create: false,
     variant,
   })
@@ -53,12 +52,26 @@ async function fusedTops(
     indexes.close()
   }
   if (golden === undefined) throw new CliError(`${source.id} has no golden set`)
-
   const stale = new Set(golden.check.stale)
+  return golden.questions.filter(
+    (candidate) => !isUnanswerable(candidate) && !stale.has(candidate.id),
+  )
+}
+
+/** The fused top documents of these questions, or of the scored ones. */
+async function fusedTops(
+  ctx: CommandContext,
+  sourceId: string,
+  variant?: IndexVariant,
+  questions?: readonly Pick<GoldenQuestion, 'id' | 'question'>[],
+): Promise<BatchingCheckQuestion[]> {
+  const { settings, meter } = ctx
+  const engine = variant === undefined ? ctx.engine : ctx.engineFor(variant)
+  const source = findSource(ctx.sources, sourceId)
+  const picked = questions ?? scoredQuestions(ctx, source, variant)
+
   const tops: BatchingCheckQuestion[] = []
-  for (const candidate of golden.questions) {
-    if (isUnanswerable(candidate) || stale.has(candidate.id)) continue
-    const { id, question } = candidate
+  for (const { id, question } of picked) {
     const { hits } = await engine.search(
       { question, source: source.id, strategy: 'hybrid', topK: settings.rerank.depth },
       meter,
@@ -73,19 +86,23 @@ async function fusedTops(
 }
 
 /** How long a number of calls and tokens takes at the limits. */
-function durationOf(ctx: CommandContext, requests: number, estimatedTokens: number): string {
+export function durationOf(ctx: CommandContext, requests: number, estimatedTokens: number): string {
   const { rpm, tpm } = ctx.settings.rerank.rateLimit
   return formatDuration(Math.max(requests / rpm, estimatedTokens / tpm) * 60_000)
 }
 
-/** What a run would call the reranker for: the calls that are not in the cache yet. */
+/**
+ * What a run would call the reranker for: the calls that are not in the cache yet. A retrieval run
+ * scores the answerable questions, and answers take the questions they are given.
+ */
 export async function planRerankRun(
   ctx: CommandContext,
   sourceId: string,
   variant?: IndexVariant,
+  questions?: readonly Pick<GoldenQuestion, 'id' | 'question'>[],
 ): Promise<{ calls: number; estimatedTokens: number; duration: string }> {
   const { settings } = ctx
-  const tops = await fusedTops(ctx, sourceId, variant)
+  const tops = await fusedTops(ctx, sourceId, variant, questions)
   const provider = rerankerFor(ctx)
   const indexes = openIndexes(join(ctx.root, settings.dataDir), sourceId, { create: false })
   try {

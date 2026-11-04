@@ -1,0 +1,65 @@
+{
+  "report": {
+    "repoSha": "a51890685cd18cbdefd8d4733433cf631cba3198",
+    "name": "m5-answers",
+    "createdAt": "2026-11-04T14:21:12.343Z"
+  },
+  "blind": true,
+  "prompts": {
+    "answer": "78e59535b65e",
+    "noRag": "0208980f34f3",
+    "correctness": "4efbbfbbc7b7",
+    "refusal": "2b76e9978a16",
+    "support": "a5e0160d7313"
+  },
+  "judgeModel": "claude-opus-5-5",
+  "correctnessDisagreements": [
+    {
+      "questionId": "ts-0028",
+      "row": 5,
+      "human": 1,
+      "judge": 2
+    }
+  ],
+  "labelled": 15,
+  "agreement": [
+    {
+      "dimension": "correctness",
+      "compared": 12,
+      "agreed": 11,
+      "kappa": 0.8153846153846154,
+      "interval": [
+        0.6461200862787544,
+        0.9851349057603305
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "refusal",
+      "compared": 15,
+      "agreed": 15,
+      "kappa": 1,
+      "interval": [
+        0.7961166964035129,
+        1
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "support",
+      "compared": 12,
+      "agreed": 11,
+      "kappa": 0.625,
+      "interval": [
+        0.6461200862787544,
+        0.9851349057603305
+      ],
+      "passed": true
+    }
+  ],
+  "unanswerableOnly": {
+    "compared": 3,
+    "agreed": 3
+  },
+  "calibrated": true
+}

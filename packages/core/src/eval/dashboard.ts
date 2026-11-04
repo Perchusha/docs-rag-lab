@@ -39,7 +39,13 @@ const STRATEGY_NAMES: Record<Strategy, string> = {
   hybrid: 'Hybrid',
   rerank: 'Hybrid + rerank',
 }
-const ROW_NAMES: Record<AnswerRow, string> = { 0: 'No RAG', 2: 'Vector', 3: 'Hybrid' }
+const ROW_NAMES: Record<AnswerRow, string> = {
+  0: 'No RAG',
+  2: 'Vector',
+  3: 'Hybrid',
+  4: 'Hybrid + rerank',
+  5: 'Hybrid + rerank, with contexts',
+}
 const ROWS: readonly AnswerRow[] = [0, 2, 3]
 
 const NO_DOCS: EvalFigure = { kind: 'none', reason: 'cannot: no docs' }

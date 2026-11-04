@@ -63,6 +63,23 @@ const lineWith = (text: string, needle: string): string =>
   text.split('\n').find((line) => line.includes(needle)) ?? ''
 
 describe('answerSections', () => {
+  it('says which index row 5 read, since the report is of the plain one', () => {
+    const text = sections(
+      answers({
+        contextualIndex: {
+          rows: [5],
+          contextModel: 'haiku:abc',
+          chunksHash: '5545a9d9cee309f741',
+        },
+      }),
+    ).join('\n')
+
+    expect(text).toContain('Row 5 read the contextual index')
+    expect(text).toContain('`haiku:abc`')
+    expect(text).toContain('`5545a9d9cee3`')
+    expect(sections(answers()).join('\n')).not.toContain('contextual index')
+  })
+
   const comparison = answers({
     comparisons: [
       {

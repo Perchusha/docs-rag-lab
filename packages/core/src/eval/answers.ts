@@ -17,7 +17,9 @@ import type { EvalCache, SearchHit } from '@docs-rag-lab/db'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
 import type { Engine } from '../engine.ts'
+import type { IndexVariant } from '../indexes.ts'
 import { buildAnswerRequest, streamAnswer, type AnswerClient } from '../generate.ts'
+import type { RunGuard } from '../run-guard.ts'
 import { UsageMeter } from '../usage.ts'
 import type { GoldenQuestion } from './golden.ts'
 import {
@@ -32,7 +34,18 @@ import {
 } from './judge.ts'
 
 /** The strategy behind a row. Row 0 retrieves nothing. */
-export const ROW_STRATEGY: Partial<Record<AnswerRow, Strategy>> = { 2: 'vector', 3: 'hybrid' }
+export const ROW_STRATEGY: Partial<Record<AnswerRow, Strategy>> = {
+  2: 'vector',
+  3: 'hybrid',
+  4: 'rerank',
+  5: 'rerank',
+}
+
+/** The index behind a row, when it is not the plain one (ADR-0014). */
+export const ROW_VARIANT: Partial<Record<AnswerRow, IndexVariant>> = { 5: 'contextual' }
+
+/** The rows a noise run answers twice: row 3, and the rows measured against it. */
+export const NOISE_ROWS: readonly AnswerRow[] = [3, 4, 5]
 
 /** Row 0: Claude without RAG. It is told it has no docs, and to say so rather than guess. */
 export function noRagSystemPrompt(sourceId: string): string {
@@ -109,10 +122,12 @@ export interface AnswerJob {
 
 export interface PlanOptions {
   engine: Engine
+  /** The engine of another index. Needed only by the rows that read one. */
+  engineFor?: ((variant: IndexVariant) => Engine) | undefined
   sourceId: string
   questions: readonly GoldenQuestion[]
   rows: readonly AnswerRow[]
-  /** Answer row 3 again and take a second opinion, to measure the noise of answers and judge. */
+  /** Answer the noise rows again and take a second opinion, to measure answers and judge. */
   noise: boolean
   settings: AnswerSettings
   meter: UsageMeter
@@ -131,18 +146,21 @@ export async function planAnswers(options: PlanOptions): Promise<AnswerJob[]> {
   const jobs: AnswerJob[] = []
   for (const row of rows) {
     const strategy = ROW_STRATEGY[row]
+    const variant = ROW_VARIANT[row]
+    const rowEngine = variant === undefined ? engine : options.engineFor?.(variant)
+    if (rowEngine === undefined) throw new Error(`row ${String(row)} needs another index`)
     for (const question of questions) {
       const hits =
         strategy === undefined
           ? []
           : (
-              await engine.search(
+              await rowEngine.search(
                 { question: question.question, source: sourceId, strategy },
                 meter,
               )
             ).hits
       const request = rowRequest(row, sourceId, question.question, hits, settings)
-      const samples = noise && row === 3 ? [1, 2] : [1]
+      const samples = noise && NOISE_ROWS.includes(row) ? [1, 2] : [1]
       for (const sample of samples) {
         jobs.push({ question, row, sample, hits, request, key: requestKey(request, sample) })
       }
@@ -170,6 +188,8 @@ export interface RunnerOptions {
   /** Stops before the next paid call once the run has spent this much. */
   maxUsd: number
   concurrency: number
+  /** Checked before each paid call. A cached reply pays nothing, and needs no check. */
+  guard?: RunGuard | undefined
   now?: () => number
   onProgress?: (done: number, total: number, paidUsd: number) => void
 }
@@ -254,7 +274,13 @@ export class Runner {
     key: string,
     check: ReplyCheck,
   ): Promise<CachedCall> {
-    const { cache, client, meter } = this.#options
+    const { cache, client, meter, guard } = this.#options
+    try {
+      await guard?.check()
+    } catch (error) {
+      this.#stop = error instanceof Error ? error.message : String(error)
+      throw new EvalStoppedError(this.#stop)
+    }
     const now = this.#options.now ?? (() => performance.now())
     const start = now()
     let firstTokenMs: number | null = null

@@ -3,7 +3,7 @@
 import type { DifferenceVerdict } from './eval-difference.ts'
 
 /** The rows of the strategy ladder (SPEC section 10) that answer metrics measure so far. */
-export const ANSWER_ROWS = [0, 2, 3] as const
+export const ANSWER_ROWS = [0, 2, 3, 4, 5] as const
 
 export type AnswerRow = (typeof ANSWER_ROWS)[number]
 
@@ -133,6 +133,9 @@ export const ANSWER_COMPARED_METRICS = [
   'citation-accuracy',
   'support',
   'correct-and-grounded',
+  'fully-correct',
+  'citations-hold',
+  'not-wrongly-refused',
 ] as const
 
 export type AnswerComparedMetric = (typeof ANSWER_COMPARED_METRICS)[number]
@@ -178,6 +181,11 @@ export interface EvalAnswers {
   /** How often a second opinion from the judge matches its first, in a noise run. */
   judgeRetest: { compared: number; agreed: number } | null
   candidates: AnchorCandidate[]
+  /**
+   * What the rows that do not read the report's own index read instead (ADR-0014). The retrieval
+   * section is of the plain index, and row 5 reads the contextual one. Earlier reports have none.
+   */
+  contextualIndex?: { rows: AnswerRow[]; contextModel: string; chunksHash: string }
   /** What this run itself paid. Cached answers and verdicts cost nothing again. */
   paidUsd: number
   answers: EvalAnswer[]

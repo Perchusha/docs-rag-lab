@@ -2,17 +2,24 @@ import { parseArgs } from 'node:util'
 
 import { STRATEGIES, type Strategy } from '@docs-rag-lab/contracts'
 import {
+  createEmbeddingProvider,
   createEngine,
+  createRerankProvider,
   DOC_TYPES,
+  EvalStoppedError,
   findRepoRoot,
   formatUsage,
   GoldenSetError,
+  guardEmbeddings,
+  guardReranker,
   IndexNotFoundError,
   InvalidRequestError,
   loadRootEnv,
   MAX_TOP_K,
   MissingKeyError,
   RerankRejectedError,
+  RunMovedError,
+  startRunGuard,
   UnknownSourceError,
   UsageMeter,
   type DocType,
@@ -81,9 +88,11 @@ Commands:
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
-      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default
+      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, or 5,
+                              rerank on the contextual index, when asked for
       [--only <ids>]          Only these questions, for a pilot
-      [--noise]               Answer row 3 twice and ask the judge twice, to measure noise
+      [--noise]               Answer rows 3, 4 and 5 twice, and ask the judge twice about row
+                              3, to measure noise
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
@@ -253,7 +262,12 @@ function refuseStrayEvalFlags(
       ? ['--after']
       : []),
     ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
-    ...(values.rows !== undefined && subcommand !== 'answers' ? ['--rows'] : []),
+    ...(values.rows !== undefined &&
+    subcommand !== 'answers' &&
+    subcommand !== 'label' &&
+    subcommand !== 'calibrate'
+      ? ['--rows']
+      : []),
     ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
     ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
     ...(values['max-usd'] !== undefined && subcommand !== 'answers' ? ['--max-usd'] : []),
@@ -281,6 +295,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof InvalidRequestError ||
     error instanceof GoldenSetError ||
     error instanceof RerankRejectedError ||
+    error instanceof RunMovedError ||
+    error instanceof EvalStoppedError ||
     error instanceof ContextsStoppedError
   )
 }
@@ -389,14 +405,23 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
+    const guard = await startRunGuard(root)
+    // Every Voyage call of every command goes through these two.
+    const createProvider = () =>
+      guardEmbeddings(
+        options.createProvider?.() ?? createEmbeddingProvider(settings.embeddings),
+        guard,
+      )
+    const createReranker = () =>
+      guardReranker(options.createReranker?.() ?? createRerankProvider(settings.rerank), guard)
     const engineFor = (index?: IndexVariant) =>
       createEngine({
         settings,
         sources,
         root,
         variant: index,
-        createReranker: options.createReranker,
-        createProvider: options.createProvider,
+        createReranker,
+        createProvider,
       })
     const ctx = {
       settings,
@@ -407,9 +432,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       meter,
       out,
       now,
+      guard,
       createEvalClient: options.createEvalClient,
-      createReranker: options.createReranker,
-      createProvider: options.createProvider,
+      createReranker,
+      createProvider,
     }
     if (command === 'sync') {
       const source = rest[0]
@@ -479,7 +505,11 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         await evalRerankCheckCommand(ctx, { source: values.source, yes: values.yes })
       } else if (subcommand === 'label') {
         if (first === undefined) throw new CliError('eval label needs a report file')
-        evalLabelCommand(ctx, { path: first, after: values.after })
+        evalLabelCommand(ctx, {
+          path: first,
+          after: values.after,
+          rows: values.rows === undefined ? undefined : parseRows(values.rows),
+        })
       } else if (subcommand === 'calibrate') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval calibrate needs a report file and a labels file')
@@ -489,6 +519,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           labels: second,
           after: values.after,
           sampleOf: values['sample-of'],
+          rows: values.rows === undefined ? undefined : parseRows(values.rows),
         })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')

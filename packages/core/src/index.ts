@@ -149,6 +149,13 @@ export {
 export { fieldDifferences, verifyReport, type EvalVerification } from './eval/verify.ts'
 export { readRepoState, type RepoState } from './eval/repo-state.ts'
 export {
+  guardEmbeddings,
+  guardReranker,
+  RunMovedError,
+  startRunGuard,
+  type RunGuard,
+} from './run-guard.ts'
+export {
   cachedAnswer,
   claimsOf,
   judgeCallsOf,
@@ -157,7 +164,9 @@ export {
   planAnswers,
   promptHash,
   requestKey,
+  NOISE_ROWS,
   ROW_STRATEGY,
+  ROW_VARIANT,
   rowRequest,
   runAnswers,
   runJudge,
@@ -181,6 +190,7 @@ export {
   cohensKappa,
   LABEL_SEED,
   freshSampleForLabels,
+  newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
   wilsonInterval,

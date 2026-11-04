@@ -8,6 +8,7 @@ import { estimateTokens } from '@docs-rag-lab/source-kit'
 
 import { forEachLimit, promptHash } from '../eval/answers.ts'
 import type { AnswerClient } from '../generate.ts'
+import type { RunGuard } from '../run-guard.ts'
 import type { ModelUsage, UsageMeter } from '../usage.ts'
 import type { StoredContext } from './store.ts'
 
@@ -220,6 +221,8 @@ export class ContextsStoppedError extends Error {
 export interface GenerateContextsOptions extends PlanContextsOptions {
   client: AnswerClient
   meter: UsageMeter
+  /** Checked before each paid call. */
+  guard?: RunGuard | undefined
   /** Called with each new context as soon as it exists, so that what was paid for is kept. */
   onContext: (context: StoredContext) => void
   onProgress?: ((done: number, total: number) => void) | undefined
@@ -244,7 +247,7 @@ export async function generateContexts(
   documents: readonly ContextDocument[],
   options: GenerateContextsOptions,
 ): Promise<void> {
-  const { client, model, settings, pricing, meter, onContext, onProgress } = options
+  const { client, model, settings, pricing, meter, guard, onContext, onProgress } = options
   const total = planContexts(documents, options).toGenerate
   const spent = (): number => meter.estimateCost(pricing).byModel.get(model) ?? 0
   const overBudget = (): boolean => spent() >= settings.maxUsd
@@ -257,6 +260,7 @@ export async function generateContexts(
     const cache = missing.length > 1
     const generate = async (chunk: ContextChunk): Promise<void> => {
       const request = contextRequest(model, settings, text, chunk.text, cache)
+      await guard?.check()
       const message = await client.messages.stream(request).finalMessage()
       meter.recordMessage(model, message.usage)
       const where = `${chunk.id} in ${document.path}`
