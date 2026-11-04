@@ -26,10 +26,12 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch; the next sync without it returns to the head)
 - The contextual index, spends real tokens: `pnpm drl sync typescript --contextual` prints the estimate and stops, add `--yes` to run it, about an hour in the background (`--pilot 10` for a pilot, which builds no index). Reruns call nothing for what `eval/contexts/` and the cache hold.
-- Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set, or `--contextual` for that index, also against the plain one's chunks)
-- Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree, measures rerank too, one paced call per question, and prints its estimate until `--yes`)
+- The control index, no Claude call: `pnpm drl sync typescript --control` prints the estimate and stops, add `--yes` to run it, about an hour in the background.
+- Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set, or `--contextual` or `--control` for those indexes, also against the plain one's chunks)
+- Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree, measures rerank too, one paced call per question, and prints its estimate until `--yes`; `--contextual` or `--control` for those indexes, the control under `vector` and `hybrid` only; `--strategy rerank` for that strategy alone)
 - A report again, to see if it reproduces: `pnpm drl eval verify <report>` (add `--record` to write what it found next to the report, for the dashboard)
-- Two reports, question by question: `pnpm drl eval compare <a> <b>`
+- Two reports, question by question: `pnpm drl eval compare <a> <b>` (add `--strategies hybrid,rerank` for a's `hybrid` against b's `rerank`)
+- How a rerank score depends on the rest of its call: `pnpm drl eval rerank-check` prints its plan, and calls Voyage with `--yes`
 - Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit). Reruns pay only for what is not cached.
 - The judge on answers whose grade is known, spends real tokens: `pnpm drl eval judge-check --yes`
 - The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions)
