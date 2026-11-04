@@ -10,12 +10,16 @@ import {
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
+  checkContextualIndex,
   createEmbeddingProvider,
   createRerankProvider,
   GoldenSetError,
   openIndexes,
   RateLimiter,
   syncSource,
+  type EmbeddingProvider,
+  type OpenIndexes,
+  type SyncSourceOptions,
   type AnchorIndex,
   type DocType,
   type Engine,
@@ -56,10 +60,14 @@ export interface CommandContext {
   createEvalClient?: (() => EvalClient) | undefined
   /** For tests. Defaults to the reranker named in settings. */
   createReranker?: (() => RerankProvider) | undefined
+  /** For tests. Defaults to the embedding provider named in settings. */
+  createProvider?: (() => EmbeddingProvider) | undefined
 }
 
 // Progress lines during a long sync: at most one every this many milliseconds.
-const PROGRESS_INTERVAL_MS = 20_000
+export const PROGRESS_INTERVAL_MS = 20_000
+
+const count = (n: number): string => n.toLocaleString('en-US')
 
 export function findSource(sources: readonly Source[], id: string): Source {
   const source = sources.find((s) => s.id === id)
@@ -76,34 +84,51 @@ export function rerankerFor(ctx: CommandContext): RerankProvider {
 }
 
 /** The provider reads VOYAGE_API_KEY itself, when it is created (ADR-0007). */
-function embeddingsFor(settings: Settings) {
-  const provider = createEmbeddingProvider(settings.embeddings)
-  const limiter = new RateLimiter(settings.embeddings.rateLimit)
+export function embeddingsFor(ctx: Pick<CommandContext, 'settings' | 'createProvider'>) {
+  const provider = ctx.createProvider?.() ?? createEmbeddingProvider(ctx.settings.embeddings)
+  const limiter = new RateLimiter(ctx.settings.embeddings.rateLimit)
   return { provider, limiter }
+}
+
+export function checkoutDirOf(ctx: CommandContext, source: Source): string {
+  return join(ctx.root, ctx.settings.cacheDir, 'sources', source.id)
 }
 
 export async function syncCommand(
   ctx: CommandContext,
   args: { source: string; full: boolean; at: string | undefined },
 ): Promise<void> {
-  const { settings, out } = ctx
   const source = findSource(ctx.sources, args.source)
-  const { provider, limiter } = embeddingsFor(settings)
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id)
+  try {
+    await runSync(ctx, source, indexes, { full: args.full, at: args.at })
+  } finally {
+    indexes.close()
+  }
+}
+
+/** One sync into these indexes, with its progress and its report. */
+export async function runSync(
+  ctx: CommandContext,
+  source: Source,
+  indexes: OpenIndexes,
+  extra: Pick<SyncSourceOptions, 'full' | 'at' | 'contexts'>,
+): Promise<void> {
+  const { out } = ctx
+  const { provider, limiter } = embeddingsFor(ctx)
   const start = ctx.now()
   let lastProgress = 0
-  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id)
   const { index, cache } = indexes
-  try {
+  {
     const report = await syncSource({
       source,
       provider,
       index,
       cache,
-      checkoutDir: join(ctx.root, settings.cacheDir, 'sources', source.id),
+      checkoutDir: checkoutDirOf(ctx, source),
       meter: ctx.meter,
       limiter,
-      full: args.full,
-      at: args.at,
+      ...extra,
       onProgress: (event) => {
         const elapsed = ctx.now() - start
         if (event.phase === 'git') out.write(`${event.message}\n`)
@@ -124,8 +149,6 @@ export async function syncCommand(
     const ratio = formatEstimateRatio(billed ?? 0, report.estimatedTokens)
     if (ratio !== undefined) out.write(`${ratio}\n`)
     reportGoldenSet(ctx, source.id, index)
-  } finally {
-    indexes.close()
   }
 }
 
@@ -146,12 +169,32 @@ function reportGoldenSet(ctx: CommandContext, sourceId: string, index: AnchorInd
 /** `drl eval check`: the golden set against the index. No API calls. */
 export function evalCheckCommand(
   ctx: CommandContext,
-  args: { source: string; accept: boolean; setVersion: number | undefined },
+  args: { source: string; accept: boolean; setVersion: number | undefined; contextual: boolean },
 ): void {
   const { out, root } = ctx
   const source = findSource(ctx.sources, args.source)
-  const indexes = openIndexes(join(root, ctx.settings.dataDir), source.id, { create: false })
+  if (args.contextual && args.accept) {
+    throw new CliError(
+      '--accept records the lock from the plain index, so it takes no --contextual',
+    )
+  }
+  const dataDir = join(root, ctx.settings.dataDir)
+  const indexes = openIndexes(dataDir, source.id, { create: false, contextual: args.contextual })
   try {
+    if (args.contextual) {
+      const plain = openIndexes(dataDir, source.id, { create: false })
+      try {
+        const { chunks, contexts, problems } = checkContextualIndex(plain.index, indexes.index)
+        if (problems.length > 0) {
+          throw new CliError(`the contextual index differs:\n${problems.join('\n')}`)
+        }
+        out.write(
+          `the contextual index holds the plain index's ${count(chunks)} chunks, at its commit, with ${count(contexts)} contexts\n`,
+        )
+      } finally {
+        plain.close()
+      }
+    }
     const check = checkGoldenFiles(root, source.id, indexes.index)
     if (check === undefined) {
       throw new CliError(
@@ -251,7 +294,7 @@ export async function askCommand(
 /** Limits are per model, so embeddings and rerank each make one tiny request. */
 export async function limitsCommand(ctx: CommandContext): Promise<void> {
   const { settings, meter } = ctx
-  const { provider } = embeddingsFor(settings)
+  const { provider } = embeddingsFor(ctx)
   if (provider.probeRateLimits === undefined) {
     throw new CliError(`${provider.id} cannot report rate limits`)
   }
