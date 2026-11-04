@@ -12,10 +12,12 @@ import {
   loadRootEnv,
   MAX_TOP_K,
   MissingKeyError,
+  RerankRejectedError,
   UnknownSourceError,
   UsageMeter,
   type DocType,
   type EvalClient,
+  type RerankProvider,
   type Source,
 } from '@docs-rag-lab/core'
 import { settings as defaultSettings, type Settings } from '@docs-rag-lab/settings'
@@ -56,8 +58,11 @@ Commands:
                               (one tiny request each)
   eval                        Retrieval metrics over the golden set, written as a report.
                               No Claude call. Without --name it is a development run
-      [--name <name>]         A run to keep, such as baseline: needs a clean tree and check
+      [--name <name>]         A run to keep, such as baseline: needs a clean tree and check.
+                              It measures every strategy, rerank too, one paced call per question
       [--strategy <s>]        One strategy instead of vector and hybrid
+      [--yes]                 Go on with rerank calls that are not cached: without it, a run
+                              that needs them prints their estimate and stops
   eval verify <report>        Run a report again, and say whether it reproduces
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
@@ -68,7 +73,7 @@ Commands:
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
-  eval rerank-check           Whether a rerank score depends on the rest of its batch, compared
+  eval rerank-check           How a rerank score depends on the rest of its call, compared
                               exactly (ADR-0014). Uses free tokens, and needs --yes to go on
   eval label <report>         Write the sheet a human labels from, with no verdicts
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
@@ -83,7 +88,9 @@ Commands:
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
-  --strategy vector|hybrid    Vector search only, or vector + keyword search fused by RRF
+  --strategy <s>              vector: vector search only. hybrid: vector + keyword search fused
+                              by RRF. rerank: hybrid with its top reranked, one paced call that
+                              takes up to a minute on the free trial
                               (default: retrieval.strategy in settings)
   --doc-type <type>           Only chunks of this doc type; repeat it or separate with commas:
                               ${DOC_TYPES.join(', ')}
@@ -118,6 +125,8 @@ export interface RunOptions {
   debug?: boolean
   /** For tests: the Claude client behind answer metrics. */
   createEvalClient?: () => EvalClient
+  /** For tests: the reranker. */
+  createReranker?: () => RerankProvider
 }
 
 function positiveInteger(
@@ -200,6 +209,7 @@ function refuseStrayEvalFlags(
     ...(values.noise === true && subcommand !== 'answers' ? ['--noise'] : []),
     ...(values['max-usd'] !== undefined && subcommand !== 'answers' ? ['--max-usd'] : []),
     ...(values.yes === true &&
+    subcommand !== undefined &&
     subcommand !== 'answers' &&
     subcommand !== 'judge-check' &&
     subcommand !== 'rerank-check'
@@ -220,7 +230,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof UnknownSourceError ||
     error instanceof IndexNotFoundError ||
     error instanceof InvalidRequestError ||
-    error instanceof GoldenSetError
+    error instanceof GoldenSetError ||
+    error instanceof RerankRejectedError
   )
 }
 
@@ -301,7 +312,12 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
-    const engine = createEngine({ settings, sources, root })
+    const engine = createEngine({
+      settings,
+      sources,
+      root,
+      createReranker: options.createReranker,
+    })
     const ctx = {
       settings,
       sources,
@@ -311,6 +327,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       out,
       now,
       createEvalClient: options.createEvalClient,
+      createReranker: options.createReranker,
     }
     if (command === 'sync') {
       const source = rest[0]
@@ -344,6 +361,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
             values.strategy === undefined
               ? undefined
               : strategyOf(values.strategy, settings.retrieval.strategy),
+          yes: values.yes,
         })
       } else if (subcommand === 'answers') {
         const maxUsd = values['max-usd'] === undefined ? undefined : Number(values['max-usd'])

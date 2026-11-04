@@ -20,6 +20,7 @@ import {
   type DocType,
   type Engine,
   type Source,
+  type RerankProvider,
   type UsageMeter,
   type EvalClient,
 } from '@docs-rag-lab/core'
@@ -53,6 +54,8 @@ export interface CommandContext {
   now: () => number
   /** For tests. Answer metrics default to the Claude client named in settings. */
   createEvalClient?: (() => EvalClient) | undefined
+  /** For tests. Defaults to the reranker named in settings. */
+  createReranker?: (() => RerankProvider) | undefined
 }
 
 // Progress lines during a long sync: at most one every this many milliseconds.
@@ -65,6 +68,11 @@ export function findSource(sources: readonly Source[], id: string): Source {
     throw new CliError(`unknown source "${id}" (configured: ${known})`)
   }
   return source
+}
+
+/** The provider reads VOYAGE_API_KEY itself, when it is created (ADR-0007). */
+export function rerankerFor(ctx: CommandContext): RerankProvider {
+  return ctx.createReranker?.() ?? createRerankProvider(ctx.settings.rerank)
 }
 
 /** The provider reads VOYAGE_API_KEY itself, when it is created (ADR-0007). */
@@ -251,7 +259,7 @@ export async function limitsCommand(ctx: CommandContext): Promise<void> {
   meter.recordEmbedding(provider.model, probe.tokens)
   writeLimits(ctx, provider.model, settings.embeddings, probe.headers)
 
-  const reranker = createRerankProvider(settings.rerank)
+  const reranker = rerankerFor(ctx)
   if (reranker.probeRateLimits === undefined) {
     throw new CliError(`${reranker.id} cannot report rate limits`)
   }

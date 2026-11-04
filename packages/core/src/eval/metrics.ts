@@ -23,10 +23,17 @@ export function roundMean(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000
 }
 
-/** Every chunk a strategy ranked, best first: the fused list, or the vector list without fusion. */
+/**
+ * Every chunk a strategy ranked, best first: the fused list, or the vector list without
+ * fusion. A rerank reorders the top of the fused list, and the rest keeps its order.
+ */
 export function rankingOf(trace: RetrievalTrace): string[] {
-  if (trace.fusion.method === 'rrf') return trace.fusion.ranked.map((entry) => entry.chunkId)
-  return trace.lists[0]?.candidates.map((candidate) => candidate.chunkId) ?? []
+  if (trace.fusion.method !== 'rrf') {
+    return trace.lists[0]?.candidates.map((candidate) => candidate.chunkId) ?? []
+  }
+  const fused = trace.fusion.ranked.map((entry) => entry.chunkId)
+  const reranked = trace.rerank?.ranked.map((entry) => entry.chunkId) ?? []
+  return [...reranked, ...fused.slice(reranked.length)]
 }
 
 /** The best 1-based rank of any of these chunks, or null when the ranking has none. */

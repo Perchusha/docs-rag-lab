@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { askCommand, searchCommand, type CommandContext } from './commands.ts'
 
 const trace: RetrievalTrace = {
-  version: 3,
+  version: 4,
   question: 'q',
   sourceId: 'typescript',
   strategy: 'vector',

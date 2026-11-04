@@ -191,7 +191,7 @@ describe('formatTrace', () => {
     tokenCount: 10,
   })
   const trace: RetrievalTrace = {
-    version: 3,
+    version: 4,
     question: 'What does error TS2345 mean?',
     sourceId: 'typescript',
     strategy: 'hybrid',
@@ -291,6 +291,34 @@ describe('formatTrace', () => {
       '',
       'retrieval time: 3.2ms',
     ])
+  })
+
+  it("prints what the reranker did, with each chunk's fused rank, before the context", () => {
+    const lines = formatTrace({
+      ...trace,
+      strategy: 'rerank',
+      rerank: {
+        provider: 'voyage:rerank-test',
+        depth: 20,
+        from: 'api',
+        ms: 412,
+        ranked: [
+          { chunkId: 'a', rank: 1, score: 0.90315, fusedRank: 2 },
+          { chunkId: 'b', rank: 2, score: 0.34141, fusedRank: 1 },
+        ],
+      },
+    }).split('\n')
+    const start = lines.indexOf(
+      'reranked (voyage:rerank-test, one call from api): 2 candidates, 412.0ms',
+    )
+    expect(lines.slice(start, start + 4)).toEqual([
+      'reranked (voyage:rerank-test, one call from api): 2 candidates, 412.0ms',
+      '   1. 0.9032  was 2   Checks > checkJs  [option]',
+      '   2. 0.3414  was 1   Everyday Types > Literal Inference  [handbook]',
+      '',
+    ])
+    expect(lines[0]).toBe('retrieval: rerank over typescript, top 2')
+    expect(lines.indexOf('context: 2 chunks go to the answer')).toBe(start + 4)
   })
 
   it('shows only the first entries of long lists, and no fusion for vector search', () => {

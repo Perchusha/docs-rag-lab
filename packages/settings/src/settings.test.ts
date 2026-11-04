@@ -44,4 +44,10 @@ describe('settings', () => {
     expect(candidates).toBeGreaterThanOrEqual(topK)
     expect(rrfK).toBeGreaterThan(0)
   })
+
+  it('reranks at least what goes to the answer, and no deeper than the lists reach', () => {
+    const { topK, candidates } = settings.retrieval
+    expect(settings.rerank.depth).toBeGreaterThanOrEqual(topK)
+    expect(settings.rerank.depth).toBeLessThanOrEqual(candidates)
+  })
 })

@@ -24,6 +24,7 @@ import {
   sampleHash,
   type EvalClient,
   openIndexes,
+  type RerankProvider,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -124,16 +125,41 @@ const SOUND_JUDGE = (system: string, text: string): unknown => {
   return { reasoning: 'r', correctness: text.includes('First?') ? 2 : 1, false_refusal: false }
 }
 
+/** What reached the reranker, and how much each call shifts its scores. */
+let rerankCalls: string[][] = []
+let rerankJitter = 0
+const fakeReranker: RerankProvider = {
+  id: 'fake:rerank',
+  model: 'fake-rerank',
+  rerank: (_query, documents) => {
+    rerankCalls.push([...documents])
+    return Promise.resolve({
+      scores: documents.map(
+        (text) => (text.includes('two') ? 0.9 : 0.1) + rerankJitter * rerankCalls.length,
+      ),
+      tokens: 11,
+    })
+  },
+}
+
+// The real limits would make these tests wait a minute between calls.
+const unlimited = {
+  ...settings,
+  rerank: { ...settings.rerank, rateLimit: { rpm: 1_000_000, tpm: 1_000_000_000 } },
+}
+
 async function drl(...argv: string[]) {
   const out = capture()
   const err = capture()
   const code = await run(argv, {
+    settings: unlimited,
     out: out.writer,
     err: err.writer,
     root,
     debug: false,
     now: () => clock,
     createEvalClient: () => fakeEvalClient,
+    createReranker: () => fakeReranker,
   })
   return { code, out: out.text(), err: err.text() }
 }
@@ -251,7 +277,9 @@ const reportPathIn = (out: string): string => {
 
 describe('drl eval', () => {
   it('measures both strategies and writes a development run under dev/, with no API call', async () => {
+    rerankCalls = []
     const { code, out } = await drl('eval')
+    expect(rerankCalls).toEqual([])
 
     expect(code).toBe(0)
     expect(out).toContain(
@@ -316,11 +344,100 @@ describe('drl eval', () => {
     expect(readReport(reportPathIn(out)).result.targets).toHaveLength(1)
   })
 
+  describe('drl eval rerank-check', () => {
+    beforeEach(() => {
+      rerankCalls = []
+      rerankJitter = 0
+    })
+
+    it('prints the plan and stops, with no call, until --yes', async () => {
+      const { code, out } = await drl('eval', 'rerank-check')
+      expect(code).toBe(0)
+      expect(out).toContain('calls to rerank-3 for ts-0001, ts-0002')
+      expect(out).toContain('add --yes')
+      expect(rerankCalls).toEqual([])
+    })
+
+    it('says what identical and different sets did, and writes no cache entry', async () => {
+      const { code, out } = await drl('eval', 'rerank-check', '--yes')
+      expect(code).toBe(0)
+      expect(out).toContain('Identical sets: all')
+      expect(out).toContain('Different sets: 0 of')
+      expect(rerankCalls.length).toBeGreaterThan(2)
+      const before = rerankCalls.length
+      await drl('eval', 'rerank-check', '--yes')
+      expect(rerankCalls.length).toBe(before * 2)
+    })
+
+    it('fails only when identical sets differ, since a run could then not be reproduced', async () => {
+      rerankJitter = 0.001
+      const { code, out, err } = await drl('eval', 'rerank-check', '--yes')
+      expect(code).toBe(1)
+      expect(out).toContain('Identical sets: ')
+      expect(err).toContain('the same documents gave other scores')
+    })
+  })
+
+  it('prints what a run would rerank and stops, until --yes, and needs none once it is cached', async () => {
+    rerankCalls = []
+    rerankJitter = 0
+    const planned = await drl('eval', '--strategy', 'rerank')
+    expect(planned.code).toBe(0)
+    expect(planned.out).toContain('this would make 2 calls to rerank-3')
+    expect(planned.out).toContain('add --yes')
+    expect(rerankCalls).toEqual([])
+    expect(planned.out).not.toContain('report:')
+
+    expect((await drl('eval', '--strategy', 'rerank', '--yes')).code).toBe(0)
+    expect(rerankCalls).toHaveLength(2)
+
+    clock += 1000
+    const cached = await drl('eval', '--strategy', 'rerank')
+    expect(cached.out).toContain('report:')
+    expect(rerankCalls).toHaveLength(2)
+  })
+
+  it('reranks on request, in a development run too', async () => {
+    rerankCalls = []
+    rerankJitter = 0
+    const { code, out } = await drl('eval', '--strategy', 'rerank', '--yes')
+    expect(code).toBe(0)
+    const report = readReport(reportPathIn(out))
+    expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual(['rerank'])
+    expect(report.identity.rerank).toEqual({
+      model: settings.rerank.model,
+      depth: settings.rerank.depth,
+    })
+    // One call per scored question.
+    expect(rerankCalls).toHaveLength(2)
+    expect(out).toContain('rerank')
+  })
+
   describe('a named run', () => {
+    it('measures every strategy, and reproduces from the caches with no further call', async () => {
+      rerankCalls = []
+      rerankJitter = 0
+      const { code, out } = await drl('eval', '--name', 'baseline', '--yes')
+      expect(code).toBe(0)
+      const path = reportPathIn(out)
+      const report = readReport(path)
+      expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual([
+        'vector',
+        'hybrid',
+        'rerank',
+      ])
+      expect(rerankCalls).toHaveLength(2)
+
+      const verified = await drl('eval', 'verify', path)
+      expect(verified.code).toBe(0)
+      expect(verified.out).toContain('byte for byte')
+      expect(rerankCalls).toHaveLength(2)
+    })
+
     it('writes where git sees it, stamped with the date and commit', async () => {
       const sha = git('rev-parse', 'HEAD').slice(0, 8)
 
-      const { code, out } = await drl('eval', '--name', 'baseline')
+      const { code, out } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(0)
       expect(reportFiles()).toEqual([`2026-11-03-${sha}-baseline.json`])
@@ -334,7 +451,7 @@ describe('drl eval', () => {
     it('needs a clean tree, and an untracked file counts', async () => {
       writeFileSync(join(root, 'untracked.ts'), 'export {}\n')
 
-      const { code, err } = await drl('eval', '--name', 'baseline')
+      const { code, err } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(1)
       expect(err).toContain('a named run needs a clean tree')
@@ -353,7 +470,7 @@ describe('drl eval', () => {
       writeFileSync(join(root, 'untracked.ts'), 'export {}\n')
       git('config', 'status.showUntrackedFiles', 'no')
 
-      const { code, err } = await drl('eval', '--name', 'baseline')
+      const { code, err } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(1)
       expect(err).toContain('a named run needs a clean tree')
@@ -373,18 +490,18 @@ describe('drl eval', () => {
       writeFileSync(lockPath, JSON.stringify({ ...lock, docsSha: 'a'.repeat(40) }))
       commitAll()
 
-      const { code, err } = await drl('eval', '--name', 'baseline')
+      const { code, err } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(1)
       expect(err).toContain('a named run needs a clean golden check')
     })
 
     it('never overwrites a report', async () => {
-      const path = reportPathIn((await drl('eval', '--name', 'baseline')).out)
+      const path = reportPathIn((await drl('eval', '--name', 'baseline', '--yes')).out)
       const before = readFileSync(path, 'utf8')
       clock += 1000
 
-      const { code, err } = await drl('eval', '--name', 'baseline')
+      const { code, err } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(1)
       expect(err).toContain('already exists')
@@ -395,7 +512,7 @@ describe('drl eval', () => {
       rmSync(join(root, goldenLockRelative()))
       commitAll()
 
-      const { code, err } = await drl('eval', '--name', 'baseline')
+      const { code, err } = await drl('eval', '--name', 'baseline', '--yes')
 
       expect(code).toBe(1)
       expect(err).toContain('a named run needs a clean golden check')
@@ -1149,7 +1266,7 @@ function writeThreeQuestions(): void {
 
 describe('drl eval verify', () => {
   it('says a report reproduces byte for byte, at the same commit', async () => {
-    const path = reportPathIn((await drl('eval', '--name', 'baseline')).out)
+    const path = reportPathIn((await drl('eval', '--name', 'baseline', '--yes')).out)
 
     const { code, out } = await drl('eval', 'verify', path)
 

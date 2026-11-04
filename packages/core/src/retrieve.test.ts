@@ -1,9 +1,16 @@
 import type { Strategy } from '@docs-rag-lab/contracts'
-import { openEmbeddingCache, openSourceIndex, type ChunkWrite } from '@docs-rag-lab/db'
+import {
+  openEmbeddingCache,
+  openRerankCache,
+  openSourceIndex,
+  type ChunkWrite,
+} from '@docs-rag-lab/db'
 import type { RetrievalSettings } from '@docs-rag-lab/settings'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import { retrieve, type RetrieveOptions } from './retrieve.ts'
+import { rankingOf } from './eval/metrics.ts'
+import type { RerankProvider } from './rerank/provider.ts'
+import { retrieve, type RerankStep, type RetrieveOptions } from './retrieve.ts'
 import { fuseRrf } from './rrf.ts'
 import { fakeVector, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
@@ -94,6 +101,21 @@ function options(
     ...seeded(provider),
     ...overrides,
   }
+}
+
+/** A reranker that scores by a function of the document, and the calls it got. */
+function rerankStep(score: (document: string) => number, depth = 3) {
+  const calls: { query: string; documents: string[] }[] = []
+  const provider: RerankProvider = {
+    id: 'fake:rerank',
+    model: 'fake-rerank',
+    rerank: (query, documents) => {
+      calls.push({ query, documents: [...documents] })
+      return Promise.resolve({ scores: documents.map(score), tokens: 10 })
+    },
+  }
+  const step: RerankStep = { provider, depth, cache: openRerankCache(':memory:') }
+  return { step, calls }
 }
 
 describe('retrieve', () => {
@@ -223,6 +245,116 @@ describe('retrieve', () => {
     expect(second.trace.embedding.from).toBe('cache')
   })
 
+  describe('rerank', () => {
+    const rerankOptions = (
+      provider: RecordingProvider,
+      step: RerankStep,
+      overrides: Partial<RetrievalSettings> = {},
+    ) =>
+      options(provider, { settings: settings({ strategy: 'rerank', ...overrides }), rerank: step })
+
+    it('scores the fused top in one call, in fused order, and the best go to the answer', async () => {
+      const provider = new RecordingProvider()
+      const fused = await retrieve(options(provider))
+      const fusedIds = rankingOf(fused.trace)
+      const textOf = new Map(
+        fusedIds.map((id) => [id, fused.trace.context.find((c) => c.chunkId === id)?.text ?? '']),
+      )
+      // The second fused chunk scores best, then the first, then the third.
+      const { step, calls } = rerankStep((document) =>
+        document === textOf.get(fusedIds[0] ?? '')
+          ? 0.5
+          : document === textOf.get(fusedIds[1] ?? '')
+            ? 0.9
+            : 0.1,
+      )
+      const { hits, trace } = await retrieve(rerankOptions(provider, step))
+
+      expect(calls).toHaveLength(1)
+      expect(calls[0]?.query).toBe(QUESTION)
+      expect(calls[0]?.documents).toHaveLength(3)
+      expect(calls[0]?.documents.slice(0, 2)).toEqual([
+        textOf.get(fusedIds[0] ?? ''),
+        textOf.get(fusedIds[1] ?? ''),
+      ])
+
+      expect(trace.strategy).toBe('rerank')
+      expect(trace.fusion).toMatchObject({ method: 'rrf' })
+      expect(
+        trace.fusion.method === 'rrf' ? trace.fusion.ranked.map(({ chunkId }) => chunkId) : [],
+      ).toEqual(fusedIds)
+      expect(trace.rerank).toMatchObject({ provider: 'fake:rerank', depth: 3, from: 'api' })
+      expect(
+        trace.rerank?.ranked.map(({ chunkId, rank, fusedRank }) => [chunkId, rank, fusedRank]),
+      ).toEqual([
+        [fusedIds[1], 1, 2],
+        [fusedIds[0], 2, 1],
+        [fusedIds[2], 3, 3],
+      ])
+      expect(hits.map((hit) => hit.chunkId)).toEqual([fusedIds[1], fusedIds[0]])
+      expect(trace.context.map((chunk) => chunk.chunkId)).toEqual([fusedIds[1], fusedIds[0]])
+    })
+
+    it('keeps the fused order for equal scores', async () => {
+      const provider = new RecordingProvider()
+      const fusedIds = rankingOf((await retrieve(options(provider))).trace)
+      const { step } = rerankStep(() => 0.5)
+      const { trace } = await retrieve(rerankOptions(provider, step))
+      expect(trace.rerank?.ranked.map(({ chunkId }) => chunkId)).toEqual(fusedIds.slice(0, 3))
+    })
+
+    it('keeps the fused order below the depth, so a report still ranks as deep', async () => {
+      const provider = new RecordingProvider()
+      const fusedIds = rankingOf((await retrieve(options(provider))).trace)
+      expect(fusedIds.length).toBeGreaterThan(2)
+      const { step } = rerankStep((document) => document.length, 2)
+      const { hits, trace } = await retrieve(rerankOptions(provider, step, { topK: 4 }))
+
+      const reranked = trace.rerank?.ranked.map(({ chunkId }) => chunkId) ?? []
+      expect([...reranked].sort()).toEqual(fusedIds.slice(0, 2).sort())
+      expect(rankingOf(trace)).toEqual([...reranked, ...fusedIds.slice(2)])
+      expect(hits.map((hit) => hit.chunkId)).toEqual(rankingOf(trace).slice(0, 4))
+    })
+
+    it('reruns from the cache, with no call and the same order', async () => {
+      const provider = new RecordingProvider()
+      const { step, calls } = rerankStep((document) => document.length)
+      const first = await retrieve(rerankOptions(provider, step))
+      const second = await retrieve(rerankOptions(provider, step))
+      expect(calls).toHaveLength(1)
+      expect(second.trace.rerank?.from).toBe('cache')
+      expect(second.trace.rerank?.ranked).toEqual(first.trace.rerank?.ranked)
+    })
+
+    it('sends only the text today: the context does not reach the reranker in row 4', async () => {
+      const provider = new RecordingProvider()
+      const { step, calls } = rerankStep(() => 0.5)
+      const { hits } = await retrieve(rerankOptions(provider, step, { topK: 3 }))
+      expect(calls[0]?.documents).toEqual(hits.map((hit) => hit.text))
+    })
+
+    it('refuses the strategy with no reranker', async () => {
+      await expect(
+        retrieve(options(new RecordingProvider(), { settings: settings({ strategy: 'rerank' }) })),
+      ).rejects.toThrow('the rerank strategy needs a reranker')
+    })
+
+    it.each(['vector', 'hybrid'] as const)(
+      '%s never calls the reranker, and its trace has no rerank',
+      async (strategy) => {
+        const provider = new RecordingProvider()
+        const without = await retrieve(options(provider, { settings: settings({ strategy }) }))
+        const { step, calls } = rerankStep(() => 0.5)
+        const { hits, trace } = await retrieve(
+          options(provider, { settings: settings({ strategy }), rerank: step }),
+        )
+        expect(calls).toEqual([])
+        expect(trace).not.toHaveProperty('rerank')
+        expect(hits.map((hit) => hit.chunkId)).toEqual(without.hits.map((hit) => hit.chunkId))
+      },
+    )
+  })
+
   it('returns a versioned trace that survives JSON, with timings from the clock', async () => {
     const provider = new RecordingProvider()
     let tick = 0
@@ -230,7 +362,7 @@ describe('retrieve', () => {
 
     expect(JSON.parse(JSON.stringify(trace))).toEqual(trace)
     expect(trace).toMatchObject({
-      version: 3,
+      version: 4,
       question: QUESTION,
       sourceId: 'demo',
       strategy: 'hybrid',

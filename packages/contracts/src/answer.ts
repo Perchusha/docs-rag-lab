@@ -39,7 +39,7 @@ export interface ModelUsageSummary {
   outputTokens: number
   cacheWriteTokens: number
   cacheReadTokens: number
-  /** Embedding inputs or rerank scores served from the local cache. */
+  /** Embedding inputs or rerank calls served from the local cache. */
   cacheHits: number
 }
 

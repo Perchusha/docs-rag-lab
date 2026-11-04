@@ -4,9 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { formatBatchingCheck } from './eval-rerank.ts'
 
 const check = (differing: number): BatchingCheck => ({
-  compared: 23,
-  differing,
-  passed: differing === 0,
+  identicalSets: { compared: 20, differing, largestDifference: differing === 0 ? 0 : 0.00001 },
+  differentSets: { compared: 3, differing: 1, largestDifference: 0.0003 },
   questions: [
     {
       id: 'ts-0001',
@@ -15,8 +14,8 @@ const check = (differing: number): BatchingCheck => ({
       tokens: 8_412,
       compositions: [
         {
-          name: 'halves',
-          calls: 2,
+          name: 'repeat',
+          calls: 1,
           compared: 20,
           differing,
           largestDifference: differing === 0 ? 0 : 0.00001,
@@ -26,8 +25,8 @@ const check = (differing: number): BatchingCheck => ({
           name: 'alone',
           calls: 1,
           compared: 3,
-          differing: 0,
-          largestDifference: 0,
+          differing: 1,
+          largestDifference: 0.0003,
           orderChanged: false,
         },
       ],
@@ -36,19 +35,20 @@ const check = (differing: number): BatchingCheck => ({
 })
 
 describe('formatBatchingCheck', () => {
-  it('says every score matched, and how fine the scores are', () => {
+  it('says identical sets matched, what different sets did, and how fine the scores are', () => {
     const text = formatBatchingCheck(check(0), 'rerank-test')
     expect(text).toContain('ts-0001: 20 documents, 8,412 billed tokens in one call')
     expect(text).toContain('scores with up to 3 decimals')
-    expect(text).toContain('halves   2 calls  20 compared, 0 differ')
-    expect(text).toContain('alone    1 call   3 compared, 0 differ')
-    expect(text).toContain('All 23 scores match exactly')
+    expect(text).toContain('repeat   1 call   20 compared, 0 differ')
+    expect(text).toContain('alone    1 call   3 compared, 1 differ, by at most 0.0003')
+    expect(text).toContain('Identical sets: all 20 scores match exactly, in any order.')
+    expect(text).toContain('Different sets: 1 of 3 scores differ, by at most 0.0003.')
   })
 
   it('says how many differ, by how much, and whether the order moved', () => {
     const text = formatBatchingCheck(check(2), 'rerank-test')
     expect(text).toContain('2 differ, by at most 0.00001, order changed')
-    expect(text).toContain('2 of 23 scores differ.')
+    expect(text).toContain('Identical sets: 2 of 20 scores differ, by at most 0.00001.')
     expect(text).not.toContain('match exactly')
   })
 })

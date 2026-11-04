@@ -171,6 +171,21 @@ export function formatTrace(trace: RetrievalTrace, limit = 10): string {
     lines.push(...more(ranked.length, shown))
   }
 
+  if (trace.rerank !== undefined) {
+    const { provider, ranked, from } = trace.rerank
+    const shown = Math.max(limit, trace.params.topK)
+    lines.push(
+      '',
+      `reranked (${provider}, one call from ${from}): ${count(ranked.length)} candidates, ${ms(trace.rerank.ms)}`,
+    )
+    for (const entry of ranked.slice(0, shown)) {
+      lines.push(
+        `  ${String(entry.rank).padStart(2)}. ${entry.score.toFixed(4)}  was ${String(entry.fusedRank).padEnd(2)}  ${label(entry.chunkId)}`,
+      )
+    }
+    lines.push(...more(ranked.length, shown))
+  }
+
   lines.push('', `context: ${count(trace.context.length)} chunks go to the answer`)
   for (const chunk of trace.context) {
     lines.push(`  ${String(chunk.rank).padStart(2)}. ${chunk.title}\n      ${chunk.source}`)

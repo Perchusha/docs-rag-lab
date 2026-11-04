@@ -71,6 +71,7 @@ const manifest: Manifest = {
 const RANKINGS: Record<Strategy, Record<string, string[]>> = {
   vector: { 'First?': ['chunk-a', 'chunk-b'], 'Second?': ['chunk-a', 'chunk-b'] },
   hybrid: { 'First?': ['chunk-b', 'chunk-a'], 'Second?': ['chunk-b', 'chunk-a'] },
+  rerank: { 'First?': ['chunk-a', 'chunk-b'], 'Second?': ['chunk-a', 'chunk-b'] },
 }
 
 function trace(strategy: Strategy, question: string, totalMs: number): RetrievalTrace {
@@ -87,14 +88,14 @@ function trace(strategy: Strategy, question: string, totalMs: number): Retrieval
   })
   return {
     fusion:
-      strategy === 'hybrid'
-        ? {
+      strategy === 'vector'
+        ? { method: 'none' }
+        : {
             method: 'rrf',
             k: 60,
             ms: 0,
             ranked: ranking.map((chunkId, i) => ({ chunkId, rank: i + 1, score: 1, ranks: {} })),
-          }
-        : { method: 'none' },
+          },
     lists: [
       {
         name: 'vector',
@@ -352,6 +353,24 @@ describe('runRetrievalEval', () => {
     expect(report.vectors.queryHash).toBe(
       vectorsHash([Float32Array.from([1, 0]), Float32Array.from([1, 0])]),
     )
+  })
+
+  it('names the reranker only in a report that measured it, so earlier reports stay comparable', async () => {
+    const rerank = { model: 'fake-rerank', depth: 20 }
+    const without = await runRetrievalEval(harness({ rerank }).options)
+    expect(without.identity).not.toHaveProperty('rerank')
+
+    const report = await runRetrievalEval(
+      harness({ rerank, strategies: ['vector', 'hybrid', 'rerank'] }).options,
+    )
+    expect(report.identity.rerank).toEqual(rerank)
+    expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual([
+      'vector',
+      'hybrid',
+      'rerank',
+    ])
+    // The comparison stays the first two, as in every earlier report.
+    expect(report.result.comparison).toEqual(without.result.comparison)
   })
 
   it('keeps timings and usage out of the result, so two runs compare byte for byte', async () => {

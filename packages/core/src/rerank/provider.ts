@@ -26,29 +26,3 @@ export function estimateRerankTokens(query: string, documents: readonly string[]
   const perDocument = estimateTokens(query)
   return documents.reduce((sum, text) => sum + perDocument + estimateTokens(text), 0)
 }
-
-/**
- * Groups documents into requests within `maxTokens`, as positions in `documents`, in order.
- * A document larger than the limit gets a request of its own.
- */
-export function batchForRerank(
-  query: string,
-  documents: readonly string[],
-  maxTokens: number,
-): number[][] {
-  const batches: number[][] = []
-  let current: number[] = []
-  let tokens = 0
-  documents.forEach((text, position) => {
-    const size = estimateRerankTokens(query, [text])
-    if (current.length > 0 && tokens + size > maxTokens) {
-      batches.push(current)
-      current = []
-      tokens = 0
-    }
-    current.push(position)
-    tokens += size
-  })
-  if (current.length > 0) batches.push(current)
-  return batches
-}

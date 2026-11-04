@@ -1,38 +1,38 @@
-// drl eval rerank-check: does a rerank score depend on the rest of its batch (ADR-0014)?
-// The first questions of the golden set whose fused top documents fit one request are
-// scored in several compositions, and every score is compared exactly. The tokens are free,
-// but they take minutes on the free trial, so it prints the plan first and needs --yes.
+// What rerank costs a run, and drl eval rerank-check: how does a rerank score depend on the
+// rest of its call (ADR-0014)? The first questions of the golden set whose fused top documents
+// fit one request under the limit are scored in several compositions, and every score is
+// compared exactly. The tokens are free, but they take minutes on the free trial, so both print
+// their plan first and need --yes.
 import { join } from 'node:path'
 
 import {
-  createRerankProvider,
   estimateRerankTokens,
   isUnanswerable,
   openIndexes,
   planBatchingCheck,
   RateLimiter,
+  rerankCacheKey,
   runBatchingCheck,
   type BatchingCheck,
   type BatchingCheckQuestion,
-  type RerankProvider,
 } from '@docs-rag-lab/core'
 
-import { findSource, type CommandContext } from './commands.ts'
+import { findSource, rerankerFor, type CommandContext } from './commands.ts'
 import { CliError } from './errors.ts'
 import { formatDuration } from './format.ts'
 import { readGoldenFiles } from './golden.ts'
 
-/** Three questions give about 60 comparisons each, in about 15 minutes all told. */
+/** Three questions give about 80 comparisons each, in about 15 minutes all told. */
 const QUESTIONS = 3
+
+/** The split first planned for a run, which ADR-0014's finding measures. */
+const SPLIT_TOKENS = 3_600
 
 const count = (n: number): string => n.toLocaleString('en-US')
 const calls = (n: number): string => `${String(n)} call${n === 1 ? '' : 's'}`
 
-/** The first answerable questions, in the set's order, whose top documents fit one request. */
-async function questionsToCheck(
-  ctx: CommandContext,
-  sourceId: string,
-): Promise<BatchingCheckQuestion[]> {
+/** The fused top documents of every answerable question that is not stale, in the set's order. */
+async function fusedTops(ctx: CommandContext, sourceId: string): Promise<BatchingCheckQuestion[]> {
   const { settings, engine, meter } = ctx
   const source = findSource(ctx.sources, sourceId)
   const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, { create: false })
@@ -44,23 +44,53 @@ async function questionsToCheck(
   }
   if (golden === undefined) throw new CliError(`${source.id} has no golden set`)
 
-  const picked: BatchingCheckQuestion[] = []
+  const stale = new Set(golden.check.stale)
+  const tops: BatchingCheckQuestion[] = []
   for (const candidate of golden.questions) {
-    if (isUnanswerable(candidate)) continue
+    if (isUnanswerable(candidate) || stale.has(candidate.id)) continue
     const { id, question } = candidate
     const { hits } = await engine.search(
       { question, source: source.id, strategy: 'hybrid', topK: settings.rerank.depth },
       meter,
     )
-    const documents = hits.map((hit) => hit.text)
-    if (estimateRerankTokens(question, documents) > settings.rerank.rateLimit.tpm) continue
-    picked.push({ id, question, documents })
-    if (picked.length === QUESTIONS) break
+    tops.push({ id, question, documents: hits.map((hit) => hit.text) })
   }
-  if (picked.length < QUESTIONS) {
-    throw new CliError(`only ${String(picked.length)} questions fit one request under the limit`)
+  return tops
+}
+
+/** How long a number of calls and tokens takes at the limits. */
+function durationOf(ctx: CommandContext, requests: number, estimatedTokens: number): string {
+  const { rpm, tpm } = ctx.settings.rerank.rateLimit
+  return formatDuration(Math.max(requests / rpm, estimatedTokens / tpm) * 60_000)
+}
+
+/** What a run would call the reranker for: the calls that are not in the cache yet. */
+export async function planRerankRun(
+  ctx: CommandContext,
+  sourceId: string,
+): Promise<{ calls: number; estimatedTokens: number; duration: string }> {
+  const { settings } = ctx
+  const tops = await fusedTops(ctx, sourceId)
+  const provider = rerankerFor(ctx)
+  const indexes = openIndexes(join(ctx.root, settings.dataDir), sourceId, { create: false })
+  try {
+    const cache = indexes.rerankCache()
+    const missing = tops.filter(
+      ({ question, documents }) =>
+        cache.get(rerankCacheKey(provider.id, question.trim(), documents)) === undefined,
+    )
+    const estimatedTokens = missing.reduce(
+      (sum, { question, documents }) => sum + estimateRerankTokens(question, documents),
+      0,
+    )
+    return {
+      calls: missing.length,
+      estimatedTokens,
+      duration: durationOf(ctx, missing.length, estimatedTokens),
+    }
+  } finally {
+    indexes.close()
   }
-  return picked
 }
 
 /** How many decimals the scores carry, since an exact match means no more than that. */
@@ -85,48 +115,51 @@ export function formatBatchingCheck(check: BatchingCheck, model: string): string
       )
     }
   }
+  const { identicalSets: same, differentSets: other } = check
   lines.push(
     '',
-    check.passed
-      ? `All ${count(check.compared)} scores match exactly: a score does not depend on its batch.`
-      : `${count(check.differing)} of ${count(check.compared)} scores differ.`,
+    same.differing === 0
+      ? `Identical sets: all ${count(same.compared)} scores match exactly, in any order.`
+      : `Identical sets: ${count(same.differing)} of ${count(same.compared)} scores differ, by at most ${String(same.largestDifference)}.`,
+    `Different sets: ${count(other.differing)} of ${count(other.compared)} scores differ, by at most ${String(other.largestDifference)}.`,
   )
   return lines.join('\n')
 }
 
-/** `drl eval rerank-check`. `reranker` is for tests. */
+/** `drl eval rerank-check`. */
 export async function evalRerankCheckCommand(
   ctx: CommandContext,
   args: { source: string; yes: boolean },
-  reranker?: RerankProvider,
 ): Promise<void> {
   const { settings, out } = ctx
-  const { batch, rateLimit } = settings.rerank
-  const questions = await questionsToCheck(ctx, args.source)
-  const plan = planBatchingCheck(questions, batch.maxTokens)
+  const { rateLimit, model } = settings.rerank
+  const questions = (await fusedTops(ctx, args.source))
+    .filter(({ question, documents }) => estimateRerankTokens(question, documents) <= rateLimit.tpm)
+    .slice(0, QUESTIONS)
+  if (questions.length === 0) throw new CliError('no question fits one request under the limit')
+  const plan = planBatchingCheck(questions, SPLIT_TOKENS)
   if (!args.yes) {
-    const minutes = Math.max(plan.calls / rateLimit.rpm, plan.estimatedTokens / rateLimit.tpm)
     out.write(
-      `this would make ${String(plan.calls)} calls to ${settings.rerank.model} for ${questions.map(({ id }) => id).join(', ')}, about ${count(plan.estimatedTokens)} estimated tokens and ${formatDuration(minutes * 60_000)} at the free-trial limits: add --yes to run them\n`,
+      `this would make ${String(plan.calls)} calls to ${model} for ${questions.map(({ id }) => id).join(', ')}, about ${count(plan.estimatedTokens)} estimated tokens and ${durationOf(ctx, plan.calls, plan.estimatedTokens)} at the free-trial limits: add --yes to run them\n`,
     )
     return
   }
 
-  const provider = reranker ?? createRerankProvider(settings.rerank)
+  const provider = rerankerFor(ctx)
   const limiter = new RateLimiter(rateLimit)
   const check = await runBatchingCheck(questions, {
     provider,
     meter: ctx.meter,
     limiter,
-    maxTokens: batch.maxTokens,
+    maxTokens: SPLIT_TOKENS,
     onProgress: (id, composition) => {
       out.write(`${id}: ${composition} (${formatDuration(limiter.waitedMs)} waiting so far)\n`)
     },
   })
   out.write(`\n${formatBatchingCheck(check, provider.model)}\n`)
-  if (!check.passed) {
+  if (check.identicalSets.differing > 0) {
     throw new CliError(
-      'a rerank score depends on its batch: splitting and caching per pair are not sound, and ADR-0014 asks the owner for a smaller depth before any run',
+      'the same documents gave other scores, so a run could not be reproduced without its cache (ADR-0014)',
     )
   }
 }

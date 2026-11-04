@@ -4,6 +4,7 @@
 export {
   chunkLabel,
   LIST_NAMES,
+  LOCAL_STRATEGIES,
   STRATEGIES,
   TRACE_VERSION,
   type ExactToken,
@@ -18,6 +19,8 @@ export {
   type TraceFusedCandidate,
   type TraceFusion,
   type TraceList,
+  type TraceRerank,
+  type TraceRerankedCandidate,
 } from './trace.ts'
 export {
   NO_CONTEXT,

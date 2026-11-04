@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
 import {
+  LOCAL_STRATEGIES,
   parseEvalReport,
   STRATEGIES,
   type EvalReport,
@@ -36,6 +37,7 @@ import {
   formatVerification,
   NOISE_NOTE,
 } from './eval-format.ts'
+import { planRerankRun } from './eval-rerank.ts'
 import { formatGoldenCheck } from './format.ts'
 import { goldenSetPath, goldenTargetsPath, readGoldenFiles } from './golden.ts'
 
@@ -60,7 +62,7 @@ export async function measure(
   ctx: CommandContext,
   source: Source,
   name: string | null,
-  strategies: readonly Strategy[] = STRATEGIES,
+  strategies: readonly Strategy[] = LOCAL_STRATEGIES,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
   const repo = await readRepoState(root)
@@ -102,6 +104,7 @@ export async function measure(
         : [],
       manifest,
       retrieval: settings.retrieval,
+      rerank: { model: settings.rerank.model, depth: settings.rerank.depth },
       index: indexes.index,
       meter,
       run: {
@@ -119,7 +122,7 @@ export async function measure(
 /** `drl eval`: measure, write the report, and say where. */
 export async function evalRunCommand(
   ctx: CommandContext,
-  args: { source: string; name: string | undefined; strategy: Strategy | undefined },
+  args: { source: string; name: string | undefined; strategy: Strategy | undefined; yes: boolean },
 ): Promise<void> {
   const { name } = args
   checkRunName(name)
@@ -127,9 +130,28 @@ export async function evalRunCommand(
     throw new CliError('a named run measures every strategy, so that later runs can be compared')
   }
   const source = findSource(ctx.sources, args.source)
-  const strategies = args.strategy === undefined ? STRATEGIES : [args.strategy]
+  // A development run stays quick: a rerank takes up to a minute per question on the free trial.
+  const strategies =
+    args.strategy !== undefined
+      ? [args.strategy]
+      : name === undefined
+        ? LOCAL_STRATEGIES
+        : STRATEGIES
+  if (args.yes && !strategies.includes('rerank')) {
+    throw new CliError('--yes does not apply to a run with no rerank, which needs no confirming')
+  }
   // Before a run that may take a while. Writing with wx settles it for good.
   reportPaths(ctx, source, name, (await readRepoState(ctx.root)).sha)
+
+  if (strategies.includes('rerank') && !args.yes) {
+    const plan = await planRerankRun(ctx, source.id)
+    if (plan.calls > 0) {
+      ctx.out.write(
+        `this would make ${String(plan.calls)} calls to ${ctx.settings.rerank.model}, about ${plan.estimatedTokens.toLocaleString('en-US')} estimated tokens and ${plan.duration} at the free-trial limits: add --yes to run them\n`,
+      )
+      return
+    }
+  }
 
   const report = await measure(ctx, source, name ?? null, strategies)
   const path = writeReport(ctx, source, name, report)

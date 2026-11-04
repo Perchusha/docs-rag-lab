@@ -27,9 +27,9 @@ export const settings = defineSettings({
     provider: 'voyage',
     endpoint: 'https://ai.mongodb.com/v1',
     model: 'rerank-3',
+    // One call per question, since a score depends on the rest of its call. A call can pass the
+    // limit below, and is then paced so that the average stays under it (ADR-0014).
     depth: 20,
-    // The same reasoning as embeddings': 3,600 estimated tokens is about 3,000 billed.
-    batch: { maxTokens: 3_600 },
     rateLimit: { rpm: 3, tpm: 10_000 },
   },
   models: {

@@ -9,7 +9,7 @@ export interface ModelUsage {
   outputTokens: number
   cacheWriteTokens: number
   cacheReadTokens: number
-  /** Embedding inputs or rerank scores served from the local cache instead of the API. */
+  /** Embedding inputs or rerank calls served from the local cache instead of the API. */
   cacheHits: number
 }
 

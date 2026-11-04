@@ -11,7 +11,6 @@ const config: VoyageRerankSettings = {
   endpoint: 'https://ai.example.com/v1',
   model: 'rerank-test',
   depth: 20,
-  batch: { maxTokens: 1000 },
   rateLimit: { rpm: 3, tpm: 10_000 },
 }
 

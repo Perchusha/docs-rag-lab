@@ -1,16 +1,12 @@
-// Does a rerank score depend on the rest of its batch? ADR-0014: splitting a top 20 under
-// the rate limit and caching scores per pair are only sound if it does not, and Voyage's
-// embeddings do depend on theirs. So the same documents are scored in several compositions,
-// and every score is compared exactly with the first call's. The repeat tells jitter from
-// an effect of the batch. Nothing here is cached: each score must come from the API.
+// How does a rerank score depend on the rest of its call? ADR-0014 records the finding this
+// reproduces: identical sets of documents give identical scores in any order, and different
+// sets shift some scores. So a question's top 20 goes as one call, and a cached call is what
+// a new one would return. The same documents are scored in several compositions, and every
+// score is compared exactly with the first call's. Nothing here is cached: each score must
+// come from the API.
 import { requestWithRetries, type ProviderRequestOptions } from '../provider-request.ts'
 import type { UsageMeter } from '../usage.ts'
-import {
-  batchForRerank,
-  estimateRerankTokens,
-  type RerankProvider,
-  type RerankResult,
-} from './provider.ts'
+import { estimateRerankTokens, type RerankProvider, type RerankResult } from './provider.ts'
 
 export type CompositionName = 'repeat' | 'reversed' | 'halves' | 'batched' | 'alone'
 
@@ -48,24 +44,54 @@ export interface QuestionCheck {
   compositions: CompositionResult[]
 }
 
-export interface BatchingCheck {
-  questions: QuestionCheck[]
+export interface SetComparison {
   compared: number
   differing: number
-  passed: boolean
+  largestDifference: number
+}
+
+export interface BatchingCheck {
+  questions: QuestionCheck[]
+  /** The same documents, in the same or another order: what a cached call has to equal. */
+  identicalSets: SetComparison
+  /** Other sets of those documents. */
+  differentSets: SetComparison
 }
 
 export interface BatchingCheckOptions extends ProviderRequestOptions {
   provider: RerankProvider
   meter: UsageMeter
-  /** The limit on one request, as a run would split them. */
+  /** The limit on one request in the `batched` composition. */
   maxTokens: number
   onProgress?: ((id: string, composition: CompositionName | 'first call') => void) | undefined
 }
 
+/** Positions in `documents`, in order, grouped into requests within `maxTokens`. */
+export function batchForRerank(
+  query: string,
+  documents: readonly string[],
+  maxTokens: number,
+): number[][] {
+  const batches: number[][] = []
+  let current: number[] = []
+  let tokens = 0
+  documents.forEach((text, position) => {
+    const size = estimateRerankTokens(query, [text])
+    if (current.length > 0 && tokens + size > maxTokens) {
+      batches.push(current)
+      current = []
+      tokens = 0
+    }
+    current.push(position)
+    tokens += size
+  })
+  if (current.length > 0) batches.push(current)
+  return batches
+}
+
 /**
  * The compositions to compare with one call of all documents: that call again, the reverse
- * order, two halves, the split a run would make, and the shortest, middle and longest
+ * order, two halves, a split under `maxTokens`, and the shortest, middle and longest
  * document each alone, where no padding or neighbour could matter.
  */
 export function compositionsOf(
@@ -186,11 +212,19 @@ export async function runBatchingCheck(
   }
 
   const all = checks.flatMap((check) => check.compositions)
-  const differing = all.reduce((sum, result) => sum + result.differing, 0)
+  const comparison = (results: readonly CompositionResult[]): SetComparison => ({
+    compared: results.reduce((sum, result) => sum + result.compared, 0),
+    differing: results.reduce((sum, result) => sum + result.differing, 0),
+    largestDifference: results.reduce(
+      (largest, result) => Math.max(largest, result.largestDifference),
+      0,
+    ),
+  })
+  const identical = ({ name }: CompositionResult): boolean =>
+    name === 'repeat' || name === 'reversed'
   return {
     questions: checks,
-    compared: all.reduce((sum, result) => sum + result.compared, 0),
-    differing,
-    passed: differing === 0,
+    identicalSets: comparison(all.filter(identical)),
+    differentSets: comparison(all.filter((result) => !identical(result))),
   }
 }

@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest'
 
 import { UsageMeter } from '../usage.ts'
 import {
+  batchForRerank,
   compositionsOf,
   planBatchingCheck,
   runBatchingCheck,
   type BatchingCheckOptions,
   type BatchingCheckQuestion,
 } from './batching-check.ts'
-import { batchForRerank, estimateRerankTokens, type RerankProvider } from './provider.ts'
+import { estimateRerankTokens, type RerankProvider } from './provider.ts'
 
 // About 14, 48, 25, 37 and 60 estimated tokens each, with the query.
 const text = (letter: string, size: number): string => letter.repeat(size * 4)
@@ -100,13 +101,13 @@ describe('planBatchingCheck', () => {
 })
 
 describe('runBatchingCheck', () => {
-  it('passes when a score depends only on its pair, and compares every document', async () => {
+  it('finds no difference when a score depends only on its pair, and compares every document', async () => {
     const { provider, calls } = fakeProvider()
     const check = await runBatchingCheck([question], options(provider))
-    expect(check.passed).toBe(true)
-    expect(check.differing).toBe(0)
-    // 5 documents in repeat, reversed, halves and batched, then 3 alone.
-    expect(check.compared).toBe(23)
+    // 5 documents in repeat and reversed.
+    expect(check.identicalSets).toEqual({ compared: 10, differing: 0, largestDifference: 0 })
+    // 5 documents in halves and batched, then 3 alone.
+    expect(check.differentSets).toEqual({ compared: 13, differing: 0, largestDifference: 0 })
     expect(calls).toHaveLength(planBatchingCheck([question], 70).calls)
     expect(check.questions[0]?.scores).toEqual(documents.map((document) => 1 / document.length))
   })
@@ -118,10 +119,11 @@ describe('runBatchingCheck', () => {
     expect(reversed).toMatchObject({ differing: 0, orderChanged: false })
   })
 
-  it('fails on the smallest difference, and says which composition and how much', async () => {
+  it('counts the smallest difference as a different set, and says where and how much', async () => {
     const { provider } = fakeProvider((sent) => (sent.length === 3 ? 1e-12 : 0))
     const check = await runBatchingCheck([question], options(provider))
-    expect(check.passed).toBe(false)
+    expect(check.identicalSets.differing).toBe(0)
+    expect(check.differentSets.differing).toBe(3)
     const halves = check.questions[0]?.compositions.find(({ name }) => name === 'halves')
     expect(halves?.differing).toBe(3)
     expect(halves?.largestDifference).toBeGreaterThan(0)
@@ -135,7 +137,8 @@ describe('runBatchingCheck', () => {
     const check = await runBatchingCheck([question], options(provider))
     const repeat = check.questions[0]?.compositions.find(({ name }) => name === 'repeat')
     expect(repeat?.differing).toBe(5)
-    expect(check.passed).toBe(false)
+    expect(check.identicalSets.differing).toBe(5)
+    expect(check.differentSets.differing).toBe(0)
   })
 
   it('says when a difference changes the order, which is what a ranking would feel', async () => {
