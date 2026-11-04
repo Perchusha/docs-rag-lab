@@ -55,7 +55,7 @@ describe('rerankWithCache', () => {
     const meter = new UsageMeter()
     const result = await rerankWithCache('q', ['a', 'b'], { provider, cache, meter })
     expect(calls).toEqual([{ query: 'q', documents: ['a', 'b'] }])
-    expect(result).toEqual({ scores: [1, 0.5], from: 'api' })
+    expect(result).toEqual({ scores: [1, 0.5], from: 'api', rateLimitRetries: 0 })
     expect(meter.entries()).toEqual([
       ['fake-rerank', expect.objectContaining({ kind: 'rerank', requests: 1, inputTokens: 40 })],
     ])
@@ -67,7 +67,7 @@ describe('rerankWithCache', () => {
     const meter = new UsageMeter()
     const again = await rerankWithCache('q', ['a', 'b'], { provider, cache, meter })
     expect(calls).toHaveLength(1)
-    expect(again).toEqual({ scores: [1, 0.5], from: 'cache' })
+    expect(again).toEqual({ scores: [1, 0.5], from: 'cache', rateLimitRetries: 0 })
     expect(meter.entries()).toEqual([
       ['fake-rerank', expect.objectContaining({ kind: 'rerank', requests: 0, cacheHits: 1 })],
     ])
@@ -98,6 +98,7 @@ describe('rerankWithCache', () => {
     expect(await rerankWithCache('q', [], { provider, cache, meter: new UsageMeter() })).toEqual({
       scores: [],
       from: 'cache',
+      rateLimitRetries: 0,
     })
     expect(calls).toEqual([])
     expect(cache.count()).toBe(0)
@@ -122,13 +123,17 @@ describe('rerankWithCache', () => {
       meter: new UsageMeter(),
       limiter: new RateLimiter({ rpm: 100, tpm: 1_000_000 }, clock),
     })
-    expect(result).toEqual({ scores: [0.5], from: 'api' })
+    expect(result).toEqual({ scores: [0.5], from: 'api', rateLimitRetries: 1 })
     expect(calls).toEqual([
       { query: 'q', documents: ['a'] },
       { query: 'q', documents: ['a'] },
     ])
     expect(clock.slept).toEqual([60_000])
     expect(cache.count()).toBe(1)
+
+    // The replay says so too, since a report may come from the cache.
+    const again = await rerankWithCache('q', ['a'], { provider, cache, meter: new UsageMeter() })
+    expect(again).toEqual({ scores: [0.5], from: 'cache', rateLimitRetries: 1 })
   })
 
   it('takes a second 429 as a rejection, keeps nothing and tells what happens next', async () => {
@@ -188,7 +193,7 @@ describe('rerankWithCache', () => {
       limiter: new RateLimiter({ rpm: 100, tpm: 1_000_000 }, clock),
     })
     expect(calls).toHaveLength(3)
-    expect(result).toEqual({ scores: [0.5], from: 'api' })
+    expect(result).toEqual({ scores: [0.5], from: 'api', rateLimitRetries: 0 })
   })
 
   it('passes a failure that is not a provider request as it is', async () => {

@@ -43,31 +43,39 @@ export async function rerankWithCache(
   query: string,
   documents: readonly string[],
   options: RerankWithCacheOptions,
-): Promise<{ scores: number[]; from: 'cache' | 'api' }> {
+): Promise<{ scores: number[]; from: 'cache' | 'api'; rateLimitRetries: number }> {
   const { provider, cache, meter, limiter, maxRetries } = options
-  if (documents.length === 0) return { scores: [], from: 'cache' }
+  if (documents.length === 0) return { scores: [], from: 'cache', rateLimitRetries: 0 }
 
   const key = rerankCacheKey(provider.id, query, documents)
   const cached = cache.get(key)
   if (cached !== undefined) {
-    if (cached.length !== documents.length) {
+    if (cached.scores.length !== documents.length) {
       throw new Error(
-        `the rerank cache holds ${String(cached.length)} scores for a call of ${String(documents.length)} documents`,
+        `the rerank cache holds ${String(cached.scores.length)} scores for a call of ${String(documents.length)} documents`,
       )
     }
     meter.recordRerankCacheHits(provider.model, 1)
-    return { scores: cached, from: 'cache' }
+    return { ...cached, from: 'cache' }
   }
 
+  let rateLimitRetries = 0
   try {
     const { scores, tokens } = await requestWithRetries(
       estimateRerankTokens(query, documents),
       () => provider.rerank(query, documents),
-      { limiter, maxRetries, retryRateLimitOnce: true },
+      {
+        limiter,
+        maxRetries,
+        retryRateLimitOnce: true,
+        onRateLimited: () => {
+          rateLimitRetries++
+        },
+      },
     )
     meter.recordRerank(provider.model, tokens)
-    cache.put(key, provider.id, scores, tokens)
-    return { scores, from: 'api' }
+    cache.put(key, provider.id, scores, tokens, rateLimitRetries)
+    return { scores, from: 'api', rateLimitRetries }
   } catch (error) {
     if (error instanceof ProviderRequestError && error.status !== undefined && error.status < 500) {
       throw new RerankRejectedError(error.status, error.message, error)
