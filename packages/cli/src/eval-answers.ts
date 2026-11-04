@@ -291,6 +291,7 @@ export async function evalAnswersCommand(
       meter: ctx.meter,
       maxUsd,
       concurrency: settings.evalAnswers.concurrency,
+      guard: ctx.guard,
       onProgress: (done, total, usd) => {
         if (done === total || ctx.now() - lastProgress > 20_000) {
           lastProgress = ctx.now()
@@ -350,6 +351,7 @@ export async function evalAnswersCommand(
         `${String(failures)} calls failed, and a named report needs them all: rerun, which pays only for those`,
       )
     }
+    await ctx.guard?.check()
     const path = writeReport(ctx, source, args.name, { ...report, answers: section }, (written) =>
       answerSections(written, judgeLine),
     )
@@ -387,6 +389,7 @@ export async function evalJudgeCheckCommand(
       meter: ctx.meter,
       maxUsd: settings.evalAnswers.maxUsd,
       concurrency: settings.evalAnswers.concurrency,
+      guard: ctx.guard,
     })
     ctx.out.write(`${formatJudgeCheck(results)}\n`)
     if (results.some((result) => !result.passed)) {

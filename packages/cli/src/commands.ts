@@ -26,6 +26,7 @@ import {
   type Engine,
   type Source,
   type RerankProvider,
+  type RunGuard,
   type UsageMeter,
   type EvalClient,
 } from '@docs-rag-lab/core'
@@ -59,6 +60,8 @@ export interface CommandContext {
   meter: UsageMeter
   out: Writer
   now: () => number
+  /** Where this command started, in a repository. Checked before each paid call and report. */
+  guard?: RunGuard | undefined
   /** For tests. Answer metrics default to the Claude client named in settings. */
   createEvalClient?: (() => EvalClient) | undefined
   /** For tests. Defaults to the reranker named in settings. */

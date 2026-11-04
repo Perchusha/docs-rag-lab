@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { Engine } from '../engine.ts'
 import { ANSWER_SYSTEM_PROMPT } from '../generate.ts'
+import { RunMovedError } from '../run-guard.ts'
 import { UsageMeter } from '../usage.ts'
 import {
   claimsOf,
@@ -478,6 +479,51 @@ describe('runAnswers', () => {
     const { client: another } = fakeClient(() => message())
     const [answer] = await runAnswers([job()], options(another))
     expect(answer?.fromCache).toBe(true)
+  })
+
+  it('stops at once when the run moved, makes no call, and records no failure', async () => {
+    const { client, requests } = fakeClient(() => message())
+    const guard = {
+      check: () => Promise.reject(new RunMovedError('the repository moved during this run')),
+    }
+
+    await expect(runAnswers([job(), job(refused)], { ...options(client), guard })).rejects.toThrow(
+      'the repository moved during this run',
+    )
+    expect(requests).toEqual([])
+  })
+
+  it('needs no check for what the cache holds', async () => {
+    const { client } = fakeClient(() => message())
+    await runAnswers([job()], options(client))
+    let checks = 0
+    const guard = {
+      check: () => {
+        checks++
+        return Promise.reject(new RunMovedError('moved'))
+      },
+    }
+
+    const [answer] = await runAnswers([job()], { ...options(client), guard })
+
+    expect(answer?.fromCache).toBe(true)
+    expect(checks).toBe(0)
+  })
+
+  it('checks before each paid call while nothing moved', async () => {
+    const { client, requests } = fakeClient(() => message())
+    let checks = 0
+    const guard = {
+      check: () => {
+        checks++
+        return Promise.resolve()
+      },
+    }
+
+    await runAnswers([job(), job(refused)], { ...options(client), guard })
+
+    expect(requests).toHaveLength(2)
+    expect(checks).toBe(2)
   })
 
   it('stops after 5 failures in a row, which is not about one bad request', async () => {

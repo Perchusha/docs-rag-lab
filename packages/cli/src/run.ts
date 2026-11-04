@@ -2,17 +2,24 @@ import { parseArgs } from 'node:util'
 
 import { STRATEGIES, type Strategy } from '@docs-rag-lab/contracts'
 import {
+  createEmbeddingProvider,
   createEngine,
+  createRerankProvider,
   DOC_TYPES,
+  EvalStoppedError,
   findRepoRoot,
   formatUsage,
   GoldenSetError,
+  guardEmbeddings,
+  guardReranker,
   IndexNotFoundError,
   InvalidRequestError,
   loadRootEnv,
   MAX_TOP_K,
   MissingKeyError,
   RerankRejectedError,
+  RunMovedError,
+  startRunGuard,
   UnknownSourceError,
   UsageMeter,
   type DocType,
@@ -288,6 +295,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof InvalidRequestError ||
     error instanceof GoldenSetError ||
     error instanceof RerankRejectedError ||
+    error instanceof RunMovedError ||
+    error instanceof EvalStoppedError ||
     error instanceof ContextsStoppedError
   )
 }
@@ -396,14 +405,23 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
+    const guard = await startRunGuard(root)
+    // Every Voyage call of every command goes through these two.
+    const createProvider = () =>
+      guardEmbeddings(
+        options.createProvider?.() ?? createEmbeddingProvider(settings.embeddings),
+        guard,
+      )
+    const createReranker = () =>
+      guardReranker(options.createReranker?.() ?? createRerankProvider(settings.rerank), guard)
     const engineFor = (index?: IndexVariant) =>
       createEngine({
         settings,
         sources,
         root,
         variant: index,
-        createReranker: options.createReranker,
-        createProvider: options.createProvider,
+        createReranker,
+        createProvider,
       })
     const ctx = {
       settings,
@@ -414,9 +432,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       meter,
       out,
       now,
+      guard,
       createEvalClient: options.createEvalClient,
-      createReranker: options.createReranker,
-      createProvider: options.createProvider,
+      createReranker,
+      createProvider,
     }
     if (command === 'sync') {
       const source = rest[0]

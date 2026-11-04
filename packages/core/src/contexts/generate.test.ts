@@ -260,6 +260,17 @@ describe('generateContexts', () => {
     expect(written).toEqual([])
   })
 
+  it('makes no call once the run moved', async () => {
+    const fake = fakeClient()
+    const guard = { check: () => Promise.reject(new Error('the repository moved')) }
+
+    const { written, done } = run([several], fake, { guard })
+
+    await expect(done).rejects.toThrow('the repository moved')
+    expect(written).toEqual([])
+    expect(fake.requests).toEqual([])
+  })
+
   it('stops before the next call past what settings allow, and keeps what it got', async () => {
     const fake = fakeClient()
     // 10 tokens in and 20 out cost $0.00011 a call at these prices.

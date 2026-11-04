@@ -149,6 +149,13 @@ export {
 export { fieldDifferences, verifyReport, type EvalVerification } from './eval/verify.ts'
 export { readRepoState, type RepoState } from './eval/repo-state.ts'
 export {
+  guardEmbeddings,
+  guardReranker,
+  RunMovedError,
+  startRunGuard,
+  type RunGuard,
+} from './run-guard.ts'
+export {
   cachedAnswer,
   claimsOf,
   judgeCallsOf,

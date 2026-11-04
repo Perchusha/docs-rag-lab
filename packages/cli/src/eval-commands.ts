@@ -167,6 +167,7 @@ export async function evalRunCommand(
   }
 
   const report = await measure(ctx, source, name ?? null, strategies, variant)
+  await ctx.guard?.check()
   const path = writeReport(ctx, source, name, report)
   ctx.out.write(`${formatEvalSummary(report)}\n\nreport: ${path}\n`)
 }

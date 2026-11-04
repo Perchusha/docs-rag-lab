@@ -64,9 +64,12 @@ type ClaudeMessage = Awaited<
 /** What the fake Claude was asked, and what it answers with. */
 let claudeRequests: ClaudeRequest[] = []
 let judgeBody: (system: string, text: string) => unknown = () => undefined
+/** Runs during each paid call: how a test moves the working tree under a run. */
+let duringPaidCall: (() => void) | undefined
 
 function fakeClaude(request: ClaudeRequest): ClaudeMessage {
   claudeRequests.push(request)
+  duringPaidCall?.()
   const system = JSON.stringify(request.system)
   const text = JSON.stringify(request.messages)
   const judged = request.output_config?.format != null
@@ -136,6 +139,7 @@ const fakeReranker: RerankProvider = {
   model: 'fake-rerank',
   rerank: (_query, documents) => {
     rerankCalls.push([...documents])
+    duringPaidCall?.()
     return Promise.resolve({
       scores: documents.map(
         (text) => (text.includes('two') ? 0.9 : 0.1) + rerankJitter * rerankCalls.length,
@@ -901,6 +905,81 @@ describe('drl eval answers', () => {
 
       expect(code).toBe(1)
       expect(err).toContain('a named report needs them all')
+      expect(reportFiles()).toEqual([])
+    })
+  })
+
+  describe('when the working tree moves during a run', () => {
+    const moveOnce = (...args: string[]) => {
+      let moved = false
+      duringPaidCall = () => {
+        if (!moved) git(...args)
+        moved = true
+      }
+    }
+
+    beforeEach(() => {
+      rerankCalls = []
+      rerankJitter = 0
+    })
+
+    afterEach(() => {
+      duringPaidCall = undefined
+    })
+
+    it('stops before the next paid call, and writes no report, on another branch', async () => {
+      moveOnce('checkout', '--quiet', '-b', 'other')
+
+      const { code, err } = await drl('eval', 'answers', '--name', 'x', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('the repository moved during this run')
+      expect(err).toMatch(/on main, and is now at \w{8} on other/)
+      expect(claudeRequests.length).toBeLessThan(9)
+      expect(reportFiles()).toEqual([])
+    })
+
+    it('a rerun in the right place pays only for the rest', async () => {
+      moveOnce('checkout', '--quiet', '-b', 'other')
+      await drl('eval', 'answers', '--yes')
+      const paid = claudeRequests.length
+      duringPaidCall = undefined
+      git('checkout', '--quiet', 'main')
+      clock += 1000
+
+      const { code, out } = await drl('eval', 'answers', '--yes')
+
+      expect(code).toBe(0)
+      expect(answersOf(out).answers).toHaveLength(9)
+      expect(claudeRequests.length).toBeGreaterThan(paid)
+      expect(new Set(claudeRequests.map((request) => JSON.stringify(request))).size).toBe(
+        claudeRequests.length,
+      )
+    })
+
+    it('stops the rerank calls of a retrieval run too', async () => {
+      moveOnce('checkout', '--quiet', '-b', 'other')
+
+      const { code, err } = await drl('eval', '--strategy', 'rerank', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('the repository moved during this run')
+      expect(rerankCalls).toHaveLength(1)
+      expect(reportFiles('dev')).toEqual([])
+    })
+
+    it('writes no named report when the last paid call was the one it moved under', async () => {
+      let calls = 0
+      duringPaidCall = () => {
+        calls++
+        if (calls === 2) git('checkout', '--quiet', '-b', 'other')
+      }
+
+      const { code, err } = await drl('eval', '--name', 'x', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('the repository moved during this run')
+      expect(rerankCalls).toHaveLength(2)
       expect(reportFiles()).toEqual([])
     })
   })

@@ -19,6 +19,7 @@ import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 import type { Engine } from '../engine.ts'
 import type { IndexVariant } from '../indexes.ts'
 import { buildAnswerRequest, streamAnswer, type AnswerClient } from '../generate.ts'
+import type { RunGuard } from '../run-guard.ts'
 import { UsageMeter } from '../usage.ts'
 import type { GoldenQuestion } from './golden.ts'
 import {
@@ -187,6 +188,8 @@ export interface RunnerOptions {
   /** Stops before the next paid call once the run has spent this much. */
   maxUsd: number
   concurrency: number
+  /** Checked before each paid call. A cached reply pays nothing, and needs no check. */
+  guard?: RunGuard | undefined
   now?: () => number
   onProgress?: (done: number, total: number, paidUsd: number) => void
 }
@@ -271,7 +274,13 @@ export class Runner {
     key: string,
     check: ReplyCheck,
   ): Promise<CachedCall> {
-    const { cache, client, meter } = this.#options
+    const { cache, client, meter, guard } = this.#options
+    try {
+      await guard?.check()
+    } catch (error) {
+      this.#stop = error instanceof Error ? error.message : String(error)
+      throw new EvalStoppedError(this.#stop)
+    }
     const now = this.#options.now ?? (() => performance.now())
     const start = now()
     let firstTokenMs: number | null = null

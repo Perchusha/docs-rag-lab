@@ -154,6 +154,7 @@ async function writeMissing(
     only,
     client: ctx.createEvalClient?.() ?? createClaudeClient(),
     meter: ctx.meter,
+    guard: ctx.guard,
     onContext: (context) => {
       appendContext(path, context)
       contexts.set(context.chunkId, context)
