@@ -4,13 +4,9 @@
 import type { EmbeddingCache } from '@docs-rag-lab/db'
 import { estimateTokens } from '@docs-rag-lab/source-kit'
 
+import { requestWithRetries } from '../provider-request.ts'
 import type { UsageMeter } from '../usage.ts'
-import {
-  embeddingCacheKey,
-  EmbeddingRequestError,
-  type EmbeddingProvider,
-  type InputType,
-} from './provider.ts'
+import { embeddingCacheKey, type EmbeddingProvider, type InputType } from './provider.ts'
 import type { RateLimiter } from './rate-limit.ts'
 
 export interface EmbedProgress {
@@ -33,12 +29,6 @@ export interface EmbedWithCacheOptions {
   maxRetries?: number
   onProgress?: ((progress: EmbedProgress) => void) | undefined
 }
-
-const DEFAULT_MAX_RETRIES = 6
-const RATE_LIMITED_BACKOFF_MS = 60_000
-const ERROR_BACKOFF_MS = 2_000
-// A Retry-After beyond this is treated as this; the retry count bounds the rest.
-const MAX_BACKOFF_MS = 5 * 60_000
 
 /** Groups texts into requests within the provider's input and estimated-token limits. */
 export function batchForProvider(
@@ -69,31 +59,14 @@ async function embedBatch(
   batch: readonly string[],
   options: EmbedWithCacheOptions,
 ): Promise<Float32Array[]> {
-  const { provider, inputType, limiter, meter } = options
-  const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES
+  const { provider, inputType, limiter, meter, maxRetries } = options
   const estimate = batch.reduce((sum, text) => sum + estimateTokens(text), 0)
-  for (let attempt = 0; ; attempt++) {
-    const slot = await limiter?.acquire(estimate)
-    try {
-      const result = await provider.embed(batch, inputType)
-      slot?.settle(result.tokens)
-      meter.recordEmbedding(provider.model, result.tokens)
-      return result.vectors
-    } catch (error) {
-      // The failed attempt still counts as a request, but carried no billed tokens.
-      slot?.settle(0)
-      if (!(error instanceof EmbeddingRequestError) || !error.retryable || attempt >= maxRetries) {
-        throw error
-      }
-      const backoff = Math.min(
-        MAX_BACKOFF_MS,
-        error.retryAfterMs ??
-          (error.status === 429 ? RATE_LIMITED_BACKOFF_MS : ERROR_BACKOFF_MS * 2 ** attempt),
-      )
-      if (limiter !== undefined) await limiter.wait(backoff)
-      else await new Promise((resolve) => setTimeout(resolve, backoff))
-    }
-  }
+  const result = await requestWithRetries(estimate, () => provider.embed(batch, inputType), {
+    limiter,
+    maxRetries,
+  })
+  meter.recordEmbedding(provider.model, result.tokens)
+  return result.vectors
 }
 
 /** One vector per text, in order, from the cache or the provider. */

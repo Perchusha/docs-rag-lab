@@ -9,8 +9,12 @@ export {
   type ModelUsage,
 } from './usage.ts'
 export {
+  ProviderRequestError,
+  requestWithRetries,
+  type ProviderRequestOptions,
+} from './provider-request.ts'
+export {
   embeddingCacheKey,
-  EmbeddingRequestError,
   type EmbeddingProvider,
   type EmbedResult,
   type InputType,
