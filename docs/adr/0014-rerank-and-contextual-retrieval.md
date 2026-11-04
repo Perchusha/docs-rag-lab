@@ -42,7 +42,9 @@ RRF, k, weights, list depth, the targets and the golden set do not change.
 
 **Paced, with no spend.** Rerank is on the Atlas free trial, and the owner's standing decision is to add no payment method. The real constraint is no spend. The limit of 10K tokens a minute only mattered as a way to avoid rejections. Measured from the index, at the largest billed-to-estimated ratio the check saw, a top 20 weighs at most about 11,100 billed tokens, and 17 of 45 pass 10K by themselves. With contexts of 100 tokens per chunk it is at most about 13,100, and 44 of 45 do. Voyage accepted the largest call as one request, a minute after the check, and again a minute later with about 100 tokens more per document: 10,936 and 12,871 billed tokens. So calls over 10K are sent, and the rate limiter paces them so that the average stays under 10K a minute: a call of 12K holds the next one for 72 seconds. A pass takes 45 to 55 minutes.
 
-**The fallback, fixed before any result.** A 429 can be a pacing collision, not a rejection of the call itself. So on a 429 the reranker sends nothing for `Retry-After` or a full minute, whichever is longer, with a `Retry-After` over five minutes counted as five, and then retries that same call once. A 429 again, after that idle window, is a rejection. Any other 4xx is a rejection at once. A server error or a network failure is not a rejection, and is retried as usual. A rejection stops the run and the owner is told. The fallback is a depth of 15 for both rows, and no other depth: at 15 the largest call stays under 10K with contexts of up to 100 tokens per chunk. What was measured before the switch is not read as a result, so the calls for rows 4 and 5 are made before either row's numbers are read, and both rows run again at 15. At that depth ts-0038, at rank 17, is out of the reranker's reach.
+**The fallback, fixed before any result.** A 429 can be a pacing collision, not a rejection of the call itself. So on a 429 the reranker sends nothing for `Retry-After` or a full minute, whichever is longer, with a `Retry-After` over five minutes counted as five, and then retries that same call once. A 429 again, after that idle window, is a rejection. Any other 4xx is a rejection at once. A server error or a network failure is not a rejection, and is retried as usual. A rejection stops the run and the owner is told. The fallback is a depth of 15 for both rows, and no other depth: at 15 the largest call stays under 10K with contexts of up to 100 tokens per chunk. What was measured before the switch is not read as a result, so the calls for rows 4 and 5 are made before either row's numbers are read, and both rows run again at 15. At that depth ts-0038, at rank 17, is out of the reranker's reach. In practice the calls come first, from development runs whose output goes unread, and the named runs then replay them from the cache in seconds.
+
+**A run that survived 429s says so.** The owner asked for this: each call keeps how many 429s it survived, also in the cache, and a run's output and its report's `run.rerank` give the total. A report replayed from the cache says the same as the run that made the calls.
 
 **Cache.** Scores are cached per call, by model, query and the documents as sent, in `data/rerank-cache.sqlite`, not per pair: a pair's score depends on the rest of its call. A cached call replays the scores exactly, so reruns and `drl eval verify` cost nothing. It is a file of its own, so that `data/cache.sqlite` keeps its schema and M4's reports never touch it.
 
@@ -117,6 +119,8 @@ A word that came from backticks and is one lowercase word with no leading dashes
 
 The weight of 2 is fixed here, because it is what the word gets today, and there is no sweep. Checked on the real index: repeating a phrase in the query doubles its part of `bm25()`, at a ratio of 2.0000.
 
+As in ADR-0011, this is a setting on a branch of its own, `exp/m5-h5`, measured under `vector` and `hybrid`. A tag keeps the commit that measured it, and the code reaches main only if it is adopted.
+
 ## What can move
 
 Known before any run, from M4's final report:
@@ -125,7 +129,7 @@ Known before any run, from M4's final report:
 - **Every target anchor is in reach, also at the fallback's depth:** ts-0033 at 3, ts-0027 at 9, ts-0004 at 7, and the two ts-0040 anchors at 3 and 6. The reranker can also push those last two out of the top 8.
 - **Contexts change every list,** so ts-0024 can come into reach in rows with contexts.
 - **All 40 questions can move under H3 and H4,** so a significant result is possible, at 6 to 0 for example.
-- **H5 changes the query of 13 questions,** H1's list in ADR-0011: ts-0002, 0003, 0004, 0007, 0010, 0012, 0025, 0026, 0027, 0029, 0033, 0034, 0035. Six of them suggested the idea (ts-0004, 0010, 0027, 0033, 0034, 0035), so they cannot be its evidence.
+- **H5 changes the query of 14 scored questions:** ts-0002, 0003, 0004, 0007, 0010, 0012, 0024, 0025, 0026, 0027, 0029, 0033, 0034, 0035, and of the unanswerable ts-0045, which is not scored. This first said 13, taking H1's list in ADR-0011. H1 leaves ts-0024 out because its exact query only changes case, from `string` to `String`, which the trigram index ignores, and H5 also doubles `string` in the keyword query. This was found from the query plans, with no index and no rank, before any run. Six of the questions suggested the idea (ts-0004, 0010, 0027, 0033, 0034, 0035), so they cannot be its evidence.
 - **H5 cannot reach ts-0033's target by itself.** ADR-0011 found that the keyword list alone puts another chunk first there. So target T is not asked of H5.
 
 ## Integrity checks
