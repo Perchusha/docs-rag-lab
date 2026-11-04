@@ -16,10 +16,12 @@ import {
 } from '@docs-rag-lab/contracts'
 
 import evalCompare from './__fixtures__/eval-compare.json'
+import evalDetailsRerank from './__fixtures__/eval-details-m5-answers.json'
 import evalDetails from './__fixtures__/eval-details-final.json'
 import evalBaseline from './__fixtures__/eval-run-baseline.json'
 import evalFinal from './__fixtures__/eval-run-final.json'
 import evalFirst from './__fixtures__/eval-run-first.json'
+import evalRerank from './__fixtures__/eval-run-m5-answers.json'
 import evalRuns from './__fixtures__/eval-runs.json'
 import citationAfterCodeNdjson from './__fixtures__/answer-first-citation-moved-after-code.derived.ndjson?raw'
 import satisfiesHowNdjson from './__fixtures__/answer-satisfies-how.ndjson?raw'
@@ -27,6 +29,7 @@ import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
 import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
 import varianceNdjson from './__fixtures__/answer-variance.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
+import satisfiesRerank from './__fixtures__/trace-satisfies-rerank.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
 import satisfies from './__fixtures__/trace-satisfies.json'
 import ts0004 from './__fixtures__/trace-ts-0004.json'
@@ -42,7 +45,10 @@ export const evalFixtures = {
   first: evalFirst as DashboardRun,
   /** A report with no answers. */
   baseline: evalBaseline as DashboardRun,
+  /** The report with the reranker's rows, whose first screen shows three columns. */
+  rerank: evalRerank as DashboardRun,
   details: evalDetails as DashboardDetails,
+  detailsRerank: evalDetailsRerank as DashboardDetails,
   compare: evalCompare as DashboardRunComparison,
 }
 
@@ -51,6 +57,8 @@ export const traces = {
   satisfies: satisfies as RetrievalTrace,
   /** The same question with vector search only. */
   satisfiesVector: satisfiesVector as RetrievalTrace,
+  /** The same question, hybrid and then the reranker, from the cache of a real run. */
+  satisfiesRerank: satisfiesRerank as RetrievalTrace,
   /** "What does error TS2345 mean?": the exact list rescues the error code. */
   ts2345: ts2345 as RetrievalTrace,
   /** ts-0004, a Russian question about `unknown` and `any`. */

@@ -52,7 +52,7 @@ function Rounds({ rounds }: { rounds: readonly DashboardRound[] }) {
 export function TrustSection({ trust }: { trust: DashboardTrust }) {
   const id = useId()
   const [open, setOpen] = useState(false)
-  const { judge, goldenSet, docs, indexDocsSha, stale, review, verify } = trust
+  const { judge, goldenSet, docs, indexDocsSha, stale, review, verify, index } = trust
   const missing =
     judge === null
       ? []
@@ -103,6 +103,12 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
         </dd>
         <dt>Verify</dt>
         <dd>{verify === null ? 'Not checked.' : verify.text}</dd>
+        {index !== undefined && (
+          <>
+            <dt>Index</dt>
+            <dd>{index}</dd>
+          </>
+        )}
       </dl>
       {judge !== null && judge.rounds.length > 0 && (
         <>

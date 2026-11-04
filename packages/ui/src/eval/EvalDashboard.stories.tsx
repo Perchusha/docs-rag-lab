@@ -178,6 +178,158 @@ export const TabStops: Story = {
   },
 }
 
+const rerankArgs = {
+  runs: [
+    {
+      id: evalFixtures.rerank.id,
+      name: evalFixtures.rerank.name,
+      createdAt: evalFixtures.rerank.createdAt,
+      sha: evalFixtures.rerank.repoSha.slice(0, 8),
+      hasAnswers: true,
+    },
+    ...evalFixtures.runs,
+  ],
+  initial: evalFixtures.rerank,
+  transport: transport({
+    run: () => Promise.resolve(evalFixtures.rerank),
+    details: () => Promise.resolve(evalFixtures.detailsRerank),
+  }),
+}
+
+/** With the reranker's rows: three columns, the rows that decide, and what to read them against. */
+export const RerankFirstScreen: Story = {
+  ...desktop,
+  args: rerankArgs,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'Does rerank find the right chunks higher?',
+      'Does that reach the answers?',
+      'Can these numbers be trusted?',
+    ])
+    await expect(canvas.queryByRole('columnheader', { name: /No RAG/ })).toBeNull()
+    await expect(canvas.queryByRole('columnheader', { name: /Vector/ })).toBeNull()
+    await expect(canvas.getAllByRole('columnheader', { name: /Rerank \+ contexts/ })).toHaveLength(
+      2,
+    )
+
+    const first = rowNamed(canvasElement, /Right chunk first/)
+    await expect(first).toHaveTextContent('19 of 40 (33-63%)')
+    await expect(first).toHaveTextContent('31 of 40 (62-88%)')
+    await expect(first).toHaveTextContent('33 of 40 (68-91%)')
+    await expect(first).toHaveTextContent('Rerank 12 : 0, p < 0.01: Better')
+    await expect(first).toHaveTextContent('+ contexts 14 : 0, p < 0.01: Better')
+    await expect(rowNamed(canvasElement, /Right chunk in top 8/)).toHaveTextContent(
+      'Rerank 3 : 0, p = 0.25: Not significant',
+    )
+    await expect(canvas.getByText(/^Rerank better on the right chunk first/)).toHaveTextContent(
+      'Rerank is hybrid, then rerank-3 over its top 20.',
+    )
+
+    const correct = rowNamed(canvasElement, /Fully correct/)
+    await expect(correct).toHaveTextContent('may run high')
+    await expect(correct).toHaveTextContent('34 of 40 (71-93%)')
+    await expect(correct).toHaveTextContent('37 of 40 (80-97%)')
+    await expect(correct).toHaveTextContent('Rerank 3 : 1, p = 0.63: Noise')
+    await expect(correct).toHaveTextContent('+ contexts 3 : 0, p = 0.25: Not significant')
+    await expect(correct).toHaveTextContent('0, 0, 0')
+    await expect(rowNamed(canvasElement, /All citations hold/)).toHaveTextContent('5, 5, 5')
+    await expect(rowNamed(canvasElement, /Wrongly refused/)).toHaveTextContent('0, 0, 1')
+    await expect(rowNamed(canvasElement, /Correct and grounded/)).toHaveTextContent(/Exploratory/i)
+    await expect(canvas.getByText('Run to run (each twice)')).toBeVisible()
+    await expect(canvas.queryByRole('rowheader', { name: /Cites the right passage/ })).toBeNull()
+    await expect(canvas.queryByRole('rowheader', { name: /Refused rightly/ })).toBeNull()
+    await expect(canvas.queryByRole('rowheader', { name: /Time and cost/ })).toBeNull()
+
+    await expect(
+      canvas.getByText(
+        'No difference from hybrid holds up, and none between rerank and rerank + contexts.',
+      ),
+    ).toBeVisible()
+    await expect(
+      canvas.getByText('Without docs: 36 of 40 fully correct (77-96%), may run high.'),
+    ).toBeVisible()
+    await expect(
+      canvas.getByText(
+        'The app stays on hybrid, because the retrieval gain did not reach the answers (ADR-0014).',
+      ),
+    ).toBeVisible()
+    await expect(
+      canvas.getByText(
+        'Rerank + contexts read the contextual index: claude-haiku-5-5:75010bc9e7d5.',
+      ),
+    ).toBeVisible()
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Details: all rows, per tag, per question, cited chunks, runs',
+      }),
+    ).toBeVisible()
+  },
+}
+
+export const RerankFitsOneScreen: Story = {
+  ...desktop,
+  args: rerankArgs,
+  play: async ({ canvasElement }) => {
+    await sectionsFit(canvasElement)
+  },
+}
+
+/** The ADR is named in plain text, so that the two added lines add no tab stop. */
+export const RerankTabStops: Story = {
+  ...desktop,
+  args: rerankArgs,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByRole('link')).toBeNull()
+    await userEvent.tab()
+    await expect(canvas.getByRole('combobox', { name: 'Run' })).toHaveFocus()
+    await userEvent.tab()
+    await expect(canvas.getByRole('button', { name: 'How this was calibrated' })).toHaveFocus()
+    await userEvent.tab()
+    await expect(canvas.getByRole('button', { name: /^Details/ })).toHaveFocus()
+    await userEvent.tab()
+    await expect(canvasElement.contains(document.activeElement)).toBe(false)
+  },
+}
+
+/** Each column keeps one shape, so nothing depends on colour, with five columns in all. */
+export const RerankShapes: Story = {
+  ...desktop,
+  args: rerankArgs,
+  play: async ({ canvasElement }) => {
+    const shapes = [
+      ...rowNamed(canvasElement, /Fully correct/).querySelectorAll<HTMLElement>('[data-shape]'),
+    ].map((element) => element.dataset.shape)
+    await expect(shapes).toEqual(['diamond', 'up', 'down'])
+  },
+}
+
+/** What the first screen leaves out comes first behind it: every row, with every comparison. */
+export const RerankAllRows: Story = {
+  ...desktop,
+  args: rerankArgs,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: /^Details/ }))
+    const tab = await canvas.findByRole('tab', { name: 'All rows' })
+    await expect(tab).toHaveAttribute('aria-selected', 'true')
+    const panel = within(canvas.getByRole('tabpanel'))
+    await expect(panel.getAllByRole('columnheader', { name: /No RAG/ })).toHaveLength(1)
+    const rows = panel.getAllByRole('rowheader')
+    const named = (name: RegExp) => {
+      const row = rows.find((candidate) => name.test(candidate.textContent))?.closest('tr')
+      if (row === null || row === undefined) throw new Error(`no row ${String(name)}`)
+      return row
+    }
+    await expect(named(/All citations hold/)).toHaveTextContent('-, -, 5, 5, 5')
+    await expect(named(/Fully correct/)).toHaveTextContent('Hybrid 1, Rerank 3, tied 36')
+    await expect(named(/Refused rightly/)).toHaveTextContent('5 of 5')
+    await expect(named(/Time and cost/)).toHaveTextContent('search not included')
+    await expect(panel.getByText(/What RAG adds is grounding/)).toBeVisible()
+  },
+}
+
 /** The dots repeat the numbers, so a screen reader hears only the numbers. */
 export const IntervalsAreHidden: Story = {
   ...desktop,

@@ -1,0 +1,5510 @@
+{
+  "allRows": [
+    {
+      "question": "Every strategy: does it find the right chunks?",
+      "summary": "The first screen compares only with hybrid. This is every comparison.",
+      "columns": [
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 1 (100%)",
+      "rows": [
+        {
+          "id": "top-1",
+          "label": "Right chunk first",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 26,
+              "of": 40,
+              "low": 0.4950588071541522,
+              "high": 0.7786547121083087
+            },
+            {
+              "kind": "share",
+              "count": 19,
+              "of": 40,
+              "low": 0.329354700094151,
+              "high": 0.6250263800287721
+            },
+            {
+              "kind": "share",
+              "count": 31,
+              "of": 40,
+              "low": 0.6249690312905765,
+              "high": 0.8768390873572685
+            },
+            {
+              "kind": "share",
+              "count": 33,
+              "of": 40,
+              "low": 0.6805000953869541,
+              "high": 0.9125458630150444
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 10,
+              "bAhead": 3,
+              "tied": 27,
+              "p": 0.092285,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 12,
+              "tied": 28,
+              "p": 0.000488,
+              "verdict": "b"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 14,
+              "tied": 26,
+              "p": 0.000122,
+              "verdict": "b",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 38,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8",
+          "label": "Right chunk in top 8",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 39,
+              "of": 40,
+              "low": 0.8711863091181636,
+              "high": 0.9955731685462955
+            },
+            {
+              "kind": "share",
+              "count": 39,
+              "of": 40,
+              "low": 0.8711863091181636,
+              "high": 0.9955731685462955
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 2,
+              "tied": 36,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 37,
+              "p": 0.25,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 37,
+              "p": 0.25,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 40,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr",
+          "label": "How high it ranks (MRR)",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7507761437908497,
+              "of": 40,
+              "low": 0.6349673202614379,
+              "high": 0.8571078431372549,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6571734270631328,
+              "of": 40,
+              "low": 0.5486019984917043,
+              "high": 0.7635897435897434,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8672916666666668,
+              "of": 40,
+              "low": 0.7804166666666668,
+              "high": 0.9416666666666667,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8860923423423424,
+              "of": 40,
+              "low": 0.8006193693693693,
+              "high": 0.9583333333333333,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 14,
+              "bAhead": 7,
+              "tied": 19,
+              "p": 0.189247,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 18,
+              "tied": 22,
+              "p": 0.000008,
+              "verdict": "b"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 20,
+              "tied": 20,
+              "p": 0.000002,
+              "verdict": "b",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 2,
+              "bAhead": 3,
+              "tied": 35,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        }
+      ],
+      "showRunToRun": false
+    },
+    {
+      "question": "Every row: does it give better answers?",
+      "summary": "Without docs, Claude is about as correct on this set, so correctness alone does not show what RAG adds. What RAG adds is grounding: most of its answers cite passages that hold.",
+      "columns": [
+        "No RAG",
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 100%",
+      "rows": [
+        {
+          "id": "fully-correct",
+          "label": "Fully correct",
+          "note": "may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 34,
+              "of": 40,
+              "low": 0.7092767550401498,
+              "high": 0.9293881232389256
+            },
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 37,
+              "of": 40,
+              "low": 0.8013576634835684,
+              "high": 0.9741639744267374
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 3,
+              "bAhead": 1,
+              "tied": 36,
+              "p": 0.625,
+              "verdict": "noise"
+            },
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 0,
+              "tied": 38,
+              "p": 0.5,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 3,
+              "tied": 36,
+              "p": 0.625,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 37,
+              "p": 0.25,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 39,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "citations-hold",
+          "label": "All citations hold",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "none",
+              "reason": "cannot: no docs"
+            },
+            {
+              "kind": "share",
+              "count": 38,
+              "of": 40,
+              "low": 0.8349612250489412,
+              "high": 0.9861793327384413
+            },
+            {
+              "kind": "share",
+              "count": 33,
+              "of": 40,
+              "low": 0.6805000953869541,
+              "high": 0.9125458630150444
+            },
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 33,
+              "of": 40,
+              "low": 0.6805000953869541,
+              "high": 0.9125458630150444
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 0,
+              "tied": 35,
+              "p": 0.0625,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 4,
+              "bAhead": 7,
+              "tied": 29,
+              "p": 0.548828,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 5,
+              "bAhead": 5,
+              "tied": 30,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 6,
+              "bAhead": 3,
+              "tied": 31,
+              "p": 0.507813,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            5,
+            5,
+            5
+          ]
+        },
+        {
+          "id": "correct-and-grounded",
+          "label": "Correct and grounded",
+          "note": "may run high",
+          "exploratory": true,
+          "figures": [
+            {
+              "kind": "none",
+              "reason": "cannot, by design"
+            },
+            {
+              "kind": "share",
+              "count": 31,
+              "of": 40,
+              "low": 0.6249690312905765,
+              "high": 0.8768390873572685
+            },
+            {
+              "kind": "share",
+              "count": 28,
+              "of": 40,
+              "low": 0.5456998105658182,
+              "high": 0.8192515484507963
+            },
+            {
+              "kind": "share",
+              "count": 32,
+              "of": 40,
+              "low": 0.6524269352437855,
+              "high": 0.8950001032811363
+            },
+            {
+              "kind": "share",
+              "count": 29,
+              "of": 40,
+              "low": 0.5716504406714658,
+              "high": 0.8389198382222256
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 2,
+              "tied": 33,
+              "p": 0.453125,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 3,
+              "bAhead": 7,
+              "tied": 30,
+              "p": 0.34375,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 4,
+              "bAhead": 5,
+              "tied": 31,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 6,
+              "bAhead": 3,
+              "tied": 31,
+              "p": 0.507813,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            4,
+            5,
+            5
+          ]
+        },
+        {
+          "id": "cites-anchor",
+          "label": "Cites the right passage",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "none",
+              "reason": "cannot: no docs"
+            },
+            {
+              "kind": "share",
+              "count": 35,
+              "of": 40,
+              "low": 0.7388788003201471,
+              "high": 0.9454049978360052
+            },
+            {
+              "kind": "share",
+              "count": 36,
+              "of": 40,
+              "low": 0.7694822464406407,
+              "high": 0.9604204715925885
+            },
+            {
+              "kind": "share",
+              "count": 38,
+              "of": 40,
+              "low": 0.8349612250489412,
+              "high": 0.9861793327384413
+            },
+            {
+              "kind": "share",
+              "count": 38,
+              "of": 40,
+              "low": 0.8349612250489412,
+              "high": 0.9861793327384413
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 2,
+              "tied": 37,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 38,
+              "p": 0.5,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 38,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 40,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "false-refusals",
+          "label": "Wrongly refused",
+          "note": "fewer is better",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 1,
+              "of": 40,
+              "low": 0.004426831453704344,
+              "high": 0.12881369088183614
+            },
+            {
+              "kind": "share",
+              "count": 1,
+              "of": 40,
+              "low": 0.004426831453704344,
+              "high": 0.12881369088183614
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 40,
+              "low": 0.01382066726155863,
+              "high": 0.16503877495105868
+            },
+            {
+              "kind": "share",
+              "count": 1,
+              "of": 40,
+              "low": 0.004426831453704344,
+              "high": 0.12881369088183614
+            },
+            {
+              "kind": "share",
+              "count": 0,
+              "of": 40,
+              "low": 0,
+              "high": 0.08762160245846368
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 39,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 39,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 38,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 39,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "id": "right-refusals",
+          "label": "Refused rightly",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 5,
+              "of": 5,
+              "low": 0.5655175313406071,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 5,
+              "of": 5,
+              "low": 0.5655175313406071,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 5,
+              "of": 5,
+              "low": 0.5655175313406071,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 5,
+              "of": 5,
+              "low": 0.5655175313406071,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 5,
+              "of": 5,
+              "low": 0.5655175313406071,
+              "high": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 5,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 5,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 5,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            },
+            {
+              "a": "Rerank",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 5,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "time-and-cost",
+          "label": "Time and cost per answer",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "text",
+              "text": "3.9 s (3.6-4.2), $0.004 ($0.004-0.005)"
+            },
+            {
+              "kind": "text",
+              "text": "4.2 s (3.8-4.5), $0.022 ($0.021-0.022)"
+            },
+            {
+              "kind": "text",
+              "text": "4.7 s (4.2-5.2), $0.023 ($0.022-0.023)"
+            },
+            {
+              "kind": "text",
+              "text": "4.7 s (4.2-5.2), $0.023 ($0.022-0.024)"
+            },
+            {
+              "kind": "text",
+              "text": "4.7 s (4.3-5.1), $0.023 ($0.022-0.024)"
+            }
+          ],
+          "comparisons": [],
+          "runToRun": null,
+          "note": "search not included"
+        }
+      ],
+      "showRunToRun": true,
+      "runToRunHeader": "Run to run"
+    }
+  ],
+  "tags": [
+    {
+      "question": "Right chunk in top 8, by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 100%",
+      "rows": [
+        {
+          "id": "top-8-basic",
+          "label": "basic",
+          "note": "15 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 15,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 15,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 15,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-edge",
+          "label": "edge",
+          "note": "14 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 14,
+              "low": 0.6853129533326209,
+              "high": 0.9872777848933957
+            },
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 14,
+              "low": 0.7846891945970195,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 14,
+              "low": 0.7846891945970195,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-exact-token",
+          "label": "exact-token",
+          "note": "10 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 9,
+              "of": 10,
+              "low": 0.5958499704752279,
+              "high": 0.982123787103926
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 9,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-fresh",
+          "label": "fresh",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 4,
+              "of": 4,
+              "low": 0.5101091596030786,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "top-8-version",
+          "label": "version",
+          "note": "7 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 6,
+              "of": 7,
+              "low": 0.486872167860775,
+              "high": 0.9743203759421759
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 6,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        }
+      ],
+      "showRunToRun": false
+    },
+    {
+      "question": "How high it ranks (MRR), by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 1",
+      "rows": [
+        {
+          "id": "mrr-basic",
+          "label": "basic",
+          "note": "15 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7685185185185185,
+              "of": 15,
+              "low": 0.5907407407407407,
+              "high": 0.9222222222222223,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.7000793650793651,
+              "of": 15,
+              "low": 0.5207936507936508,
+              "high": 0.8666666666666667,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8350000000000001,
+              "of": 15,
+              "low": 0.67,
+              "high": 0.9666666666666667,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8573573573573573,
+              "of": 15,
+              "low": 0.6831831831831833,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 3,
+              "tied": 7,
+              "p": 0.726563,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 5,
+              "tied": 10,
+              "p": 0.0625,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 7,
+              "tied": 8,
+              "p": 0.015625,
+              "verdict": "b",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.875,
+              "of": 4,
+              "low": 0.625,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.5504201680672268,
+              "of": 4,
+              "low": 0.10084033613445378,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.875,
+              "of": 4,
+              "low": 0.625,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8333333333333333,
+              "of": 4,
+              "low": 0.49999999999999994,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 0,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-edge",
+          "label": "edge",
+          "note": "14 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7579365079365079,
+              "of": 14,
+              "low": 0.5674603174603174,
+              "high": 0.9285714285714286,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6709706959706959,
+              "of": 14,
+              "low": 0.4717032967032967,
+              "high": 0.8571428571428571,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.880952380952381,
+              "of": 14,
+              "low": 0.75,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.9107142857142857,
+              "of": 14,
+              "low": 0.7857142857142857,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 5,
+              "bAhead": 2,
+              "tied": 7,
+              "p": 0.453125,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 7,
+              "tied": 7,
+              "p": 0.015625,
+              "verdict": "b"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 7,
+              "tied": 7,
+              "p": 0.015625,
+              "verdict": "b",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-exact-token",
+          "label": "exact-token",
+          "note": "10 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7666666666666666,
+              "of": 10,
+              "low": 0.5333333333333333,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6166666666666666,
+              "of": 10,
+              "low": 0.4666666666666666,
+              "high": 0.7833333333333333,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.9,
+              "of": 10,
+              "low": 0.75,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.95,
+              "of": 10,
+              "low": 0.85,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 4,
+              "bAhead": 2,
+              "tied": 4,
+              "p": 0.6875,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 6,
+              "tied": 4,
+              "p": 0.03125,
+              "verdict": "b"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 7,
+              "tied": 3,
+              "p": 0.015625,
+              "verdict": "b",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-fresh",
+          "label": "fresh",
+          "note": "4 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.7569444444444444,
+              "of": 4,
+              "low": 0.27083333333333326,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.4089366515837104,
+              "of": 4,
+              "low": 0.06787330316742082,
+              "high": 0.7692307692307693,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8333333333333334,
+              "of": 4,
+              "low": 0.49999999999999994,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8125,
+              "of": 4,
+              "low": 0.4375,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 1,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 1,
+              "p": 0.25,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 1,
+              "p": 0.25,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        },
+        {
+          "id": "mrr-version",
+          "label": "version",
+          "note": "7 questions",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 0.6988795518207283,
+              "of": 7,
+              "low": 0.40616246498599434,
+              "high": 0.9285714285714286,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.6428571428571429,
+              "of": 7,
+              "low": 0.42857142857142855,
+              "high": 0.9047619047619048,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8333333333333334,
+              "of": 7,
+              "low": 0.619047619047619,
+              "high": 1,
+              "max": 1
+            },
+            {
+              "kind": "mean",
+              "value": 0.8333333333333334,
+              "of": 7,
+              "low": 0.619047619047619,
+              "high": 1,
+              "max": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 4,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 4,
+              "p": 0.25,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 3,
+              "tied": 4,
+              "p": 0.25,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null
+        }
+      ],
+      "showRunToRun": false
+    },
+    {
+      "question": "Fully correct, by tag",
+      "summary": "A tag of 5 questions or fewer cannot reach significance.",
+      "columns": [
+        "No RAG",
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 100%",
+      "rows": [
+        {
+          "id": "fully-basic",
+          "label": "basic",
+          "note": "15 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            },
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 15,
+              "low": 0.6211801694601944,
+              "high": 0.9626387412357151
+            },
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 15,
+              "low": 0.6211801694601944,
+              "high": 0.9626387412357151
+            },
+            {
+              "kind": "share",
+              "count": 14,
+              "of": 15,
+              "low": 0.7018346989112435,
+              "high": 0.9881331046384677
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 14,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 12,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 1,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 14,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "fully-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "fully-edge",
+          "label": "edge",
+          "note": "14 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            },
+            {
+              "kind": "share",
+              "count": 12,
+              "of": 14,
+              "low": 0.600586202762663,
+              "high": 0.959906079092351
+            },
+            {
+              "kind": "share",
+              "count": 11,
+              "of": 14,
+              "low": 0.5241076920169465,
+              "high": 0.9242861334670647
+            },
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 14,
+              "low": 0.6853129533326209,
+              "high": 0.9872777848933957
+            },
+            {
+              "kind": "share",
+              "count": 13,
+              "of": 14,
+              "low": 0.6853129533326209,
+              "high": 0.9872777848933957
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "fully-exact-token",
+          "label": "exact-token",
+          "note": "10 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            },
+            {
+              "kind": "share",
+              "count": 9,
+              "of": 10,
+              "low": 0.5958499704752279,
+              "high": 0.982123787103926
+            },
+            {
+              "kind": "share",
+              "count": 10,
+              "of": 10,
+              "low": 0.7224671969739421,
+              "high": 0.9999999999999999
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 9,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "fully-fresh",
+          "label": "fresh",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 2,
+              "of": 4,
+              "low": 0.15003898774401986,
+              "high": 0.8499610122559802
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            },
+            {
+              "kind": "share",
+              "count": 3,
+              "of": 4,
+              "low": 0.3006418400969081,
+              "high": 0.954412739704631
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "fully-version",
+          "label": "version",
+          "note": "7 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            },
+            {
+              "kind": "share",
+              "count": 7,
+              "of": 7,
+              "low": 0.6456695613241317,
+              "high": 1
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "showRunToRun": true,
+      "runToRunHeader": "Run to run"
+    },
+    {
+      "question": "Correctness score, 0 to 2",
+      "summary": "The score keeps its own comparison: 1 and 0 count as different here.",
+      "columns": [
+        "No RAG",
+        "Vector",
+        "Hybrid",
+        "Rerank",
+        "Rerank + contexts"
+      ],
+      "scale": "0 to 2",
+      "rows": [
+        {
+          "id": "score-overall",
+          "label": "All questions",
+          "note": "may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.85,
+              "of": 40,
+              "low": 1.675,
+              "high": 1.975,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.85,
+              "of": 40,
+              "low": 1.675,
+              "high": 1.975,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.775,
+              "of": 40,
+              "low": 1.575,
+              "high": 1.925,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.875,
+              "of": 40,
+              "low": 1.75,
+              "high": 1.975,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.925,
+              "of": 40,
+              "low": 1.825,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 3,
+              "bAhead": 0,
+              "tied": 37,
+              "p": 0.25,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 3,
+              "bAhead": 1,
+              "tied": 36,
+              "p": 0.625,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 4,
+              "tied": 35,
+              "p": 0.375,
+              "verdict": "not-significant"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 5,
+              "tied": 35,
+              "p": 0.0625,
+              "verdict": "not-significant",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "id": "score-basic",
+          "label": "basic",
+          "note": "15 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.9333333333333333,
+              "of": 15,
+              "low": 1.8,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.8666666666666667,
+              "of": 15,
+              "low": 1.6,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.8,
+              "of": 15,
+              "low": 1.4666666666666666,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.8,
+              "of": 15,
+              "low": 1.4666666666666666,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.9333333333333333,
+              "of": 15,
+              "low": 1.8,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 14,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 2,
+              "bAhead": 1,
+              "tied": 12,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 1,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 13,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "id": "score-cross-lingual",
+          "label": "cross-lingual",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.5,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.5,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 1,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "score-edge",
+          "label": "edge",
+          "note": "14 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1.7857142857142858,
+              "of": 14,
+              "low": 1.4285714285714286,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.7857142857142858,
+              "of": 14,
+              "low": 1.4285714285714286,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.7142857142857142,
+              "of": 14,
+              "low": 1.3571428571428572,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.9285714285714286,
+              "of": 14,
+              "low": 1.7857142857142858,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.9285714285714286,
+              "of": 14,
+              "low": 1.7857142857142858,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 13,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 12,
+              "p": 0.5,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "score-exact-token",
+          "label": "exact-token",
+          "note": "10 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.9,
+              "of": 10,
+              "low": 1.7,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 10,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 9,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 10,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "score-fresh",
+          "label": "fresh",
+          "note": "4 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 1,
+              "of": 4,
+              "low": 0,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.25,
+              "of": 4,
+              "low": 0.5,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1,
+              "of": 4,
+              "low": 0,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 1.75,
+              "of": 4,
+              "low": 1.25,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 1,
+              "bAhead": 0,
+              "tied": 3,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 4,
+              "p": 1,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 2,
+              "tied": 2,
+              "p": 0.5,
+              "verdict": "too-few",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": "score-version",
+          "label": "version",
+          "note": "7 questions, may run high",
+          "exploratory": false,
+          "figures": [
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            },
+            {
+              "kind": "mean",
+              "value": 2,
+              "of": 7,
+              "low": 2,
+              "high": 2,
+              "max": 2
+            }
+          ],
+          "comparisons": [
+            {
+              "a": "Vector",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "No RAG",
+              "b": "Hybrid",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise"
+            },
+            {
+              "a": "Hybrid",
+              "b": "Rerank + contexts",
+              "aAhead": 0,
+              "bAhead": 0,
+              "tied": 7,
+              "p": 1,
+              "verdict": "noise",
+              "shortB": "+ contexts"
+            }
+          ],
+          "runToRun": null,
+          "runToRuns": [
+            null,
+            null,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "showRunToRun": true,
+      "runToRunHeader": "Run to run"
+    }
+  ],
+  "questions": [
+    {
+      "id": "ts-0001",
+      "question": "What is the key difference between a type alias and an interface?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 4
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0002",
+      "question": "Why is `req.method` inferred as `string` instead of `\"GET\"` in `const req = { url: \"...\", method: \"GET\" }`, and how do you fix it?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0003",
+      "question": "How do you make a `switch` over a union exhaustive, so that adding a new union member becomes a compile error?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0004",
+      "question": "В чём разница между `unknown` и `any`?",
+      "tags": [
+        "basic",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 7
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0005",
+      "question": "Should a function that accepts a string or an array use overloads or a union-typed parameter?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0006",
+      "question": "Can a function assigned to a type like `() => void` return a value?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0007",
+      "question": "Why do I get an error when I pass `{ colour: \"red\", width: 100 }` to a function whose parameter type only has optional `color` and `width`?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0008",
+      "question": "How do interface extension and intersection types differ when the same property has conflicting types?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0009",
+      "question": "How do you stop a conditional type from distributing over a union?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0010",
+      "question": "How do you remove `readonly` or `?` from every property in a mapped type?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0011",
+      "question": "Since which TypeScript version can mapped types remap keys with an `as` clause?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 2
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0012",
+      "question": "What is the difference between TypeScript `private` and JavaScript `#private` fields?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 4
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0013",
+      "question": "What does the `Omit` utility type do?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0014",
+      "question": "What does `Awaited` do, and in which version was it added?",
+      "tags": [
+        "version",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 2
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0015",
+      "question": "What problem does `NoInfer` solve, and in which version did it appear?",
+      "tags": [
+        "version",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0016",
+      "question": "Получают ли члены строкового enum обратное отображение (reverse mapping)?",
+      "tags": [
+        "edge",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0017",
+      "question": "What are the pitfalls of `const enum` when you publish declaration files?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0018",
+      "question": "When two declarations of the same interface with overloaded methods are merged, which overloads come first?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0019",
+      "question": "Why can I pass a callback `(e: MouseEvent) => void` where `(e: Event) => void` is expected?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0020",
+      "question": "In which order are multiple decorators on one declaration evaluated?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0021",
+      "question": "Which module-related compiler options do the TypeScript docs recommend for an app built with a bundler?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0022",
+      "question": "Why do you write `import \"./foo.js\"` in TypeScript when the source file is `foo.ts`?",
+      "tags": [
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 4
+        },
+        {
+          "column": "Hybrid",
+          "rank": 15
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0023",
+      "question": "Чем `import type` отличается от обычного импорта с точки зрения итогового JavaScript?",
+      "tags": [
+        "basic",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0024",
+      "question": "Should a declaration file use `String` or `string`?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 9
+        },
+        {
+          "column": "Hybrid",
+          "rank": 40
+        },
+        {
+          "column": "Rerank",
+          "rank": 40
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 37
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0025",
+      "question": "What does enabling `composite` change for a project used through project references?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0026",
+      "question": "How do you use `satisfies` in a JavaScript file checked with JSDoc, and since which version?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0027",
+      "question": "What does the `strict` flag enable?",
+      "tags": [
+        "basic"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0028",
+      "question": "What does `noUncheckedIndexedAccess` do?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 3
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 2
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0029",
+      "question": "With `exactOptionalPropertyTypes` enabled, can you assign `undefined` to an optional property?",
+      "tags": [
+        "edge",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0030",
+      "question": "How does `verbatimModuleSyntax` decide which imports and exports stay in the output?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0031",
+      "question": "What does `isolatedModules` protect against?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0032",
+      "question": "What is the trade-off of `skipLibCheck`?",
+      "tags": [
+        "basic",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0033",
+      "question": "In which version did `satisfies` appear?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        },
+        {
+          "column": "Rerank",
+          "rank": 3
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 3
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0034",
+      "question": "What are `const` type parameters, and when were they added?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0035",
+      "question": "Which TypeScript version added `using` declarations, and what are they for?",
+      "tags": [
+        "version"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 17
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0036",
+      "question": "What does `--erasableSyntaxOnly` disallow?",
+      "tags": [
+        "fresh",
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 2
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0037",
+      "question": "What does `import defer` do, and which import forms does it allow?",
+      "tags": [
+        "fresh"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 1
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0038",
+      "question": "Какие значения опций компилятора по умолчанию поменялись в TypeScript 6.0?",
+      "tags": [
+        "fresh",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 1
+        },
+        {
+          "column": "Hybrid",
+          "rank": 17
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused"
+        },
+        {
+          "column": "Vector",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Partly correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Partly correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0039",
+      "question": "Does TypeScript check side-effect imports like `import \"./styles.css\"` by default?",
+      "tags": [
+        "fresh",
+        "edge"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": 36
+        },
+        {
+          "column": "Hybrid",
+          "rank": 13
+        },
+        {
+          "column": "Rerank",
+          "rank": 3
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 4
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Wrong"
+        },
+        {
+          "column": "Vector",
+          "grade": "Wrong"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Wrong"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0040",
+      "question": "What does error TS2345 mean?",
+      "tags": [
+        "exact-token"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": 3
+        },
+        {
+          "column": "Rerank",
+          "rank": 1
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": 1
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Vector",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Fully correct"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Fully correct"
+        }
+      ],
+      "differs": true
+    },
+    {
+      "id": "ts-0041",
+      "question": "How do I clean up a subscription in React's `useEffect`?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        },
+        {
+          "column": "Rerank",
+          "rank": null
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0042",
+      "question": "Как вывести TypeScript-тип из схемы Zod?",
+      "tags": [
+        "unanswerable",
+        "cross-lingual"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        },
+        {
+          "column": "Rerank",
+          "rank": null
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0043",
+      "question": "How do I configure the `@typescript-eslint/no-floating-promises` rule?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        },
+        {
+          "column": "Rerank",
+          "rank": null
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0044",
+      "question": "What does the `strictEnumChecks` compiler option do?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        },
+        {
+          "column": "Rerank",
+          "rank": null
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    },
+    {
+      "id": "ts-0045",
+      "question": "In which TypeScript version was the `match` expression added?",
+      "tags": [
+        "unanswerable"
+      ],
+      "ranks": [
+        {
+          "column": "Vector",
+          "rank": null
+        },
+        {
+          "column": "Hybrid",
+          "rank": null
+        },
+        {
+          "column": "Rerank",
+          "rank": null
+        },
+        {
+          "column": "Rerank + contexts",
+          "rank": null
+        }
+      ],
+      "answers": [
+        {
+          "column": "No RAG",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Vector",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Hybrid",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank",
+          "grade": "Refused rightly"
+        },
+        {
+          "column": "Rerank + contexts",
+          "grade": "Refused rightly"
+        }
+      ],
+      "differs": false
+    }
+  ],
+  "gradeNote": "may run high",
+  "candidates": [
+    {
+      "questionId": "ts-0001",
+      "column": "Vector",
+      "chunkId": "3913ff930df2e0c128227533",
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md"
+    },
+    {
+      "questionId": "ts-0001",
+      "column": "Vector",
+      "chunkId": "bba9bb9f5227f2da821956f1",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0001",
+      "column": "Hybrid",
+      "chunkId": "c91a52d277a7415b79efac2c",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md"
+    },
+    {
+      "questionId": "ts-0003",
+      "column": "Vector",
+      "chunkId": "2393d08d7271318db87804a1",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Narrowing.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "29e39107bb8f58e0355d156e",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Hybrid",
+      "chunkId": "2c9764f05d9cffaa9ab871ee",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "4c1aa60200aa5ea7a49e3308",
+      "docPath": "packages/documentation/copy/en/reference/Type Compatibility.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "a049bb8c4f5f307c1a3015d8",
+      "docPath": "packages/documentation/copy/en/declaration-files/Do's and Don'ts.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Hybrid",
+      "chunkId": "b364cef04a521d7131da761a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.0.md"
+    },
+    {
+      "questionId": "ts-0004",
+      "column": "Vector",
+      "chunkId": "e00db1895e7ae73c24a72354",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md"
+    },
+    {
+      "questionId": "ts-0007",
+      "column": "Vector",
+      "chunkId": "34f6652f63e0340838ebab63",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Object Types.md"
+    },
+    {
+      "questionId": "ts-0008",
+      "column": "Vector",
+      "chunkId": "27f8b210cd294fc7219a9868",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.9.md"
+    },
+    {
+      "questionId": "ts-0008",
+      "column": "Vector",
+      "chunkId": "3d111a972cb4950165226184",
+      "docPath": "packages/documentation/copy/en/reference/Declaration Merging.md"
+    },
+    {
+      "questionId": "ts-0009",
+      "column": "Rerank + contexts",
+      "chunkId": "795b7f4196370e08ca4eda77",
+      "docPath": "packages/documentation/copy/en/reference/Advanced Types.md"
+    },
+    {
+      "questionId": "ts-0009",
+      "column": "Hybrid",
+      "chunkId": "7e39a8c0e05c981e49583cfa",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.8.md"
+    },
+    {
+      "questionId": "ts-0010",
+      "column": "Rerank + contexts",
+      "chunkId": "c355a100bcf8acb963002d3d",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.4.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Hybrid",
+      "chunkId": "42119b147060ab2ef5679cd0",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Classes.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "a3d542c9c7d162fbf24992a1",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "e5994f246b6464631d7313b0",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0012",
+      "column": "Vector",
+      "chunkId": "ef50b87ed4efac4059bf8d5e",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.8.md"
+    },
+    {
+      "questionId": "ts-0013",
+      "column": "Vector",
+      "chunkId": "96519721ab10de2200fcdcd5",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.8.md"
+    },
+    {
+      "questionId": "ts-0014",
+      "column": "Hybrid",
+      "chunkId": "37221569e314c5432e323635",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.9.md"
+    },
+    {
+      "questionId": "ts-0014",
+      "column": "Vector",
+      "chunkId": "69507a14f59b2f559c682551",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.9.md"
+    },
+    {
+      "questionId": "ts-0015",
+      "column": "Vector",
+      "chunkId": "63c0108f837001f61462021c",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md"
+    },
+    {
+      "questionId": "ts-0016",
+      "column": "Rerank",
+      "chunkId": "33a6348eefbb893f1ab6dd41",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.4.md"
+    },
+    {
+      "questionId": "ts-0020",
+      "column": "Vector",
+      "chunkId": "43278696478040d06b9a3e9a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "3d7d750bce6b67a2b48a6d90",
+      "docPath": "packages/documentation/copy/en/modules-reference/Reference.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Hybrid",
+      "chunkId": "617d5003d17b5ae1f3f887e8",
+      "docPath": "packages/documentation/copy/en/modules-reference/guides/Choosing Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "a1a9acdb434eecc1f8c08ad2",
+      "docPath": "packages/documentation/copy/en/modules-reference/Reference.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Vector",
+      "chunkId": "bb5f2c6d372e70ffa7142919",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Hybrid",
+      "chunkId": "f5bffd4b08ef586d3975d449",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0021",
+      "column": "Rerank + contexts",
+      "chunkId": "fa562e622698d9a994929c7a",
+      "docPath": ""
+    },
+    {
+      "questionId": "ts-0022",
+      "column": "Vector",
+      "chunkId": "f5bffd4b08ef586d3975d449",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Vector",
+      "chunkId": "475bb29f24fe609bc17c580a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Rerank + contexts",
+      "chunkId": "b49836ad21eb75a5276bb018",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.5.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Rerank",
+      "chunkId": "bd7b1dbc09ff11c0bd5bd20b",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0023",
+      "column": "Hybrid",
+      "chunkId": "c04a028c5b492e7d58b51f47",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Modules.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Hybrid",
+      "chunkId": "92081fee7a073ae57935366e",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 3.4.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Rerank",
+      "chunkId": "acfc1e27c104a002397a353d",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Rerank",
+      "chunkId": "ae545cfa646734042bdc4096",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0025",
+      "column": "Vector",
+      "chunkId": "d00588fcd611814666b66831",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.7.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Hybrid",
+      "chunkId": "318410ada364d01b89fc73ec",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Hybrid",
+      "chunkId": "b03731b3aba8dd00c0951ccb",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.9.md"
+    },
+    {
+      "questionId": "ts-0028",
+      "column": "Vector",
+      "chunkId": "ef2f7e4c85b4cdd038c3777b",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.1.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Hybrid",
+      "chunkId": "26ffa08380aab95c5d48a859",
+      "docPath": "packages/documentation/copy/en/modules-reference/Theory.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Hybrid",
+      "chunkId": "475bb29f24fe609bc17c580a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Vector",
+      "chunkId": "588534de841ccd61359a211d",
+      "docPath": "packages/tsconfig-reference/copy/en/options/verbatimModuleSyntax.md"
+    },
+    {
+      "questionId": "ts-0030",
+      "column": "Rerank + contexts",
+      "chunkId": "bb400e7c31e507f36a107ceb",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Rerank",
+      "chunkId": "475bb29f24fe609bc17c580a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Hybrid",
+      "chunkId": "4fed06dcecc74d802e9e79dc",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.4.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Rerank",
+      "chunkId": "76ef9b720501130ce75ef71a",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.5.md"
+    },
+    {
+      "questionId": "ts-0031",
+      "column": "Hybrid",
+      "chunkId": "b49836ad21eb75a5276bb018",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 4.5.md"
+    },
+    {
+      "questionId": "ts-0032",
+      "column": "Vector",
+      "chunkId": "a2e4212991f3f3af2447b3e4",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 2.0.md"
+    },
+    {
+      "questionId": "ts-0033",
+      "column": "Vector",
+      "chunkId": "1ad2284b8bc3c335c9eb8292",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0034",
+      "column": "Vector",
+      "chunkId": "14a0cd1a7b121d3ea025a529",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.0.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Rerank + contexts",
+      "chunkId": "2733e7a28ed427174a39441c",
+      "docPath": ""
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Vector",
+      "chunkId": "33f25e6b1eaa494aba5c04bd",
+      "docPath": "packages/documentation/copy/en/reference/Variable Declarations.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Vector",
+      "chunkId": "399616a5ebde0e8af327bdf5",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.2.md"
+    },
+    {
+      "questionId": "ts-0035",
+      "column": "Hybrid",
+      "chunkId": "d46fd26ef07127f355766de4",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.2.md"
+    },
+    {
+      "questionId": "ts-0036",
+      "column": "Hybrid",
+      "chunkId": "ae545cfa646734042bdc4096",
+      "docPath": "packages/documentation/copy/en/project-config/Compiler Options.md"
+    },
+    {
+      "questionId": "ts-0039",
+      "column": "Rerank",
+      "chunkId": "7472cc572bc1bf684591d921",
+      "docPath": "packages/documentation/copy/en/release-notes/TypeScript 5.6.md"
+    },
+    {
+      "questionId": "ts-0039",
+      "column": "Rerank",
+      "chunkId": "7b176f8c2e39d01cf427e682",
+      "docPath": "packages/tsconfig-reference/copy/en/options/noUncheckedSideEffectImports.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Hybrid",
+      "chunkId": "638128ba1a0e0abb3737cfb0",
+      "docPath": "packages/tsconfig-reference/copy/en/options/strictBindCallApply.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Hybrid",
+      "chunkId": "6faee3b4563366b370fe6a08",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Everyday Types.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Vector",
+      "chunkId": "7247be0941a8f58920b1f269",
+      "docPath": "packages/tsconfig-reference/copy/en/options/checkJs.md"
+    },
+    {
+      "questionId": "ts-0040",
+      "column": "Vector",
+      "chunkId": "d1d92b9ad7342b8d2e4f6c8f",
+      "docPath": "packages/documentation/copy/en/handbook-v2/Understanding Errors.md"
+    }
+  ]
+}

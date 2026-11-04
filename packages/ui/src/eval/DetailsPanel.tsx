@@ -14,7 +14,7 @@ import { ScrollRegion } from '../lib/ScrollRegion.tsx'
 import styles from './EvalDashboard.module.css'
 import { SectionTable } from './SectionTable.tsx'
 
-type TabId = 'tags' | 'questions' | 'chunks' | 'runs'
+type TabId = 'rows' | 'tags' | 'questions' | 'chunks' | 'runs'
 
 function QuestionsTab({ details }: { details: DashboardDetails }) {
   const [showAll, setShowAll] = useState(false)
@@ -267,7 +267,7 @@ export function DetailsPanel({
 }) {
   const [details, setDetails] = useState<DashboardDetails>()
   const [error, setError] = useState<string>()
-  const [tab, setTab] = useState<TabId>('tags')
+  const [tab, setTab] = useState<TabId>()
 
   useEffect(() => {
     let current = true
@@ -286,12 +286,25 @@ export function DetailsPanel({
 
   if (error !== undefined) return <p role="alert">The details did not load: {error}</p>
   if (details === undefined) return <p role="status">Loading the details.</p>
+  const { allRows } = details
   return (
-    <Tabs
+    <Tabs<TabId>
       label="Details"
-      selected={tab}
+      selected={tab ?? (allRows === undefined ? 'tags' : 'rows')}
       onSelect={setTab}
       tabs={[
+        // What the first screen leaves out, for a report with the reranker.
+        ...(allRows === undefined
+          ? []
+          : [
+              {
+                id: 'rows' as const,
+                label: 'All rows',
+                panel: allRows.map((section) => (
+                  <SectionTable key={section.question} section={section} level={3} />
+                )),
+              },
+            ]),
         {
           id: 'tags',
           label: 'Per tag',

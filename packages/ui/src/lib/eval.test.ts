@@ -1,15 +1,49 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  againstVerdictWords,
+  againstWords,
   figurePosition,
   figureWords,
   percentRange,
+  runToRunsWords,
   runToRunWords,
   shapeFor,
   splitWords,
   staleWords,
   verdictWords,
 } from './eval.ts'
+
+describe('against one column', () => {
+  const split = {
+    a: 'Hybrid',
+    b: 'Rerank + contexts',
+    aAhead: 1,
+    bAhead: 3,
+    tied: 36,
+    p: 0.625,
+    verdict: 'noise' as const,
+  }
+
+  it('puts the later column first, ahead then behind, under its short name if it has one', () => {
+    expect(againstWords({ ...split, shortB: '+ contexts' })).toBe('+ contexts 3 : 1, p = 0.63')
+    expect(againstWords(split)).toBe('Rerank + contexts 3 : 1, p = 0.63')
+  })
+
+  it('says better or worse of the later column, and leaves the other verdicts as they are', () => {
+    expect(againstVerdictWords({ ...split, verdict: 'b' })).toBe('Better')
+    expect(againstVerdictWords({ ...split, verdict: 'a' })).toBe('Worse')
+    expect(againstVerdictWords(split)).toBe('Noise')
+    expect(againstVerdictWords({ ...split, verdict: 'not-significant' })).toBe('Not significant')
+  })
+})
+
+describe('runToRunsWords', () => {
+  it('keeps the order of the columns, and marks one with no second run', () => {
+    expect(runToRunsWords([0, 0, 1])).toBe('0, 0, 1')
+    expect(runToRunsWords([null, null, 5])).toBe('-, -, 5')
+  })
+})
 
 describe('figureWords', () => {
   it('keeps a share and its interval together', () => {

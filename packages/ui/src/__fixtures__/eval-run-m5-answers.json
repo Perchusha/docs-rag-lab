@@ -1,0 +1,588 @@
+{
+  "id": "2026-11-04-a5189068-m5-answers",
+  "name": "m5-answers",
+  "createdAt": "2026-11-04T14:21:12.343Z",
+  "repoSha": "a51890685cd18cbdefd8d4733433cf631cba3198",
+  "retrieval": {
+    "question": "Does rerank find the right chunks higher?",
+    "summary": "Rerank better on the right chunk first and how high it ranks (MRR). So is rerank + contexts. Between those two, no difference holds up. Rerank is hybrid, then rerank-3 over its top 20.",
+    "against": "Hybrid",
+    "columns": [
+      "Hybrid",
+      "Rerank",
+      "Rerank + contexts"
+    ],
+    "scale": "0 to 1 (100%)",
+    "rows": [
+      {
+        "id": "top-1",
+        "label": "Right chunk first",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 19,
+            "of": 40,
+            "low": 0.329354700094151,
+            "high": 0.6250263800287721
+          },
+          {
+            "kind": "share",
+            "count": 31,
+            "of": 40,
+            "low": 0.6249690312905765,
+            "high": 0.8768390873572685
+          },
+          {
+            "kind": "share",
+            "count": 33,
+            "of": 40,
+            "low": 0.6805000953869541,
+            "high": 0.9125458630150444
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 0,
+            "bAhead": 12,
+            "tied": 28,
+            "p": 0.000488,
+            "verdict": "b"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 0,
+            "bAhead": 14,
+            "tied": 26,
+            "p": 0.000122,
+            "verdict": "b",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "top-8",
+        "label": "Right chunk in top 8",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 39,
+            "of": 40,
+            "low": 0.8711863091181636,
+            "high": 0.9955731685462955
+          },
+          {
+            "kind": "share",
+            "count": 39,
+            "of": 40,
+            "low": 0.8711863091181636,
+            "high": 0.9955731685462955
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 0,
+            "bAhead": 3,
+            "tied": 37,
+            "p": 0.25,
+            "verdict": "not-significant"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 0,
+            "bAhead": 3,
+            "tied": 37,
+            "p": 0.25,
+            "verdict": "not-significant",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null
+      },
+      {
+        "id": "mrr",
+        "label": "How high it ranks (MRR)",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "mean",
+            "value": 0.6571734270631328,
+            "of": 40,
+            "low": 0.5486019984917043,
+            "high": 0.7635897435897434,
+            "max": 1
+          },
+          {
+            "kind": "mean",
+            "value": 0.8672916666666668,
+            "of": 40,
+            "low": 0.7804166666666668,
+            "high": 0.9416666666666667,
+            "max": 1
+          },
+          {
+            "kind": "mean",
+            "value": 0.8860923423423424,
+            "of": 40,
+            "low": 0.8006193693693693,
+            "high": 0.9583333333333333,
+            "max": 1
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 0,
+            "bAhead": 18,
+            "tied": 22,
+            "p": 0.000008,
+            "verdict": "b"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 0,
+            "bAhead": 20,
+            "tied": 20,
+            "p": 0.000002,
+            "verdict": "b",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null
+      }
+    ],
+    "showRunToRun": false
+  },
+  "answers": {
+    "question": "Does that reach the answers?",
+    "summary": "No difference from hybrid holds up, and none between rerank and rerank + contexts.",
+    "notes": [
+      "Without docs: 36 of 40 fully correct (77-96%), may run high.",
+      "The app stays on hybrid, because the retrieval gain did not reach the answers (ADR-0014)."
+    ],
+    "against": "Hybrid",
+    "columns": [
+      "Hybrid",
+      "Rerank",
+      "Rerank + contexts"
+    ],
+    "scale": "0 to 100%",
+    "rows": [
+      {
+        "id": "fully-correct",
+        "label": "Fully correct",
+        "note": "may run high",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 34,
+            "of": 40,
+            "low": 0.7092767550401498,
+            "high": 0.9293881232389256
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 37,
+            "of": 40,
+            "low": 0.8013576634835684,
+            "high": 0.9741639744267374
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 1,
+            "bAhead": 3,
+            "tied": 36,
+            "p": 0.625,
+            "verdict": "noise"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 0,
+            "bAhead": 3,
+            "tied": 37,
+            "p": 0.25,
+            "verdict": "not-significant",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null,
+        "runToRuns": [
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "citations-hold",
+        "label": "All citations hold",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 33,
+            "of": 40,
+            "low": 0.6805000953869541,
+            "high": 0.9125458630150444
+          },
+          {
+            "kind": "share",
+            "count": 36,
+            "of": 40,
+            "low": 0.7694822464406407,
+            "high": 0.9604204715925885
+          },
+          {
+            "kind": "share",
+            "count": 33,
+            "of": 40,
+            "low": 0.6805000953869541,
+            "high": 0.9125458630150444
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 4,
+            "bAhead": 7,
+            "tied": 29,
+            "p": 0.548828,
+            "verdict": "not-significant"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 5,
+            "bAhead": 5,
+            "tied": 30,
+            "p": 1,
+            "verdict": "noise",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null,
+        "runToRuns": [
+          5,
+          5,
+          5
+        ]
+      },
+      {
+        "id": "false-refusals",
+        "label": "Wrongly refused",
+        "note": "fewer is better",
+        "exploratory": false,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 2,
+            "of": 40,
+            "low": 0.01382066726155863,
+            "high": 0.16503877495105868
+          },
+          {
+            "kind": "share",
+            "count": 1,
+            "of": 40,
+            "low": 0.004426831453704344,
+            "high": 0.12881369088183614
+          },
+          {
+            "kind": "share",
+            "count": 0,
+            "of": 40,
+            "low": 0,
+            "high": 0.08762160245846368
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 0,
+            "bAhead": 1,
+            "tied": 39,
+            "p": 1,
+            "verdict": "noise"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 0,
+            "bAhead": 2,
+            "tied": 38,
+            "p": 0.5,
+            "verdict": "noise",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null,
+        "runToRuns": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "correct-and-grounded",
+        "label": "Correct and grounded",
+        "note": "may run high",
+        "exploratory": true,
+        "figures": [
+          {
+            "kind": "share",
+            "count": 28,
+            "of": 40,
+            "low": 0.5456998105658182,
+            "high": 0.8192515484507963
+          },
+          {
+            "kind": "share",
+            "count": 32,
+            "of": 40,
+            "low": 0.6524269352437855,
+            "high": 0.8950001032811363
+          },
+          {
+            "kind": "share",
+            "count": 29,
+            "of": 40,
+            "low": 0.5716504406714658,
+            "high": 0.8389198382222256
+          }
+        ],
+        "comparisons": [
+          {
+            "a": "Hybrid",
+            "b": "Rerank",
+            "aAhead": 3,
+            "bAhead": 7,
+            "tied": 30,
+            "p": 0.34375,
+            "verdict": "not-significant"
+          },
+          {
+            "a": "Hybrid",
+            "b": "Rerank + contexts",
+            "aAhead": 4,
+            "bAhead": 5,
+            "tied": 31,
+            "p": 1,
+            "verdict": "noise",
+            "shortB": "+ contexts"
+          }
+        ],
+        "runToRun": null,
+        "runToRuns": [
+          4,
+          5,
+          5
+        ]
+      }
+    ],
+    "showRunToRun": true,
+    "runToRunHeader": "Run to run (each twice)"
+  },
+  "trust": {
+    "judge": {
+      "calibrated": true,
+      "agreement": [
+        {
+          "dimension": "correctness",
+          "agreed": 11,
+          "compared": 12,
+          "kappa": 0.8153846153846154,
+          "low": 0.6461200862787544,
+          "high": 0.9851349057603305,
+          "passed": true
+        },
+        {
+          "dimension": "refusal",
+          "agreed": 15,
+          "compared": 15,
+          "kappa": 1,
+          "low": 0.7961166964035129,
+          "high": 1,
+          "passed": true
+        },
+        {
+          "dimension": "support",
+          "agreed": 11,
+          "compared": 12,
+          "kappa": 0.625,
+          "low": 0.6461200862787544,
+          "high": 0.9851349057603305,
+          "passed": true
+        }
+      ],
+      "judgeHigher": 4,
+      "judgeLower": 0,
+      "bias": "All 4 disagreements are the judge scoring higher than the human: correctness may be slightly inflated.",
+      "note": "may run high",
+      "rounds": [
+        {
+          "name": "First round",
+          "blind": true,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 10,
+              "compared": 12,
+              "kappa": 0.7142857142857144,
+              "low": 0.5519691353881888,
+              "high": 0.9530348582430792,
+              "passed": false
+            },
+            {
+              "dimension": "refusal",
+              "agreed": 15,
+              "compared": 15,
+              "kappa": 1,
+              "low": 0.7961166964035129,
+              "high": 1,
+              "passed": true
+            },
+            {
+              "dimension": "support",
+              "agreed": 8,
+              "compared": 8,
+              "kappa": 1,
+              "low": 0.6755924316585924,
+              "high": 1,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "name": "Fresh round",
+          "blind": true,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 9,
+              "compared": 10,
+              "kappa": 0.803921568627451,
+              "low": 0.5958499704752279,
+              "high": 0.982123787103926,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "name": "First round, graded again",
+          "blind": false,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 11,
+              "compared": 12,
+              "kappa": 0.8620689655172413,
+              "low": 0.6461200862787544,
+              "high": 0.9851349057603305,
+              "passed": true
+            },
+            {
+              "dimension": "refusal",
+              "agreed": 15,
+              "compared": 15,
+              "kappa": 1,
+              "low": 0.7961166964035129,
+              "high": 1,
+              "passed": true
+            },
+            {
+              "dimension": "support",
+              "agreed": 8,
+              "compared": 8,
+              "kappa": 1,
+              "low": 0.6755924316585924,
+              "high": 1,
+              "passed": true
+            }
+          ]
+        },
+        {
+          "name": "First round",
+          "blind": true,
+          "agreement": [
+            {
+              "dimension": "correctness",
+              "agreed": 11,
+              "compared": 12,
+              "kappa": 0.8153846153846154,
+              "low": 0.6461200862787544,
+              "high": 0.9851349057603305,
+              "passed": true
+            },
+            {
+              "dimension": "refusal",
+              "agreed": 15,
+              "compared": 15,
+              "kappa": 1,
+              "low": 0.7961166964035129,
+              "high": 1,
+              "passed": true
+            },
+            {
+              "dimension": "support",
+              "agreed": 11,
+              "compared": 12,
+              "kappa": 0.625,
+              "low": 0.6461200862787544,
+              "high": 0.9851349057603305,
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "unreadable": []
+    },
+    "goldenSet": {
+      "version": 1,
+      "hash": "0d270eac9aef91b17711bfdf01af164cb706f4218e4609e19074eb0c6a1f0bf3"
+    },
+    "docs": {
+      "repo": "https://github.com/microsoft/TypeScript-Website",
+      "branch": "v2",
+      "sha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015"
+    },
+    "indexDocsSha": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
+    "stale": [],
+    "review": [],
+    "verify": {
+      "status": "identical",
+      "text": "Retrieval reproduced byte for byte at a5189068, with uncommitted changes, on the same vectors. Answers do not repeat, so they are not part of this check.",
+      "checkedAt": "2026-11-04T14:31:43.609Z"
+    },
+    "index": "Rerank + contexts read the contextual index: claude-haiku-5-5:75010bc9e7d5."
+  }
+}
