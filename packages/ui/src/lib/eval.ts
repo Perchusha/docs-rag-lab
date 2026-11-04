@@ -1,6 +1,12 @@
 // Words and positions for the eval dashboard. Numbers and verdicts come from core (ADR-0013);
 // this only says them, so the components stay thin.
-import type { DifferenceVerdict, EvalFigure, EvalSplit } from '@docs-rag-lab/contracts'
+import type {
+  DashboardJudge,
+  DashboardSpotCheck,
+  DifferenceVerdict,
+  EvalFigure,
+  EvalSplit,
+} from '@docs-rag-lab/contracts'
 
 const percent = (share: number): string => `${String(Math.round(share * 100))}%`
 
@@ -115,6 +121,25 @@ export const dimensionWords = {
 } as const
 
 /** "0 questions stale", and any to re-read. */
+/** What the judge's line says, with whose answers calibrated it when they are not these. */
+export function calibratedWords(
+  judge: Pick<DashboardJudge, 'calibrated' | 'calibratedOn'>,
+): string {
+  if (!judge.calibrated) return 'Not calibrated for these prompts.'
+  if (judge.calibratedOn === undefined) return 'Calibrated, by the rule fixed in advance.'
+  const whose = judge.calibratedOn.map((source) => `${source}'s`).join(' and ')
+  return `Calibrated on ${whose} answers, by the rule fixed in advance.`
+}
+
+/** "10 labelled blind, with 1 disagreement allowed on each measure." */
+export function spotCheckIntro({
+  labelled,
+  allowed,
+}: Pick<DashboardSpotCheck, 'labelled' | 'allowed'>): string {
+  const disagreements = allowed === 1 ? '1 disagreement' : `${String(allowed)} disagreements`
+  return `${String(labelled)} labelled blind, with ${disagreements} allowed on each measure:`
+}
+
 export function staleWords(stale: number, review: number): string {
   const count = stale === 1 ? '1 question stale' : `${String(stale)} questions stale`
   return review === 0 ? count : `${count}, ${String(review)} to re-read`

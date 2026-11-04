@@ -1,4 +1,8 @@
-import type { DashboardRun, DashboardRunComparison } from '@docs-rag-lab/contracts'
+import type {
+  DashboardAgreement,
+  DashboardRun,
+  DashboardRunComparison,
+} from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
@@ -464,6 +468,85 @@ export const NotLabelled: Story = {
   },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText(/correctness not labelled/)).toBeVisible()
+  },
+}
+
+/** What a source with no labels of its own has: another source's rounds, and a spot check. */
+function spotChecked(change: (run: DashboardRun) => void = () => undefined): DashboardRun {
+  const run = structuredClone(evalFixtures.rerank)
+  delete run.trust.index
+  if (run.trust.judge !== null) {
+    run.trust.judge.calibratedOn = ['typescript']
+    run.trust.judge.bias = `${run.trust.judge.bias ?? ''} That is on typescript's answers.`
+    run.trust.judge.rounds = run.trust.judge.rounds.map((round) => ({
+      ...round,
+      name: `${round.name}, on typescript`,
+    }))
+  }
+  const agreement = (
+    dimension: DashboardAgreement['dimension'],
+    agreed: number,
+    compared: number,
+  ) => ({
+    dimension,
+    agreed,
+    compared,
+    kappa: 1,
+    low: 0.6,
+    high: 1,
+    passed: compared - agreed <= 1,
+  })
+  run.trust.spotCheck = {
+    passed: true,
+    labelled: 10,
+    allowed: 1,
+    agreement: [
+      agreement('correctness', 7, 8),
+      agreement('refusal', 10, 10),
+      agreement('support', 5, 5),
+    ],
+    bias: 'The 1 disagreement is the judge scoring higher than the human: correctness may be slightly inflated.',
+  }
+  change(run)
+  return run
+}
+
+/** Calibrated on another source's answers, and spot-checked on these, which it says apart. */
+export const SpotCheckPassed: Story = {
+  ...desktop,
+  args: { ...rerankArgs, initial: spotChecked() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(
+      canvas.getByText("Calibrated on typescript's answers, by the rule fixed in advance."),
+    ).toBeVisible()
+    await expect(canvas.getByText('Passed on these answers.')).toBeVisible()
+    await expect(canvas.getByText(/10 labelled blind, with 1 disagreement allowed/)).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'How this was calibrated' }))
+    await expect(canvas.getAllByText('First round, on typescript').length).toBeGreaterThan(0)
+  },
+}
+
+/** A missed spot check says so in words, and leaves the calibration as it is. */
+export const SpotCheckMissed: Story = {
+  ...desktop,
+  args: {
+    ...rerankArgs,
+    initial: spotChecked(({ trust }) => {
+      if (trust.spotCheck !== undefined) trust.spotCheck.passed = false
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText('Missed on these answers.')).toBeVisible()
+  },
+}
+
+/** The line a source's own report adds still leaves the three sections on one screen. */
+export const SpotCheckFitsOneScreen: Story = {
+  ...desktop,
+  args: { ...rerankArgs, initial: spotChecked() },
+  play: async ({ canvasElement }) => {
+    await sectionsFit(canvasElement)
   },
 }
 
