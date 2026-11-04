@@ -28,7 +28,7 @@ import {
   spansOf,
   type AnswerClient,
 } from './generate.ts'
-import { openIndexes, type OpenIndexes } from './indexes.ts'
+import { openIndexes, type IndexVariant, type OpenIndexes } from './indexes.ts'
 import { createRerankProvider } from './rerank/factory.ts'
 import type { RerankProvider } from './rerank/provider.ts'
 import { retrieve, type Retrieval } from './retrieve.ts'
@@ -46,6 +46,8 @@ export interface EngineOptions {
   sources: readonly Source[]
   /** The repository root; settings.dataDir is relative to it. */
   root: string
+  /** Search this index of each source instead of the plain one. */
+  variant?: IndexVariant | undefined
   /** For tests. Defaults to the providers and the Claude client named in settings. */
   createProvider?: (() => EmbeddingProvider) | undefined
   createReranker?: (() => RerankProvider) | undefined
@@ -135,7 +137,7 @@ function checkRequest(request: RetrievalRequest): CheckedRequest {
 }
 
 export function createEngine(options: EngineOptions): Engine {
-  const { settings, sources } = options
+  const { settings, sources, variant } = options
   const dataDir = join(options.root, settings.dataDir)
   let provider: EmbeddingProvider | undefined
   let reranker: RerankProvider | undefined
@@ -163,7 +165,7 @@ export function createEngine(options: EngineOptions): Engine {
     source: Source,
     run: (indexes: OpenIndexes) => Promise<T> | T,
   ): Promise<T> => {
-    const indexes = openIndexes(dataDir, source.id, { create: false })
+    const indexes = openIndexes(dataDir, source.id, { create: false, variant })
     try {
       return await run(indexes)
     } finally {
@@ -248,7 +250,7 @@ export function createEngine(options: EngineOptions): Engine {
 
     documentChunks(sourceId, path) {
       const source = sourceOf(sourceId)
-      const indexes = openIndexes(dataDir, source.id, { create: false })
+      const indexes = openIndexes(dataDir, source.id, { create: false, variant })
       try {
         const stored = indexes.index.documentChunks(path)
         if (stored === undefined) return undefined

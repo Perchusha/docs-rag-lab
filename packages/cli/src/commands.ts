@@ -53,6 +53,8 @@ export interface CommandContext {
   sources: readonly Source[]
   /** Search and ask, over the same settings and sources. */
   engine: Engine
+  /** The same, over another index. */
+  engineFor: (variant: IndexVariant) => Engine
   root: string
   meter: UsageMeter
   out: Writer

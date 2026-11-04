@@ -168,6 +168,8 @@ export interface EvalRunInfo {
   repoDirty: boolean
   timings: Partial<Record<Strategy, { meanMs: number; maxMs: number }>>
   usage: { embeddingTokens: number; embeddingRequests: number }
+  /** Only in a report that measured rerank. A run that survived 429s says so here. */
+  rerank?: { calls: number; rateLimitRetries: number }
 }
 
 export interface EvalReport {

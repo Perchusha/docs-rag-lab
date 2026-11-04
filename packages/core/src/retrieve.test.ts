@@ -399,7 +399,7 @@ describe('retrieve', () => {
 
     expect(JSON.parse(JSON.stringify(trace))).toEqual(trace)
     expect(trace).toMatchObject({
-      version: 4,
+      version: 5,
       question: QUESTION,
       sourceId: 'demo',
       strategy: 'hybrid',

@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import type { EvalReport } from '@docs-rag-lab/contracts'
 import {
   CHUNKER_VERSION,
+  CONTROL_IDENTITY,
   createEmbeddingProvider,
   embeddingCacheKey,
   freshSampleForLabels,
@@ -24,6 +25,7 @@ import {
   sampleHash,
   type EvalClient,
   openIndexes,
+  type IndexVariant,
   type RerankProvider,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
@@ -169,7 +171,8 @@ const git = (...args: string[]) =>
 
 const QUESTIONS = ['First?', 'Second?', 'Not covered?']
 
-function seedIndex(): void {
+/** The plain index, or another one with a context on each chunk and the same vectors. */
+function seedIndex(variant?: IndexVariant): void {
   const { dimensions } = settings.embeddings
   const providerId = createEmbeddingProvider(settings.embeddings).id
   const unit = (i: number) => Float32Array.from({ length: dimensions }, (_, j) => (j === i ? 1 : 0))
@@ -180,12 +183,13 @@ function seedIndex(): void {
     anchor: id,
     blockTypes: ['prose'],
     text: `A > ${id}\n\nText of ${id}.`,
+    context: variant === undefined ? null : `Context of ${id}.`,
     metadata: { anchors: [id] },
     tokenCount: 5,
     textHash: id,
     vector: unit(i),
   })
-  const indexes = openIndexes(join(root, settings.dataDir), 'typescript')
+  const indexes = openIndexes(join(root, settings.dataDir), 'typescript', { variant })
   indexes.index.applyChanges({
     documents: [
       {
@@ -208,7 +212,8 @@ function seedIndex(): void {
       syncedAt: '2026-11-03T00:00:00.000Z',
       embedModel: providerId,
       embedDimensions: dimensions,
-      contextModel: null,
+      contextModel:
+        variant === undefined ? null : variant === 'control' ? CONTROL_IDENTITY : 'claude-test:abc',
       chunkerVersion: CHUNKER_VERSION,
       parserVersion: 1,
     },
@@ -397,12 +402,120 @@ describe('drl eval', () => {
     expect(rerankCalls).toHaveLength(2)
   })
 
+  describe('the other indexes', () => {
+    beforeEach(() => {
+      rerankCalls = []
+      rerankJitter = 0
+    })
+
+    it('says what to run when an index is not built yet', async () => {
+      const { code, err } = await drl('eval', '--contextual')
+      expect(code).toBe(1)
+      expect(err).toContain('run drl sync typescript --contextual first')
+    })
+
+    it('measures the contextual index, reranks its contexts, and verifies against it', async () => {
+      seedIndex('contextual')
+      const { code, out } = await drl('eval', '--contextual', '--name', 'contextual', '--yes')
+      expect(code).toBe(0)
+      const path = reportPathIn(out)
+      const report = readReport(path)
+      expect(report.identity.contextModel).toBe('claude-test:abc')
+      expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual([
+        'vector',
+        'hybrid',
+        'rerank',
+      ])
+      expect(rerankCalls).toHaveLength(2)
+      expect(rerankCalls.flat().every((text) => text.startsWith('Context of '))).toBe(true)
+
+      const verified = await drl('eval', 'verify', path)
+      expect(verified.out).toContain('byte for byte')
+      expect(rerankCalls).toHaveLength(2)
+    })
+
+    it('needs no --yes for what the contextual cache holds', async () => {
+      seedIndex('contextual')
+      const planned = await drl('eval', '--contextual', '--strategy', 'rerank')
+      expect(planned.out).toContain('this would make 2 calls')
+      await drl('eval', '--contextual', '--strategy', 'rerank', '--yes')
+      clock += 1000
+      const cached = await drl('eval', '--contextual', '--strategy', 'rerank')
+      expect(cached.out).toContain('report:')
+      expect(rerankCalls).toHaveLength(2)
+    })
+
+    it('measures the control under vector and hybrid only, with no rerank call', async () => {
+      seedIndex('control')
+      const { code, out } = await drl('eval', '--control', '--name', 'control')
+      expect(code).toBe(0)
+      const path = reportPathIn(out)
+      const report = readReport(path)
+      expect(report.identity.contextModel).toBe(CONTROL_IDENTITY)
+      expect(report.identity).not.toHaveProperty('rerank')
+      expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual(['vector', 'hybrid'])
+      expect(rerankCalls).toEqual([])
+
+      const verified = await drl('eval', 'verify', path)
+      expect(verified.out).toContain('byte for byte')
+    })
+
+    it('refuses to rerank the control, and flags with other commands', async () => {
+      seedIndex('control')
+      const reranked = await drl('eval', '--control', '--strategy', 'rerank', '--yes')
+      expect(reranked.code).toBe(1)
+      expect(reranked.err).toContain('the control is measured without the reranker')
+      expect((await drl('eval', 'verify', 'x.json', '--control')).err).toContain(
+        '--control does not apply',
+      )
+      expect((await drl('eval', '--strategies', 'hybrid,rerank')).err).toContain(
+        '--strategies does not apply',
+      )
+    })
+  })
+
+  describe('compare, one strategy against another', () => {
+    beforeEach(() => {
+      rerankCalls = []
+      rerankJitter = 0
+    })
+
+    it('compares what it is told to, within one report too', async () => {
+      const path = reportPathIn((await drl('eval', '--name', 'baseline', '--yes')).out)
+      const { code, out } = await drl(
+        'eval',
+        'compare',
+        path,
+        path,
+        '--strategies',
+        'hybrid,rerank',
+      )
+      expect(code).toBe(0)
+      expect(out).toContain('hybrid against rerank: ')
+      expect(out).not.toContain('\nvector: ')
+    })
+
+    it('says when a report did not measure that strategy, or a pair is not one', async () => {
+      const path = reportPathIn((await drl('eval', '--strategy', 'vector')).out)
+      const missing = await drl('eval', 'compare', path, path, '--strategies', 'hybrid,vector')
+      expect(missing.code).toBe(1)
+      expect(missing.err).toContain('did not measure hybrid')
+      expect((await drl('eval', 'compare', path, path, '--strategies', 'hybrid')).err).toContain(
+        '--strategies takes two strategies',
+      )
+      expect(
+        (await drl('eval', 'compare', path, path, '--strategies', 'hybrid,bm25')).err,
+      ).toContain('--strategies names vector, hybrid, rerank')
+    })
+  })
+
   it('reranks on request, in a development run too', async () => {
     rerankCalls = []
     rerankJitter = 0
     const { code, out } = await drl('eval', '--strategy', 'rerank', '--yes')
     expect(code).toBe(0)
-    const report = readReport(reportPathIn(out))
+    const path = reportPathIn(out)
+    const report = readReport(path)
     expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual(['rerank'])
     expect(report.identity.rerank).toEqual({
       model: settings.rerank.model,
@@ -410,7 +523,11 @@ describe('drl eval', () => {
     })
     // One call per scored question.
     expect(rerankCalls).toHaveLength(2)
-    expect(out).toContain('rerank')
+    expect(out).toContain('rerank: 2 calls, none retried after a 429')
+    expect(report.run.rerank).toEqual({ calls: 2, rateLimitRetries: 0 })
+    expect(readFileSync(path.replace(/\.json$/, '.md'), 'utf8')).toContain(
+      'none retried after a 429',
+    )
   })
 
   describe('a named run', () => {

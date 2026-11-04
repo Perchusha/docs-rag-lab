@@ -373,6 +373,38 @@ describe('runRetrievalEval', () => {
     expect(report.result.comparison).toEqual(without.result.comparison)
   })
 
+  it('says how many 429s the reranks survived, outside the result, and nothing without rerank', async () => {
+    const { options } = harness({ strategies: ['vector', 'rerank'] })
+    const { search } = options.engine
+    options.engine = {
+      ...options.engine,
+      search: async (request, meter) => {
+        const found = await search(request, meter)
+        return request.strategy !== 'rerank'
+          ? found
+          : {
+              ...found,
+              trace: {
+                ...found.trace,
+                rerank: {
+                  provider: 'fake:rerank',
+                  depth: 20,
+                  from: 'cache',
+                  rateLimitRetries: request.question === 'First?' ? 1 : 0,
+                  ms: 0,
+                  ranked: [],
+                },
+              },
+            }
+      },
+    }
+    const report = await runRetrievalEval(options)
+    expect(report.run.rerank).toEqual({ calls: 2, rateLimitRetries: 1 })
+
+    const without = await runRetrievalEval(harness().options)
+    expect(without.run).not.toHaveProperty('rerank')
+  })
+
   it('keeps timings and usage out of the result, so two runs compare byte for byte', async () => {
     const fast = await runRetrievalEval(harness({}, 5).options)
     const slow = await runRetrievalEval(harness({}, 500).options)

@@ -157,6 +157,38 @@ function report(overrides: Partial<EvalReport['run']> = {}): EvalReport {
   }
 }
 
+describe('what the reranks took', () => {
+  const summaryOf = (rerank: EvalReport['run']['rerank']) =>
+    formatEvalSummary({
+      identity: { goldenSet: { version: 1 }, docs: { sha: 'abc' } },
+      result: {
+        scored: 0,
+        unanswerable: [],
+        stale: [],
+        strategies: [],
+        comparison: null,
+        targets: [],
+      },
+      run: { rerank },
+    } as unknown as EvalReport)
+
+  it('says so when a run survived 429s', () => {
+    expect(summaryOf({ calls: 40, rateLimitRetries: 2 })).toContain(
+      'rerank: 40 calls, which survived 2 429s with one retry each',
+    )
+  })
+
+  it('says so when none did', () => {
+    expect(summaryOf({ calls: 40, rateLimitRetries: 0 })).toContain(
+      'rerank: 40 calls, none retried after a 429',
+    )
+  })
+
+  it('says nothing of a run with no rerank', () => {
+    expect(summaryOf(undefined)).not.toContain('rerank')
+  })
+})
+
 describe('formatEvalMarkdown', () => {
   const markdown = formatEvalMarkdown(report())
 

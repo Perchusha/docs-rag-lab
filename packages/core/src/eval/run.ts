@@ -144,6 +144,8 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
   const chunks: EvalResult['chunks'] = {}
   const timings: EvalRunInfo['timings'] = {}
   const results: EvalStrategyResult[] = []
+  let rerankCalls = 0
+  let rateLimitRetries = 0
   for (const strategy of strategies) {
     const scores = []
     let totalMs = 0
@@ -155,6 +157,10 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
       )
       totalMs += trace.totalMs
       maxMs = Math.max(maxMs, trace.totalMs)
+      if (trace.rerank !== undefined) {
+        rerankCalls++
+        rateLimitRetries += trace.rerank.rateLimitRetries
+      }
       const context = trace.context.map((chunk) => chunk.chunkId)
       recordChunks(chunks, trace, context)
       // Fusion can rank deeper than one list reaches. Both strategies stop at the same
@@ -221,6 +227,7 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
         embeddingTokens: usage.reduce((sum, [, entry]) => sum + entry.inputTokens, 0),
         embeddingRequests: usage.reduce((sum, [, entry]) => sum + entry.requests, 0),
       },
+      ...(rerankCalls === 0 ? {} : { rerank: { calls: rerankCalls, rateLimitRetries } }),
     },
   }
 }

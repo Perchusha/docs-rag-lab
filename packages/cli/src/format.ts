@@ -172,11 +172,11 @@ export function formatTrace(trace: RetrievalTrace, limit = 10): string {
   }
 
   if (trace.rerank !== undefined) {
-    const { provider, ranked, from } = trace.rerank
+    const { provider, ranked, from, rateLimitRetries } = trace.rerank
     const shown = Math.max(limit, trace.params.topK)
     lines.push(
       '',
-      `reranked (${provider}, one call from ${from}): ${count(ranked.length)} candidates, ${ms(trace.rerank.ms)}`,
+      `reranked (${provider}, one call from ${from}${rateLimitRetries > 0 ? `, after ${String(rateLimitRetries)} 429` : ''}): ${count(ranked.length)} candidates, ${ms(trace.rerank.ms)}`,
     )
     for (const entry of ranked.slice(0, shown)) {
       lines.push(

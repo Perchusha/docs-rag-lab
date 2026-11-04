@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { controlContexts, headingPrefix } from './control.ts'
+import {
+  CONTROL_IDENTITY,
+  controlContexts,
+  headingPrefix,
+  variantOfContextModel,
+} from './control.ts'
+
+describe('variantOfContextModel', () => {
+  it('tells which index a report measured, from what wrote its contexts', () => {
+    expect(variantOfContextModel(null)).toBeUndefined()
+    expect(variantOfContextModel(CONTROL_IDENTITY)).toBe('control')
+    expect(variantOfContextModel('claude-haiku-5-5:75010bc9e7d5')).toBe('contextual')
+  })
+})
 
 describe('headingPrefix', () => {
   it('joins the document title and the section path', () => {

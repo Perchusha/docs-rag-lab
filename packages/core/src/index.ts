@@ -75,7 +75,12 @@ export {
   type StoredContext,
 } from './contexts/store.ts'
 export { checkVariantIndex, type VariantIndexCheck } from './contexts/check.ts'
-export { CONTROL_IDENTITY, controlContexts, headingPrefix } from './contexts/control.ts'
+export {
+  CONTROL_IDENTITY,
+  controlContexts,
+  headingPrefix,
+  variantOfContextModel,
+} from './contexts/control.ts'
 export { contextualText } from './contexts/text.ts'
 export {
   variantIndexPath,

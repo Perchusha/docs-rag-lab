@@ -23,8 +23,10 @@ import {
   readRepoState,
   reportsDir,
   runRetrievalEval,
+  variantOfContextModel,
   verifyRecordPath,
   verifyReport,
+  type IndexVariant,
   type Source,
 } from '@docs-rag-lab/core'
 
@@ -63,6 +65,7 @@ export async function measure(
   source: Source,
   name: string | null,
   strategies: readonly Strategy[] = LOCAL_STRATEGIES,
+  variant?: IndexVariant,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
   const repo = await readRepoState(root)
@@ -71,7 +74,7 @@ export async function measure(
       `a named run needs a clean tree, so that its report can be reproduced from ${repo.sha.slice(0, 8)}: commit or stash first, or leave out --name`,
     )
   }
-  const indexes = openIndexes(join(root, settings.dataDir), source.id, { create: false })
+  const indexes = openIndexes(join(root, settings.dataDir), source.id, { create: false, variant })
   try {
     const golden = readGoldenFiles(root, source.id, indexes.index)
     if (golden === undefined) {
@@ -94,7 +97,7 @@ export async function measure(
     if (manifest === undefined) throw new CliError(`the index of ${source.id} is empty`)
     const targetsPath = goldenTargetsPath(root, source.id)
     return await runRetrievalEval({
-      engine: ctx.engine,
+      engine: variant === undefined ? ctx.engine : ctx.engineFor(variant),
       sourceId: source.id,
       questions,
       check,
@@ -122,19 +125,29 @@ export async function measure(
 /** `drl eval`: measure, write the report, and say where. */
 export async function evalRunCommand(
   ctx: CommandContext,
-  args: { source: string; name: string | undefined; strategy: Strategy | undefined; yes: boolean },
+  args: {
+    source: string
+    name: string | undefined
+    strategy: Strategy | undefined
+    yes: boolean
+    variant: IndexVariant | undefined
+  },
 ): Promise<void> {
-  const { name } = args
+  const { name, variant } = args
   checkRunName(name)
   if (name !== undefined && args.strategy !== undefined) {
     throw new CliError('a named run measures every strategy, so that later runs can be compared')
   }
+  if (variant === 'control' && args.strategy === 'rerank') {
+    throw new CliError('the control is measured without the reranker (ADR-0014)')
+  }
   const source = findSource(ctx.sources, args.source)
   // A development run stays quick: a rerank takes up to a minute per question on the free trial.
+  // The control is retrieval only, with no reranker (ADR-0014).
   const strategies =
     args.strategy !== undefined
       ? [args.strategy]
-      : name === undefined
+      : name === undefined || variant === 'control'
         ? LOCAL_STRATEGIES
         : STRATEGIES
   if (args.yes && !strategies.includes('rerank')) {
@@ -144,7 +157,7 @@ export async function evalRunCommand(
   reportPaths(ctx, source, name, (await readRepoState(ctx.root)).sha)
 
   if (strategies.includes('rerank') && !args.yes) {
-    const plan = await planRerankRun(ctx, source.id)
+    const plan = await planRerankRun(ctx, source.id, variant)
     if (plan.calls > 0) {
       ctx.out.write(
         `this would make ${String(plan.calls)} calls to ${ctx.settings.rerank.model}, about ${plan.estimatedTokens.toLocaleString('en-US')} estimated tokens and ${plan.duration} at the free-trial limits: add --yes to run them\n`,
@@ -153,7 +166,7 @@ export async function evalRunCommand(
     }
   }
 
-  const report = await measure(ctx, source, name ?? null, strategies)
+  const report = await measure(ctx, source, name ?? null, strategies, variant)
   const path = writeReport(ctx, source, name, report)
   ctx.out.write(`${formatEvalSummary(report)}\n\nreport: ${path}\n`)
 }
@@ -226,7 +239,8 @@ export async function evalVerifyCommand(
   const report = readReport(ctx.root, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const strategies = report.result.strategies.map(({ strategy }) => strategy)
-  const now = await measure(ctx, source, null, strategies)
+  const variant = variantOfContextModel(report.identity.contextModel)
+  const now = await measure(ctx, source, null, strategies, variant)
   const verification = verifyReport(report, now)
   const code =
     now.run.repoSha === report.run.repoSha ? 'the same commit' : now.run.repoSha.slice(0, 8)
@@ -281,7 +295,10 @@ function movedRanks(a: EvalStrategyResult, b: EvalStrategyResult): string[] {
 }
 
 /** `drl eval compare <a> <b>`: two reports, question by question. */
-export function evalCompareCommand(ctx: CommandContext, args: { a: string; b: string }): void {
+export function evalCompareCommand(
+  ctx: CommandContext,
+  args: { a: string; b: string; strategies: [Strategy, Strategy] | undefined },
+): void {
   const a = readReport(ctx.root, args.a)
   const b = readReport(ctx.root, args.b)
   if (a.identity.sourceId !== b.identity.sourceId) {
@@ -323,10 +340,22 @@ export function evalCompareCommand(ctx: CommandContext, args: { a: string; b: st
     ctx.out.write('with other vectors, ranks below the context can move by themselves (ADR-0010)\n')
   }
   ctx.out.write(`\n${NOISE_NOTE}\n\n`)
-  const sections = STRATEGIES.flatMap((strategy) => {
-    const before = strategyOf(a, strategy)
-    const after = strategyOf(b, strategy)
+  // Like-named strategies, or the two asked for: H3 is one report's hybrid and another's rerank.
+  const pairs: readonly [Strategy, Strategy][] =
+    args.strategies === undefined
+      ? STRATEGIES.map((strategy) => [strategy, strategy])
+      : [args.strategies]
+  const sections = pairs.flatMap(([first, second]) => {
+    const before = strategyOf(a, first)
+    const after = strategyOf(b, second)
+    if (args.strategies !== undefined && before === undefined) {
+      throw new CliError(`${labels.a} did not measure ${first}`)
+    }
+    if (args.strategies !== undefined && after === undefined) {
+      throw new CliError(`${labels.b} did not measure ${second}`)
+    }
     if (before === undefined || after === undefined) return []
+    const strategy = first === second ? first : `${first} against ${second}`
     const comparison = compareScores(
       { name: labels.a, questions: before.questions },
       { name: labels.b, questions: after.questions },

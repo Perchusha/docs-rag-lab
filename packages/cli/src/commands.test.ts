@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { askCommand, searchCommand, type CommandContext } from './commands.ts'
 
 const trace: RetrievalTrace = {
-  version: 4,
+  version: 5,
   question: 'q',
   sourceId: 'typescript',
   strategy: 'vector',
@@ -58,6 +58,7 @@ function context(engine: Engine) {
     settings,
     sources: [],
     engine,
+    engineFor: () => engine,
     root: '.',
     meter: new UsageMeter(),
     out: { write: (chunk: string) => (text += chunk) },
