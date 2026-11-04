@@ -21,6 +21,7 @@ import {
   listRuns,
   readCalibrations,
   readRun,
+  readSpotCheck,
   readVerifyRecord,
 } from './report-store.ts'
 
@@ -125,6 +126,7 @@ export function loadDashboardRun(store: DashboardStore, id: string): DashboardRu
     calibrations: rounds,
     unreadableCalibrations: unreadable,
     verify: readVerifyRecord(root, sourceId, id),
+    spotCheck: readSpotCheck(root, sourceId, id),
     indexDocsSha: readIndexCommit(sourceIndexPath(dataDir, sourceId)),
   })
 }

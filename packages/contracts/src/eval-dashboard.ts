@@ -101,9 +101,22 @@ export interface DashboardJudge {
   unreadable: string[]
 }
 
+/** The judge spot-checked on this report's own answers (ADR-0016). */
+export interface DashboardSpotCheck {
+  passed: boolean
+  labelled: number
+  /** The disagreements each dimension may have. */
+  allowed: number
+  agreement: DashboardAgreement[]
+  /** Which way its disagreements on correctness lean, or null when it has none. */
+  bias: string | null
+}
+
 export interface DashboardTrust {
   /** Null for a report with no answers. */
   judge: DashboardJudge | null
+  /** Only for a report that was spot-checked. */
+  spotCheck?: DashboardSpotCheck
   goldenSet: { version: number; hash: string }
   docs: { repo: string; branch: string; sha: string }
   /** The commit the index is at now, or null when there is no index. */

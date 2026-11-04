@@ -8,11 +8,13 @@ import { join } from 'node:path'
 import {
   parseEvalCalibration,
   parseEvalReport,
+  parseEvalSpotCheck,
   parseEvalVerifyRecord,
   type DashboardRunEntry,
   type DashboardRunList,
   type EvalCalibration,
   type EvalReport,
+  type EvalSpotCheck,
   type EvalVerifyRecord,
 } from '@docs-rag-lab/contracts'
 
@@ -31,9 +33,14 @@ export function verifyRecordPath(reportPath: string): string {
 
 const RUN_FILE = /^(\d{4}-\d{2}-\d{2})-([0-9a-f]{8})-(.+)\.json$/
 const CALIBRATION = /-calibration(-[a-z-]+)?\.json$/
-const SIDECAR = /-(calibration(-[a-z-]+)?|verify)\.json$/
+const SIDECAR = /-(calibration(-[a-z-]+)?|verify|spot-check)\.json$/
 
-/** A run of this name would be read as a calibration or verify file, or lost among them. */
+/** Where a report's spot check goes, from the report's own path. */
+export function spotCheckPath(reportPath: string): string {
+  return reportPath.replace(/\.json$/, '-spot-check.json')
+}
+
+/** A run of this name would be read as a calibration, verify or spot-check file. */
 export function isSidecarName(name: string): boolean {
   return SIDECAR.test(`-${name}.json`)
 }
@@ -136,6 +143,18 @@ export function readCalibrations(root: string): CalibrationFiles {
       (a.stem < b.stem ? -1 : a.stem > b.stem ? 1 : 0),
   )
   return { rounds: read.map(({ round }) => round), unreadable }
+}
+
+/** A report's spot check (ADR-0016), or null when it has none that can be read. */
+export function readSpotCheck(root: string, sourceId: string, id: string): EvalSpotCheck | null {
+  const path = spotCheckPath(join(reportsDir(root, sourceId), `${id}.json`))
+  if (!existsSync(path)) return null
+  try {
+    const parsed = parseEvalSpotCheck(readJson(path))
+    return parsed.ok ? parsed.value : null
+  } catch {
+    return null
+  }
 }
 
 /** What the last recorded re-run of a report found, or null when none can be read. */

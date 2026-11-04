@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   EVAL_REPORT_VERSION,
   parseEvalCalibration,
+  parseEvalSpotCheck,
   parseEvalReport,
   parseEvalVerifyRecord,
 } from './eval.ts'
@@ -65,6 +66,29 @@ describe('a report with answers', () => {
     ['no verdicts', { ...answers, verdicts: undefined }],
   ])('refuses answers with %s', (_name, value) => {
     expect(parseEvalReport({ ...outline, answers: value }).ok).toBe(false)
+  })
+})
+
+describe('parseEvalSpotCheck', () => {
+  const spotCheck = {
+    report: { repoSha: 'x', name: 'final', createdAt: '2026-11-05T00:00:00.000Z' },
+    agreement: [{ dimension: 'correctness', agreed: 8, compared: 8, interval: [0.6, 1] }],
+    allowed: 1,
+    passed: true,
+  }
+
+  it('takes one whole', () => {
+    expect(parseEvalSpotCheck(spotCheck)).toEqual({ ok: true, value: spotCheck })
+  })
+
+  it.each([
+    ['null', null],
+    ['no report', { ...spotCheck, report: undefined }],
+    ['no agreement', { ...spotCheck, agreement: undefined }],
+    ['no verdict', { ...spotCheck, passed: undefined }],
+    ['no allowance', { ...spotCheck, allowed: undefined }],
+  ])('refuses %s', (_, value) => {
+    expect(parseEvalSpotCheck(value).ok).toBe(false)
   })
 })
 

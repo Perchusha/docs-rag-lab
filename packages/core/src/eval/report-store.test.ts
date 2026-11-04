@@ -11,6 +11,7 @@ import {
   readCalibrations,
   reportSources,
   readRun,
+  readSpotCheck,
   readVerifyRecord,
   reportsDir,
   UnknownRunError,
@@ -146,6 +147,37 @@ describe('readRun', () => {
     write('2026-11-02-abcdef12-old.json', { ...report('old', 'x'), version: 0 })
 
     expect(() => readRun(root, 'demo', '2026-11-02-abcdef12-old')).toThrow('version')
+  })
+})
+
+describe('a spot check', () => {
+  const spot = {
+    report: { createdAt: '2026-11-03T00:00:00Z' },
+    agreement: [],
+    allowed: 1,
+    passed: true,
+  }
+
+  it('is read next to its report, and is neither a run nor a calibration', () => {
+    write('2026-11-01-abcdef12-baseline-spot-check.json', spot)
+
+    expect(readSpotCheck(root, 'demo', '2026-11-01-abcdef12-baseline')).toEqual(spot)
+    expect(listRuns(root, 'demo').runs.map(({ id }) => id)).not.toContain(
+      '2026-11-01-abcdef12-baseline-spot-check',
+    )
+    expect(readCalibrations(root).rounds.map(({ labelled }) => labelled)).toEqual([1, 2])
+  })
+
+  it('is null when there is none, or it cannot be read', () => {
+    expect(readSpotCheck(root, 'demo', '2026-11-01-abcdef12-baseline')).toBeNull()
+
+    write('2026-11-01-abcdef12-baseline-spot-check.json', { agreement: [] })
+
+    expect(readSpotCheck(root, 'demo', '2026-11-01-abcdef12-baseline')).toBeNull()
+  })
+
+  it('gives its name to no run', () => {
+    expect(isSidecarName('x-spot-check')).toBe(true)
   })
 })
 

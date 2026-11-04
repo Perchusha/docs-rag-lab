@@ -17,6 +17,7 @@ import type {
   EvalCalibration,
   EvalFigure,
   EvalReport,
+  EvalSpotCheck,
   EvalSplit,
   EvalStrategyResult,
   EvalVerdict,
@@ -31,7 +32,7 @@ import { wilsonInterval } from './calibrate.ts'
 import { compareScores, signTest, verdictOf } from './compare.ts'
 import type { GoldenQuestion } from './golden.ts'
 import { reciprocal } from './metrics.ts'
-import { judgeTrust, verifyWords } from './trust.ts'
+import { judgeTrust, spotCheckView, verifyWords } from './trust.ts'
 import { fieldDifferences } from './verify.ts'
 
 const STRATEGY_NAMES: Record<Strategy, string> = {
@@ -966,6 +967,8 @@ export interface BuildRunOptions {
   calibrations: readonly EvalCalibration[]
   unreadableCalibrations?: readonly string[]
   verify: EvalVerifyRecord | null
+  /** The report's spot check, when it has one (ADR-0016). */
+  spotCheck?: EvalSpotCheck | null
   indexDocsSha: string | null
   /** Row 5's retrieval, from the report of its own index (ADR-0014). */
   contextual?: EvalStrategyResult | undefined
@@ -1008,6 +1011,7 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
               checkedAt: verify.rerun.at,
             },
       ...(index === undefined ? {} : { index }),
+      ...(options.spotCheck == null ? {} : { spotCheck: spotCheckView(options.spotCheck) }),
     },
   }
 }

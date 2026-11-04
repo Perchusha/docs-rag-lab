@@ -22,8 +22,10 @@ import {
   freshSampleForLabels,
   parseGoldenSet,
   newRowsSampleForLabels,
+  readCalibrations,
   sampleForLabels,
   sampleHash,
+  spotCheckSampleForLabels,
   type EvalClient,
   openIndexes,
   type IndexVariant,
@@ -1208,6 +1210,8 @@ describe('drl eval answers', () => {
     [['eval', 'check', '--rows', '0'], '--rows does not apply'],
     [['eval', 'verify', 'x.json', '--only', 'a'], '--only does not apply'],
     [['eval', 'label', 'x.json', '--yes'], '--yes does not apply'],
+    [['eval', 'calibrate', 'x.json', 'y.json', '--spot'], '--spot does not apply'],
+    [['eval', 'spot-check', 'x.json'], 'eval spot-check needs a report file and a labels file'],
   ])('refuses %j', async (argv, message) => {
     const { code, err } = await drl(...argv)
 
@@ -1217,6 +1221,97 @@ describe('drl eval answers', () => {
 
   describe('labels', () => {
     const sheetOf = (out: string): string => /: (.+labels-.+\.md)/.exec(out)?.[1] ?? ''
+
+    describe('a spot check', () => {
+      /** A report with the rows a spot check takes, and labels that agree with its judge. */
+      async function spotChecked() {
+        const path = reportPathIn((await drl('eval', 'answers', '--rows', '0,3,4', '--yes')).out)
+        const report = readReport(path)
+        const answers = report.answers?.answers ?? []
+        const verdicts = report.answers?.verdicts ?? []
+        const golden = parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8'))
+        const sample = spotCheckSampleForLabels({ answers, verdicts, questions: golden })
+        const labels = sample.map((answer, i): Record<string, unknown> => {
+          const verdict = verdicts.find(
+            (item) => item.questionId === answer.questionId && item.row === answer.row,
+          )
+          return verdict?.outcome == null
+            ? { item: i + 1, correctness: verdict?.correctness, supported: true }
+            : { item: i + 1, outcome: verdict.outcome }
+        })
+        const labelsPath = join(root, 'labels.json')
+        writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+        return { path, labelsPath, labels, sample }
+      }
+
+      it('writes its sheet, and says when the set is too small for 10 answers', async () => {
+        const { path, sample } = await spotChecked()
+
+        const { code, out } = await drl('eval', 'label', path, '--spot')
+
+        expect(code).toBe(0)
+        expect(sheetOf(out)).toMatch(/-spot-check\.md$/)
+        expect(out).toContain('too few questions for 10 answers')
+        expect(readFileSync(sheetOf(out), 'utf8')).toContain(sampleHash(sample))
+      })
+
+      it('has a file of its own, which decides no calibration', async () => {
+        const { path, labelsPath } = await spotChecked()
+
+        const { code, out } = await drl('eval', 'spot-check', path, labelsPath)
+
+        expect(code).toBe(0)
+        expect(out).toContain('This spot check passed.')
+        const stored = JSON.parse(
+          readFileSync(path.replace(/\.json$/, '-spot-check.json'), 'utf8'),
+        ) as { passed: boolean; allowed: number }
+        expect(stored).toMatchObject({ passed: true, allowed: 1 })
+        expect(existsSync(path.replace(/\.json$/, '-calibration.json'))).toBe(false)
+        expect(readCalibrations(root).rounds).toEqual([])
+      })
+
+      it('says in a named report what it found', async () => {
+        const { path, labelsPath } = await spotChecked()
+        const named = join(reportsDir(root, 'typescript'), '2026-11-03-abcdef12-x.json')
+        writeFileSync(named, readFileSync(path, 'utf8'))
+
+        await drl('eval', 'spot-check', named, labelsPath)
+
+        expect(readFileSync(named.replace(/\.json$/, '.md'), 'utf8')).toContain(
+          'A spot check of 3 of these answers, labelled blind, passed',
+        )
+      })
+
+      it('misses at a second disagreement on one dimension, and says so', async () => {
+        const { path, labelsPath, labels, sample } = await spotChecked()
+        const answerable = labels.filter((line) => line.correctness !== undefined)
+        for (const line of answerable) line.correctness = line.correctness === 0 ? 2 : 0
+        writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+        expect(answerable.length).toBeGreaterThanOrEqual(2)
+
+        const { out } = await drl('eval', 'spot-check', path, labelsPath)
+
+        expect(out).toContain('This spot check missed')
+      })
+
+      it('refuses a report without the rows it takes', async () => {
+        const path = reportPathIn((await drl('eval', 'answers', '--rows', '0,3', '--yes')).out)
+
+        const { code, err } = await drl('eval', 'label', path, '--spot')
+
+        expect(code).toBe(1)
+        expect(err).toContain('this report has no row 4')
+      })
+
+      it('goes with no other kind of round', async () => {
+        const { path } = await spotChecked()
+
+        const { code, err } = await drl('eval', 'label', path, '--spot', '--rows', '4')
+
+        expect(code).toBe(1)
+        expect(err).toContain('--spot goes with neither --after nor --rows')
+      })
+    })
 
     it('takes a round from the new rows alone, and reads its labels against it', async () => {
       seedIndex('contextual')

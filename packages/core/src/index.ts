@@ -193,10 +193,15 @@ export {
   newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
+  spotCheck,
+  spotCheckSampleForLabels,
+  SPOT_CHECK_ANSWERS,
+  SPOT_CHECK_ROWS,
   wilsonInterval,
   type CalibrateOptions,
   type FreshSampleOptions,
   type SampleOptions,
+  type SpotCheckOptions,
 } from './eval/calibrate.ts'
 export {
   estimateCost,
@@ -222,13 +227,21 @@ export {
   readCalibrations,
   reportSources,
   readRun,
+  readSpotCheck,
   readVerifyRecord,
   reportsDir,
+  spotCheckPath,
   UnknownRunError,
   verifyRecordPath,
   type CalibrationFiles,
 } from './eval/report-store.ts'
-export { judgeSentence, judgeTrust, verifyWords } from './eval/trust.ts'
+export {
+  judgeSentence,
+  judgeTrust,
+  spotCheckSentence,
+  spotCheckView,
+  verifyWords,
+} from './eval/trust.ts'
 export {
   dashboardPage,
   dashboardRuns,

@@ -10,6 +10,7 @@ import type {
   EvalAnswer,
   EvalAnswers,
   EvalCalibration,
+  EvalSpotCheck,
 } from '@docs-rag-lab/contracts'
 import type { EvalCostEstimate, GoldenQuestion, JudgeCaseResult } from '@docs-rag-lab/core'
 
@@ -287,6 +288,35 @@ export function formatLabelSheet(
     '- **Supported:** a reader could confirm each cited claim from its passages alone.',
     ...items,
   ].join('\n\n')
+}
+
+/** What a spot check found (ADR-0016). It decides nothing for any other report. */
+export function formatSpotCheck(spot: EvalSpotCheck): string {
+  const disagreements = spot.correctnessDisagreements.map(
+    ({ questionId, row, human, judge }) =>
+      `- ${questionId}, row ${String(row)}: human ${String(human)}, judge ${String(judge)}`,
+  )
+  return `${[
+    `# Judge spot check: ${String(spot.labelled)} answers labelled`,
+    `Report: \`${spot.report.repoSha.slice(0, 8)}\`, ${spot.report.name ?? 'development run'}, ${spot.report.createdAt}. It allows ${String(spot.allowed)} disagreement on each dimension it compares (ADR-0016), and it is no calibration round: it decides nothing for any other report.`,
+    table(
+      ['Dimension', 'Agreed', 'Compared', "Cohen's kappa", '95% interval', 'Passed'],
+      spot.agreement.map((result) => [
+        result.dimension,
+        String(result.agreed),
+        String(result.compared),
+        result.kappa === null ? '-' : result.kappa.toFixed(2),
+        `${(result.interval[0] * 100).toFixed(0)}% to ${(result.interval[1] * 100).toFixed(0)}%`,
+        result.passed ? 'yes' : 'no',
+      ]),
+    ),
+    ...(disagreements.length === 0
+      ? []
+      : ['Disagreements on correctness:', disagreements.join('\n')]),
+    spot.passed
+      ? 'This spot check passed.'
+      : 'This spot check missed, so the work stops and the owner is asked (ADR-0016).',
+  ].join('\n\n')}\n`
 }
 
 export function formatCalibration(calibration: EvalCalibration): string {

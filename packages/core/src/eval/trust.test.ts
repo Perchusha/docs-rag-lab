@@ -2,11 +2,18 @@ import type {
   AgreementResult,
   CalibrationDisagreement,
   EvalCalibration,
+  EvalSpotCheck,
   EvalVerifyRecord,
 } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
-import { judgeSentence, judgeTrust, verifyWords } from './trust.ts'
+import {
+  judgeSentence,
+  judgeTrust,
+  spotCheckSentence,
+  spotCheckView,
+  verifyWords,
+} from './trust.ts'
 
 const PROMPTS = { correctness: 'c2', refusal: 'r1', support: 's1' }
 const MODELS = { answer: 'a', judge: 'j' }
@@ -231,6 +238,43 @@ describe('judgeTrust', () => {
       'First round, graded again',
       'First round',
     ])
+  })
+})
+
+describe('a spot check', () => {
+  const spot = (overrides: Partial<EvalSpotCheck> = {}): EvalSpotCheck => ({
+    report: { repoSha: 'x', name: 'final', createdAt: 'then' },
+    prompts: PROMPTS,
+    judgeModel: 'j',
+    correctnessDisagreements: [],
+    labelled: 10,
+    agreement: [result('correctness', 8, 8), result('refusal', 10, 10), result('support', 5, 6)],
+    unanswerableOnly: { compared: 2, agreed: 2 },
+    allowed: 1,
+    passed: true,
+    ...overrides,
+  })
+
+  it('says what it found, in a sentence', () => {
+    expect(spotCheckSentence(spot())).toBe(
+      'A spot check of 10 of these answers, labelled blind, passed: correctness 8 of 8, refusal 10 of 10, support 5 of 6.',
+    )
+  })
+
+  it('says when it missed, and which way a disagreement leans', () => {
+    const found = spot({
+      passed: false,
+      correctnessDisagreements: [disagreement(1, 2), disagreement(0, 2)],
+    })
+
+    expect(spotCheckSentence(found)).toBe(
+      'A spot check of 10 of these answers, labelled blind, missed: correctness 8 of 8, refusal 10 of 10, support 5 of 6. All 2 disagreements are the judge scoring higher than the human: correctness may be slightly inflated.',
+    )
+    expect(spotCheckView(found)).toMatchObject({ passed: false, allowed: 1, labelled: 10 })
+  })
+
+  it('has no lean with no disagreement', () => {
+    expect(spotCheckView(spot()).bias).toBeNull()
   })
 })
 

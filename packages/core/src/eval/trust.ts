@@ -8,8 +8,10 @@ import type {
   DashboardAgreement,
   DashboardJudge,
   DashboardRound,
+  DashboardSpotCheck,
   EvalAnswers,
   EvalCalibration,
+  EvalSpotCheck,
   EvalVerifyRecord,
 } from '@docs-rag-lab/contracts'
 
@@ -141,6 +143,33 @@ export function judgeSentence(judge: DashboardJudge): string {
   const unread =
     judge.unreadable.length === 0 ? [] : [`Could not read ${judge.unreadable.join(', ')}.`]
   return [status, ...unread, ...(judge.bias === null ? [] : [judge.bias])].join(' ')
+}
+
+/** A spot check as the dashboard shows it (ADR-0016). */
+export function spotCheckView(spot: EvalSpotCheck): DashboardSpotCheck {
+  const higher = spot.correctnessDisagreements.filter(({ human, judge }) => judge > human).length
+  const lower = spot.correctnessDisagreements.filter(({ human, judge }) => judge < human).length
+  return {
+    passed: spot.passed,
+    labelled: spot.labelled,
+    allowed: spot.allowed,
+    agreement: spot.agreement.map(agreementOf),
+    bias: biasWords(higher, lower).bias,
+  }
+}
+
+/** The sentence a report's markdown and the CLI use for a spot check. */
+export function spotCheckSentence(spot: EvalSpotCheck): string {
+  const { passed, labelled, agreement, bias } = spotCheckView(spot)
+  const counts = agreement
+    .map(
+      ({ dimension, agreed, compared }) => `${dimension} ${String(agreed)} of ${String(compared)}`,
+    )
+    .join(', ')
+  return [
+    `A spot check of ${String(labelled)} of these answers, labelled blind, ${passed ? 'passed' : 'missed'}: ${counts}.`,
+    ...(bias === null ? [] : [bias]),
+  ].join(' ')
 }
 
 /** What a recorded re-run found, in words. */
