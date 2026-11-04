@@ -1,6 +1,6 @@
 # ADR-0012: Answer metrics, the judge and its calibration
 
-- Status: accepted
+- Status: accepted. ADR-0015 says when a new round of labels is needed.
 - Date: 2026-11-03
 - Milestone: M4
 

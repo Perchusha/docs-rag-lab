@@ -1,6 +1,6 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
-- Status: accepted as the test, before any run. The retrieval runs and the answers are in (see the two results): neither H3 nor H4 meets T, so neither is accepted. The app stays on hybrid, and rerank becomes an on-demand comparison in the inspector.
+- Status: accepted as the test, before any run. The retrieval runs and the answers are in (see the two results): neither H3 nor H4 meets T, so neither is accepted. The app stays on hybrid, and rerank becomes an on-demand comparison in the inspector. M5 closed with the final report, in its own section below.
 - Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed. The retrieval results and the answers came the same day.
 - Milestone: M5
 
@@ -329,6 +329,8 @@ The judge, on 15 answers the owner labelled blind, 7 from row 4 and 8 from row 5
 | Refusal | 15 of 15 | 1.00 | 80% to 100% | yes |
 | Support | 11 of 12 | 0.63 | 65% to 99% | yes |
 
+The labels are in `eval/labels/typescript/2026-11-04-a5189068-m5-answers-new-rows.json`. They reached the repository only when M5 closed, after the review before the milestone found them missing, and `drl eval calibrate` then reproduced the committed calibration from them, byte for byte.
+
 The judge stays calibrated for these prompts. Its lean remains: the one new correctness disagreement is the judge scoring 2 where the human scored 1, on ts-0028 in row 5, so all 4 across the blind rounds go the same way, and correctness may run slightly high. The three questions the docs do not answer agree on 3 of 3, which is too little to decide anything.
 
 Integrity:
@@ -350,6 +352,16 @@ The owner first decided to switch the app to rerank as a product decision, apart
 - **A refused call says so where it was asked for.** The app says that Voyage did not take the call and to try again in a minute. It drops what a run is told to do on a rejection, since this is not a run.
 - **It reads the plain index only.** The app has one index, so row 5 has no such comparison.
 - **Checked live, at the owner's request.** On the real app, one uncached Compare under a doc type filter made one real call: 10,725 billed tokens, in 359 ms, with no 429. Its query vector was cached, so that was the only Voyage call, and the answers in that check were stubbed, so no Claude call was made. `/api/ask` refused the strategy, and the next question stayed on hybrid. The cache now holds 91 calls.
+- **So "up to about a minute" is free-tier pacing, not the reranker.** With nothing to wait for, the call took 359 ms. That is one call and not a latency measurement. It changes nothing here, since what decided the app is that the gain did not reach the answers.
+
+## The final report
+
+M5 closes with `eval/reports/typescript/2026-11-04-6b2d15f7-final`, at main after the dashboard and the Reranker tab merged. It comes from the caches, with `drl eval answers --name final --rows 0,2,3,4,5 --noise`, which read 360 answers and 685 verdicts and paid $0.00. It says what `m5-answers` says: `identity`, `vectors` and `result` are the same, and in the answers only `fromCache` and `paidUsd` differ. What the dashboard builds from the two differs only in the report's ID, name, time, commit and verify line.
+
+- **Check 6, for this report too:** `drl eval verify --record` says byte for byte.
+- **Check 3, one last time:** `drl eval verify` on M4's final report says byte for byte, and the plain index's sha256 is still `403465a8...`.
+
+The column "Met" in a report's targets table reads the default strategy, hybrid, so it says "no" beside rerank's rank 3 on ts-0027. The table under "Result of the retrieval runs" reads each row.
 
 ## Estimates
 

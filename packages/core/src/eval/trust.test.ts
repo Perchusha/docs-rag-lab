@@ -203,6 +203,35 @@ describe('judgeTrust', () => {
       ['First round, graded again', false],
     ])
   })
+
+  it('gives a later full round a name of its own, by its report', () => {
+    const later = round({ report: { repoSha: 'y', name: 'm5-answers', createdAt: 'later' } })
+    const trust = judge([round(), round({ blind: false }), later])
+
+    expect(trust.rounds.map(({ name }) => name)).toEqual([
+      'First round',
+      'First round, graded again',
+      'Later round, m5-answers',
+    ])
+  })
+
+  it('names a later round by its commit when its report has no name', () => {
+    const later = round({ report: { repoSha: 'abcdef1234567', name: null, createdAt: 'later' } })
+
+    expect(judge([round(), later]).rounds.map(({ name }) => name)).toEqual([
+      'First round',
+      'Later round, abcdef12',
+    ])
+  })
+
+  it('still calls a full round first when only a round that was not blind came before', () => {
+    const trust = judge([round({ blind: false }), round()])
+
+    expect(trust.rounds.map(({ name }) => name)).toEqual([
+      'First round, graded again',
+      'First round',
+    ])
+  })
 })
 
 describe('judgeSentence', () => {

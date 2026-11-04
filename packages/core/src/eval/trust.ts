@@ -25,9 +25,13 @@ const agreementOf = (result: AgreementResult): DashboardAgreement => ({
   passed: result.passed,
 })
 
-function roundName(calibration: EvalCalibration): string {
+function roundName(calibration: EvalCalibration, earlier: readonly EvalCalibration[]): string {
   if (calibration.blind === false) return 'First round, graded again'
-  return calibration.agreement.length === 1 ? 'Fresh round' : 'First round'
+  if (calibration.agreement.length === 1) return 'Fresh round'
+  const full = (round: EvalCalibration) => round.blind !== false && round.agreement.length > 1
+  if (!earlier.some(full)) return 'First round'
+  const { name, repoSha } = calibration.report
+  return `Later round, ${name ?? repoSha.slice(0, 8)}`
 }
 
 function biasWords(higher: number, lower: number): Pick<DashboardJudge, 'bias' | 'note'> {
@@ -73,8 +77,8 @@ export function judgeTrust(
   const disagreements = blind.flatMap((round) => round.correctnessDisagreements ?? [])
   const judgeHigher = disagreements.filter(({ human, judge }) => judge > human).length
   const judgeLower = disagreements.filter(({ human, judge }) => judge < human).length
-  const rounds: DashboardRound[] = calibrations.map((round) => ({
-    name: roundName(round),
+  const rounds: DashboardRound[] = calibrations.map((round, index) => ({
+    name: roundName(round, calibrations.slice(0, index)),
     blind: round.blind !== false,
     agreement: round.agreement.map(agreementOf),
   }))

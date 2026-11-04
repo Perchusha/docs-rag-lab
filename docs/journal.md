@@ -2,6 +2,54 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M5 - Rerank and contexts: retrieval moved, the answers did not (2026-11-04)
+
+Before M5, hybrid search put the right chunk first on 19 of 40 questions. A reranker takes that to 31, significantly, and no question gets worse. The answers stay where they were. So the reranker is not in the chat, and the inspector shows on demand what it would change.
+
+| On 40 questions | Before, hybrid | Rerank | Rerank + contexts |
+|---|---|---|---|
+| Right chunk first | 19 (33-63%) | 31 (62-88%) | 33 (68-91%) |
+| Right chunk in top 8 | 36 (77-96%) | 39 (87-100%) | 39 (87-100%) |
+| MRR | 0.657 (0.55-0.76) | 0.867 (0.78-0.94) | 0.886 (0.80-0.96) |
+| Target rows met, of 5 | 2 | 4 | 3 |
+| Fully correct, may run high | 34 (71-93%) | 36 (77-96%) | 37 (80-97%) |
+| All citations hold, first and second run | 33, 38 | 36, 33 | 33, 34 |
+| Wrongly refused, fewer is better | 2 (1-17%) | 1 (0-13%) | 0 (0-9%) |
+| Cost per answer | $0.023 | $0.023 | $0.023 |
+
+Claude without docs is fully correct on 36 of 40 (77-96%), so this set has little room to show a gain in correctness.
+
+**What it showed:**
+- **Rerank gave a significant retrieval gain with no regressions, and it did not reach the answers.** On answers, no verdict names a row, and each row differs from itself on 5 questions of all citations hold.
+- **The Haiku contexts added nothing significant on chunks that already carry their headings.** Alone or on top of rerank, and nor are they shown to beat a prefix written by code.
+- **A hard per-question gate vetoed a significant set-level gain.** The verdict stands: rerank is not accepted under ADR-0014. In later ADRs, set-level criteria decide and per-question targets are diagnostics.
+
+**The app stays on hybrid.** The owner first chose to switch it to rerank, apart from the verdict, and after the answers decided against: a gain that did not reach answer quality does not justify a rate-limited dependency in the chat path. `/api/ask` refuses `rerank`, and the inspector's Reranker tab compares on demand. One uncached call in the live check took 359 ms, so the warning of up to about a minute is free-tier pacing, not the reranker.
+
+**What only real runs showed:**
+- **A rerank score depends on the rest of its call.** Identical sets give identical scores in any order, and different sets shift some by up to 0.0005. So the split first planned was not sound, and the cache is per call, not per pair.
+- **The working tree moved during a paid run.** GitHub Desktop switched the branch five minutes in, and the checks showed the run unharmed. Long runs now note HEAD and the branch at the start, and stop before the next paid call if either changed.
+- **Ten calls came after numbers had been read.** Answers cover the 5 unanswerable questions too, so the rule that calls come before any number was read held for 80 of 90. It went into the ADR when found.
+
+**Spend:** $7.83 of Claude at list prices over all of M5, against a limit of $15: $0.28 for contexts, $0.66 for a pilot and $6.89 for the answers. The final run read 360 answers and 685 verdicts from the cache, for $0.00. Voyage stayed inside the free tokens with no bill, and none of the 91 rerank calls met a 429.
+
+**Next:** v1.0 is M5 through M9, and M10 moved to later. From M6 on the process is lighter: reuse the harness, the judge and the dashboard, about 20 questions for React that Claude drafts and the owner reviews where flagged, no new calibration unless the judge changes, and hypotheses and criteria still written down before any paid run (ADR-0015).
+
+**What the review before committing found.** M5's 15 blind labels had never been committed, which matters because ADR-0015 leans on that round. They were still on disk, and they reproduce the committed calibration byte for byte. The dashboard also called that round "First round", the same as M4's, which gave its rows duplicate keys. Both are fixed here.
+
+### Open items for M6
+
+Found in that review, in merged code, and not fixed in M5. M6 will meet the first two:
+- **`drl eval` calls Voyage before `--yes`.** To plan rerank calls, `fusedTops` in `packages/cli/src/eval-rerank.ts` searches question by question before the estimate. Every query vector is cached here, so nobody has seen it. For new React questions it would make about 20 requests at 3 a minute before printing anything, and cache vectors embedded alone. It should embed the queries first, as a run does, and say so.
+- **A report reads calibration from its own source's folder,** and the spot check has to stay out of what decides calibration (ADR-0015).
+- **`drl eval verify` measures with no estimate,** so on a cold rerank cache it would take up to 40 calls and about 45 minutes unannounced. Free tokens, so the cost is time.
+- **`drl eval calibrate --rows` adds no suffix to its file,** so on a report that already has a first round it would overwrite it. It did not happen here.
+- **`drl eval answers` finds a candidate's document in the plain report only,** so two rows of the final report's candidates have no document (ts-0021 and ts-0035 in row 5).
+- **`/api/ask` refuses only an explicit `rerank`.** If the default in `settings` ever became `rerank`, a request with no strategy would rerank in chat. Nothing pins it. Unreachable today.
+- **`TrustSection` keys its rows by round name,** which only the new names keep unique, and ui's `eval-run-m5-answers.json` still has the old name.
+- **Smaller:** three CLI test files use the real Voyage provider with a fake key and rely on seeded vectors, so a cache miss would reach for the network instead of failing clearly. `run.ts` builds a new engine per command call, each with its own limiters. The usage text omits `--rows` for `label` and `calibrate`, and a comment in `run.ts` says the guard covers every Voyage call, where ADR-0010 now names the exception.
+- **A report's targets table says "Met" for the default strategy,** so it reads "no" beside rerank's rank 3 on ts-0027. The column should say whose rank it reads.
+
 ## M5 - The retrieval runs, and the gate that vetoed them (2026-11-04)
 
 A reranker over the fused top 20 gave the largest retrieval gain this project has measured, and under the rules fixed before the run it is not accepted. Both of those stand. Answers are still to come, so this is retrieval only (ADR-0014).
