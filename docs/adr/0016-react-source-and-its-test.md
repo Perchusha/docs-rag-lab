@@ -48,7 +48,18 @@ Fresh questions are picked strictly by the docs' own dates, never by whether row
 
 **Why at most 2 per page.** One new page can fill the top of the list: on TypeScript, 29 of the newest 50 entries came from one release note. Without a limit, `fresh` could describe one or two pages. The owner set this limit before any walk on React, since deciding it after seeing that walk would mean choosing the rule by the data. It can push the tenth question further back, which is reported anyway.
 
-If the survey of the docs finds that pages state dates of their own, those dates replace the commit's, and this section says so before the walk runs. Fresh means newest in these docs. It does not mean past the answering model's training cutoff, and how far back the tenth question goes is reported. If row 0 knows all of them, that is the result.
+If the survey of the docs finds that pages state dates of their own, those dates replace the commit's, and this section says so before the walk runs. **The survey found none:** the frontmatter has no date field, and no page states a date in its text. The only years are in links to blog posts and in example data. So the commit's dates stand. Fresh means newest in these docs. It does not mean past the answering model's training cutoff, and how far back the tenth question goes is reported. If row 0 knows all of them, that is the result.
+
+`drl eval check --draft` holds the limit of 2 per page: it counts the `fresh` questions by the pages of their anchors, and fails above 2. The owner asked for this on 2026-11-05, so that the rule does not rest on reading `fresh-walk.md`.
+
+### A fresh question about an API that is not stable
+
+The newest pages of react.dev often describe unstable APIs. So the owner added this on 2026-11-05, before any walk on React. If a fresh question is about a canary or experimental API, its expected answer states that status, and an answer that omits it cannot be fully correct.
+
+- **What counts is what the docs say at the pinned commit:** a page's `version` frontmatter, a box such as `<Experimental>`, or a badge on the item. At the survey's commit that is 3 experimental pages (`experimental_taintObjectReference`, `experimental_taintUniqueValue`, `react-devtools-cdt-mcp`), `<ExperimentalBadge />` on `<Suspense defer>`, and `<CanaryBadge />` on `importMap`. A canary build pinned in an example's `package.json` says nothing to a reader by itself, so a question that lands on one goes to the owner.
+- **The `answer` alone would not do it.** The judge's prompt says that "details the question did not ask for do not count either way", and the prompts do not change. So such a question also has a `note`, which reaches the judge as its grading note and the owner on the label sheet. It says that the status is part of what a fully correct answer gives, and that an answer without it scores at most 1. Nothing in the prompts changes, so ADR-0015's reason for no new calibration still holds.
+- **Every such question is flagged** for the owner, with its note.
+- **A row that reads the docs can state the status.** The site shows a page's `version` beside its title, and the parser puts it in the title, which starts every chunk of that page. A badge stays as words in its item, and a box stays a callout.
 
 ### Drafting and freezing
 
@@ -124,11 +135,52 @@ These come first. If one fails, the numbers are not read as a result.
 - `drl eval walk` lists the walk's entries in the walk's order. A sync's checkout is shallow, so it keeps a clone of the history under the cache.
 - `drl eval check --draft` says which anchors do not resolve, and what each question copies from the pages it is anchored to. A heading of one word counts only if it starts with a capital and has no other: a parsed heading has lost its backticks, so `memo` is an identifier and `Caveats` is not. A hit only sends a question to the owner.
 
-**The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and this ADR records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
+**The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and "The source, as surveyed" below records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 
 **`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes.
 
 **Not built in M6,** by the owner's decision: the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app`. M6's acceptance needs none of them, and the same commands run by hand.
+
+## The source, as surveyed
+
+From every file under `src/content/learn` and `src/content/reference` at `2177e28d` (2026-11-04), all of which `remark-mdx` parses. The labels are the ones the site's components show a reader, read from its source.
+
+**One file is not indexed.** `learn/rsc-sandbox-test.md` is in no sidebar and its URL is a 404: it tests the site's RSC sandbox, and it is the only user of `SandpackRSC`. The other 180 are all live, checked one by one, at the URL their path gives.
+
+| Component | Uses | What becomes of it |
+|---|---|---|
+| `Sandpack`, `SandpackWithHTMLOutput` | 733, 9 | Each file is a code block, labelled with its language and file name. The 253 files marked `hidden` are dropped, since a reader cannot see them or check a citation of them. |
+| `Note`, `Pitfall`, `DeepDive`, `Deprecated` | 164, 95, 84, 4 | A callout: `Note`, `Pitfall`, `Deep Dive`, `Deprecated` |
+| `Experimental`, `Wip`, `RSC` | 3, 1, 7 | A callout: `Experimental Feature`, `Under Construction`, `React Server Components` |
+| `YouWillLearn` | 43 | A callout: `You will learn`, or `In this chapter` with `isChapter` |
+| `Hint`, `Solution` | 47, 91 | A callout: `Hint`, `Solution` |
+| `Solution`, empty | 63 | Dropped: inside `Recipes` it only divides the examples |
+| `Recap`, `Challenges` | 31, 28 | A section. Each is an h2 on the site, with the anchor `recap` or `challenges` and the text `Recap` or `Try out some challenges`. |
+| `Recipes` | 23 | A section. It is an h4 on the site, with `titleText` and `titleId`, or `Try out some examples` and `examples`. The examples inside are `####` too, and nest under it. |
+| `ConsoleBlock`, `ConsoleLogLine` | 15, 5 | A callout: `Console error` or `Console warning`, by `level` |
+| `TerminalBlock` | 17 | A code block, `bash`, verbatim |
+| `Diagram`, `Illustration` | 39, 24 | A callout, `Diagram` or `Illustration`: the alt text, then the caption |
+| `img`, markdown images | 18, 20 | The alt text. Of a light and dark pair, one. With no alt text, nothing. |
+| `CanaryBadge`, `ExperimentalBadge` | 2, 2 | The words the site shows: `Canary only`, `Experimental only` |
+| `Intro`, `LearnMore`, `DiagramGroup`, `IllustrationBlock`, `ConsoleBlockMulti`, `FullWidth`, `CodeDiagram`, `div` | 179, 31, 19, 6, 4, 1, 1, 8 | Layout: what they hold is kept |
+| `CodeStep`, `Math`, `MathI`, `span` | 178, 18, 23, 4 | Inline styling: the words are kept |
+| `s` | 1 | Dropped with its word: the site strikes it out |
+| `InlineToc` | 98 | Dropped: the site builds it from the headings |
+| `{/* */}`, `[comment]: <> ()`, `---` | 7, 7, 584 | Dropped |
+
+**A component the survey did not see is an error,** with its file and line. It could be a status box, and passing its markup through would put it in the index without anyone deciding. A later sync that meets one stops there.
+
+**Anchors.** All 2,113 headings write their id as `{/*id*/}`, and the anchor is that id, unchanged, underscores included. A heading without one is an error, which upstream's own check does not allow. `github-slugger` is not needed. No page uses an anchor twice for different headings.
+
+**A heading inside a box keeps its section,** since it has an anchor a citation can link to: 94 in `DeepDive`, 91 in `Challenges`, 63 in `Recipes`, 17 in `Note`, 9 in `Pitfall`. What follows the box belongs to the heading before it, as it does on the page. That takes a second section with the same heading path and anchor, 10 in all, which the chunker already tells apart by occurrence. `drl eval walk` lists such a heading once.
+
+**A long callout is cut between its blocks,** and each part keeps the label. The chunker never splits a callout, and a `Deep Dive` or a `Solution` can hold a whole example.
+
+**What the walk sees.** `Recap`, `Challenges` and the `Recipes` titles are no markdown headings, so the history does not show them, and they take their page's date. The walk says how many headings that is.
+
+**What the parser leaves in the text.** A code block's label keeps the language and the file name, and drops the highlights, `active` and `{expectedErrors}`. The file name matters, since examples import each other by it. 8 code blocks nested in list items stay inside their prose, as in TypeScript's parser. Frontmatter has `title`, except 4 pages of tags that write `link: "<link>"` and so on, and `version` goes in `metadata`.
+
+**The size,** before any embedding: 180 files, 3,141,916 bytes, 1,586 chunks, about 838K estimated tokens. The largest chunk is 2,350 tokens, a single code block. Over all 180 files the conformance suite has no failures, and outside code, titles and headings no component markup or import line is left.
 
 ## Estimates
 
