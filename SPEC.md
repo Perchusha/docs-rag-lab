@@ -38,7 +38,7 @@ Everything runs locally. There is no deployment.
 2. **Inspector.** For any answer, see:
    - the query;
    - candidates from vector and keyword search with scores;
-   - the fused ranking and what the reranker changed;
+   - the fused ranking and, on demand, what the reranker would change (ADR-0014: the chat stays on hybrid);
    - chunk boundaries inside the source document;
    - the final context sent to Claude.
 3. **Eval dashboard.** Its first screen answers three questions: does hybrid find the right chunks more often, does it give better answers and does RAG help at all, and can these numbers be trusted. Per-tag tables, per-question diffs, cited chunks and diffs between runs sit behind one disclosure. Every number has its uncertainty beside it, and the dashboard only reads committed reports (ADR-0013).

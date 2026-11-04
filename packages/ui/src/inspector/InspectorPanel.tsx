@@ -12,6 +12,7 @@ import { formatUsage } from '../lib/format.ts'
 import type { Transport } from '../lib/transport.ts'
 import { Inspector, type InspectorTab } from './Inspector.tsx'
 import styles from './InspectorPanel.module.css'
+import type { RerankComparison } from './RerankView.tsx'
 
 export interface InspectorPanelProps {
   /** What the panel shows: a fresh search's trace, or else the answer's. */
@@ -37,6 +38,8 @@ export interface InspectorPanelProps {
   focusHeading: boolean
   onHeadingFocused: () => void
   onClose: () => void
+  /** What the reranker would change on the trace shown. It is no method, so it is not above. */
+  rerank?: RerankComparison | undefined
   transport: Transport
 }
 
@@ -161,6 +164,8 @@ export function InspectorPanel(props: InspectorPanelProps) {
         onTabChange={props.onTabChange}
         reveal={props.reveal}
         onRevealed={props.onRevealed}
+        rerank={props.rerank}
+        answered={props.trace !== undefined && props.trace === props.answerTrace}
         transport={props.transport}
       />
     </aside>

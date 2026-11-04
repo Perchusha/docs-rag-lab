@@ -345,6 +345,12 @@ Integrity:
 
 The owner first decided to switch the app to rerank as a product decision, apart from the verdict, and after these answers decided against it. **A significant retrieval gain that did not reach answer quality on this set does not justify a rate-limited dependency in the chat path.** So hybrid stays the app's default, and no ADR or PR switches it. Rerank becomes an on-demand comparison in the inspector, as planned for "what the reranker changed".
 
+- **It is a comparison, not a method.** The inspector's Reranker tab has a button, "Compare with rerank", which makes one call through `/api/search` and shows where each of the fused top 20 would go and what crosses into or out of the top 8. The Hybrid and Vector toggle does not offer it, since the toggle also chooses the method for the next question. Neither the answer nor the next question changes.
+- **The chat path refuses it in code.** `/api/ask` answers 400 to `strategy: 'rerank'`, so this holds beyond what the page offers. The CLI still takes it, since no chat waits on it.
+- **A refused call says so where it was asked for.** The app says that Voyage did not take the call and to try again in a minute. It drops what a run is told to do on a rejection, since this is not a run.
+- **It reads the plain index only.** The app has one index, so row 5 has no such comparison.
+- **Checked live, at the owner's request.** On the real app, one uncached Compare under a doc type filter made one real call: 10,725 billed tokens, in 359 ms, with no 429. Its query vector was cached, so that was the only Voyage call, and the answers in that check were stubbed, so no Claude call was made. `/api/ask` refused the strategy, and the next question stayed on hybrid. The cache now holds 91 calls.
+
 ## Estimates
 
 Made from the index and from M4's recorded costs, with no API call. Prices were checked again on 2026-11-03.

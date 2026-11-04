@@ -37,7 +37,8 @@ The numbers come from [the final report](eval/reports/typescript/2026-11-03-9447
 
 - a streaming answer with numbered citations to the exact doc sections;
 - a retrieval inspector that opens on demand, from "How was this found?" under an answer or from a citation. It shows every candidate list, the fused ranking with each list's part of the RRF score, the chunks sent to Claude, and where each chunk of a document starts and ends;
-- a Hybrid/Vector toggle and "Search only" in the inspector's header, which re-run the retrieval without calling Claude.
+- a Hybrid/Vector toggle and "Search only" in the inspector's header, which re-run the retrieval without calling Claude;
+- a Reranker tab in the inspector, which shows on demand what the reranker would change on this search. It makes one free Voyage call and no Claude call, and the chat stays on hybrid ([ADR-0014](docs/adr/0014-rerank-and-contextual-retrieval.md)).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/ts-docs-dark.png">

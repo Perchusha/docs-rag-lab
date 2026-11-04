@@ -69,6 +69,24 @@ A report's markdown and the CLI's summary use the same words. Labels come after 
 
 `core` builds plain data, `contracts` types it, and `ui` renders it with no logic of its own beyond formatting, as the inspector does with traces. So the intervals and verdicts are unit tested without a browser, and the stories replay real data from the final report.
 
+### 7. A report with the reranker
+
+Added in M5, after the owner approved a sketch. A report with the reranker's rows would need five columns of figures, and they do not fit next to their comparisons. So its first screen asks the same three kinds of question, about what such a report is for:
+
+1. **Does rerank find the right chunks higher?** Hybrid, Rerank, and Rerank + contexts, with "Right chunk first" added, since that is where the gain is.
+2. **Does that reach the answers?** The same columns, on the three rows ADR-0014's criterion A reads, and correct and grounded, which it asked about.
+3. **Can these numbers be trusted?** As before, and it says which index row 5 read.
+
+No RAG, Vector, "Cites the right passage", "Refused rightly", and time and cost go behind the disclosure, in a first tab, "All rows", which has every comparison. Reports without the reranker keep their screen: what the 8 reports from M4 and `m5-h5` build is unchanged, checked against what they built before this. `m5-control` gains only the line that says which index it read.
+
+- **Comparisons read against hybrid.** The column says "Against hybrid (ahead : behind)", and a cell reads "Rerank 3 : 1, p = 0.63: Noise". Ahead is still always better. "Better" and "Worse" describe the later column.
+- **Each column has its own run to run,** since rows 3, 4 and 5 each ran twice, as "5, 5, 5" under the columns' order. A verdict that names a side has to clear twice the larger of its two sides, as ADR-0014 says of correct and grounded. Either side can move by what its own second run moved. Details use the same rule.
+- **Row 5's retrieval comes from another report.** A report has one index (ADR-0014), so the store looks for the named report with the chunks row 5 read, the same questions and the same reranker. If there is none, the column says "in its own report" and compares nothing.
+- **Two plain lines stand under the summary of the second question, at the owner's request,** with no link, so they add no tab stop. "Without docs: 36 of 40 fully correct (77-96%), may run high." gives the reference the answers read against, with its interval and bias as section 2 requires. "The app stays on hybrid, because the retrieval gain did not reach the answers (ADR-0014)." is said only when the screen's own verdicts say so: some retrieval verdict names a later column, and no answer verdict does. A later run that says otherwise loses the line.
+- **Each column keeps one shape,** with two more for the two new columns: an upward and a downward triangle.
+
+The three sections end at 684 px on Windows' system font and at 729 px under Verdana, which came close to CI before (section 1).
+
 ## Consequences
 
 - A calibration file from before this has no prompts and no disagreements. The three in the repository were written again from their labels, which is free.

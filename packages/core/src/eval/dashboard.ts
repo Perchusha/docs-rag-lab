@@ -37,16 +37,31 @@ import { fieldDifferences } from './verify.ts'
 const STRATEGY_NAMES: Record<Strategy, string> = {
   vector: 'Vector',
   hybrid: 'Hybrid',
-  rerank: 'Hybrid + rerank',
+  rerank: 'Rerank',
 }
 const ROW_NAMES: Record<AnswerRow, string> = {
   0: 'No RAG',
   2: 'Vector',
   3: 'Hybrid',
-  4: 'Hybrid + rerank',
-  5: 'Hybrid + rerank, with contexts',
+  4: 'Rerank',
+  5: 'Rerank + contexts',
 }
-const ROWS: readonly AnswerRow[] = [0, 2, 3]
+const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5]
+const HYBRID = ROW_NAMES[3]
+const RERANK = ROW_NAMES[4]
+const WITH_CONTEXTS = ROW_NAMES[5]
+
+/** Where room is short, a column that adds to another says only what it adds. */
+const SHORT_NAMES: Readonly<Record<string, string>> = { [WITH_CONTEXTS]: '+ contexts' }
+
+const shortOf = (name: string): Pick<EvalSplit, 'shortB'> => {
+  const shortB = SHORT_NAMES[name]
+  return shortB === undefined ? {} : { shortB }
+}
+
+/** A decision of the owner's, apart from any verdict (ADR-0014). */
+const APP_STAYS_ON_HYBRID =
+  'The app stays on hybrid, because the retrieval gain did not reach the answers (ADR-0014).'
 
 const NO_DOCS: EvalFigure = { kind: 'none', reason: 'cannot: no docs' }
 const NOTHING_TO_COUNT: EvalFigure = { kind: 'none', reason: 'none to count' }
@@ -64,7 +79,11 @@ export function meanFigure(values: readonly number[], max = 1): EvalFigure {
   return { kind: 'mean', value, of: values.length, low, high, max }
 }
 
-const fromDifference = (d: MetricDifference, a: string, b: string): EvalSplit => ({
+const fromDifference = (
+  d: Pick<MetricDifference, 'aBetter' | 'bBetter' | 'tied' | 'p' | 'verdict'>,
+  a: string,
+  b: string,
+): EvalSplit => ({
   a,
   b,
   aAhead: d.aBetter,
@@ -72,6 +91,7 @@ const fromDifference = (d: MetricDifference, a: string, b: string): EvalSplit =>
   tied: d.tied,
   p: d.p,
   verdict: d.verdict,
+  ...shortOf(b),
 })
 
 type Values = ReadonlyMap<string, number>
@@ -102,6 +122,7 @@ export function splitOf(a: string, valuesA: Values, b: string, valuesB: Values):
       a: mean(0),
       b: mean(1),
     }),
+    ...shortOf(b),
   }
 }
 
@@ -139,6 +160,7 @@ const namedSide = ({ verdict, a, b }: EvalSplit): string | undefined =>
 
 /** Rows whose label does not read well after "better on". */
 const IN_SENTENCE: Record<string, string> = {
+  'top-1': 'the right chunk first',
   'citations-hold': 'citations that hold',
   'false-refusals': 'wrong refusals',
   'right-refusals': 'right refusals',
@@ -326,41 +348,84 @@ function correctnessNote(judge: DashboardJudge | null): string | null {
   return notes.filter((note) => note !== null).join(', ') || null
 }
 
-function storedRow(
-  answers: EvalAnswers,
-  metric: AnswerComparedMetric,
-): Pick<DashboardRow, 'comparisons' | 'runToRun'> {
-  const between = storedDifference(answers, 'row 2', 'row 3', metric)
-  const again = storedDifference(answers, 'row 3', 'row 3 again', metric)
+type RowPair = readonly [AnswerRow, AnswerRow]
+
+/** Which rows a table of answers shows, and which of them it compares. */
+interface AnswerView {
+  rows: readonly AnswerRow[]
+  /** Fully correct can compare more pairs than the other rows do. */
+  fullyPairs: readonly RowPair[]
+  pairs: readonly RowPair[]
+  /** Whether each column keeps its own run to run, instead of one for hybrid alone. */
+  perColumn: boolean
+}
+
+type MeasuredRow = Pick<DashboardRow, 'comparisons' | 'runToRun' | 'runToRuns'>
+
+const RUN_TO_RUN_EACH = 'Run to run (each twice)'
+const RUN_TO_RUN_ROWS = 'Run to run'
+
+const answeredTwice = (answers: EvalAnswers, row: AnswerRow): boolean =>
+  answers.rows.some((result) => result.row === row && result.sample === 2)
+
+const hasRerankRows = (answers: EvalAnswers): boolean =>
+  answers.rows.some(({ row }) => row === 4 || row === 5)
+
+/**
+ * A verdict that names a side clears the noise of its row (ADR-0013). With a run to run per
+ * column, that is the larger of its two sides: either can move by what a second run moved.
+ */
+function clearNoise<T extends MeasuredRow>(row: T, columns: readonly string[]): T {
+  const noiseOf = (split: EvalSplit): number | null => {
+    const { runToRuns } = row
+    if (runToRuns === undefined) return row.runToRun
+    const counts = [split.a, split.b].flatMap((name) => {
+      const count = runToRuns[columns.indexOf(name)]
+      return count === undefined || count === null ? [] : [count]
+    })
+    return counts.length === 0 ? null : Math.max(...counts)
+  }
   return {
-    comparisons:
-      between === undefined
-        ? []
-        : [
-            {
-              a: 'Vector',
-              b: 'Hybrid',
-              aAhead: between.aBetter,
-              bAhead: between.bBetter,
-              tied: between.tied,
-              p: between.p,
-              verdict: between.verdict,
-            },
-          ],
-    runToRun: again === undefined ? null : again.aBetter + again.bBetter,
+    ...row,
+    comparisons: row.comparisons.map((split) => againstItself(split, noiseOf(split))),
   }
 }
 
-function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSection | null {
-  const { answers } = report
-  if (answers === undefined) return null
+function storedRow(
+  answers: EvalAnswers,
+  metric: AnswerComparedMetric,
+  view: AnswerView,
+): MeasuredRow {
+  const label = (row: AnswerRow): string => `row ${String(row)}`
+  const againOf = (row: AnswerRow): number | null => {
+    const again = storedDifference(answers, label(row), `${label(row)} again`, metric)
+    return again === undefined ? null : again.aBetter + again.bBetter
+  }
+  return {
+    comparisons: view.pairs.flatMap(([a, b]) => {
+      const between = storedDifference(answers, label(a), label(b), metric)
+      return between === undefined ? [] : [fromDifference(between, ROW_NAMES[a], ROW_NAMES[b])]
+    }),
+    ...(view.perColumn
+      ? { runToRun: null, runToRuns: view.rows.map(againOf) }
+      : { runToRun: againOf(3) }),
+  }
+}
+
+/** Every row a table of answers can have, for the rows of a view. */
+function answerMeasures(
+  report: EvalReport,
+  answers: EvalAnswers,
+  judge: DashboardJudge,
+  view: AnswerView,
+) {
   const grades = new Grades(answers, report.result.unanswerable)
-  const rows = rowsIn(answers)
+  const { rows } = view
   const second = hasSecondRun(answers)
   const resultOf = (row: AnswerRow) =>
     answers.rows.find((result) => result.row === row && result.sample === 1)
 
-  const compareRows = (values: (row: AnswerRow) => Values, pairs: [AnswerRow, AnswerRow][]) =>
+  const compareRows = (values: (row: AnswerRow) => Values, pairs: readonly RowPair[]) =>
     pairs
       .filter(([a, b]) => rows.includes(a) && rows.includes(b))
       .map(([a, b]) => splitOf(ROW_NAMES[a], values(a), ROW_NAMES[b], values(b)))
@@ -373,8 +438,17 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
   const answeredWithAnswer = (row: AnswerRow): Values =>
     grades.valuesOf(row, 1, ({ falseRefusal }) => (falseRefusal === true ? 0 : 1))
   const shareOf = (values: Values): EvalFigure => shareFigure(sum(values.values()), values.size)
-  const runToRun = (values: (row: AnswerRow, sample: number) => Values): number | null =>
-    second ? differing(values(3, 1), values(3, 2)) : null
+  const againOf = (
+    values: (row: AnswerRow, sample: number) => Values,
+  ): Pick<DashboardRow, 'runToRun' | 'runToRuns'> =>
+    view.perColumn
+      ? {
+          runToRun: null,
+          runToRuns: rows.map((row) =>
+            answeredTwice(answers, row) ? differing(values(row, 1), values(row, 2)) : null,
+          ),
+        }
+      : { runToRun: second ? differing(values(3, 1), values(3, 2)) : null }
   const note = correctnessNote(judge)
   const withNote = note === null ? {} : { note }
 
@@ -384,20 +458,16 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     ...withNote,
     exploratory: false,
     figures: rows.map((row) => shareOf(fully(row))),
-    comparisons: compareRows(fully, [
-      [2, 3],
-      [0, 2],
-      [0, 3],
-    ]),
-    runToRun: runToRun(fully),
+    comparisons: compareRows(fully, view.fullyPairs),
+    ...againOf(fully),
   }
   const citationsHold: DashboardRow = {
     id: 'citations-hold',
     label: 'All citations hold',
     exploratory: false,
     figures: rows.map((row) => (row === 0 ? NO_DOCS : shareOf(grades.citationsHold(row, 1)))),
-    comparisons: compareRows((row) => grades.citationsHold(row, 1), [[2, 3]]),
-    runToRun: second ? differing(grades.citationsHold(3, 1), grades.citationsHold(3, 2)) : null,
+    comparisons: compareRows((row) => grades.citationsHold(row, 1), view.pairs),
+    ...againOf((row, sample) => grades.citationsHold(row, sample)),
   }
   const grounded: DashboardRow = {
     id: 'correct-and-grounded',
@@ -410,7 +480,7 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
       if (metrics?.correctAndGrounded === undefined) return { kind: 'none', reason: 'not computed' }
       return shareFigure(metrics.correctAndGrounded, metrics.questions)
     }),
-    ...storedRow(answers, 'correct-and-grounded'),
+    ...storedRow(answers, 'correct-and-grounded', view),
   }
   const anchors: DashboardRow = {
     id: 'cites-anchor',
@@ -422,7 +492,7 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
         ? NO_DOCS
         : shareFigure(accuracy.hit, accuracy.cited)
     }),
-    ...storedRow(answers, 'citation-accuracy'),
+    ...storedRow(answers, 'citation-accuracy', view),
   }
   const falseRefusals: DashboardRow = {
     id: 'false-refusals',
@@ -430,16 +500,16 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     note: 'fewer is better',
     exploratory: false,
     figures: rows.map((row) => shareOf(refusedWithAnswer(row))),
-    comparisons: compareRows(answeredWithAnswer, [[2, 3]]),
-    runToRun: runToRun(refusedWithAnswer),
+    comparisons: compareRows(answeredWithAnswer, view.pairs),
+    ...againOf(refusedWithAnswer),
   }
   const rightRefusals: DashboardRow = {
     id: 'right-refusals',
     label: 'Refused rightly',
     exploratory: false,
     figures: rows.map((row) => shareOf(grades.refused(row, 1))),
-    comparisons: compareRows((row) => grades.refused(row, 1), [[2, 3]]),
-    runToRun: second ? differing(grades.refused(3, 1), grades.refused(3, 2)) : null,
+    comparisons: compareRows((row) => grades.refused(row, 1), view.pairs),
+    ...againOf((row, sample) => grades.refused(row, sample)),
   }
   const cost: DashboardRow = {
     id: 'time-and-cost',
@@ -458,19 +528,6 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
     comparisons: [],
     runToRun: null,
   }
-
-  const sectionRows = [
-    fullyCorrect,
-    citationsHold,
-    grounded,
-    anchors,
-    falseRefusals,
-    rightRefusals,
-    cost,
-  ].map((row) => ({
-    ...row,
-    comparisons: row.comparisons.map((split) => againstItself(split, row.runToRun)),
-  }))
   // Grounding is claimed only when the answers show it: on most answers, past the interval, the
   // citations hold. An answer with no citation counts against it.
   const grounds = rows
@@ -479,6 +536,43 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
       const [low] = wilsonInterval(sum(grades.citationsHold(row, 1).values()), fully(row).size)
       return low > 0.5
     })
+  return {
+    fully,
+    grounds,
+    fullyCorrect,
+    citationsHold,
+    grounded,
+    anchors,
+    falseRefusals,
+    rightRefusals,
+    cost,
+  }
+}
+
+function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSection | null {
+  const { answers } = report
+  if (answers === undefined) return null
+  const view: AnswerView = {
+    rows: rowsIn(answers),
+    fullyPairs: [
+      [2, 3],
+      [0, 2],
+      [0, 3],
+    ],
+    pairs: [[2, 3]],
+    perColumn: false,
+  }
+  const measures = answerMeasures(report, answers, judge, view)
+  const columns = view.rows.map((row) => ROW_NAMES[row])
+  const sectionRows = [
+    measures.fullyCorrect,
+    measures.citationsHold,
+    measures.grounded,
+    measures.anchors,
+    measures.falseRefusals,
+    measures.rightRefusals,
+    measures.cost,
+  ].map((row) => clearNoise(row, columns))
   return {
     question: 'Does it give better answers, and does RAG help at all?',
     summary: [
@@ -490,15 +584,345 @@ function answersSection(report: EvalReport, judge: DashboardJudge): DashboardSec
         ['Vector', 'Hybrid'],
         'No difference between vector and hybrid holds up.',
       ),
-      ragClaim(fullyCorrect.comparisons, sectionRows[0]?.comparisons ?? [], grounds),
+      ragClaim(
+        measures.fullyCorrect.comparisons,
+        sectionRows[0]?.comparisons ?? [],
+        measures.grounds,
+      ),
     ]
       .filter((sentence) => sentence !== '')
       .join(' '),
-    columns: rows.map((row) => ROW_NAMES[row]),
+    columns,
     scale: '0 to 100%',
     rows: sectionRows,
-    showRunToRun: second,
+    showRunToRun: hasSecondRun(answers),
   }
+}
+
+function differenceBetween(
+  a: EvalStrategyResult,
+  b: EvalStrategyResult,
+  scope: string,
+  metric: ComparedMetric,
+): MetricDifference | undefined {
+  return compareScores({ name: 'a', questions: a.questions }, { name: 'b', questions: b.questions })
+    .scopes.find((candidate) => candidate.scope === scope)
+    ?.primary.find((difference) => difference.metric === metric)
+}
+
+interface RetrievalSide {
+  name: string
+  /** Undefined for a report of its own that could not be found. */
+  result: EvalStrategyResult | undefined
+}
+
+const RETRIEVAL_MEASURES: readonly {
+  id: string
+  label: string
+  metric: ComparedMetric
+  figure: (result: EvalStrategyResult) => EvalFigure
+}[] = [
+  {
+    id: 'top-1',
+    label: 'Right chunk first',
+    metric: 'hit@1',
+    figure: ({ overall }) => hitFigure(overall, 1),
+  },
+  {
+    id: 'top-8',
+    label: 'Right chunk in top 8',
+    metric: 'hit@8',
+    figure: ({ overall }) => hitFigure(overall, 8),
+  },
+  {
+    id: 'mrr',
+    label: 'How high it ranks (MRR)',
+    metric: 'mrr',
+    figure: (result) => meanFigure(mrrValues(result)),
+  },
+]
+
+/** One row per retrieval measure, comparing the given pairs of sides. */
+function retrievalRows(
+  sides: readonly RetrievalSide[],
+  pairs: readonly (readonly [RetrievalSide, RetrievalSide])[],
+): DashboardRow[] {
+  return RETRIEVAL_MEASURES.map(({ id, label, metric, figure }) => ({
+    id,
+    label,
+    exploratory: false,
+    figures: sides.map(({ result }) =>
+      result === undefined ? { kind: 'none', reason: 'in its own report' } : figure(result),
+    ),
+    comparisons: pairs.flatMap(([a, b]) => {
+      const found =
+        a.result === undefined || b.result === undefined
+          ? undefined
+          : differenceBetween(a.result, b.result, 'overall', metric)
+      return found === undefined ? [] : [fromDifference(found, a.name, b.name)]
+    }),
+    runToRun: null,
+  }))
+}
+
+/**
+ * What the later columns claim against the first. A second column that claims the same says so in
+ * three words, and identical sentences appear once.
+ */
+function claimsAgainstFirst(
+  rows: readonly DashboardRow[],
+  columns: readonly string[],
+  nothing: string,
+): string {
+  const [first, ...others] = columns
+  if (first === undefined) return nothing
+  const sentences: string[] = []
+  let lead: { side: string; words: string } | undefined
+  for (const side of others) {
+    const words = verdictsBetween(rows, [first, side], '')
+    if (words === '' || sentences.includes(words)) continue
+    if (words === lead?.words.replaceAll(lead.side, side)) {
+      sentences.push(`So is ${side.toLowerCase()}.`)
+      continue
+    }
+    lead ??= { side, words }
+    sentences.push(words)
+  }
+  return sentences.length === 0 ? nothing : sentences.join(' ')
+}
+
+/** The first screen's retrieval, for a report with the reranker. */
+function rerankRetrieval(
+  report: EvalReport,
+  contextual: EvalStrategyResult | undefined,
+): DashboardSection | undefined {
+  const hybrid = strategyOf(report, 'hybrid')
+  const rerank = strategyOf(report, 'rerank')
+  if (hybrid === undefined || rerank === undefined) return undefined
+  const hybridSide: RetrievalSide = { name: HYBRID, result: hybrid }
+  const rerankSide: RetrievalSide = { name: RERANK, result: rerank }
+  const contextsSide: RetrievalSide | undefined =
+    report.answers?.contextualIndex === undefined
+      ? undefined
+      : { name: WITH_CONTEXTS, result: contextual }
+  const sides = [hybridSide, rerankSide, ...(contextsSide === undefined ? [] : [contextsSide])]
+  const rows = retrievalRows(
+    sides,
+    sides.slice(1).map((side) => [hybridSide, side] as const),
+  )
+  const between =
+    contextsSide === undefined
+      ? ''
+      : verdictsBetween(
+          retrievalRows(sides, [[rerankSide, contextsSide]]),
+          [RERANK, WITH_CONTEXTS],
+          'Between those two, no difference holds up.',
+        )
+  const { rerank: used } = report.identity
+  return {
+    question: 'Does rerank find the right chunks higher?',
+    summary: [
+      claimsAgainstFirst(
+        rows,
+        sides.map(({ name }) => name),
+        `No difference from hybrid holds up on these ${String(hybrid.overall.questions)} questions.`,
+      ),
+      between,
+      used === undefined
+        ? ''
+        : `Rerank is hybrid, then ${used.model} over its top ${String(used.depth)}.`,
+    ]
+      .filter((sentence) => sentence !== '')
+      .join(' '),
+    against: HYBRID,
+    columns: sides.map(({ name }) => name),
+    scale: '0 to 1 (100%)',
+    rows,
+    showRunToRun: false,
+  }
+}
+
+/** "Without docs: 36 of 40 fully correct (77-96%), may run high." */
+function withoutDocsLine(values: Values, note: string | null): string | undefined {
+  const figure = shareFigure(sum(values.values()), values.size)
+  if (figure.kind !== 'share') return undefined
+  const range = `${String(Math.round(figure.low * 100))}-${String(Math.round(figure.high * 100))}%`
+  const lean = note === null ? '' : `, ${note}`
+  return `Without docs: ${String(figure.count)} of ${String(figure.of)} fully correct (${range})${lean}.`
+}
+
+/** The first screen's answers, for a report with rows 4 and 5: the rows ADR-0014 decides on. */
+function rerankAnswers(
+  report: EvalReport,
+  answers: EvalAnswers,
+  judge: DashboardJudge,
+  retrieval: DashboardSection,
+): DashboardSection {
+  const present = rowsIn(answers)
+  const rows = ([3, 4, 5] as const).filter((row) => present.includes(row))
+  const pairs: RowPair[] = [
+    [3, 4],
+    [3, 5],
+  ]
+  const columns = rows.map((row) => ROW_NAMES[row])
+  const view: AnswerView = { rows, fullyPairs: pairs, pairs, perColumn: true }
+  const measures = answerMeasures(report, answers, judge, view)
+  const shown = [
+    measures.fullyCorrect,
+    measures.citationsHold,
+    measures.falseRefusals,
+    measures.grounded,
+  ].map((row) => clearNoise(row, columns))
+  const between = answerMeasures(report, answers, judge, {
+    ...view,
+    fullyPairs: [[4, 5]],
+    pairs: [[4, 5]],
+  })
+  const betweenWords = verdictsBetween(
+    [between.fullyCorrect, between.citationsHold, between.falseRefusals].map((row) =>
+      clearNoise(row, columns),
+    ),
+    [RERANK, WITH_CONTEXTS],
+    '',
+  )
+  const claims = claimsAgainstFirst(shown, columns, '')
+  const both = rows.includes(4) && rows.includes(5)
+  const verdicts =
+    claims === '' && betweenWords === ''
+      ? `No difference from hybrid holds up${both ? ', and none between rerank and rerank + contexts' : ''}.`
+      : [
+          claims === '' ? 'No difference from hybrid holds up.' : claims,
+          betweenWords === '' && both
+            ? 'Between rerank and rerank + contexts, no difference holds up.'
+            : betweenWords,
+        ]
+          .filter((sentence) => sentence !== '')
+          .join(' ')
+
+  // Said only when the numbers on this screen say it: a later run could say otherwise.
+  const namesRerank = (row: DashboardRow): boolean =>
+    row.comparisons.some(({ verdict }) => verdict === 'b')
+  const gained = retrieval.against !== undefined && retrieval.rows.some(namesRerank)
+  const reached = [measures.anchors, measures.rightRefusals, ...shown]
+    .filter(({ exploratory }) => !exploratory)
+    .map((row) => clearNoise(row, columns))
+    .some(namesRerank)
+  const withoutDocs = present.includes(0)
+    ? withoutDocsLine(measures.fully(0), correctnessNote(judge))
+    : undefined
+  const notes = [
+    ...(withoutDocs === undefined ? [] : [withoutDocs]),
+    ...(gained && !reached ? [APP_STAYS_ON_HYBRID] : []),
+  ]
+  return {
+    question: 'Does that reach the answers?',
+    summary: [
+      ...(judge.calibrated
+        ? []
+        : ['The judge is not calibrated for these prompts, so these are provisional.']),
+      verdicts,
+    ].join(' '),
+    ...(notes.length === 0 ? {} : { notes }),
+    ...(rows.includes(3) ? { against: HYBRID } : {}),
+    columns,
+    scale: '0 to 100%',
+    rows: shown,
+    showRunToRun: rows.some((row) => answeredTwice(answers, row)),
+    runToRunHeader: RUN_TO_RUN_EACH,
+  }
+}
+
+/** What the first screen leaves out for a report with the reranker: every strategy and row. */
+function allRowsSections(
+  report: EvalReport,
+  judge: DashboardJudge | null,
+  contextual: EvalStrategyResult | undefined,
+): DashboardSection[] {
+  const hybrid = strategyOf(report, 'hybrid')
+  const rerank = strategyOf(report, 'rerank')
+  if (hybrid === undefined || rerank === undefined) return []
+  const vector = strategyOf(report, 'vector')
+  const vectorSide: RetrievalSide | undefined =
+    vector === undefined ? undefined : { name: 'Vector', result: vector }
+  const hybridSide: RetrievalSide = { name: HYBRID, result: hybrid }
+  const rerankSide: RetrievalSide = { name: RERANK, result: rerank }
+  const contextsSide: RetrievalSide | undefined =
+    report.answers?.contextualIndex === undefined
+      ? undefined
+      : { name: WITH_CONTEXTS, result: contextual }
+  const sides = [
+    ...(vectorSide === undefined ? [] : [vectorSide]),
+    hybridSide,
+    rerankSide,
+    ...(contextsSide === undefined ? [] : [contextsSide]),
+  ]
+  const sections: DashboardSection[] = [
+    {
+      question: 'Every strategy: does it find the right chunks?',
+      summary: 'The first screen compares only with hybrid. This is every comparison.',
+      columns: sides.map(({ name }) => name),
+      scale: '0 to 1 (100%)',
+      rows: retrievalRows(sides, [
+        ...(vectorSide === undefined ? [] : [[vectorSide, hybridSide] as const]),
+        [hybridSide, rerankSide],
+        ...(contextsSide === undefined
+          ? []
+          : [[hybridSide, contextsSide] as const, [rerankSide, contextsSide] as const]),
+      ]),
+      showRunToRun: false,
+    },
+  ]
+  const { answers } = report
+  if (answers === undefined || judge === null) return sections
+
+  const rows = rowsIn(answers)
+  const pairs: RowPair[] = [
+    [2, 3],
+    [3, 4],
+    [3, 5],
+    [4, 5],
+  ]
+  const view: AnswerView = { rows, fullyPairs: [[0, 3], ...pairs], pairs, perColumn: true }
+  const measures = answerMeasures(report, answers, judge, view)
+  const columns = rows.map((row) => ROW_NAMES[row])
+  const shown = [
+    measures.fullyCorrect,
+    measures.citationsHold,
+    measures.grounded,
+    measures.anchors,
+    measures.falseRefusals,
+    measures.rightRefusals,
+    { ...measures.cost, note: 'search not included' },
+  ].map((row) => clearNoise(row, columns))
+  sections.push({
+    question: 'Every row: does it give better answers?',
+    summary: [
+      ...(judge.calibrated
+        ? []
+        : ['The judge is not calibrated for these prompts, so these are provisional.']),
+      ragClaim(measures.fullyCorrect.comparisons, shown[0]?.comparisons ?? [], measures.grounds),
+    ]
+      .filter((sentence) => sentence !== '')
+      .join(' '),
+    columns,
+    scale: '0 to 100%',
+    rows: shown,
+    showRunToRun: rows.some((row) => answeredTwice(answers, row)),
+    runToRunHeader: RUN_TO_RUN_ROWS,
+  })
+  return sections
+}
+
+/** Which other index a report read, in words: the trust section says so, when it did. */
+function otherIndexWords(report: EvalReport): string | undefined {
+  const index = report.answers?.contextualIndex
+  if (index !== undefined) {
+    return `${WITH_CONTEXTS} read the contextual index: ${index.contextModel}.`
+  }
+  const { contextModel } = report.identity
+  return contextModel === null || contextModel === ''
+    ? undefined
+    : `This run measured another index than the plain one: ${contextModel}.`
 }
 
 /**
@@ -543,6 +967,8 @@ export interface BuildRunOptions {
   unreadableCalibrations?: readonly string[]
   verify: EvalVerifyRecord | null
   indexDocsSha: string | null
+  /** Row 5's retrieval, from the report of its own index (ADR-0014). */
+  contextual?: EvalStrategyResult | undefined
 }
 
 /** Everything on the first screen for one run. */
@@ -552,13 +978,20 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
     report.answers === undefined
       ? null
       : judgeTrust(report.answers, calibrations, unreadableCalibrations)
+  const retrieval = rerankRetrieval(report, options.contextual) ?? retrievalSection(report)
+  const index = otherIndexWords(report)
   return {
     id,
     name: report.run.name ?? id,
     createdAt: report.run.createdAt,
     repoSha: report.run.repoSha,
-    retrieval: retrievalSection(report),
-    answers: judge === null ? null : answersSection(report, judge),
+    retrieval,
+    answers:
+      judge === null
+        ? null
+        : report.answers !== undefined && hasRerankRows(report.answers)
+          ? rerankAnswers(report, report.answers, judge, retrieval)
+          : answersSection(report, judge),
     trust: {
       judge,
       goldenSet: report.identity.goldenSet,
@@ -574,19 +1007,38 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
               text: verifyWords(verify, report.answers !== undefined),
               checkedAt: verify.rerun.at,
             },
+      ...(index === undefined ? {} : { index }),
     },
   }
 }
 
-function tagSections(report: EvalReport, judge: DashboardJudge | null): DashboardSection[] {
+function tagSections(
+  report: EvalReport,
+  judge: DashboardJudge | null,
+  contextual: EvalStrategyResult | undefined,
+): DashboardSection[] {
   const results = report.result.strategies
-  const columns = results.map(({ strategy }) => STRATEGY_NAMES[strategy])
+  const sides = [
+    ...results.map((result) => ({ name: STRATEGY_NAMES[result.strategy], result })),
+    ...(contextual === undefined ? [] : [{ name: WITH_CONTEXTS, result: contextual }]),
+  ]
+  const columns = sides.map(({ name }) => name)
   const tags = [...new Set(results.flatMap(({ byTag }) => Object.keys(byTag)))].sort()
   const scope = (tag: string) =>
     report.result.comparison?.scopes.find((candidate) => candidate.scope === tag)
   const compared = (tag: string, metric: ComparedMetric): EvalSplit[] => {
     const found = scope(tag)?.primary.find((difference) => difference.metric === metric)
-    return found === undefined ? [] : [fromDifference(found, 'Vector', 'Hybrid')]
+    const hybrid = strategyOf(report, 'hybrid')
+    return [
+      ...(found === undefined ? [] : [fromDifference(found, 'Vector', 'Hybrid')]),
+      ...sides
+        .filter(({ name }) => name === RERANK || name === WITH_CONTEXTS)
+        .flatMap(({ name, result }) => {
+          const difference =
+            hybrid === undefined ? undefined : differenceBetween(hybrid, result, tag, metric)
+          return difference === undefined ? [] : [fromDifference(difference, HYBRID, name)]
+        }),
+    ]
   }
   const countOf = (tag: string): number => results[0]?.byTag[tag]?.questions ?? 0
   const sections: DashboardSection[] = [
@@ -600,7 +1052,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
         label: tag,
         note: `${String(countOf(tag))} questions`,
         exploratory: false,
-        figures: results.map((result) => {
+        figures: sides.map(({ result }) => {
           const metrics = result.byTag[tag]
           return metrics === undefined
             ? ({ kind: 'none', reason: 'none' } as const)
@@ -621,7 +1073,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
         label: tag,
         note: `${String(countOf(tag))} questions`,
         exploratory: false,
-        figures: results.map((result) => meanFigure(mrrValues(result, tag))),
+        figures: sides.map(({ result }) => meanFigure(mrrValues(result, tag))),
         comparisons: compared(tag, 'mrr'),
         runToRun: null,
       })),
@@ -645,24 +1097,35 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
     grades.valuesOf(row, sample, ({ correctness }) => (correctness === 2 ? 1 : 0), inTag(tag))
   const score = (row: AnswerRow, tag?: string, sample = 1): Values =>
     grades.valuesOf(row, sample, ({ correctness }) => correctness ?? 0, inTag(tag))
-  const pairs: [AnswerRow, AnswerRow][] = (
+  const pairs: RowPair[] = (
     [
       [2, 3],
       [0, 3],
-    ] as [AnswerRow, AnswerRow][]
+      [3, 4],
+      [3, 5],
+    ] as RowPair[]
   ).filter(([a, b]) => rows.includes(a) && rows.includes(b))
+  const perColumn = hasRerankRows(answers)
+  const answerColumns = rows.map((row) => ROW_NAMES[row])
   // The same rule as the first screen, on the same data (ADR-0013).
-  const measured = (
-    values: (row: AnswerRow, sample: number) => Values,
-  ): Pick<DashboardRow, 'comparisons' | 'runToRun'> => {
-    const runToRun = second ? differing(values(3, 1), values(3, 2)) : null
-    return {
-      comparisons: pairs.map(([a, b]) =>
-        againstItself(splitOf(ROW_NAMES[a], values(a, 1), ROW_NAMES[b], values(b, 1)), runToRun),
-      ),
-      runToRun,
-    }
-  }
+  const measured = (values: (row: AnswerRow, sample: number) => Values): MeasuredRow =>
+    clearNoise(
+      {
+        comparisons: pairs.map(([a, b]) =>
+          splitOf(ROW_NAMES[a], values(a, 1), ROW_NAMES[b], values(b, 1)),
+        ),
+        ...(perColumn
+          ? {
+              runToRun: null,
+              runToRuns: rows.map((row) =>
+                answeredTwice(answers, row) ? differing(values(row, 1), values(row, 2)) : null,
+              ),
+            }
+          : { runToRun: second ? differing(values(3, 1), values(3, 2)) : null }),
+      },
+      answerColumns,
+    )
+  const runToRunHeader = perColumn ? { runToRunHeader: RUN_TO_RUN_ROWS } : {}
   const note = correctnessNote(judge)
   const noteFor = (tag: string): string =>
     [`${String(countOf(tag))} questions`, ...(note === null ? [] : [note])].join(', ')
@@ -685,6 +1148,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
         ...measured((row, sample) => fully(row, tag, sample)),
       })),
       showRunToRun: second,
+      ...runToRunHeader,
     },
     {
       question: 'Correctness score, 0 to 2',
@@ -700,6 +1164,7 @@ function tagSections(report: EvalReport, judge: DashboardJudge | null): Dashboar
         ...measured((row, sample) => score(row, tag, sample)),
       })),
       showRunToRun: second,
+      ...runToRunHeader,
     },
   )
   return sections
@@ -720,15 +1185,21 @@ function gradeWords(verdict: EvalVerdict | undefined): string {
 function questionRows(
   report: EvalReport,
   questions: readonly GoldenQuestion[],
+  contextual: EvalStrategyResult | undefined,
 ): DashboardQuestion[] {
   const { answers } = report
   const rows = answers === undefined ? [] : rowsIn(answers)
   const results = report.result.strategies
   return questions.map((question): DashboardQuestion => {
-    const ranks = results.map((result) => ({
-      column: STRATEGY_NAMES[result.strategy],
-      rank: result.questions.find(({ id }) => id === question.id)?.primaryRank ?? null,
-    }))
+    const rankIn = (result: EvalStrategyResult): number | null =>
+      result.questions.find(({ id }) => id === question.id)?.primaryRank ?? null
+    const ranks = [
+      ...results.map((result) => ({
+        column: STRATEGY_NAMES[result.strategy],
+        rank: rankIn(result),
+      })),
+      ...(contextual === undefined ? [] : [{ column: WITH_CONTEXTS, rank: rankIn(contextual) }]),
+    ]
     const grades = rows.map((row) => ({
       column: ROW_NAMES[row],
       grade: gradeWords(
@@ -759,18 +1230,22 @@ export interface BuildDetailsOptions {
   questions: readonly GoldenQuestion[]
   calibrations: readonly EvalCalibration[]
   unreadableCalibrations?: readonly string[]
+  /** Row 5's retrieval, from the report of its own index (ADR-0014). */
+  contextual?: EvalStrategyResult | undefined
 }
 
 /** What opens behind the first screen. */
 export function buildDashboardDetails(options: BuildDetailsOptions): DashboardDetails {
-  const { report, questions, calibrations, unreadableCalibrations } = options
+  const { report, questions, calibrations, unreadableCalibrations, contextual } = options
   const judge =
     report.answers === undefined
       ? null
       : judgeTrust(report.answers, calibrations, unreadableCalibrations)
+  const allRows = allRowsSections(report, judge, contextual)
   return {
-    tags: tagSections(report, judge),
-    questions: questionRows(report, questions),
+    ...(allRows.length === 0 ? {} : { allRows }),
+    tags: tagSections(report, judge, contextual),
+    questions: questionRows(report, questions, contextual),
     gradeNote: correctnessNote(judge),
     candidates: (report.answers?.candidates ?? []).map((candidate): DashboardCandidate => ({
       questionId: candidate.questionId,

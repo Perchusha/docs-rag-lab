@@ -41,12 +41,14 @@ export function figurePosition(
   return null
 }
 
-export type IntervalShape = 'circle' | 'square' | 'diamond'
+export type IntervalShape = 'circle' | 'square' | 'diamond' | 'up' | 'down'
 
 const COLUMN_SHAPES: Record<string, IntervalShape> = {
   'No RAG': 'circle',
   Vector: 'square',
   Hybrid: 'diamond',
+  Rerank: 'up',
+  'Rerank + contexts': 'down',
 }
 const SHAPES: readonly IntervalShape[] = ['square', 'diamond', 'circle']
 
@@ -59,6 +61,8 @@ export const SHAPE_GLYPHS: Record<IntervalShape, string> = {
   circle: '○',
   square: '■',
   diamond: '◆',
+  up: '▲',
+  down: '▼',
 }
 
 export function verdictWords(split: Pick<EvalSplit, 'a' | 'b' | 'verdict'>): string {
@@ -78,6 +82,23 @@ const pWords = (p: number): string => (p < 0.01 ? 'p < 0.01' : `p = ${p.toFixed(
 /** "Vector 14, Hybrid 7, tied 19, p = 0.19". */
 export function splitWords(split: EvalSplit): string {
   return `${split.a} ${String(split.aAhead)}, ${split.b} ${String(split.bAhead)}, tied ${String(split.tied)}, ${pWords(split.p)}`
+}
+
+/** "Rerank 3 : 1, p = 0.63": ahead and behind the one column a section compares against. */
+export function againstWords(split: EvalSplit): string {
+  return `${split.shortB ?? split.b} ${String(split.bAhead)} : ${String(split.aAhead)}, ${pWords(split.p)}`
+}
+
+/** The verdict on the later column, since the section already names the one it is against. */
+export function againstVerdictWords(split: Pick<EvalSplit, 'a' | 'b' | 'verdict'>): string {
+  if (split.verdict === 'b') return 'Better'
+  if (split.verdict === 'a') return 'Worse'
+  return verdictWords(split)
+}
+
+/** A run to run per column: "0, 0, 1", with "-" for a column with no second run. */
+export function runToRunsWords(questions: readonly (number | null)[]): string {
+  return questions.map((count) => (count === null ? '-' : String(count))).join(', ')
 }
 
 /** How many questions differ between two runs of hybrid, in plain words. */

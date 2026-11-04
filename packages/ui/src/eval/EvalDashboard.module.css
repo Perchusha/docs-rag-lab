@@ -85,6 +85,7 @@
 }
 
 .table thead th.wraps {
+  min-width: 6rem;
   white-space: normal;
 }
 
@@ -173,6 +174,14 @@
 
 .dot[data-shape='diamond'] {
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.dot[data-shape='up'] {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.dot[data-shape='down'] {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 /* Forced colours drop every background, which is all that these marks are. */

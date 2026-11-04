@@ -8,6 +8,8 @@ import type {
   DashboardRunComparison,
   DashboardRunEntry,
   DashboardRunList,
+  EvalReport,
+  EvalStrategyResult,
 } from '@docs-rag-lab/contracts'
 import { readIndexCommit } from '@docs-rag-lab/db'
 
@@ -86,12 +88,40 @@ export function dashboardPage(
   return { runs, unreadable, initial: undefined, missing }
 }
 
+/**
+ * Row 5's retrieval. A report has one index, so it lives in the report of the contextual index
+ * (ADR-0014): the one that names the chunks row 5 read, for the same questions and reranker.
+ */
+function contextualRetrieval(
+  store: DashboardStore,
+  report: EvalReport,
+): EvalStrategyResult | undefined {
+  const index = report.answers?.contextualIndex
+  if (index === undefined) return undefined
+  const { root, sourceId } = store
+  for (const { id } of listRuns(root, sourceId).runs) {
+    const other = readRun(root, sourceId, id)
+    const same =
+      other.identity.chunksHash === index.chunksHash &&
+      other.vectors.queryHash === report.vectors.queryHash &&
+      other.identity.goldenSet.hash === report.identity.goldenSet.hash &&
+      JSON.stringify(other.identity.rerank) === JSON.stringify(report.identity.rerank)
+    const found = same
+      ? other.result.strategies.find(({ strategy }) => strategy === 'rerank')
+      : undefined
+    if (found !== undefined) return found
+  }
+  return undefined
+}
+
 export function loadDashboardRun(store: DashboardStore, id: string): DashboardRun {
   const { root, sourceId, dataDir } = store
   const { rounds, unreadable } = readCalibrations(root, sourceId)
+  const report = readRun(root, sourceId, id)
   return buildDashboardRun({
     id,
-    report: readRun(root, sourceId, id),
+    report,
+    contextual: contextualRetrieval(store, report),
     calibrations: rounds,
     unreadableCalibrations: unreadable,
     verify: readVerifyRecord(root, sourceId, id),
@@ -102,8 +132,10 @@ export function loadDashboardRun(store: DashboardStore, id: string): DashboardRu
 export function loadDashboardDetails(store: DashboardStore, id: string): DashboardDetails {
   const { root, sourceId } = store
   const { rounds, unreadable } = readCalibrations(root, sourceId)
+  const report = readRun(root, sourceId, id)
   return buildDashboardDetails({
-    report: readRun(root, sourceId, id),
+    report,
+    contextual: contextualRetrieval(store, report),
     questions: parseGoldenSet(readFileSync(goldenSetPath(root, sourceId), 'utf8')),
     calibrations: rounds,
     unreadableCalibrations: unreadable,

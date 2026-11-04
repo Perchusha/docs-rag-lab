@@ -192,6 +192,365 @@ const build = (value: EvalReport, calibrations: EvalCalibration[] = []) =>
     indexDocsSha: 'docs-sha',
   })
 
+/** A report with the reranker: its retrieval, and any answers. */
+function withRerank(
+  overrides: {
+    answers?: EvalAnswers
+    hybrid?: (number | null)[]
+    rerank?: (number | null)[]
+  } = {},
+): EvalReport {
+  const hybrid = overrides.hybrid ?? Array.from({ length: 10 }, () => 3)
+  const ranks = overrides.rerank ?? Array.from({ length: 10 }, () => 1)
+  const base = report({
+    hybrid,
+    ...(overrides.answers === undefined ? {} : { answers: overrides.answers }),
+  })
+  return {
+    ...base,
+    identity: { ...base.identity, rerank: { model: 'rerank-test', depth: 20 } },
+    result: {
+      ...base.result,
+      strategies: [
+        ...base.result.strategies,
+        strategyResult(
+          'rerank',
+          ranks.map((rank, i) => score(ID(i + 1), rank, i < 2 ? ['basic', 'edge'] : ['basic'])),
+        ),
+      ],
+    },
+  }
+}
+
+const contextualResult = (ranks: (number | null)[] = Array.from({ length: 10 }, () => 1)) =>
+  strategyResult(
+    'rerank',
+    ranks.map((rank, i) => score(ID(i + 1), rank, i < 2 ? ['basic', 'edge'] : ['basic'])),
+  )
+
+const INDEX = { rows: [5] as AnswerRow[], contextModel: 'haiku:abc', chunksHash: 'contextual' }
+
+/** Every row answers the same, and the two later rows answer twice, unless told otherwise. */
+function ladderAnswers(
+  score4: (i: number) => 0 | 1 | 2 = () => 2,
+  overrides: Partial<EvalAnswers> = {},
+): EvalAnswers {
+  const ids = [1, 2, 3, 4, 5, 6, 7, 8]
+  const rows: AnswerRow[] = [0, 2, 3, 4, 5]
+  const sampled = (row: AnswerRow): number[] => (row === 0 || row === 2 ? [1] : [1, 2])
+  return answersFixture({
+    rows: rows.flatMap((row) => sampled(row).map((sample) => rowResult(row, sample))),
+    answers: ids.flatMap((i) =>
+      rows.flatMap((row) => sampled(row).map((sample) => answer(i, row, { sample }))),
+    ),
+    verdicts: ids.flatMap((i) =>
+      rows.flatMap((row) =>
+        sampled(row).map((sample) => verdict(i, row, row === 4 ? score4(i) : 2, { sample })),
+      ),
+    ),
+    support: ids.flatMap((i) =>
+      rows
+        .filter((row) => row !== 0)
+        .flatMap((row) => sampled(row).map((sample) => ({ ...support(i, row, true), sample }))),
+    ),
+    contextualIndex: INDEX,
+    ...overrides,
+  })
+}
+
+describe('a report with the reranker', () => {
+  const buildWith = (value: EvalReport, contextual?: ReturnType<typeof contextualResult>) =>
+    buildDashboardRun({
+      id: 'run-id',
+      report: value,
+      contextual,
+      calibrations: [],
+      verify: null,
+      indexDocsSha: 'docs-sha',
+    })
+
+  describe('its retrieval', () => {
+    it('asks about the reranker, against hybrid, with vector out of the first screen', () => {
+      const { retrieval } = buildWith(withRerank())
+
+      expect(retrieval.question).toBe('Does rerank find the right chunks higher?')
+      expect(retrieval.columns).toEqual(['Hybrid', 'Rerank'])
+      expect(retrieval.against).toBe('Hybrid')
+      expect(retrieval.rows.map(({ id }) => id)).toEqual(['top-1', 'top-8', 'mrr'])
+      expect(retrieval.showRunToRun).toBe(false)
+    })
+
+    it('compares each measure with hybrid, and says what the verdicts name', () => {
+      const { retrieval } = buildWith(withRerank())
+
+      expect(retrieval.rows[0]?.comparisons).toMatchObject([
+        { a: 'Hybrid', b: 'Rerank', aAhead: 0, bAhead: 10, verdict: 'b' },
+      ])
+      expect(retrieval.summary).toContain('Rerank better on the right chunk first')
+      expect(retrieval.summary).toContain('Rerank is hybrid, then rerank-test over its top 20.')
+    })
+
+    it('says no difference holds up when none does', () => {
+      const same = Array.from({ length: 10 }, () => 1)
+      const { retrieval } = buildWith(withRerank({ hybrid: same, rerank: same }))
+
+      expect(retrieval.summary).toContain(
+        'No difference from hybrid holds up on these 10 questions.',
+      )
+    })
+
+    it('takes row 5 from the report of its own index, and names it short where room is short', () => {
+      const answers = ladderAnswers()
+      const { retrieval } = buildWith(withRerank({ answers }), contextualResult())
+
+      expect(retrieval.columns).toEqual(['Hybrid', 'Rerank', 'Rerank + contexts'])
+      expect(retrieval.rows[0]?.figures[2]).toMatchObject({ kind: 'share', count: 10, of: 10 })
+      expect(retrieval.rows[0]?.comparisons[1]).toMatchObject({
+        b: 'Rerank + contexts',
+        shortB: '+ contexts',
+        verdict: 'b',
+      })
+    })
+
+    it('says in three words that row 5 claims the same, and that the two do not differ', () => {
+      const { retrieval } = buildWith(withRerank({ answers: ladderAnswers() }), contextualResult())
+
+      expect(retrieval.summary).toContain('So is rerank + contexts.')
+      expect(retrieval.summary).toContain('Between those two, no difference holds up.')
+    })
+
+    it('names what row 5 claims in full when that differs', () => {
+      const flat = Array.from({ length: 10 }, () => 3)
+      const { retrieval } = buildWith(
+        withRerank({ answers: ladderAnswers() }),
+        contextualResult(flat),
+      )
+
+      expect(retrieval.summary).not.toContain('So is')
+      expect(retrieval.summary).toContain('Rerank better on')
+      expect(retrieval.summary).toContain('Rerank better on')
+    })
+
+    it('says where row 5 is when its report cannot be found, and compares nothing', () => {
+      const { retrieval } = buildWith(withRerank({ answers: ladderAnswers() }))
+
+      expect(retrieval.rows[0]?.figures[2]).toEqual({ kind: 'none', reason: 'in its own report' })
+      expect(retrieval.rows[0]?.comparisons).toHaveLength(1)
+    })
+
+    it('leaves a report with no reranker as it was', () => {
+      const { retrieval } = build(report())
+
+      expect(retrieval.question).toBe('Does hybrid find the right chunks more often?')
+      expect(retrieval.against).toBeUndefined()
+      expect(retrieval.rows.map(({ id }) => id)).toEqual(['top-8', 'mrr'])
+    })
+  })
+
+  describe('its answers', () => {
+    const answersOf = (value: EvalAnswers = ladderAnswers(), hybridRanks?: (number | null)[]) => {
+      const { answers } = buildWith(
+        withRerank({
+          answers: value,
+          ...(hybridRanks === undefined ? {} : { hybrid: hybridRanks }),
+        }),
+        contextualResult(),
+      )
+      if (answers === null) throw new Error('no answers')
+      return answers
+    }
+
+    it('asks whether the gain reaches the answers, over three columns and four rows', () => {
+      const answers = answersOf()
+
+      expect(answers.question).toBe('Does that reach the answers?')
+      expect(answers.columns).toEqual(['Hybrid', 'Rerank', 'Rerank + contexts'])
+      expect(answers.against).toBe('Hybrid')
+      expect(answers.rows.map(({ id }) => id)).toEqual([
+        'fully-correct',
+        'citations-hold',
+        'false-refusals',
+        'correct-and-grounded',
+      ])
+    })
+
+    it('keeps a run to run per column, under its own header', () => {
+      const answers = answersOf()
+
+      expect(answers.showRunToRun).toBe(true)
+      expect(answers.runToRunHeader).toBe('Run to run (each twice)')
+      expect(answers.rows[0]?.runToRuns).toEqual([0, 0, 0])
+    })
+
+    it('holds a verdict to the larger run to run of its two sides', () => {
+      // Row 4 is ahead of row 3 on nothing, and behind it on 6 of 8.
+      const low = (i: number): 0 | 1 | 2 => (i <= 6 ? 1 : 2)
+      const steady = ladderAnswers(low)
+      const shaky = ladderAnswers(low, {
+        verdicts: steady.verdicts.map((item) =>
+          item.row === 4 && item.sample === 2 && item.questionId === ID(1)
+            ? { ...item, correctness: 2 as const }
+            : item.row === 4 && item.sample === 2 && item.questionId === ID(2)
+              ? { ...item, correctness: 2 as const }
+              : item.row === 4 && item.sample === 2 && item.questionId === ID(3)
+                ? { ...item, correctness: 2 as const }
+                : item,
+        ),
+      })
+
+      expect(answersOf(steady).rows[0]?.comparisons[0]).toMatchObject({ verdict: 'a' })
+      const moved = answersOf(shaky).rows[0]
+      expect(moved?.runToRuns).toEqual([0, 3, 0])
+      expect(moved?.comparisons[0]).toMatchObject({ aAhead: 6, bAhead: 0, verdict: 'noise' })
+    })
+
+    it('says that no difference holds up, also between the two later rows', () => {
+      expect(answersOf().summary).toContain(
+        'No difference from hybrid holds up, and none between rerank and rerank + contexts.',
+      )
+    })
+
+    it('says what a verdict names', () => {
+      const answers = answersOf(ladderAnswers((i) => (i <= 6 ? 1 : 2)))
+
+      expect(answers.summary).toContain('Hybrid better on fully correct')
+    })
+
+    it('gives the reference without docs, with its interval and what the labels say of it', () => {
+      expect(answersOf().notes?.[0]).toMatch(
+        /^Without docs: 8 of 8 fully correct \(\d+-100%\), not calibrated\.$/,
+      )
+    })
+
+    it('says the app stays on hybrid when the gain did not reach the answers', () => {
+      expect(answersOf().notes?.[1]).toBe(
+        'The app stays on hybrid, because the retrieval gain did not reach the answers (ADR-0014).',
+      )
+    })
+
+    it('does not say so when an answer row is named better', () => {
+      const better = ladderAnswers(() => 2, {
+        verdicts: ladderAnswers().verdicts.map((item) =>
+          item.row === 3 ? { ...item, correctness: 1 as const } : item,
+        ),
+      })
+
+      expect(answersOf(better).notes?.join(' ')).not.toContain('The app stays on hybrid')
+    })
+
+    it('does not say so when retrieval gained nothing', () => {
+      const same = Array.from({ length: 10 }, () => 1)
+      const { answers } = buildWith(
+        withRerank({ answers: ladderAnswers(), hybrid: same, rerank: same }),
+        contextualResult(same),
+      )
+
+      expect(answers?.notes?.join(' ')).not.toContain('The app stays on hybrid')
+    })
+
+    it('says in the trust section which index row 5 read', () => {
+      const { trust } = buildWith(withRerank({ answers: ladderAnswers() }), contextualResult())
+
+      expect(trust.index).toBe('Rerank + contexts read the contextual index: haiku:abc.')
+    })
+  })
+
+  describe('its details', () => {
+    const detailsOf = (value: EvalReport, contextual?: ReturnType<typeof contextualResult>) =>
+      buildDashboardDetails({ report: value, questions, contextual, calibrations: [] })
+    const questions = parseGoldenSet(
+      JSON.stringify({
+        id: ID(1),
+        question: 'Q?',
+        answer: 'A.',
+        primary: ['a.md'],
+        tags: ['basic'],
+      }),
+    )
+
+    it('has every strategy and row behind the first screen', () => {
+      const details = detailsOf(withRerank({ answers: ladderAnswers() }), contextualResult())
+
+      expect(details.allRows?.map(({ columns }) => columns)).toEqual([
+        ['Vector', 'Hybrid', 'Rerank', 'Rerank + contexts'],
+        ['No RAG', 'Vector', 'Hybrid', 'Rerank', 'Rerank + contexts'],
+      ])
+      const answers = details.allRows?.[1]
+      expect(answers?.rows.map(({ id }) => id)).toEqual([
+        'fully-correct',
+        'citations-hold',
+        'correct-and-grounded',
+        'cites-anchor',
+        'false-refusals',
+        'right-refusals',
+        'time-and-cost',
+      ])
+      expect(answers?.rows[0]?.runToRuns).toEqual([null, null, 0, 0, 0])
+      expect(answers?.rows.at(-1)?.note).toBe('search not included')
+      expect(answers?.rows[0]?.comparisons.map(({ a, b }) => [a, b])).toEqual([
+        ['No RAG', 'Hybrid'],
+        ['Vector', 'Hybrid'],
+        ['Hybrid', 'Rerank'],
+        ['Hybrid', 'Rerank + contexts'],
+        ['Rerank', 'Rerank + contexts'],
+      ])
+    })
+
+    it('has only retrieval for a report with no answers', () => {
+      const details = detailsOf(withRerank())
+
+      expect(details.allRows?.map(({ columns }) => columns)).toEqual([
+        ['Vector', 'Hybrid', 'Rerank'],
+      ])
+    })
+
+    it('has no such thing for a report with no reranker', () => {
+      expect(detailsOf(report()).allRows).toBeUndefined()
+    })
+
+    it('adds the later rows to the tags and to each question', () => {
+      const details = detailsOf(withRerank({ answers: ladderAnswers() }), contextualResult())
+
+      const top8 = details.tags.find(({ question }) => question.startsWith('Right chunk in top 8'))
+      expect(top8?.columns).toEqual(['Vector', 'Hybrid', 'Rerank', 'Rerank + contexts'])
+      expect(top8?.rows[0]?.comparisons.map(({ a, b }) => [a, b])).toEqual([
+        ['Vector', 'Hybrid'],
+        ['Hybrid', 'Rerank'],
+        ['Hybrid', 'Rerank + contexts'],
+      ])
+      const fully = details.tags.find(({ question }) => question === 'Fully correct, by tag')
+      expect(fully?.runToRunHeader).toBe('Run to run')
+      expect(fully?.rows[0]?.runToRuns).toEqual([null, null, 0, 0, 0])
+      expect(details.questions[0]?.ranks.map(({ column }) => column)).toEqual([
+        'Vector',
+        'Hybrid',
+        'Rerank',
+        'Rerank + contexts',
+      ])
+      expect(details.questions[0]?.answers.map(({ column }) => column)).toEqual([
+        'No RAG',
+        'Vector',
+        'Hybrid',
+        'Rerank',
+        'Rerank + contexts',
+      ])
+    })
+  })
+
+  it('says in the trust section when a report measured another index', () => {
+    const base = withRerank()
+    const { trust } = buildWith({
+      ...base,
+      identity: { ...base.identity, contextModel: 'heading-prefix:1' },
+    })
+
+    expect(trust.index).toBe(
+      'This run measured another index than the plain one: heading-prefix:1.',
+    )
+    expect(build(report()).trust.index).toBeUndefined()
+  })
+})
+
 describe('figures', () => {
   it('gives a share a Wilson interval', () => {
     const figure = shareFigure(36, 40)

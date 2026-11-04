@@ -9,6 +9,7 @@ import {
   IndexNotFoundError,
   InvalidRequestError,
   MissingKeyError,
+  RerankRejectedError,
   UnknownSourceError,
   type Retrieval,
 } from '@docs-rag-lab/core'
@@ -124,6 +125,66 @@ describe('handleSearch', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'no pnpm-workspace.yaml above /' })
     expect(log).toHaveBeenCalledOnce()
+  })
+})
+
+describe('rerank from the app', () => {
+  const post = (body: object) =>
+    new Request('http://x/api', { method: 'POST', body: JSON.stringify(body) })
+
+  it('search can ask for it', async () => {
+    const search = vi.fn(() => Promise.resolve(retrieval))
+
+    const response = await handleSearch(
+      engineWith({ search }).factory,
+      post({ question: 'q', strategy: 'rerank' }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(search).toHaveBeenCalledWith(
+      expect.objectContaining({ strategy: 'rerank' }),
+      expect.anything(),
+    )
+  })
+
+  it('the chat cannot, and it reaches no engine', async () => {
+    const ask = vi.fn(() => Promise.resolve(retrieval))
+
+    const response = await handleAsk(
+      engineWith({ ask }).factory,
+      post({ question: 'q', strategy: 'rerank' }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'the chat does not rerank (ADR-0014): compare with rerank in the inspector',
+    })
+    expect(ask).not.toHaveBeenCalled()
+  })
+
+  it('says plainly that a call was not taken, with none of what a run is told to do', async () => {
+    const rejected = new RerankRejectedError(429, 'too many', undefined)
+    const response = await handleSearch(
+      engineWith({ search: () => Promise.reject(rejected) }).factory,
+      post({ question: 'q', strategy: 'rerank' }),
+    )
+
+    expect(response.status).toBe(503)
+    const { error } = (await response.json()) as { error: string }
+    expect(error).toContain('try again in a minute')
+    expect(error).not.toContain('owner')
+  })
+
+  it('names the status of any other refusal', async () => {
+    const rejected = new RerankRejectedError(401, 'bad key', undefined)
+    const response = await handleSearch(
+      engineWith({ search: () => Promise.reject(rejected) }).factory,
+      post({ question: 'q', strategy: 'rerank' }),
+    )
+
+    expect(((await response.json()) as { error: string }).error).toBe(
+      'Voyage refused this rerank call (401)',
+    )
   })
 })
 

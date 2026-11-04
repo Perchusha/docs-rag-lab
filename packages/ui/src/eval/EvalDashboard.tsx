@@ -138,7 +138,8 @@ export function EvalDashboard({
             setOpen(!open)
           }}
         >
-          Details: per tag, per question, cited chunks, runs
+          Details: {run.retrieval.against === undefined ? '' : 'all rows, '}per tag, per question,
+          cited chunks, runs
         </button>
         {open && <DetailsPanel key={run.id} runId={run.id} runs={runs} transport={client} />}
       </main>

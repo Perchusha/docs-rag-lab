@@ -575,6 +575,117 @@ export const ToggleMakesNoClaudeCall: Story = {
   },
 }
 
+const rerankGate = replayGate()
+const onRerankRequest = fn()
+
+/** On demand, with no Claude call, and neither the answer nor the next question changes. */
+export const CompareWithRerank: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { rerank: traces.satisfiesRerank },
+      searchGates: { rerank: rerankGate },
+      onRequest: onRerankRequest,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    rerankGate.reset()
+    onRerankRequest.mockClear()
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    await userEvent.click(panel.getByRole('tab', { name: 'Reranker' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Compare with rerank' }))
+
+    await expect(onRerankRequest).toHaveBeenLastCalledWith('search', {
+      question,
+      strategy: 'rerank',
+      docTypes: [],
+    })
+    await waitFor(() => expect(panel.getByRole('button', { name: 'Stop waiting' })).toBeVisible())
+    await expect(panel.getByText(/this can take a minute/)).toBeVisible()
+
+    rerankGate.open()
+    await expect(
+      await panel.findByText(/2 chunks would come into the top 8, and 2 would leave/),
+    ).toHaveTextContent('The answer above stays as it is.')
+
+    // The panel still shows the answer's own search, and the chat made one call.
+    await expect(panel.getByRole('radio', { name: 'Hybrid' })).toBeChecked()
+    await userEvent.click(panel.getByRole('tab', { name: 'Fusion' }))
+    await expect(panel.getByRole('status')).toHaveTextContent(
+      'Changing the method or searching again makes no Claude call.',
+    )
+    await expect(onRerankRequest.mock.calls.filter(([kind]) => kind === 'ask')).toHaveLength(1)
+    await expect(canvas.getAllByRole('article')).toHaveLength(1)
+
+    // The next question stays on hybrid, and the comparison does not follow it there.
+    await askAndWait(canvasElement, 'A next question')
+    await expect(onRerankRequest).toHaveBeenLastCalledWith('ask', {
+      question: 'A next question',
+      strategy: 'hybrid',
+      docTypes: [],
+    })
+    const next = within(panelOf(canvasElement))
+    await userEvent.click(next.getByRole('tab', { name: 'Reranker' }))
+    await expect(next.getByRole('button', { name: 'Compare with rerank' })).toBeVisible()
+  },
+}
+
+const stopGate = replayGate()
+
+/** Waiting can be given up, and the comparison can then be asked for again. */
+export const StopWaitingForRerank: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchTraces: { rerank: traces.satisfiesRerank },
+      searchGates: { rerank: stopGate },
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    stopGate.reset()
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    await userEvent.click(panel.getByRole('tab', { name: 'Reranker' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Compare with rerank' }))
+    await userEvent.click(await panel.findByRole('button', { name: 'Stop waiting' }))
+
+    await expect(panel.getByRole('button', { name: 'Compare with rerank' })).toBeVisible()
+    await expect(panel.queryByText(/this can take a minute/)).toBeNull()
+    await expect(panel.queryByText(/Error/)).toBeNull()
+  },
+}
+
+/** A refused call says so where it was asked for, and what the panel shows stays. */
+export const RerankFailure: Story = {
+  args: {
+    transport: replayTransport({
+      events: answerFixture.events,
+      searchFailure: 'Voyage did not take this rerank call',
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await askAndWait(canvasElement, question)
+    await userEvent.click(canvas.getByRole('button', HOW))
+    const panel = within(panelOf(canvasElement))
+    await userEvent.click(panel.getByRole('tab', { name: 'Reranker' }))
+    await userEvent.click(panel.getByRole('button', { name: 'Compare with rerank' }))
+
+    await expect(
+      await panel.findByText('Error: Voyage did not take this rerank call.'),
+    ).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Compare with rerank' })).toBeVisible()
+    await userEvent.click(panel.getByRole('tab', { name: 'Fusion' }))
+    await expect(panel.getByRole('table')).toBeVisible()
+    await expect(canvas.getByRole('article')).toHaveTextContent('TypeScript 4.9')
+  },
+}
+
 const onSearchOnlyRequest = fn()
 
 /** Search only takes the edited text and the chosen doc types, and leaves the chat alone. */

@@ -6,8 +6,11 @@ import { useId } from 'react'
 import type { DashboardRow, DashboardSection, EvalFigure } from '@docs-rag-lab/contracts'
 
 import {
+  againstVerdictWords,
+  againstWords,
   figurePosition,
   figureWords,
+  runToRunsWords,
   runToRunWords,
   SHAPE_GLYPHS,
   shapeFor,
@@ -79,6 +82,11 @@ export function SectionTable({
         {section.question}
       </Heading>
       <p className={styles.summary}>{section.summary}</p>
+      {section.notes?.map((note) => (
+        <p key={note} className={styles.summary}>
+          {note}
+        </p>
+      ))}
       <ScrollRegion label={section.question} focusOnlyWhenOverflowing>
         <table className={styles.table}>
           <thead>
@@ -97,10 +105,14 @@ export function SectionTable({
               <th scope="col" aria-hidden="true" className={styles.scale}>
                 {section.scale}
               </th>
-              <th scope="col">Compared, question by question</th>
+              <th scope="col">
+                {section.against === undefined
+                  ? 'Compared, question by question'
+                  : `Against ${section.against.toLowerCase()} (ahead : behind)`}
+              </th>
               {section.showRunToRun && (
                 <th scope="col" className={styles.wraps}>
-                  Run to run (hybrid twice)
+                  {section.runToRunHeader ?? 'Run to run (hybrid twice)'}
                 </th>
               )}
             </tr>
@@ -124,15 +136,22 @@ export function SectionTable({
                   {row.comparisons.length === 0 && <span className={styles.muted}>-</span>}
                   {row.comparisons.map((split) => (
                     <div key={`${split.a}-${split.b}`} className={styles.split}>
-                      {splitWords(split)}: <strong>{verdictWords(split)}</strong>
+                      {section.against === undefined ? splitWords(split) : againstWords(split)}:{' '}
+                      <strong>
+                        {section.against === undefined
+                          ? verdictWords(split)
+                          : againstVerdictWords(split)}
+                      </strong>
                     </div>
                   ))}
                 </td>
                 {section.showRunToRun && (
                   <td className={styles.figure}>
-                    {row.runToRun === null && row.comparisons.length === 0
-                      ? '-'
-                      : runToRunWords(row.runToRun)}
+                    {row.runToRuns !== undefined
+                      ? runToRunsWords(row.runToRuns)
+                      : row.runToRun === null && row.comparisons.length === 0
+                        ? '-'
+                        : runToRunWords(row.runToRun)}
                   </td>
                 )}
               </tr>
