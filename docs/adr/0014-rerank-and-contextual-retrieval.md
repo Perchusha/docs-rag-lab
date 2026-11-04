@@ -278,6 +278,18 @@ With this machine's `data/` these take seconds. Nothing in `data/` is committed,
 
 H5's code never reached main. The tag `exp/m5-h5` keeps the commit that measured it, `cdb7ef4`. It changes no schema, so the same `data/` serves. Check out the tag with a copy of the report outside the tree, and add `--weight-backticks` to `verify`.
 
+## Answers for rows 4 and 5
+
+The owner asked for these on 2026-11-04, twice each, as recorded above. They cannot change the verdict on H3 or H4, since T has already failed. They are what the ladder's rows 4 and 5 report.
+
+How they run, written before the run:
+- **One report, `m5-answers`.** `drl eval answers --name m5-answers --rows 0,2,3,4,5 --noise` answers every row. Rows 0, 2 and 3 replay from M4's cache and pay nothing, so that the comparisons with row 3 and the labels work within one report, as they did in M4.
+- **It names the index row 5 read.** The report's retrieval section is of the plain index, with `vector`, `hybrid` and `rerank`. Row 5 reads the contextual index, and its retrieval stays in `m5-contextual`. So the answers section says which contexts and chunks row 5 read, and the run first checks that index against the plain one.
+- **Criterion A is in the report.** Each comparison now also has `fully-correct`, `citations-hold` and `not-wrongly-refused`, the values the dashboard computes for those rows.
+- **Ten more rerank calls.** Retrieval scores 40 questions, and answers also cover the 5 the docs do not answer, each with a call per row. These were not among the calls made before any number was read, so that rule held for 80 of 90 calls. This was found while planning the answers. A rejection on one of the ten would still stop the run and go to the owner, now with numbers already read.
+- **Noise.** Rows 3, 4 and 5 answer twice. The judge gives a second opinion on row 3 alone, as in M4, which is in the cache. Rows 4 and 5 add no such calls, so the estimate above holds.
+- **The labels.** 15 answers, 7 from row 4 and 8 from row 5, with 3 on questions the docs do not answer, none on the same question twice, from a seed of their own, with all three dimensions to label: `drl eval label <report> --rows 4,5`, then `drl eval calibrate <report> <labels> --rows 4,5`. The latest blind round under the same prompts decides (ADR-0012), so a miss marks the judge uncalibrated for every report under those prompts.
+
 ## Estimates
 
 Made from the index and from M4's recorded costs, with no API call. Prices were checked again on 2026-11-03.

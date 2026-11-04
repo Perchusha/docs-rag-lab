@@ -85,7 +85,7 @@ Defined after seeing the first results, so it is marked as exploratory wherever 
 
 ### 8. Noise
 
-Differences between rows use the same sign test and verdicts as retrieval (ADR-0010). Unlike retrieval, answers have run-to-run noise too. `--noise` answers row 3 a second time and asks the judge a second time about row 3's first answers, so a report says how far a row differs from itself and how often the judge repeats its grade. A difference between rows that a row also shows against itself means nothing.
+Differences between rows use the same sign test and verdicts as retrieval (ADR-0010). Unlike retrieval, answers have run-to-run noise too. `--noise` answers row 3 a second time and asks the judge a second time about row 3's first answers, so a report says how far a row differs from itself and how often the judge repeats its grade. A difference between rows that a row also shows against itself means nothing. ADR-0014 adds rows 4 and 5 to what `--noise` answers twice. The judge's second opinion stays on row 3.
 
 ## Measured
 
