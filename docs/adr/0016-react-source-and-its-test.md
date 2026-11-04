@@ -1,0 +1,148 @@
+# ADR-0016: The React source, and what M6 tests on it
+
+- Status: accepted as the test, before any React index, question or answer exists.
+- Date: 2026-11-04
+- Milestone: M6
+
+## Context
+
+M6 adds React through `/add-source`, with an app and a golden set of its own, under the lighter process of ADR-0015. This ADR fixes the test first, so that the result cannot shape what counts as success. Anything not written here is a separate hypothesis, written down first. The owner approved this plan on 2026-11-04.
+
+## What is measured
+
+| Row | Retrieval | Answers |
+|---|---|---|
+| 0, Claude without RAG | none | once |
+| 2, vector | yes | once |
+| 3, hybrid | yes | twice |
+| 4, hybrid + rerank | yes | twice |
+
+- **One index, at one pinned docs commit:** the head of `reactjs/react.dev` when the first full sync runs.
+- **Nothing is tuned.** Prompts, models, RRF, list depth and rerank depth stay as they are. A change to any of them is a new hypothesis.
+- **No row 5.** On TypeScript the Haiku contexts added nothing significant on chunks that already carry their headings (ADR-0014), and React's chunks carry theirs the same way.
+- **No row 1 or row 6.** Row 1 has never been measured, and row 6 is M9.
+- **One named report,** with retrieval and answers in it.
+- **React's numbers and TypeScript's are never compared.** They are different questions on different docs.
+
+## The golden set
+
+| Group | Questions | Tags |
+|---|---|---|
+| Fresh, in English | 9 | `fresh`, and others that fit |
+| Fresh, in Russian | 1 | `fresh`, `cross-lingual` |
+| In Russian | 2 | `cross-lingual`, and others that fit |
+| Others | 4 | `basic`, `edge`, `exact-token` or `version` |
+| The docs do not answer | 4, at least one with a false premise | `unanswerable` |
+
+That is 16 answerable and 4 not, by the owner's decision. Ten fresh questions are there so that the `fresh` tag can show something: with 6, only 6 to 0 could be significant. With 10, so can 9 to 1, 8 to 1 and 6 to 0 with 4 tied, while 8 to 2 cannot.
+
+### The walk that picks the fresh questions
+
+Fresh questions are picked strictly by the docs' own dates, never by whether row 0 gets them wrong, which would bias the result. So the picking is mechanical, and there is no window to choose:
+
+1. At the pinned commit, list every indexed page and every heading with the date of the commit that first added it, by git history, following renames. Newest first. Ties go in path order, then document order.
+2. Go down the list. Each page or heading gives at most one question, tagged `fresh`, until there are 10.
+3. Skip an entry only for one of three reasons, and record it: it was moved or reworded and is not new; it holds no fact that one passage can check; or it is the same feature as a question already taken.
+4. The fifth question of the walk is the one asked in Russian, so that this choice does not depend on the question either.
+5. The walk, with each skip and its reason, is committed with the draft.
+
+If the survey of the docs finds that pages state dates of their own, those dates replace the commit's, and this section says so before the walk runs. Fresh means newest in these docs. It does not mean past the answering model's training cutoff, and how far back the tenth question goes is reported. If row 0 knows all of them, that is the result.
+
+### Drafting and freezing
+
+- **From the docs' text only.** No `drl search` and no `drl ask` while drafting: anchors found by looking at what the retrievers return favour those retrievers (ADR-0009).
+- **Flags** are ADR-0015's. The copied wording is checked by a script as well as by reading: a run of 4 or more words shared with a heading or the anchored passage, or a whole heading, counts. A single identifier such as `useState` does not.
+- **Frozen before any row answers.** After the owner has reviewed the flagged questions, `drl eval check --accept` writes the lock, the set is version 1 in ADR-0009's changelog, and the rule for changing a frozen set applies.
+- **No `targets.json`.** Set-level criteria decide, and this set has no per-question targets (ADR-0014).
+
+**What this weighting does.** Ten of the 16 answerable questions come from the newest parts of the docs. So the overall numbers describe a set weighted towards new pages, not the docs at large, and the README says so beside them.
+
+## Hypotheses
+
+All on primary anchors or on the 16 answerable questions, with the verdicts the reports already give (ADR-0010).
+
+### R1: does RAG beat Claude's memory on the newest docs?
+
+Row 3 against row 0, on fully correct, on the `fresh` tag.
+
+**Shown if** the verdict names row 3 and its margin passes twice row 3's own run-to-run count on that tag, ADR-0013's rule. The split and the ties are reported either way, with "may run high" beside them, and so is the same comparison on all 16.
+
+It decides what the README may say, and nothing else.
+
+### R2: does rerank repeat its retrieval gain on other docs?
+
+Hybrid against rerank, on all 16.
+
+**Repeated if** the verdict names rerank on both MRR and hit@1, and on each of hit@1, hit@3, hit@5, hit@8, recall@8 and MRR hybrid wins by at most 2 questions net and the verdict is not `mixed`. Any question whose anchor leaves the top 8 is named, even within noise.
+
+It decides nothing for the chat. Vector against hybrid is reported the same way, and decides nothing either.
+
+### R3: does that reach the answers?
+
+Row 3 against row 4, on fully correct, all citations hold and wrongly refused.
+
+**Reached if** a verdict names row 4 and its margin passes twice the larger run-to-run count of the two rows. Then the work stops and the owner is asked, since the reason the chat stays on hybrid would be open again. Otherwise hybrid stays, for this app too. Correct and grounded stays exploratory and decides nothing.
+
+## The spot check of the judge
+
+The prompts and the model do not change, so there is no calibration round (ADR-0015). The owner labels 10 answers blind, from a seed of their own: 3 from row 0, 4 from row 3 and 3 from row 4, 2 of them on questions the docs do not answer, with none on the same question twice.
+
+- **It passes with at most one disagreement on each dimension it compares,** which is what ADR-0012's bar allows at 8 and at 12 compared.
+- **A miss stops the work,** and the owner is asked. The prompt does not change without the owner.
+- **It has a file of its own,** `<report>-spot-check.json`, which `judgeTrust` does not read, so it decides nothing for TypeScript's reports and does not enter their count of disagreements. React's report says that the judge was calibrated on TypeScript's answers and spot-checked here, and which way any disagreement leans.
+- **The labels are committed at once,** under `eval/labels/react/`. M5's were nearly lost.
+
+## What stops the work
+
+The owner approved up to $10 of Claude for M6 with no separate stop before the answers. A pilot of 5 questions comes first, and the estimate still prints before anything is spent. The work stops, and the owner is asked, if:
+
+- **Hybrid has the right chunk in its top 8 on fewer than 12 of the 16.** Before any answer, look for a fault in the parser or the chunks first. The set does not change because of a ranking.
+- **The forecast for M6 passes $10.**
+- **Voyage rejects a call,** by ADR-0014's rules. The only fallback stays a depth of 15.
+- **The spot check misses,** or **R3 is reached.**
+
+## Integrity checks
+
+These come first. If one fails, the numbers are not read as a result.
+
+1. **TypeScript stays as it is.** After each PR that changes shared code and at the end, `drl eval verify` on `2026-11-04-6b2d15f7-final` says byte for byte, and the plain index's sha256 still starts `403465a8`. The TypeScript parser and the chunker do not change.
+2. **What the dashboard builds for every TypeScript report is unchanged,** apart from what a PR says it adds.
+3. **The lock comes first.** The commit that freezes the set is an ancestor of the commit the report stamps.
+4. **React's report reproduces:** `drl eval verify` says byte for byte.
+5. **Every cited text is in that chunk's text,** as ADR-0014's check 7.
+
+## What this needs built
+
+**In the harness, before React:**
+- `drl eval` embeds the queries in one batch before it plans its rerank calls, as a run does, and says so. Today it searches question by question, before its estimate (journal, open items for M6).
+- A report reads the judge's rounds for its prompts and model from every source's folder, not only its own.
+- `drl eval label` and a new command for the spot check, as above.
+
+**The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and this ADR records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
+
+**`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes.
+
+**Not built in M6,** by the owner's decision: the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app`. M6's acceptance needs none of them, and the same commands run by hand.
+
+## Estimates
+
+From M5's measured costs, with no API call: $0.0043 per answer in row 0, and $0.038 per answer with its judge in the rows that read docs.
+
+| Item | Estimate |
+|---|---|
+| Row 0, 20 answers and their judge | about $0.40 |
+| Row 2, 20 answers and their judge | about $0.77 |
+| Row 3, 40 answers and their judge, and the judge's second opinion | about $1.84 |
+| Row 4, 40 answers and their judge | about $1.53 |
+| **Claude, in all** | **about $5**, with a limit of $10 |
+| Voyage embeddings, about 0.8M tokens (SPEC section 8) | 80 to 100 minutes, inside the free tokens |
+| Voyage rerank, 20 calls | 20 to 25 minutes, inside the free tokens |
+
+## Alternatives considered
+
+- **6 fresh questions, as first proposed.** Only 6 to 0 could be significant. The owner chose 10.
+- **Picking fresh questions by what row 0 gets wrong.** It would make R1 true by construction.
+- **A date window, or the answering model's training cutoff as the line.** A window is a number someone chooses after looking at the docs, and a cutoff picks by what the model is said to know, which is a step towards picking by row 0. A walk from the newest has no number to choose.
+- **Row 5 on React.** It would cost about $0.45 of Haiku, by size, and more than an hour of embeddings, for a result M5 gives no reason to expect.
+- **Copying the handlers into a second app, or one app with two configs.** The first duplicates logic and its tests. The second is not what SPEC section 4 describes, and M8's app reads two indexes anyway.
+- **Moving the handlers into `core`.** It needs no new package or rule, but it puts HTTP in the engine.
