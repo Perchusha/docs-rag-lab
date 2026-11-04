@@ -47,7 +47,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 `.claude/settings.json` runs the hooks in `tooling/claude-hooks` (ADR-0002):
 - before a tool call, block anything that names a `.env*` file, and file-tool writes to `data/` or `.cache/`;
 - after an edit, run lint, typecheck and depcruise for that package;
-- before stopping, run tests and depcruise for packages changed since HEAD. This also covers edits made through the shell.
+- before stopping, run tests and depcruise for packages changed since HEAD, and always the ts-docs tests, whose globals check covers every app. This also covers edits made through the shell.
 
 When a hook reports an error, fix the cause. Never weaken the hook or the rule. The guard matches text, so do not name `.env*` files in commands or commit messages at all.
 
@@ -80,7 +80,7 @@ A task is done when all of these hold:
 - Propose new dependencies in the plan, with a reason. Prefer small, well-maintained ones. Check current versions on npm instead of guessing.
 - Keep commits small, with conventional commit messages.
 - Every commit must pass typecheck on its own, not just the branch head. Put a type before its consumers, or both in one commit. Run the per-commit check (Commands) before pushing.
-- Before committing a milestone, run the `code-reviewer` subagent (once it exists).
+- Before committing a milestone, run the `code-reviewer` subagent.
 
 ## Never
 

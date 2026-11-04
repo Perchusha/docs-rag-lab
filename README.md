@@ -156,7 +156,7 @@ The Claude Code setup is part of the project, and it is kept small and real.
     - It matches text, so it cannot see through shell globs such as `cat .e*`.
     - The permission deny rules in the same file are a second layer.
   - **PostToolUse** runs lint, typecheck and the boundary check for the package Claude just edited. Errors go straight back to Claude. It takes about 2.7s per edit for most packages and a median of 4.5s for ui, whose type-aware React lint is the slowest (1-2s when cached).
-  - **Stop** runs the tests and the boundary check for changed packages before Claude finishes. For ui that includes every story in Chromium, with axe. This also covers edits made through the shell, which skip PostToolUse. It blocks once, then only warns, so it cannot loop.
+  - **Stop** runs the tests and the boundary check for changed packages before Claude finishes, and always the ts-docs tests, whose check of the global stylesheet covers every app. For ui that includes every story in Chromium, with axe. This also covers edits made through the shell, which skip PostToolUse. It blocks once, then only warns, so it cannot loop.
 - **Proof:** each hook catching a deliberate mistake, and CI failing on a boundary violation, are recorded with links in [docs/journal.md](docs/journal.md).
 
 ## License

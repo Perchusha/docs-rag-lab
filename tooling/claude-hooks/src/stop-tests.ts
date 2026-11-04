@@ -20,8 +20,10 @@ try {
   if (!isOnPath('pnpm')) exitWithHookProblem('stop-tests', 'pnpm is not on PATH')
 
   // Before the first commit there is no HEAD to compare with: run everything.
+  // ts-docs always runs, since its globals check covers every app, and a change
+  // to only another app's styles would not select it.
   const hasHead = runCommand('git rev-parse --verify --quiet HEAD', projectDir).ok
-  const filter = hasHead ? ' "--filter=...[HEAD]"' : ''
+  const filter = hasHead ? ' "--filter=...[HEAD]" --filter=@docs-rag-lab/ts-docs' : ''
   const result = runCommand(
     `pnpm turbo run test${filter} --output-logs=errors-only --no-color`,
     projectDir,
