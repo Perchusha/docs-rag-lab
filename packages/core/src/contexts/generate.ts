@@ -26,7 +26,7 @@ export interface ContextDocument {
 }
 
 /** The repository holds no em dash in any text (CLAUDE.md), and these lines are committed. */
-const EM_DASH = /—/g
+const EM_DASH = new RegExp(String.fromCodePoint(0x2014), 'g')
 
 function documentTextOf(document: ContextDocument): string {
   return document.chunks.map((chunk) => chunk.text).join('\n\n')
