@@ -1,7 +1,7 @@
 // The retrieval inspector (SPEC section 13, M3): how the context of an answer
-// was chosen. The query and the timings, then four tabs: fusion, the candidate
-// lists, the context as sent, and the chunk boundaries of the selected chunk's
-// document.
+// was chosen. The query and the timings, then the tabs: fusion, the candidate
+// lists, the context as sent, the chunk boundaries of the selected chunk's
+// document, and on demand what the reranker would change.
 import { LIST_NAMES, type Citation, type RetrievalTrace } from '@docs-rag-lab/contracts'
 
 import common from '../lib/common.module.css'
@@ -13,9 +13,10 @@ import { DocumentView } from './DocumentView.tsx'
 import { FusionView, LIST_LABELS } from './FusionView.tsx'
 import styles from './Inspector.module.css'
 import { ListsView } from './ListsView.tsx'
+import { RerankView, type RerankComparison } from './RerankView.tsx'
 import { Tabs } from './Tabs.tsx'
 
-export type InspectorTab = 'fusion' | 'lists' | 'context' | 'document'
+export type InspectorTab = 'fusion' | 'lists' | 'context' | 'document' | 'reranker'
 
 /** The tab a new trace opens on: fusion for hybrid search, the lists for vector search. */
 export function defaultTab(trace: RetrievalTrace): InspectorTab {
@@ -33,6 +34,10 @@ export interface InspectorProps {
   /** A chunk the Context tab scrolls to and focuses once; see ContextView. */
   reveal?: string | undefined
   onRevealed?: (() => void) | undefined
+  /** What the reranker would change, for a host that can ask. Without it there is no such tab. */
+  rerank?: RerankComparison | undefined
+  /** Whether an answer came from the trace shown. */
+  answered?: boolean | undefined
   transport: Transport
 }
 
@@ -147,6 +152,22 @@ export function Inspector(props: InspectorProps) {
                 />
               ),
           },
+          ...(props.rerank === undefined
+            ? []
+            : [
+                {
+                  id: 'reranker' as const,
+                  label: 'Reranker',
+                  panel: (
+                    <RerankView
+                      {...shared}
+                      citations={citations}
+                      comparison={props.rerank}
+                      answered={props.answered === true}
+                    />
+                  ),
+                },
+              ]),
         ]}
       />
     </div>

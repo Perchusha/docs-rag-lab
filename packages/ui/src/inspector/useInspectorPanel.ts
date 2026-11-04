@@ -36,6 +36,8 @@ export interface InspectorPanelState {
 export function useInspectorPanel(options: InspectorPanelOptions): InspectorPanelState {
   const { transport, exchanges, requestFor, focusFallback } = options
   const fresh = useFreshSearch(transport)
+  // Its own search, so that the comparison never replaces the trace it compares.
+  const compare = useFreshSearch(transport)
   const trigger = useRef<HTMLElement | null>(null)
   const [target, setTarget] = useState<number | 'latest' | undefined>(undefined)
   const [strategy, setStrategy] = useState(options.defaultStrategy)
@@ -56,6 +58,7 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
   /** Points the panel at an exchange, from a clean start. */
   const showExchange = (next: number | 'latest', question: string) => {
     fresh.reset()
+    compare.reset()
     setTarget(next)
     setQuery(question)
     setSelected(undefined)
@@ -65,6 +68,7 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
 
   const close = () => {
     fresh.reset()
+    compare.reset()
     setTarget(undefined)
     setReveal(undefined)
     setFocusHeading(false)
@@ -80,8 +84,11 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
     setSelected(undefined)
     setReveal(undefined)
     setTab((current) => (current === 'fusion' ? undefined : current))
+    compare.reset()
     fresh.search(requestFor(question, method))
   }
+
+  const shownTrace = fresh.trace ?? shown?.state.trace
 
   return {
     shown,
@@ -114,7 +121,7 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
       shown === undefined
         ? undefined
         : {
-            trace: fresh.trace ?? shown.state.trace,
+            trace: shownTrace,
             answerTrace: shown.state.trace,
             usage: shown.state.usage,
             citations: shown.state.citations,
@@ -139,6 +146,20 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
             focusHeading,
             onHeadingFocused: headingFocused,
             onClose: close,
+            rerank: {
+              trace: compare.trace,
+              running: compare.searching,
+              error: compare.error,
+              onCompare: () => {
+                if (shownTrace === undefined) return
+                // What the panel shows, whatever the field or the page's filter now say.
+                compare.search({
+                  ...requestFor(shownTrace.question, 'rerank'),
+                  docTypes: shownTrace.filters.docTypes,
+                })
+              },
+              onStop: compare.reset,
+            },
             transport,
           },
   }

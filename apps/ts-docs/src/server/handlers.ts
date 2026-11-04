@@ -12,6 +12,7 @@ import {
   IndexNotFoundError,
   InvalidRequestError,
   MissingKeyError,
+  RerankRejectedError,
   UnknownSourceError,
   UsageMeter,
   type Engine,
@@ -39,6 +40,13 @@ function statusOf(error: unknown): number {
  * never its value (ADR-0007), and this app listens on 127.0.0.1 only.
  */
 export function errorResponse(error: unknown): Response {
+  if (error instanceof RerankRejectedError) {
+    const said =
+      error.status === 429
+        ? 'Voyage did not take this rerank call, which on the free trial is usually its limit per minute: try again in a minute'
+        : `Voyage refused this rerank call (${String(error.status)})`
+    return Response.json({ error: said }, { status: 503 })
+  }
   const status = statusOf(error)
   if (status === 500 && !(error instanceof MissingKeyError)) console.error(error)
   return Response.json({ error: messageOf(error) }, { status })
@@ -78,6 +86,13 @@ export async function handleSearch(engine: EngineFactory, request: Request): Pro
 export async function handleAsk(engine: EngineFactory, request: Request): Promise<Response> {
   const parsed = await requestOf(request)
   if (parsed instanceof Response) return parsed
+  // A rate-limited dependency stays out of the chat (ADR-0014). Search can still ask for it.
+  if (parsed.strategy === 'rerank') {
+    return Response.json(
+      { error: 'the chat does not rerank (ADR-0014): compare with rerank in the inspector' },
+      { status: 400 },
+    )
+  }
 
   const encoder = new TextEncoder()
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined

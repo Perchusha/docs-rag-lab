@@ -36,6 +36,114 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
+const asked = {
+  trace: undefined,
+  running: false,
+  error: undefined,
+  onCompare: fn(),
+  onStop: fn(),
+}
+
+/** Before it is asked for: what it costs, and that it changes nothing else. */
+export const RerankerNotAsked: Story = {
+  args: { rerank: asked, tab: 'reranker' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(
+      canvas.getByText('What the reranker would change.').parentElement,
+    ).toHaveTextContent(
+      'One Voyage call on the free trial, up to about a minute, with no Claude call. It changes neither this answer nor your next question.',
+    )
+    await expect(canvas.queryByRole('table')).toBeNull()
+    // It is a comparison and no method, so the toggle does not offer it.
+    await expect(
+      canvas.getAllByRole('radio').map((radio) => radio.parentElement?.textContent),
+    ).toEqual(['Hybrid', 'Vector'])
+    asked.onCompare.mockClear()
+    await userEvent.click(canvas.getByRole('button', { name: 'Compare with rerank' }))
+    await expect(asked.onCompare).toHaveBeenCalledOnce()
+  },
+}
+
+export const RerankerWaiting: Story = {
+  args: { rerank: { ...asked, running: true }, tab: 'reranker' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const statuses = canvas.getAllByRole('status').map((status) => status.textContent)
+    await expect(statuses).toContain(
+      'Reranking, with no Claude call. On the free trial this can take a minute.',
+    )
+    await expect(canvas.queryByRole('button', { name: 'Compare with rerank' })).toBeNull()
+    asked.onStop.mockClear()
+    await userEvent.click(canvas.getByRole('button', { name: 'Stop waiting' }))
+    await expect(asked.onStop).toHaveBeenCalledOnce()
+  },
+}
+
+/** A real trace of ts-0033: where each chunk would go, and what crosses the line. */
+export const RerankerResult: Story = {
+  args: { rerank: { ...asked, trace: traces.satisfiesRerank }, tab: 'reranker' },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(
+      canvas.getByText(
+        '2 chunks would come into the top 8, and 2 would leave. The answer above stays as it is.',
+      ),
+    ).toBeVisible()
+    const rows = within(canvas.getByRole('table', { name: 'What the reranker would change' }))
+      .getAllByRole('row')
+      .slice(1)
+    // Twenty scored, and the line that says what goes to an answer.
+    await expect(rows).toHaveLength(21)
+    await expect(rows[1]).toHaveTextContent(/^24/)
+    await expect(rows[8]).toHaveTextContent('The top 8 go to an answer')
+    await expect(rows[6]).toHaveTextContent('came in')
+    await expect(rows[9]).not.toHaveTextContent('came in')
+    await expect(rows[10]).toHaveTextContent('left')
+    await expect(
+      canvas.getByText(/scored the fused top 20 in one call, from the cache/),
+    ).toBeVisible()
+    await expect(canvas.queryByRole('button', { name: 'Compare with rerank' })).toBeNull()
+    // Selecting a chunk works as on the other tabs.
+    const chunk = within(rows[0] ?? document.body).getByRole('button')
+    await userEvent.click(chunk)
+    await expect(args.onSelectChunk).toHaveBeenCalled()
+  },
+}
+
+export const RerankerFailed: Story = {
+  args: { rerank: { ...asked, error: 'Voyage did not take this rerank call.' }, tab: 'reranker' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const statuses = canvas.getAllByRole('status').map((status) => status.textContent)
+    await expect(statuses).toContain('Error: Voyage did not take this rerank call.')
+    await expect(canvas.getByRole('button', { name: 'Compare with rerank' })).toBeVisible()
+  },
+}
+
+/** The reranker reads the fused ranking, which a vector search does not have. */
+export const RerankerOnVector: Story = {
+  args: {
+    trace: traces.satisfiesVector,
+    answerTrace: traces.satisfiesVector,
+    strategy: 'vector',
+    rerank: asked,
+    tab: 'reranker',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText(/compare from a hybrid search/)).toBeVisible()
+    await expect(canvas.queryByRole('button', { name: 'Compare with rerank' })).toBeNull()
+  },
+}
+
+/** A host that gives no way to ask has no such tab. */
+export const NoRerankerTab: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).queryByRole('tab', { name: 'Reranker' })).toBeNull()
+  },
+}
+
 /** The answer's own trace. The jargon lives here: the method, the tokens and the cost. */
 export const AnswerTrace: Story = {
   play: async ({ args, canvasElement }) => {
