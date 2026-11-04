@@ -40,7 +40,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Rate limits of embeddings and rerank: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
-- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call; `/eval` is the dashboard, which only reads committed reports)
+- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
 `drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.
