@@ -977,7 +977,7 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
   const judge =
     report.answers === undefined
       ? null
-      : judgeTrust(report.answers, calibrations, unreadableCalibrations)
+      : judgeTrust(report.answers, calibrations, unreadableCalibrations, report.identity.sourceId)
   const retrieval = rerankRetrieval(report, options.contextual) ?? retrievalSection(report)
   const index = otherIndexWords(report)
   return {
@@ -1240,7 +1240,7 @@ export function buildDashboardDetails(options: BuildDetailsOptions): DashboardDe
   const judge =
     report.answers === undefined
       ? null
-      : judgeTrust(report.answers, calibrations, unreadableCalibrations)
+      : judgeTrust(report.answers, calibrations, unreadableCalibrations, report.identity.sourceId)
   const allRows = allRowsSections(report, judge, contextual)
   return {
     ...(allRows.length === 0 ? {} : { allRows }),

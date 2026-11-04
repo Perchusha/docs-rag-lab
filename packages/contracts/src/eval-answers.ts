@@ -235,6 +235,8 @@ export interface EvalVerifyRecord {
 export interface EvalCalibration {
   /** The report these labels are of. */
   report: { repoSha: string; name: string | null; createdAt: string }
+  /** The source whose answers were labelled. The store fills it in, from the folder it read. */
+  sourceId?: string
   /** False when the judge's prompt changed after the labels were read. It then decides nothing. */
   blind?: boolean
   /** The prompts graded under, so that a change of prompt shows as not calibrated. */

@@ -9,6 +9,7 @@ import {
   isSidecarName,
   listRuns,
   readCalibrations,
+  reportSources,
   readRun,
   readVerifyRecord,
   reportsDir,
@@ -150,7 +151,23 @@ describe('readRun', () => {
 
 describe('sidecars', () => {
   it('reads every calibration, oldest report first', () => {
-    expect(readCalibrations(root, 'demo').rounds.map(({ labelled }) => labelled)).toEqual([1, 2])
+    expect(readCalibrations(root).rounds.map(({ labelled }) => labelled)).toEqual([1, 2])
+  })
+
+  it('reads the calibrations of every source, and notes which each came from', () => {
+    const other = reportsDir(root, 'other')
+    mkdirSync(join(other, 'dev'), { recursive: true })
+    writeFileSync(
+      join(other, '1999-01-01-abcdef12-z-calibration.json'),
+      JSON.stringify({ report: { createdAt: '1999-01-01T00:00:00Z' }, agreement: [], labelled: 7 }),
+    )
+
+    expect(reportSources(root)).toEqual(['demo', 'other'])
+    expect(readCalibrations(root).rounds.map((round) => [round.labelled, round.sourceId])).toEqual([
+      [7, 'other'],
+      [1, 'demo'],
+      [2, 'demo'],
+    ])
   })
 
   it('puts the first round before a later one on the same report, whatever the file order', () => {
@@ -162,9 +179,7 @@ describe('sidecars', () => {
     write('2026-11-03-abcdef12-answers-calibration.json', round(15))
     write('2026-11-03-abcdef12-answers-calibration-fresh.json', round(10))
 
-    expect(readCalibrations(root, 'demo').rounds.map(({ labelled }) => labelled)).toEqual([
-      1, 15, 10,
-    ])
+    expect(readCalibrations(root).rounds.map(({ labelled }) => labelled)).toEqual([1, 15, 10])
   })
 
   it('says which calibration it could not read, and reads the rest', () => {
@@ -174,7 +189,7 @@ describe('sidecars', () => {
     )
     write('2026-11-03-abcdef12-y-calibration.json', { labelled: 3 })
 
-    const { rounds, unreadable } = readCalibrations(root, 'demo')
+    const { rounds, unreadable } = readCalibrations(root)
 
     expect(rounds).toHaveLength(2)
     expect(unreadable).toEqual([

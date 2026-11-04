@@ -87,6 +87,8 @@ export interface DashboardJudge {
   calibrated: boolean
   /** What decides, per dimension, for this report's prompts. Missing means not calibrated. */
   agreement: DashboardAgreement[]
+  /** The other sources whose labels decide, when they are not this report's own (ADR-0015). */
+  calibratedOn?: string[]
   /** Every disagreement on correctness, over all blind rounds. */
   judgeHigher: number
   judgeLower: number

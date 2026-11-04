@@ -872,6 +872,38 @@ describe('drl eval answers', () => {
     expect(out).toContain('correctness may be slightly inflated')
   })
 
+  it("takes the judge's rounds from another source's folder, and says whose answers they were", async () => {
+    const report = readReport(reportPathIn((await drl('eval', 'answers', '--yes')).out))
+    const elsewhere = reportsDir(root, 'elsewhere')
+    mkdirSync(elsewhere, { recursive: true })
+    writeFileSync(
+      join(elsewhere, '2026-11-01-abcdef12-x-calibration.json'),
+      JSON.stringify({
+        report: { repoSha: 'abcdef12', name: 'x', createdAt: '2026-11-01T00:00:00.000Z' },
+        blind: true,
+        prompts: report.answers?.prompts,
+        judgeModel: report.answers?.models.judge,
+        correctnessDisagreements: [],
+        labelled: 15,
+        agreement: ['correctness', 'refusal', 'support'].map((dimension) => ({
+          dimension,
+          compared: 8,
+          agreed: 8,
+          kappa: 1,
+          interval: [0.6, 1],
+          passed: true,
+        })),
+        unanswerableOnly: { compared: 3, agreed: 3 },
+        calibrated: true,
+      }),
+    )
+    clock += 1000
+
+    const { out } = await drl('eval', 'answers', '--yes')
+
+    expect(out).toContain("The judge is calibrated for these prompts, on elsewhere's answers.")
+  })
+
   it('keeps the answers in the JSON, and out of the markdown', async () => {
     const path = reportPathIn((await drl('eval', 'answers', '--yes')).out)
 

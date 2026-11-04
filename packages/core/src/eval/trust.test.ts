@@ -234,6 +234,51 @@ describe('judgeTrust', () => {
   })
 })
 
+describe('rounds labelled on another source', () => {
+  const onTypescript = (overrides: Partial<EvalCalibration> = {}): EvalCalibration =>
+    round({ sourceId: 'typescript', ...overrides })
+  const onReact = (rounds: EvalCalibration[]) =>
+    judgeTrust({ prompts: PROMPTS, models: MODELS }, rounds, [], 'react')
+
+  it('decide for a report under the same prompts and model, and say whose answers they were', () => {
+    const trust = onReact([onTypescript()])
+
+    expect(trust.calibrated).toBe(true)
+    expect(trust.calibratedOn).toEqual(['typescript'])
+    expect(trust.rounds.map(({ name }) => name)).toEqual(['First round, on typescript'])
+    expect(judgeSentence(trust)).toBe(
+      "The judge is calibrated for these prompts, on typescript's answers.",
+    )
+  })
+
+  it('say that the lean they found is from there', () => {
+    const trust = onReact([onTypescript({ correctnessDisagreements: [disagreement(1, 2)] })])
+
+    expect(trust.note).toBe('may run high')
+    expect(trust.bias).toBe(
+      "The 1 disagreement is the judge scoring higher than the human: correctness may be slightly inflated. That is on typescript's answers.",
+    )
+  })
+
+  it('still do not decide under other prompts', () => {
+    const other = onTypescript({ prompts: { ...PROMPTS, correctness: 'another prompt' } })
+
+    expect(onReact([other])).toMatchObject({ calibrated: false })
+  })
+
+  it('leave a report on the same source as it was', () => {
+    const trust = judgeTrust(
+      { prompts: PROMPTS, models: MODELS },
+      [onTypescript({ correctnessDisagreements: [disagreement(1, 2)] })],
+      [],
+      'typescript',
+    )
+
+    expect(trust).toEqual(judge([round({ correctnessDisagreements: [disagreement(1, 2)] })]))
+    expect(trust).not.toHaveProperty('calibratedOn')
+  })
+})
+
 describe('judgeSentence', () => {
   it('says calibrated, with the bias', () => {
     expect(judgeSentence(judge([round({ correctnessDisagreements: [disagreement(1, 2)] })]))).toBe(

@@ -220,6 +220,7 @@ export {
   isSidecarName,
   listRuns,
   readCalibrations,
+  reportSources,
   readRun,
   readVerifyRecord,
   reportsDir,

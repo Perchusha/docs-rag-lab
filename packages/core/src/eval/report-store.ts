@@ -94,26 +94,40 @@ export function listRuns(root: string, sourceId: string): DashboardRunList {
   return { runs, unreadable }
 }
 
+/** Every source with a folder of reports. */
+export function reportSources(root: string): string[] {
+  const dir = join(root, 'eval', 'reports')
+  if (!existsSync(dir)) return []
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map(({ name }) => name)
+    .sort()
+}
+
 export interface CalibrationFiles {
   rounds: EvalCalibration[]
   unreadable: string[]
 }
 
 /**
- * Every calibration of a source, oldest first: by report, and on one report by file, where the
- * first round's name is the start of a later one's. The order is what lets the latest decide.
+ * Every calibration of every source, oldest first: by report, and on one report by file, where the
+ * first round's name is the start of a later one's. The order is what lets the latest decide. They
+ * are about the judge and not the docs, so a report takes the rounds of its prompts and model from
+ * wherever they were labelled (ADR-0015), and the store notes which source that was.
  */
-export function readCalibrations(root: string, sourceId: string): CalibrationFiles {
+export function readCalibrations(root: string): CalibrationFiles {
   const read: { stem: string; round: EvalCalibration }[] = []
   const unreadable: string[] = []
-  for (const name of jsonFiles(root, sourceId).filter((file) => CALIBRATION.test(file))) {
-    const stem = name.slice(0, -'.json'.length)
-    try {
-      const parsed = parseEvalCalibration(readJson(join(reportsDir(root, sourceId), name)))
-      if (parsed.ok) read.push({ stem, round: parsed.value })
-      else unreadable.push(stem)
-    } catch {
-      unreadable.push(stem)
+  for (const sourceId of reportSources(root)) {
+    for (const name of jsonFiles(root, sourceId).filter((file) => CALIBRATION.test(file))) {
+      const stem = name.slice(0, -'.json'.length)
+      try {
+        const parsed = parseEvalCalibration(readJson(join(reportsDir(root, sourceId), name)))
+        if (parsed.ok) read.push({ stem, round: { ...parsed.value, sourceId } })
+        else unreadable.push(stem)
+      } catch {
+        unreadable.push(stem)
+      }
     }
   }
   read.sort(

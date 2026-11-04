@@ -116,7 +116,7 @@ function contextualRetrieval(
 
 export function loadDashboardRun(store: DashboardStore, id: string): DashboardRun {
   const { root, sourceId, dataDir } = store
-  const { rounds, unreadable } = readCalibrations(root, sourceId)
+  const { rounds, unreadable } = readCalibrations(root)
   const report = readRun(root, sourceId, id)
   return buildDashboardRun({
     id,
@@ -131,7 +131,7 @@ export function loadDashboardRun(store: DashboardStore, id: string): DashboardRu
 
 export function loadDashboardDetails(store: DashboardStore, id: string): DashboardDetails {
   const { root, sourceId } = store
-  const { rounds, unreadable } = readCalibrations(root, sourceId)
+  const { rounds, unreadable } = readCalibrations(root)
   const report = readRun(root, sourceId, id)
   return buildDashboardDetails({
     report,

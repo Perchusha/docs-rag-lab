@@ -30,6 +30,7 @@ import {
   NOISE_ROWS,
   readCalibrations,
   readRun,
+  reportSources,
   judgeCases,
   judgeRetest,
   noRagSystemPrompt,
@@ -338,9 +339,9 @@ export async function evalAnswersCommand(
       verdicts,
       support,
     }
-    const calibrations = readCalibrations(ctx.root, source.id)
+    const calibrations = readCalibrations(ctx.root)
     const judgeLine = judgeSentence(
-      judgeTrust(section, calibrations.rounds, calibrations.unreadable),
+      judgeTrust(section, calibrations.rounds, calibrations.unreadable, source.id),
     )
     const failures =
       answers.filter(({ status }) => status === 'failed').length +
@@ -575,36 +576,42 @@ export function evalCalibrateCommand(
   const text = formatCalibration(calibration)
   writeFileSync(`${stem}.md`, text)
   ctx.out.write(text)
-  rewriteAnswerMarkdown(ctx, source.id)
-  const calibrations = readCalibrations(ctx.root, source.id)
+  rewriteAnswerMarkdown(ctx)
+  const calibrations = readCalibrations(ctx.root)
   const named = listRuns(ctx.root, source.id).runs.some(
     ({ id }) => id === basename(args.path, '.json'),
   )
   ctx.out.write(
     named
-      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable))}\n`
+      ? `\n${judgeSentence(judgeTrust(answers, calibrations.rounds, calibrations.unreadable, source.id))}\n`
       : '\nThis is a development report, so these labels count for no report the store reads.\n',
   )
 }
 
 /**
  * What a report's markdown says of the judge depends on the labels, which come after the report,
- * so new labels write it again (ADR-0013). The JSON, which is the record, is not touched.
+ * so new labels write it again, on every source (ADR-0013). The JSON, which is the record, is not
+ * touched.
  */
-function rewriteAnswerMarkdown(ctx: CommandContext, sourceId: string): void {
-  const { rounds, unreadable } = readCalibrations(ctx.root, sourceId)
-  for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
-    if (!hasAnswers) continue
-    try {
-      writeFileSync(
-        join(reportsDir(ctx.root, sourceId), `${id}.md`),
-        reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
-          answerSections(answers, judgeSentence(judgeTrust(answers, rounds, unreadable))),
-        ),
-      )
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+function rewriteAnswerMarkdown(ctx: CommandContext): void {
+  const { rounds, unreadable } = readCalibrations(ctx.root)
+  for (const sourceId of reportSources(ctx.root)) {
+    for (const { id, hasAnswers } of listRuns(ctx.root, sourceId).runs) {
+      if (!hasAnswers) continue
+      try {
+        writeFileSync(
+          join(reportsDir(ctx.root, sourceId), `${id}.md`),
+          reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
+            answerSections(
+              answers,
+              judgeSentence(judgeTrust(answers, rounds, unreadable, sourceId)),
+            ),
+          ),
+        )
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error)
+        ctx.out.write(`\ncould not write ${id}.md again: ${reason}\n`)
+      }
     }
   }
 }
