@@ -15,10 +15,13 @@ export interface ContextChunk {
   id: string
   text: string
   textHash: string
+  /** The section the chunk starts in. */
+  sectionPath: readonly string[]
 }
 
 export interface ContextDocument {
   path: string
+  title: string
   chunks: readonly ContextChunk[]
 }
 

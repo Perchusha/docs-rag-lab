@@ -10,7 +10,7 @@ import {
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
-  checkContextualIndex,
+  checkVariantIndex,
   createEmbeddingProvider,
   createRerankProvider,
   GoldenSetError,
@@ -18,6 +18,7 @@ import {
   RateLimiter,
   syncSource,
   type EmbeddingProvider,
+  type IndexVariant,
   type OpenIndexes,
   type SyncSourceOptions,
   type AnchorIndex,
@@ -169,27 +170,37 @@ function reportGoldenSet(ctx: CommandContext, sourceId: string, index: AnchorInd
 /** `drl eval check`: the golden set against the index. No API calls. */
 export function evalCheckCommand(
   ctx: CommandContext,
-  args: { source: string; accept: boolean; setVersion: number | undefined; contextual: boolean },
+  args: {
+    source: string
+    accept: boolean
+    setVersion: number | undefined
+    variant: IndexVariant | undefined
+  },
 ): void {
   const { out, root } = ctx
   const source = findSource(ctx.sources, args.source)
-  if (args.contextual && args.accept) {
+  const { variant } = args
+  if (variant !== undefined && args.accept) {
     throw new CliError(
-      '--accept records the lock from the plain index, so it takes no --contextual',
+      `--accept records the lock from the plain index, so it takes no --${variant}`,
     )
   }
   const dataDir = join(root, ctx.settings.dataDir)
-  const indexes = openIndexes(dataDir, source.id, { create: false, contextual: args.contextual })
+  const indexes = openIndexes(dataDir, source.id, { create: false, variant })
   try {
-    if (args.contextual) {
+    if (variant !== undefined) {
       const plain = openIndexes(dataDir, source.id, { create: false })
       try {
-        const { chunks, contexts, problems } = checkContextualIndex(plain.index, indexes.index)
+        const { chunks, contexts, problems } = checkVariantIndex(
+          plain.index,
+          indexes.index,
+          variant,
+        )
         if (problems.length > 0) {
-          throw new CliError(`the contextual index differs:\n${problems.join('\n')}`)
+          throw new CliError(`the ${variant} index differs:\n${problems.join('\n')}`)
         }
         out.write(
-          `the contextual index holds the plain index's ${count(chunks)} chunks, at its commit, with ${count(contexts)} contexts\n`,
+          `the ${variant} index holds the plain index's ${count(chunks)} chunks, at its commit, with ${count(contexts)} contexts\n`,
         )
       } finally {
         plain.close()

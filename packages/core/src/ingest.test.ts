@@ -10,8 +10,9 @@ import { openDatabase } from '@docs-rag-lab/db'
 import { git, type Source } from '@docs-rag-lab/source-kit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CONTROL_IDENTITY, controlContexts, headingPrefix } from './contexts/control.ts'
 import type { ContextDocument } from './contexts/generate.ts'
-import { contextualIndexPath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
+import { openIndexes, sourceIndexPath, variantIndexPath, type OpenIndexes } from './indexes.ts'
 import { contextDocumentsAt, syncSource, type SyncReport } from './ingest.ts'
 import { demoSource, fakeVector, paragraph, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
@@ -123,7 +124,7 @@ describe('a contextual sync', { timeout: 60_000 }, () => {
   let contextual: OpenIndexes | undefined
 
   function contextualIndexes(): OpenIndexes {
-    contextual ??= openIndexes(dataDir, source.id, { contextual: true })
+    contextual ??= openIndexes(dataDir, source.id, { variant: 'contextual' })
     return contextual
   }
 
@@ -190,7 +191,7 @@ describe('a contextual sync', { timeout: 60_000 }, () => {
     contextual = undefined
 
     expect(readFileSync(plainPath).equals(before)).toBe(true)
-    expect(existsSync(contextualIndexPath(dataDir, source.id))).toBe(true)
+    expect(existsSync(variantIndexPath(dataDir, source.id, 'contextual'))).toBe(true)
   })
 
   it('reads every chunk again, and embeds nothing when nothing changed', async () => {
@@ -249,6 +250,35 @@ describe('a contextual sync', { timeout: 60_000 }, () => {
     expect(seen.find(({ path }) => path === 'docs/a.md')?.chunks.map(({ id }) => id)).toEqual(
       doc?.chunks.map(({ chunkId }) => chunkId),
     )
+  })
+
+  it('builds the control the same way, from the chunks headings and with no call', async () => {
+    await commit('initial')
+    const provider = new RecordingProvider()
+    const control = openIndexes(dataDir, source.id, { variant: 'control' })
+    try {
+      await syncSource({
+        source,
+        provider,
+        index: control.index,
+        cache: control.cache,
+        checkoutDir,
+        meter: new UsageMeter(),
+        contexts: {
+          identity: CONTROL_IDENTITY,
+          resolve: (documents) => Promise.resolve(controlContexts(documents)),
+        },
+      })
+      const doc = control.index.documentChunks('docs/a.md')
+      const first = doc?.chunks[0]
+      expect(first?.context).toBe(headingPrefix('Doc A', ['First']))
+      expect(doc?.chunks[1]?.context).toBe(headingPrefix('Doc A', ['Second']))
+      expect(provider.embedded).toContain(`${first?.context ?? ''}\n\n${first?.text ?? ''}`)
+      expect(control.index.getManifest()?.contextModel).toBe('heading-prefix:1')
+      expect(existsSync(variantIndexPath(dataDir, source.id, 'contextual'))).toBe(false)
+    } finally {
+      control.close()
+    }
   })
 
   it('reads the same documents without any index, for the estimate', async () => {

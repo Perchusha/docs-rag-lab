@@ -10,8 +10,8 @@ import { pathToFileURL } from 'node:url'
 import {
   contextPromptHash,
   contextsPath,
-  contextualIndexPath,
   sourceIndexPath,
+  variantIndexPath,
   type EmbeddingProvider,
   type EvalClient,
   type Source,
@@ -211,7 +211,7 @@ describe('drl sync --contextual', () => {
       expect(out).toContain(`at docs commit ${commitSha.slice(0, 8)}: add --yes`)
       expect(claudeCalls).toEqual([])
       expect(embedded).toEqual([])
-      expect(existsSync(contextualIndexPath(dataDir(), 'demo'))).toBe(false)
+      expect(existsSync(variantIndexPath(dataDir(), 'demo', 'contextual'))).toBe(false)
       expect(existsSync(contextsFile())).toBe(false)
     })
 
@@ -266,9 +266,9 @@ describe('drl sync --contextual', () => {
 
     it('rebuilds a lost index from the committed file, with no call to Claude', async () => {
       await drl('sync', 'demo', '--contextual', '--yes')
-      rmSync(contextualIndexPath(dataDir(), 'demo'), { force: true })
-      rmSync(`${contextualIndexPath(dataDir(), 'demo')}-wal`, { force: true })
-      rmSync(`${contextualIndexPath(dataDir(), 'demo')}-shm`, { force: true })
+      rmSync(variantIndexPath(dataDir(), 'demo', 'contextual'), { force: true })
+      rmSync(`${variantIndexPath(dataDir(), 'demo', 'contextual')}-wal`, { force: true })
+      rmSync(`${variantIndexPath(dataDir(), 'demo', 'contextual')}-shm`, { force: true })
       claudeCalls = []
 
       expect((await drl('sync', 'demo', '--contextual', '--yes')).code).toBe(0)
@@ -291,7 +291,7 @@ describe('drl sync --contextual', () => {
       expect(out).toContain('20 tokens out per context')
       expect(out).toContain('the forecast for all 3 contexts: about $')
       expect(embedded).toEqual([])
-      expect(existsSync(contextualIndexPath(dataDir(), 'demo'))).toBe(false)
+      expect(existsSync(variantIndexPath(dataDir(), 'demo', 'contextual'))).toBe(false)
       expect(fileLines()).toHaveLength(3)
 
       // What the pilot paid for is kept, so the full run pays only for the rest.
@@ -308,6 +308,35 @@ describe('drl sync --contextual', () => {
       expect(err).toContain('stopped with max_tokens')
       expect(err).not.toContain('DRL_DEBUG')
       expect(fileLines()).toHaveLength(1)
+      expect(embedded).toEqual([])
+    })
+
+    it('builds the control with no call to Claude, and each chunk under its headings', async () => {
+      const plainPath = sourceIndexPath(dataDir(), 'demo')
+      const plain = readFileSync(plainPath)
+
+      const planned = await drl('sync', 'demo', '--control')
+      expect(planned.out).toContain('this would embed 3 texts')
+      expect(planned.out).toContain('with no call to Claude: add --yes')
+      expect(existsSync(variantIndexPath(dataDir(), 'demo', 'control'))).toBe(false)
+      expect(embedded).toEqual([])
+
+      const { code } = await drl('sync', 'demo', '--control', '--yes')
+      expect(code).toBe(0)
+      expect(claudeCalls).toEqual([])
+      expect(existsSync(contextsFile())).toBe(false)
+      expect(embedded).toHaveLength(3)
+      expect(embedded.filter((text) => text.startsWith('A > First\n\n'))).toHaveLength(1)
+      // A chunk that starts at the top of its document is under the title alone.
+      expect(embedded.filter((text) => text.startsWith('B\n\nB\n\n## Only'))).toHaveLength(1)
+      expect(readFileSync(plainPath).equals(plain)).toBe(true)
+      expect(existsSync(variantIndexPath(dataDir(), 'demo', 'contextual'))).toBe(false)
+
+      const check = await drl('eval', 'check', '--control')
+      expect(check.out).toContain("the control index holds the plain index's 3 chunks")
+
+      embedded = []
+      expect((await drl('sync', 'demo', '--control', '--yes')).code).toBe(0)
       expect(embedded).toEqual([])
     })
 
@@ -329,8 +358,15 @@ describe('drl sync --contextual', () => {
     [['sync', 'demo', '--contextual', '--full'], 'no --full or --at'],
     [['sync', 'demo', '--contextual', '--at', 'a'.repeat(40)], 'no --full or --at'],
     [['sync', 'demo', '--pilot', '2'], '--pilot works only with sync --contextual'],
-    [['sync', 'demo', '--yes'], '--yes works with sync only together with --contextual'],
+    [
+      ['sync', 'demo', '--yes'],
+      '--yes works with sync only together with --contextual or --control',
+    ],
     [['search', 'q', '--contextual'], '--contextual works only with sync and eval check'],
+    [['search', 'q', '--control'], '--control works only with sync and eval check'],
+    [['sync', 'demo', '--control', '--contextual'], 'are two different indexes'],
+    [['sync', 'demo', '--control', '--pilot', '2'], '--pilot works only with sync --contextual'],
+    [['sync', 'demo', '--control', '--full'], 'no --full or --at'],
   ])('refuses %j', async (argv, message) => {
     const { code, err } = await drl(...argv)
     expect(code).toBe(2)
@@ -345,5 +381,6 @@ describe('drl sync --contextual', () => {
     expect((await drl('eval', 'check', '--contextual', '--accept')).err).toContain(
       'it takes no --contextual',
     )
+    expect((await drl('eval', '--control')).err).toContain('--control does not apply')
   })
 })

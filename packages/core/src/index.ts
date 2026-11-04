@@ -74,15 +74,17 @@ export {
   type ContextsHeader,
   type StoredContext,
 } from './contexts/store.ts'
-export { checkContextualIndex, type ContextualIndexCheck } from './contexts/check.ts'
+export { checkVariantIndex, type VariantIndexCheck } from './contexts/check.ts'
+export { CONTROL_IDENTITY, controlContexts, headingPrefix } from './contexts/control.ts'
 export { contextualText } from './contexts/text.ts'
 export {
-  contextualIndexPath,
+  variantIndexPath,
   embeddingCachePath,
   IndexNotFoundError,
   openIndexes,
   rerankCachePath,
   sourceIndexPath,
+  type IndexVariant,
   type OpenIndexes,
   type OpenIndexesOptions,
 } from './indexes.ts'

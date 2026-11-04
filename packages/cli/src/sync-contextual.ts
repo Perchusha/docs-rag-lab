@@ -1,11 +1,14 @@
-// drl sync <source> --contextual: the second index of ADR-0014. It is built at the plain index's
-// commit and never writes that index. Contexts come from the committed file first, and Claude
-// writes only what is missing, so that a clean clone can rebuild the index without calling it.
-// This spends money, so it prints the estimate first and needs --yes.
+// drl sync <source> --contextual and --control: the other indexes of ADR-0014. They are built at
+// the plain index's commit and never write that index. Contexts come from the committed file
+// first, and Claude writes only what is missing, so that a clean clone can rebuild the index
+// without calling it. The control's prefixes come from code. Both print an estimate first and
+// need --yes: the contexts spend money, and the embeddings take about an hour.
 import { join } from 'node:path'
 
 import {
   appendContext,
+  CONTROL_IDENTITY,
+  controlContexts,
   contextDocumentsAt,
   contextIdentity,
   contextPromptHash,
@@ -23,6 +26,7 @@ import {
   readIndexCommit,
   sourceIndexPath,
   writeContexts,
+  type ContextChunk,
   type ContextDocument,
   type ContextPlan,
   type ContextsHeader,
@@ -58,16 +62,21 @@ interface Prepared {
   options: PlanContextsOptions
 }
 
+/** The commit of the plain index, and every document as it was there. */
+async function atPlainCommit(ctx: CommandContext, source: Source) {
+  const commit = readIndexCommit(sourceIndexPath(join(ctx.root, ctx.settings.dataDir), source.id))
+  if (commit === null) {
+    throw new CliError(
+      `there is no plain index for ${source.id} yet, and this one is built at its commit: run drl sync ${source.id} first`,
+    )
+  }
+  return { commit, documents: await contextDocumentsAt(source, checkoutDirOf(ctx, source), commit) }
+}
+
 async function prepare(ctx: CommandContext, sourceId: string): Promise<Prepared> {
   const { settings, root } = ctx
   const source = findSource(ctx.sources, sourceId)
-  const commit = readIndexCommit(sourceIndexPath(join(root, settings.dataDir), source.id))
-  if (commit === null) {
-    throw new CliError(
-      `there is no plain index for ${source.id} yet, and the contextual one is built at its commit: run drl sync ${source.id} first`,
-    )
-  }
-  const documents = await contextDocumentsAt(source, checkoutDirOf(ctx, source), commit)
+  const { commit, documents } = await atPlainCommit(ctx, source)
   const model = settings.models.contextualize
   const header: ContextsHeader = {
     version: 1,
@@ -89,19 +98,24 @@ async function prepare(ctx: CommandContext, sourceId: string): Promise<Prepared>
 }
 
 /** The texts a sync would embed that are not in the cache yet, and about how long they take. */
-function embeddingPlan(ctx: CommandContext, prepared: Prepared) {
+function embeddingPlan(
+  ctx: CommandContext,
+  source: Source,
+  documents: readonly ContextDocument[],
+  contextOf: (chunk: ContextChunk) => string | undefined,
+) {
   const { provider } = embeddingsFor(ctx)
-  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), prepared.source.id, {
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, {
     create: false,
   })
   try {
     let estimatedTokens = 0
     let texts = 0
-    for (const { chunks } of prepared.documents) {
+    for (const { chunks } of documents) {
       for (const chunk of chunks) {
-        const known = prepared.known.get(chunk.id)
-        if (known?.textHash === chunk.textHash) {
-          const text = contextualText(known.context, chunk.text)
+        const context = contextOf(chunk)
+        if (context !== undefined) {
+          const text = contextualText(context, chunk.text)
           const key = embeddingCacheKey(provider.id, 'document', text)
           if (indexes.cache.getMany([key]).size > 0) continue
           estimatedTokens += estimateTokens(text)
@@ -206,7 +220,10 @@ export async function syncContextualCommand(
       )
       return
     }
-    const embeddings = embeddingPlan(ctx, prepared)
+    const embeddings = embeddingPlan(ctx, source, documents, (chunk) => {
+      const stored = known.get(chunk.id)
+      return stored?.textHash === chunk.textHash ? stored.context : undefined
+    })
     out.write(
       `this would write ${formatPlan(planContexts(documents, options))} with ${model}, then embed ${count(embeddings.texts)} texts with ${embeddings.model}, about ${count(embeddings.estimatedTokens)} estimated tokens and at least ${formatDuration(embeddings.minutes * 60_000)} on the free trial, at docs commit ${commit.slice(0, 8)}: add --yes to run them\n`,
     )
@@ -218,7 +235,9 @@ export async function syncContextualCommand(
     return
   }
 
-  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, { contextual: true })
+  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, {
+    variant: 'contextual',
+  })
   try {
     await runSync(ctx, source, indexes, {
       at: commit,
@@ -228,6 +247,37 @@ export async function syncContextualCommand(
           const contexts = await writeMissing(ctx, prepared, parsed)
           return new Map([...contexts].map(([id, { context }]) => [id, context]))
         },
+      },
+    })
+  } finally {
+    indexes.close()
+  }
+}
+
+/** `drl sync <source> --control`: the same pipeline, with a prefix from the chunk's headings. */
+export async function syncControlCommand(
+  ctx: CommandContext,
+  args: { source: string; yes: boolean },
+): Promise<void> {
+  const source = findSource(ctx.sources, args.source)
+  const { commit, documents } = await atPlainCommit(ctx, source)
+  if (!args.yes) {
+    const prefixes = controlContexts(documents)
+    const embeddings = embeddingPlan(ctx, source, documents, ({ id }) => prefixes.get(id))
+    ctx.out.write(
+      `this would embed ${count(embeddings.texts)} texts with ${embeddings.model}, about ${count(embeddings.estimatedTokens)} estimated tokens and at least ${formatDuration(embeddings.minutes * 60_000)} on the free trial, at docs commit ${commit.slice(0, 8)}, with no call to Claude: add --yes to run them\n`,
+    )
+    return
+  }
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, {
+    variant: 'control',
+  })
+  try {
+    await runSync(ctx, source, indexes, {
+      at: commit,
+      contexts: {
+        identity: CONTROL_IDENTITY,
+        resolve: (parsed) => Promise.resolve(controlContexts(parsed)),
       },
     })
   } finally {

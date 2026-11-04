@@ -37,11 +37,13 @@ const chunk = (id: string, size = 40) => ({
   id,
   text: `Text of ${id}. ${'word '.repeat(size)}`,
   textHash: `hash of ${id}`,
+  sectionPath: [],
 })
 
-const single: ContextDocument = { path: 'a-single.md', chunks: [chunk('s1')] }
+const single: ContextDocument = { path: 'a-single.md', title: 'S', chunks: [chunk('s1')] }
 const several: ContextDocument = {
   path: 'b-several.md',
+  title: 'M',
   chunks: [chunk('m1'), chunk('m2'), chunk('m3'), chunk('m4')],
 }
 
@@ -284,7 +286,11 @@ describe('planContexts', () => {
 
   it('counts no caching for one chunk, or for a document below the model minimum', () => {
     expect(planContexts([single], options).tokens).toMatchObject({ cacheWrite: 0, cacheRead: 0 })
-    const small: ContextDocument = { path: 'c.md', chunks: [chunk('c1', 1), chunk('c2', 1)] }
+    const small: ContextDocument = {
+      path: 'c.md',
+      title: 'C',
+      chunks: [chunk('c1', 1), chunk('c2', 1)],
+    }
     expect(planContexts([small], options).tokens).toMatchObject({ cacheWrite: 0, cacheRead: 0 })
   })
 
@@ -339,9 +345,14 @@ describe('pilotChunks', () => {
   it('takes at most five from a document, to see more than one', () => {
     const big: ContextDocument = {
       path: 'b.md',
+      title: 'B',
       chunks: ['1', '2', '3', '4', '5', '6', '7'].map((n) => chunk(`b${n}`)),
     }
-    const other: ContextDocument = { path: 'c.md', chunks: [chunk('c1'), chunk('c2')] }
+    const other: ContextDocument = {
+      path: 'c.md',
+      title: 'C',
+      chunks: [chunk('c1'), chunk('c2')],
+    }
     expect([...pilotChunks([other, big], new Map(), 7)]).toEqual([
       'b1',
       'b2',

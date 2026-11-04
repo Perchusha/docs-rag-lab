@@ -131,7 +131,7 @@ export async function contextDocumentsAt(
   const parsed = await Promise.all(
     listSourceFiles(checkoutDir, source).map((file) => parseFile(source, file, repo.headSha)),
   )
-  return parsed.map(({ file, chunks }) => ({ path: file.path, chunks }))
+  return parsed.map(({ file, title, chunks }) => ({ path: file.path, title, chunks }))
 }
 
 export async function syncSource(options: SyncSourceOptions): Promise<SyncReport> {
@@ -174,7 +174,11 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
   for (const file of files) parsed.push(await parseFile(source, file, repo.headSha))
 
   const contexts = await options.contexts?.resolve(
-    parsed.map(({ file, chunks: docChunks }) => ({ path: file.path, chunks: docChunks })),
+    parsed.map(({ file, title, chunks: docChunks }) => ({
+      path: file.path,
+      title,
+      chunks: docChunks,
+    })),
   )
   const contextOf = (chunk: Chunk): string | null => {
     if (contexts === undefined) return null

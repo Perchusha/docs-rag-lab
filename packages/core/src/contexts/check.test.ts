@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { checkContextualIndex } from './check.ts'
+import { checkVariantIndex } from './check.ts'
 
 interface Row {
   id: string
@@ -20,25 +20,27 @@ const contextual = (id: string, textHash = `hash ${id}`): Row => ({
   context: `Context of ${id}.`,
 })
 
-describe('checkContextualIndex', () => {
+describe('checkVariantIndex', () => {
   it('finds nothing wrong with the same chunks at the same commit, each with a context', () => {
     expect(
-      checkContextualIndex(
+      checkVariantIndex(
         indexOf([plain('a'), plain('b')]),
         indexOf([contextual('a'), contextual('b')]),
+        'contextual',
       ),
     ).toEqual({ chunks: 2, contexts: 2, problems: [] })
   })
 
   it('says when the two are at different commits', () => {
-    const { problems } = checkContextualIndex(indexOf([], 'c1'), indexOf([], 'c2'))
+    const { problems } = checkVariantIndex(indexOf([], 'c1'), indexOf([], 'c2'), 'contextual')
     expect(problems).toEqual(['the plain index is at c1, and the contextual one at c2'])
   })
 
   it('says which chunks only one of them has', () => {
-    const { problems } = checkContextualIndex(
+    const { problems } = checkVariantIndex(
       indexOf([plain('a'), plain('gone')]),
       indexOf([contextual('a'), contextual('new')]),
+      'contextual',
     )
     expect(problems).toEqual([
       '1 chunks are only in the plain index: gone',
@@ -47,9 +49,10 @@ describe('checkContextualIndex', () => {
   })
 
   it('says which chunks have another text', () => {
-    const { problems } = checkContextualIndex(
+    const { problems } = checkVariantIndex(
       indexOf([plain('a', 'one')]),
       indexOf([contextual('a', 'two')]),
+      'contextual',
     )
     expect(problems).toEqual(['1 chunks have another text: a'])
   })
@@ -58,9 +61,10 @@ describe('checkContextualIndex', () => {
     ['no context', null],
     ['an empty one', '  '],
   ])('counts a chunk with %s as having none', (_, context) => {
-    const { contexts, problems } = checkContextualIndex(
+    const { contexts, problems } = checkVariantIndex(
       indexOf([plain('a')]),
       indexOf([{ id: 'a', textHash: 'hash a', context }]),
+      'contextual',
     )
     expect(contexts).toBe(0)
     expect(problems).toEqual(['1 chunks have no context: a'])
@@ -68,7 +72,7 @@ describe('checkContextualIndex', () => {
 
   it('names a few examples and how many more', () => {
     const rows = ['a', 'b', 'c', 'd', 'e'].map((id) => contextual(id))
-    const { problems } = checkContextualIndex(indexOf([]), indexOf(rows))
-    expect(problems).toEqual(['5 chunks are only in the contextual index: a, b, c, and 2 more'])
+    const { problems } = checkVariantIndex(indexOf([]), indexOf(rows), 'control')
+    expect(problems).toEqual(['5 chunks are only in the control index: a, b, c, and 2 more'])
   })
 })
