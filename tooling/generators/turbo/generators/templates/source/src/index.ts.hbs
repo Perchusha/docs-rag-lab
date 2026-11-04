@@ -1,0 +1,38 @@
+// Public entry of @docs-rag-lab/source-{{id}}: its plugin (SPEC section 7).
+import type { ParsedDoc, Source, SourceFile } from '@docs-rag-lab/source-kit'
+
+import { INCLUDES, matchPath } from './paths.ts'
+
+export { INCLUDES, matchPath } from './paths.ts'
+
+export interface {{pascalCase id}}SourceOptions {
+  branch?: string
+}
+
+/**
+ * Bump when parsing the same file gives different output: the next sync then
+ * re-parses everything (the embedding cache keeps it free).
+ */
+export const PARSER_VERSION = 1
+
+/** The scaffold stops here: the parser is written against the fixtures. */
+async function parseFile(file: SourceFile): Promise<ParsedDoc> {
+  return Promise.reject(new Error(`${file.path}: the {{id}} parser is not written yet`))
+}
+
+export function {{camelCase id}}Source(options: {{pascalCase id}}SourceOptions = {}): Source {
+  return {
+    id: {{{quoted id}}},
+    repo: {{{quoted repo}}},
+    branch: options.branch ?? {{{quoted branch}}},
+    include: INCLUDES.map((include) => include.dir),
+    license: {
+      name: {{{quoted licenseName}}},
+      url: {{{quoted licenseUrl}}},
+      attribution: {{{quoted attribution}}},
+    },
+    parserVersion: PARSER_VERSION,
+    match: matchPath,
+    parse: parseFile,
+  }
+}

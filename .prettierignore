@@ -4,6 +4,7 @@
 pnpm-lock.yaml
 eval/reports/**/*.json
 **/__fixtures__/**
+tooling/generators/turbo/generators/templates/
 /data/
 /.cache/
 .turbo/
