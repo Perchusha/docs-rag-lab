@@ -16,6 +16,11 @@ export function sourceIndexPath(dataDir: string, sourceId: string): string {
   return join(dataDir, 'sources', `${sourceId}.sqlite`)
 }
 
+/** The index whose chunks carry generated contexts (ADR-0014). The plain one stays as it is. */
+export function contextualIndexPath(dataDir: string, sourceId: string): string {
+  return join(dataDir, 'sources', `${sourceId}.contextual.sqlite`)
+}
+
 export function embeddingCachePath(dataDir: string): string {
   return join(dataDir, 'cache.sqlite')
 }
@@ -26,8 +31,12 @@ export function rerankCachePath(dataDir: string): string {
 
 /** There is no index for the source yet. The message says what to run. */
 export class IndexNotFoundError extends Error {
-  constructor(sourceId: string) {
-    super(`there is no index for ${sourceId} yet: run drl sync ${sourceId} first`)
+  constructor(sourceId: string, contextual = false) {
+    super(
+      contextual
+        ? `there is no contextual index for ${sourceId} yet: run drl sync ${sourceId} --contextual first`
+        : `there is no index for ${sourceId} yet: run drl sync ${sourceId} first`,
+    )
     this.name = 'IndexNotFoundError'
   }
 }
@@ -47,6 +56,8 @@ export interface OpenIndexesOptions {
    * message that says what to run.
    */
   create?: boolean
+  /** The contextual index instead of the plain one. The caches are the same. */
+  contextual?: boolean
 }
 
 /** Opens data/sources/<id>.sqlite and data/cache.sqlite. The cache is always created if needed. */
@@ -55,10 +66,13 @@ export function openIndexes(
   sourceId: string,
   options: OpenIndexesOptions = {},
 ): OpenIndexes {
-  const indexPath = sourceIndexPath(dataDir, sourceId)
+  const contextual = options.contextual === true
+  const indexPath = contextual
+    ? contextualIndexPath(dataDir, sourceId)
+    : sourceIndexPath(dataDir, sourceId)
   const cachePath = embeddingCachePath(dataDir)
   if (options.create === false && !existsSync(indexPath)) {
-    throw new IndexNotFoundError(sourceId)
+    throw new IndexNotFoundError(sourceId, contextual)
   }
   mkdirSync(dirname(indexPath), { recursive: true })
   mkdirSync(dirname(cachePath), { recursive: true })

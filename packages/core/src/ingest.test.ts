@@ -1,7 +1,7 @@
 // M1 acceptance: incremental sync re-embeds only changed chunks (SPEC section
 // 13). Runs against a local git repository in the OS temp dir, a fake source
 // and a provider that records every text it embeds. No network.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -10,8 +10,9 @@ import { openDatabase } from '@docs-rag-lab/db'
 import { git, type Source } from '@docs-rag-lab/source-kit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
-import { syncSource, type SyncReport } from './ingest.ts'
+import type { ContextDocument } from './contexts/generate.ts'
+import { contextualIndexPath, openIndexes, sourceIndexPath, type OpenIndexes } from './indexes.ts'
+import { contextDocumentsAt, syncSource, type SyncReport } from './ingest.ts'
 import { demoSource, fakeVector, paragraph, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
 
@@ -94,6 +95,168 @@ afterEach(() => {
   closeIndexes()
   vi.unstubAllEnvs()
   rmSync(root, { recursive: true, force: true })
+})
+
+describe('a contextual sync', { timeout: 60_000 }, () => {
+  const contextOf = (id: string): string => `Context of ${id}, about zebrafinch.`
+
+  function contextualSync(
+    provider: RecordingProvider,
+    target: OpenIndexes,
+    contexts: (documents: readonly ContextDocument[]) => ReadonlyMap<string, string> = (docs) =>
+      new Map(docs.flatMap(({ chunks }) => chunks.map(({ id }) => [id, contextOf(id)]))),
+  ): Promise<SyncReport> {
+    return syncSource({
+      source,
+      provider,
+      index: target.index,
+      cache: target.cache,
+      checkoutDir,
+      meter: new UsageMeter(),
+      contexts: {
+        identity: 'claude-test:abc',
+        resolve: (documents) => Promise.resolve(contexts(documents)),
+      },
+    })
+  }
+
+  let contextual: OpenIndexes | undefined
+
+  function contextualIndexes(): OpenIndexes {
+    contextual ??= openIndexes(dataDir, source.id, { contextual: true })
+    return contextual
+  }
+
+  afterEach(() => {
+    contextual?.close()
+    contextual = undefined
+  })
+
+  it('embeds each chunk with its context, and keeps the text as it is', async () => {
+    await commit('initial')
+    await sync(new RecordingProvider())
+    const plainTexts = indexes()
+      .index.documentChunks('docs/a.md')
+      ?.chunks.map((c) => c.text)
+
+    const provider = new RecordingProvider()
+    await contextualSync(provider, contextualIndexes())
+
+    const { index } = contextualIndexes()
+    const doc = index.documentChunks('docs/a.md')
+    expect(doc?.chunks.map((c) => c.text)).toEqual(plainTexts)
+    expect(doc?.chunks.map((c) => c.context)).toEqual(doc?.chunks.map((c) => contextOf(c.chunkId)))
+    for (const chunk of doc?.chunks ?? []) {
+      expect(provider.embedded).toContain(`${contextOf(chunk.chunkId)}\n\n${chunk.text}`)
+    }
+    expect(provider.embedded.some((text) => plainTexts?.includes(text))).toBe(false)
+  })
+
+  it('feeds both indexes: the vector is of the context and text, and BM25 reads the context', async () => {
+    await commit('initial')
+    await sync(new RecordingProvider())
+    const provider = new RecordingProvider()
+    await contextualSync(provider, contextualIndexes())
+
+    const { index } = contextualIndexes()
+    const [chunk] = index.documentChunks('docs/b.md')?.chunks ?? []
+    if (chunk === undefined) throw new Error('no chunk')
+    const vector = fakeVector(`${contextOf(chunk.chunkId)}\n\n${chunk.text}`, provider.dimensions)
+    expect(index.searchVectors(vector, 1)[0]?.chunkId).toBe(chunk.chunkId)
+    expect(index.searchVectors(vector, 1)[0]?.score).toBeCloseTo(0, 5)
+
+    expect(index.searchKeywords('"zebrafinch"', 10).map((c) => c.chunkId)).toContain(chunk.chunkId)
+    expect(indexes().index.searchKeywords('"zebrafinch"', 10)).toEqual([])
+  })
+
+  it('records the model and prompt in the manifest, and the plain index says none', async () => {
+    await commit('initial')
+    await sync(new RecordingProvider())
+    await contextualSync(new RecordingProvider(), contextualIndexes())
+    expect(contextualIndexes().index.getManifest()?.contextModel).toBe('claude-test:abc')
+    expect(indexes().index.getManifest()?.contextModel).toBeNull()
+    expect(indexes().index.documentChunks('docs/b.md')?.chunks[0]?.context).toBeNull()
+  })
+
+  it('never writes the plain index, and only a second file appears', async () => {
+    await commit('initial')
+    await sync(new RecordingProvider())
+    closeIndexes()
+    const plainPath = sourceIndexPath(dataDir, source.id)
+    const before = readFileSync(plainPath)
+
+    await contextualSync(new RecordingProvider(), contextualIndexes())
+    contextual?.close()
+    contextual = undefined
+
+    expect(readFileSync(plainPath).equals(before)).toBe(true)
+    expect(existsSync(contextualIndexPath(dataDir, source.id))).toBe(true)
+  })
+
+  it('reads every chunk again, and embeds nothing when nothing changed', async () => {
+    await commit('initial')
+    await contextualSync(new RecordingProvider(), contextualIndexes())
+
+    const provider = new RecordingProvider()
+    const report = await contextualSync(provider, contextualIndexes())
+    expect(report.mode).toBe('full')
+    expect(provider.embedded).toEqual([])
+    expect(report.vectors.needed).toBe(0)
+  })
+
+  it('embeds again the chunk whose context changed, and only that one', async () => {
+    await commit('initial')
+    await contextualSync(new RecordingProvider(), contextualIndexes())
+    const [changed] = contextualIndexes().index.documentChunks('docs/b.md')?.chunks ?? []
+    if (changed === undefined) throw new Error('no chunk')
+
+    const provider = new RecordingProvider()
+    await contextualSync(
+      provider,
+      contextualIndexes(),
+      (docs) =>
+        new Map(
+          docs.flatMap(({ chunks }) =>
+            chunks.map(({ id }) => [
+              id,
+              id === changed.chunkId ? 'Another context.' : contextOf(id),
+            ]),
+          ),
+        ),
+    )
+    expect(provider.embedded).toEqual([`Another context.\n\n${changed.text}`])
+    const stored = contextualIndexes().index.documentChunks('docs/b.md')?.chunks[0]
+    expect(stored?.context).toBe('Another context.')
+    expect(contextualIndexes().index.searchKeywords('"Another context"', 5)).toHaveLength(1)
+  })
+
+  it('refuses a chunk with no context, rather than indexing it without one', async () => {
+    await commit('initial')
+    await expect(
+      contextualSync(new RecordingProvider(), contextualIndexes(), () => new Map()),
+    ).rejects.toThrow(/no context for /)
+  })
+
+  it('hands over every chunk, with its text and hash, for contexts to be found', async () => {
+    await commit('initial')
+    const seen: ContextDocument[] = []
+    await contextualSync(new RecordingProvider(), contextualIndexes(), (docs) => {
+      seen.push(...docs)
+      return new Map(docs.flatMap(({ chunks }) => chunks.map(({ id }) => [id, contextOf(id)])))
+    })
+    expect(seen.map(({ path }) => path).sort()).toEqual(['docs/a.md', 'docs/b.md'])
+    const doc = contextualIndexes().index.documentChunks('docs/a.md')
+    expect(seen.find(({ path }) => path === 'docs/a.md')?.chunks.map(({ id }) => id)).toEqual(
+      doc?.chunks.map(({ chunkId }) => chunkId),
+    )
+  })
+
+  it('reads the same documents without any index, for the estimate', async () => {
+    const sha = await commit('initial')
+    const documents = await contextDocumentsAt(source, checkoutDir, sha)
+    expect(documents.map(({ path }) => path).sort()).toEqual(['docs/a.md', 'docs/b.md'])
+    expect(existsSync(sourceIndexPath(dataDir, source.id))).toBe(false)
+  })
 })
 
 describe('syncSource', { timeout: 60_000 }, () => {
