@@ -27,6 +27,7 @@ import {
   type EvalClient,
   openIndexes,
   type IndexVariant,
+  type EmbeddingProvider,
   type RerankProvider,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
@@ -149,6 +150,25 @@ const fakeReranker: RerankProvider = {
   },
 }
 
+/** What reached the embedding model. Every test but one finds its queries in the cache. */
+let embedCalls: string[][] = []
+
+function fakeEmbeddings(): EmbeddingProvider {
+  const { dimensions, model } = settings.embeddings
+  return {
+    id: createEmbeddingProvider(settings.embeddings).id,
+    model,
+    dimensions,
+    limits: { maxInputs: 1_000, maxTokens: 1_000_000 },
+    embed: (texts) => {
+      embedCalls.push([...texts])
+      const vector = (text: string) =>
+        Float32Array.from({ length: dimensions }, (_, j) => (j === QUESTIONS.indexOf(text) ? 1 : 0))
+      return Promise.resolve({ vectors: texts.map(vector), tokens: texts.length })
+    },
+  }
+}
+
 // The real limits would make these tests wait a minute between calls.
 const unlimited = {
   ...settings,
@@ -167,6 +187,7 @@ async function drl(...argv: string[]) {
     now: () => clock,
     createEvalClient: () => fakeEvalClient,
     createReranker: () => fakeReranker,
+    createProvider: fakeEmbeddings,
   })
   return { code, out: out.text(), err: err.text() }
 }
@@ -988,6 +1009,28 @@ describe('drl eval answers', () => {
     beforeEach(() => {
       rerankCalls = []
       rerankJitter = 0
+    })
+
+    it('embeds cold queries in one request before its estimate, and says so', async () => {
+      rmSync(join(root, settings.dataDir, 'cache.sqlite'))
+      embedCalls = []
+
+      const { code, out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(code).toBe(0)
+      expect(embedCalls).toEqual([['First?', 'Second?', 'Not covered?']])
+      expect(out).toContain('3 queries were embedded first, in one free request')
+      expect(out).toContain('this would first make 3 calls')
+      expect(rerankCalls).toEqual([])
+    })
+
+    it('embeds nothing for its estimate when the queries are cached', async () => {
+      embedCalls = []
+
+      const { out } = await drl('eval', 'answers', '--rows', '4')
+
+      expect(embedCalls).toEqual([])
+      expect(out).not.toContain('queries were embedded first')
     })
 
     it('makes no rerank call without --yes, and says how many it would', async () => {
