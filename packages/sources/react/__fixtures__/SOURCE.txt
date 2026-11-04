@@ -1,0 +1,9 @@
+Byte-for-byte copies of upstream files, kept for the parser tests and the
+conformance suite. Never reformat them.
+
+Repository: https://github.com/reactjs/react.dev
+Branch:     main
+Commit:     the full SHA and its date, once the first fixture is copied
+License:    CC BY 4.0, see NOTICE
+
+repo/ mirrors the upstream paths.
