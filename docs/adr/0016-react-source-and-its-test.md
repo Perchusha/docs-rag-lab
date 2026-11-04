@@ -41,10 +41,12 @@ That is 16 answerable and 4 not, by the owner's decision. Ten fresh questions ar
 Fresh questions are picked strictly by the docs' own dates, never by whether row 0 gets them wrong, which would bias the result. So the picking is mechanical, and there is no window to choose:
 
 1. At the pinned commit, list every indexed page and every heading with the date of the commit that first added it, by git history, following renames. Newest first. Ties go in path order, then document order.
-2. Go down the list. Each page or heading gives at most one question, tagged `fresh`, until there are 10.
-3. Skip an entry only for one of three reasons, and record it: it was moved or reworded and is not new; it holds no fact that one passage can check; or it is the same feature as a question already taken.
+2. Go down the list. Each page or heading gives at most one question, tagged `fresh`, until there are 10. One page gives at most 2 of them, counting its heading entries with it, so the 10 come from at least 5 pages.
+3. Skip an entry only for one of four reasons, and record it: it was moved or reworded and is not new; it holds no fact that one passage can check; it is the same feature as a question already taken; or its page has already given 2.
 4. The fifth question of the walk is the one asked in Russian, so that this choice does not depend on the question either.
 5. The walk, with each skip and its reason, is committed with the draft.
+
+**Why at most 2 per page.** One new page can fill the top of the list: on TypeScript, 29 of the newest 50 entries came from one release note. Without a limit, `fresh` could describe one or two pages. The owner set this limit before any walk on React, since deciding it after seeing that walk would mean choosing the rule by the data. It can push the tenth question further back, which is reported anyway.
 
 If the survey of the docs finds that pages state dates of their own, those dates replace the commit's, and this section says so before the walk runs. Fresh means newest in these docs. It does not mean past the answering model's training cutoff, and how far back the tenth question goes is reported. If row 0 knows all of them, that is the result.
 

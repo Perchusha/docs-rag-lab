@@ -28,7 +28,7 @@ The two commands read the index and git, and rank nothing:
 Skip this if the source's ADR asks for no `fresh` questions.
 
 1. Run the walk, with `--top <n>` if the list runs out before you have enough. A longer list starts the same.
-2. Go down the list in order, as the ADR says. Each page or heading gives at most one question, tagged `fresh`. Skip an entry only for one of the ADR's reasons, and write the reason down. Do not go looking for a better entry further down.
+2. Go down the list in order, as the ADR says. Each page or heading gives at most one question, tagged `fresh`, and a page gives no more in all than the ADR allows, which is 2 in ADR-0016. Skip an entry only for one of the ADR's reasons, and write the reason down. Do not go looking for a better entry further down.
 3. If the ADR fixes which question of the walk is asked in another language, follow it, whatever that question turns out to be.
 4. Keep the walk in `packages/sources/$0/eval/fresh-walk.md`, a table of every entry you went through, down to the last question taken: date, commit, place, what became of it (the question's id, or the skip and its reason). Say at the top how far back the last question goes. It is committed with the draft.
 

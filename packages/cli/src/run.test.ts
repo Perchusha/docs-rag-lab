@@ -309,7 +309,8 @@ describe('run', () => {
   })
 })
 
-describe('bin.ts', () => {
+// It loads every workspace package: past 5s on a CI runner every package shares.
+describe('bin.ts', { timeout: 30_000 }, () => {
   it('runs under plain node, importing workspace packages through node_modules', () => {
     const bin = fileURLToPath(new URL('./bin.ts', import.meta.url))
     const result = spawnSync(process.execPath, [bin, '--help'], { encoding: 'utf8' })

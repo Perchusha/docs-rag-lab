@@ -65,7 +65,8 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-describe('turbo gen source', () => {
+// Each test spawns the CLI: 0.4s alone, and past 5s on a CI runner every package shares.
+describe('turbo gen source', { timeout: 30_000 }, () => {
   it('writes the package, with nothing of the templates left in it', () => {
     const { status, output } = generate()
 
