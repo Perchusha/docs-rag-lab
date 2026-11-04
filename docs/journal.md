@@ -2,6 +2,27 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M5 - The retrieval runs, and the gate that vetoed them (2026-11-04)
+
+A reranker over the fused top 20 gave the largest retrieval gain this project has measured, and under the rules fixed before the run it is not accepted. Both of those stand. Answers are still to come, so this is retrieval only (ADR-0014).
+
+| On 40 questions, primary anchors | Hybrid, M4 | Hybrid + rerank | Contexts | Contexts + rerank | Prefix from headings |
+|---|---|---|---|---|---|
+| hit@1 | 19 | 31 | 22 | 33 | 17 |
+| hit@8 | 36 | 39 | 35 | 39 | 36 |
+| MRR | 0.657 | 0.867 | 0.693 | 0.886 | 0.634 |
+| Target rows met, of 5 | 2 | 4 | 3 | 3 | 2 |
+
+- **The reranker:** significantly better on hit@1 (0 / 12 questions) and MRR (0 / 18), and no question got worse on any retrieval metric.
+- **The verdict:** not accepted. The ADR asked for all five target rows, and ts-0033 stayed at rank 3 against a target of 1. The criteria do not change after a result.
+- **The lesson:** a hard per-question gate let one question veto a significant, regression-free set-level gain. In future ADRs, set-level criteria decide and per-question targets are diagnostics.
+- **The contexts:** on these docs, where every chunk already carries `document > sections`, the Haiku contexts added nothing significant, alone or on top of rerank. They cost $0.28 and about an hour of embeddings. Nor does `drl eval compare` call them better than a prefix written by code from the headings.
+- **The backtick-weighted BM25 candidate from M4:** failed. It moved ts-0033 and ts-0004 up, and ts-0027 from 9 to 10, which the criterion does not allow. Its code stays behind the tag `exp/m5-h5`.
+
+Writing the criteria first did its job: nobody could move the bar after seeing 0.867. What it cannot do is make a badly shaped gate a good one, and that is the part to fix next time, before the run.
+
+**Spend:** Haiku $0.28. Voyage 834,600 rerank tokens and 929,495 embedding tokens, inside the free tokens, with no bill. No call of the 80 reranks met a 429, at about a minute each.
+
 ## M4 - The eval harness is done (2026-11-03)
 
 Before M4, every claim about retrieval quality rested on a handful of searches run by hand. Now each strategy has a measured row, with its uncertainty beside every number, and a report anyone can run again.

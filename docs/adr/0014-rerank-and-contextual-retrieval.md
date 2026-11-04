@@ -236,6 +236,14 @@ Per tag, MRR on primary anchors, reported and deciding nothing:
 | fresh | 4 | 0.409 | 0.833 | 0.410 | 0.813 | 0.411 | 0.409 |
 | version | 7 | 0.643 | 0.833 | 0.504 | 0.833 | 0.560 | 0.526 |
 
+### What to keep from this
+
+**The verdict stands as the rules give it.** H3 is not accepted under this ADR, and nothing in its criteria changes, now or after the answers. Whether the app uses the reranker is a product decision of the owner's. It gets an ADR of its own after the answer runs, which cites the set-level result and states that H3 stays formally not accepted.
+
+**A lesson for later ADRs: set-level criteria decide, and per-question targets are diagnostics.** T is a hard gate per question, so one question, ts-0033, vetoed a set-level gain that is significant and has no regression: H3 takes hit@1 from 19 to 31 and MRR from 0.657 to 0.867, with no question worse on any retrieval metric. A rank on one question says where to look. It should not be able to overrule the whole set.
+
+**The contexts added nothing significant on these docs.** Here every chunk already carries `document > sections`, and the Haiku contexts added nothing significant, alone or on top of rerank.
+
 ### Integrity
 
 1. **Passed.** `m5-rerank` and `m5-h5` have queries `3cbc8c2527dd`, corpus `8224c2d1af73`, chunks `ba7aae0e36d9`.
