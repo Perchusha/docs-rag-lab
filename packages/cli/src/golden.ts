@@ -21,6 +21,11 @@ function evalDir(root: string, sourceId: string): string {
 
 export { goldenSetPath }
 
+/** A set Claude drafted, until a human has reviewed its flagged questions (ADR-0015). */
+export function goldenDraftPath(root: string, sourceId: string): string {
+  return join(evalDir(root, sourceId), 'questions.draft.jsonl')
+}
+
 export function goldenLockPath(root: string, sourceId: string): string {
   return join(evalDir(root, sourceId), 'questions.lock.json')
 }

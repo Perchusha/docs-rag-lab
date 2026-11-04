@@ -324,6 +324,7 @@ M4 built this, M5 added ladder rows 4 and 5, and the README has the measured row
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
 - TypeScript has 40 questions and 5 unanswerable ones, each written or reviewed by a human. React gets 20: 16 answerable, of which 10 are fresh, picked strictly by the docs' own dates, and 4 unanswerable. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015, ADR-0016).
 - `eval/questions.lock.json` records what each anchor resolved to at the set's last review, which for React covers its flagged questions. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
+- A draft is checked with `drl eval check --draft`: which anchors of `eval/questions.draft.jsonl` do not resolve, and what each question copies from the pages it is anchored to. `drl eval walk` lists every indexed page and heading, newest first by git history at the index's commit, to pick `fresh` questions from. It keeps a clone of the docs' history under the cache, since a sync's checkout is shallow (ADR-0016).
 - The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared.
 
 **Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
@@ -408,7 +409,7 @@ This setup is part of the showcase. Keep it real and minimal.
     5. run eval;
     6. update the README table.
   - `run-eval`: run eval for a source and strategy, compare with the last report, flag regressions, write a summary. Dropped from M6 (ADR-0016): the same commands run by hand.
-  - `write-eval-questions`: draft candidate golden questions with anchors, and flag the ones a human should review (ADR-0015).
+  - `write-eval-questions`: draft candidate golden questions with anchors, from the docs' text alone, and flag the ones a human should review (ADR-0015). It uses `drl eval walk` and `drl eval check --draft`, which look at no ranking (ADR-0016).
 - **Subagents** in `.claude/agents/`:
   - `code-reviewer`: a fresh-context review against the boundaries, ADRs and tests;
   - `eval-analyst`: classifies failures as retrieval miss, generation error or bad question. Dropped from M6 (ADR-0016).

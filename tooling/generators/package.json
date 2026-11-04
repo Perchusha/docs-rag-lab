@@ -1,0 +1,22 @@
+{
+  "name": "@docs-rag-lab/generators",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@docs-rag-lab/config": "workspace:*",
+    "@docs-rag-lab/source-kit": "workspace:*",
+    "@turbo/gen": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
