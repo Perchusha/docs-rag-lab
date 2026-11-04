@@ -22,13 +22,18 @@ The eval harness, the calibrated judge and the dashboard are reused. A milestone
 
 ### 3. React gets a smaller golden set
 
-- **About 20 questions,** instead of TypeScript's 40 and 5. How many of them the docs do not answer is settled with the draft.
-- **Claude drafts them, and the owner reviews only the flagged ones.** A draft is flagged when its answer or its anchor took a judgement call: the docs text leaves room, the passage spans sections, or the question is one the docs do not answer, where only a person can say that nothing covers it.
+- **20 questions: 16 answerable and 4 the docs do not answer,** instead of TypeScript's 40 and 5. Of the 16, 10 are fresh, one of them in Russian, 2 more are in Russian, and 4 are others.
+- **Fresh questions are picked strictly by the docs' own dates,** walking back from the pinned commit, never by whether the no-RAG row gets them wrong, which would bias the result. They are where RAG might finally beat Claude's memory. ADR-0016 has the walk.
+- **Claude drafts them, and the owner reviews only the flagged ones.** A draft is flagged when:
+  - its answer or its anchor took a judgement call: the docs text leaves room, or the passage spans sections;
+  - the docs do not answer it, where only a person can say that nothing covers it;
+  - its wording copies a heading or a sentence from the docs, which gives keyword search a head start, as in M4;
+  - its answer depends on a version or a default that changed, the stale-page risk of ts-0039 and ts-0017.
 - **The rest of ADR-0009 holds:** the format, the anchors, the lock, the freeze, and the rule for changing a frozen set. `drl eval check --accept` writes the lock after that review of the flagged questions.
 
 ### 4. No new calibration unless the judge changes
 
-A new round of blind labels is needed only when the judge's prompt or model changes. A new source changes neither: the judge's prompts name no source. For React, a spot check on 10 answers is enough. It asks whether the judge behaves on docs it has not graded before. It is no calibration round, so ADR-0012's bar of 13 of 15 does not apply. What the spot check has to show is written down with M6's hypotheses, before any paid run.
+A new round of blind labels is needed only when the judge's prompt or model changes. A new source changes neither: the judge's prompts name no source. For React, a spot check on 10 answers is enough. It asks whether the judge behaves on docs it has not graded before. It is no calibration round, so ADR-0012's bar of 13 of 15 does not apply. What the spot check has to show is in ADR-0016, with M6's hypotheses.
 
 ### 5. What does not get lighter
 
@@ -39,7 +44,8 @@ A new round of blind labels is needed only when the judge's prompt or model chan
 
 ## Consequences
 
-- **20 questions resolve less than 40.** The smallest significant split stays 6 to 0, but fewer questions can move, and most tags will have 5 questions or fewer, which the reports already call too few. A React row can show a large difference and little else.
+- **20 questions resolve less than 40.** The smallest significant split stays 6 to 0, but fewer questions can move, and most tags will have 5 questions or fewer, which the reports already call too few. A React row can show a large difference and little else. `fresh` has 10 so that it is not one of those tags.
+- **The set is weighted towards new pages.** Ten of the 16 answerable questions come from the newest parts of the docs, so its overall numbers do not describe the docs at large.
 - **React's numbers rest on less review.** Wherever they appear, they say that Claude drafted the set and a person reviewed the flagged questions. React's numbers and TypeScript's are never compared.
 - **M6 has code to change.** A report reads the judge's calibration from its own source's folder, so a React report would find no rounds and say uncalibrated. It has to read the rounds for the same prompts and model, whichever source they came from. `drl eval label` takes 15 answers for a first round, and its fresh round of 10 needs an earlier report of the same set, so the spot check needs its own way to pick 10. And the latest blind round under the same prompts decides calibration, while the bias counts every blind round, so the spot check has to be stored where that rule does not read it. Otherwise it would decide for TypeScript's reports too.
 - **Older text changes.** SPEC section 10 said a human approves every question and that each milestone touching eval labels about 15 answers, and `packages/sources/CLAUDE.md` said the first. ADR-0009 and ADR-0012 stand for TypeScript's set and for any change to the judge. This decision is about React: a later source would be decided when it comes.

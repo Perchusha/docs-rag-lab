@@ -66,13 +66,14 @@ packages/
   contracts/        data shapes that cross boundaries: the retrieval trace, citations, the answer stream (ADR-0006)
   settings/         engine settings shared by the CLI and apps: models, prices, limits, retrieval defaults (ADR-0007)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
+  docs-server/      route handlers and the engine's one instance, shared by the docs apps (created in M6, ADR-0016)
   cli/              drl sync | ask | eval | questions
   mcp/              MCP server over core (later, after v1.0)
   config/           shared tsconfig, eslint, vitest presets, dependency-cruiser rules
 tooling/
   claude-hooks/     Claude Code hooks: PreToolUse guard, PostToolUse checks, Stop tests (ADR-0002)
   repo-checks/      repository checks run by format:check (no em dashes)
-  generators/       turbo gen templates: new source, new app (added before M6)
+  generators/       turbo gen template for a new source (added in M6; none for a new app, ADR-0016)
 docs/adr/           architecture decision records
 docs/journal.md     short notes per milestone with before/after metrics
 ```
@@ -321,7 +322,7 @@ M4 built this, M5 added ladder rows 4 and 5, and the README has the measured row
 - `primary` anchors are the passages the answer was written from. The answer needs all of them, unless `"primaryMatch": "any"` says each one is enough on its own. `acceptable` anchors are other passages that also support the answer, and are never required. An unanswerable question has neither. An optional `note` says why a question is graded as it is.
 - An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that starts in the section or holds its heading, which the chunker records in `metadata.anchors`. Subsections packed into other chunks do not count for their parent, and a heading with no text of its own, whose subsections are all in other chunks, matches nothing. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
-- TypeScript has 40 questions and 5 unanswerable ones, each written or reviewed by a human. React gets about 20. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015).
+- TypeScript has 40 questions and 5 unanswerable ones, each written or reviewed by a human. React gets 20: 16 answerable, of which 10 are fresh, picked strictly by the docs' own dates, and 4 unanswerable. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015, ADR-0016).
 - `eval/questions.lock.json` records what each anchor resolved to at the set's last review, which for React covers its flagged questions. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
 - The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared.
 
@@ -406,11 +407,11 @@ This setup is part of the showcase. Keep it real and minimal.
     4. add 20 eval questions;
     5. run eval;
     6. update the README table.
-  - `run-eval`: run eval for a source and strategy, compare with the last report, flag regressions, write a summary.
+  - `run-eval`: run eval for a source and strategy, compare with the last report, flag regressions, write a summary. Dropped from M6 (ADR-0016): the same commands run by hand.
   - `write-eval-questions`: draft candidate golden questions with anchors, and flag the ones a human should review (ADR-0015).
 - **Subagents** in `.claude/agents/`:
   - `code-reviewer`: a fresh-context review against the boundaries, ADRs and tests;
-  - `eval-analyst`: classifies failures as retrieval miss, generation error or bad question.
+  - `eval-analyst`: classifies failures as retrieval miss, generation error or bad question. Dropped from M6 (ADR-0016).
 - **Hooks** in `.claude/settings.json` (committed):
   - PostToolUse on `Edit|Write`: typecheck, lint and dependency-cruiser for the touched package. Exit with code 2 on failure so the error goes back to Claude and Claude fixes it.
   - Stop: `turbo run test --filter=...[HEAD]` (tests for affected packages only).
@@ -434,7 +435,7 @@ Every milestone ends with:
 | M3 | ts-docs app | Streaming chat with citations, inspector panel, Storybook for `ui` | Inspector shows candidates, scores and chunk boundaries |
 | M4 | Eval harness | 40 TS questions plus 5 unanswerable, metrics, ladder rows 0, 2 and 3, reports, dashboard view | Report is reproducible from SHA + config |
 | M5 | Rerank + contextual | Ladder rows 4 and 5, prompt caching, cost tracking | README table has measured rows |
-| M6 | React via `/add-source` | `react-docs` app, about 20 questions | Done through the skill; the PR links the session |
+| M6 | React via `/add-source` | `react-docs` app, 20 questions (ADR-0016) | Done through the skill; the PR links the session |
 | M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text | `exact-token` questions improve and are measured |
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
@@ -447,9 +448,10 @@ Every milestone ends with:
 
 Lighter than M4 and M5, by the owner's decision (ADR-0015):
 - **Reuse** the eval harness, the calibrated judge and the dashboard.
-- **React's golden set is smaller,** about 20 questions. Claude drafts them, and the owner reviews only the flagged ones.
+- **React's golden set is smaller,** 20 questions: 16 answerable and 4 not. 10 of the answerable are fresh, by the docs' own dates, and 3 are in Russian. Claude drafts them, and the owner reviews only the flagged ones.
 - **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
-- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014).
+- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016.
+- **Not built in M6:** the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app` (ADR-0016).
 
 ### M4 retrieval targets from M2
 
