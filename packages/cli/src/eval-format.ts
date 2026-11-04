@@ -167,6 +167,15 @@ function yesNo(met: boolean | null): string {
 }
 
 /** The report as a reader wants it. The JSON next to it holds everything else. */
+/** What the reranks took, for a report that has them. A run that survived 429s says so. */
+function rerankUsage({ run }: EvalReport): string | undefined {
+  if (run.rerank === undefined) return undefined
+  const { calls, rateLimitRetries } = run.rerank
+  return rateLimitRetries === 0
+    ? `${String(calls)} calls, none retried after a 429`
+    : `${String(calls)} calls, which survived ${String(rateLimitRetries)} 429s with one retry each`
+}
+
 export function formatEvalMarkdown(report: EvalReport): string {
   const { identity, result, run, vectors } = report
   const { strategies, comparison, targets } = result
@@ -198,6 +207,14 @@ export function formatEvalMarkdown(report: EvalReport): string {
           `chunker ${String(identity.chunkerVersion)}, parser ${String(identity.parserVersion ?? 'none')}, schema ${String(identity.indexSchema)}, \`${identity.embedModel}\`, context \`${identity.contextModel ?? 'none'}\``,
         ],
         ['Retrieval', `version ${String(identity.retrievalVersion)}: ${settings}`],
+        ...(identity.rerank === undefined
+          ? []
+          : [
+              [
+                'Rerank',
+                `${identity.rerank.model}, depth ${String(identity.rerank.depth)}: ${rerankUsage(report) ?? ''}`,
+              ],
+            ]),
         [
           'Vectors',
           `queries \`${vectors.queryHash.slice(0, 12)}\`, corpus \`${vectors.corpusHash.slice(0, 12)}\``,
@@ -293,6 +310,8 @@ export function formatEvalSummary(report: EvalReport): string {
     const met = target.met === null ? 'not run' : target.met ? 'met' : 'not met'
     lines.push(`target ${target.questionId} <= ${String(target.target)}: ${ranks}, ${met}`)
   }
+  const reranks = rerankUsage(report)
+  if (reranks !== undefined) lines.push(`rerank: ${reranks}`)
   return lines.join('\n')
 }
 

@@ -377,10 +377,14 @@ describe('drl sync --contextual', () => {
     expect((await drl('sync', 'demo', '--contextual', '--pilot', '0')).err).toContain(
       '--pilot must be a whole number',
     )
-    expect((await drl('eval', '--contextual')).err).toContain('--contextual does not apply')
+    expect((await drl('eval', 'compare', 'a', 'b', '--contextual')).err).toContain(
+      '--contextual does not apply',
+    )
     expect((await drl('eval', 'check', '--contextual', '--accept')).err).toContain(
       'it takes no --contextual',
     )
-    expect((await drl('eval', '--control')).err).toContain('--control does not apply')
+    expect((await drl('eval', 'compare', 'a', 'b', '--control')).err).toContain(
+      '--control does not apply',
+    )
   })
 })

@@ -14,7 +14,16 @@ const MIGRATIONS = [
     created_at text not null
   ) without rowid;
   `,
+  // Version 2: how many 429s a call survived, so a report replayed from here can say so.
+  `alter table rerank_calls add column rate_limit_retries integer not null default 0;`,
 ]
+
+export interface CachedRerankCall {
+  /** In the order the call's documents were sent. */
+  scores: number[]
+  /** How many 429s the call survived before it got these. */
+  rateLimitRetries: number
+}
 
 export class RerankCache {
   readonly #db: SqliteDatabase
@@ -24,21 +33,41 @@ export class RerankCache {
     this.#db = db
   }
 
-  /** The scores of a call, in the order its documents were sent, or undefined. */
-  get(key: string): number[] | undefined {
-    const row = this.#db.prepare('select scores from rerank_calls where key = ?').get(key) as
-      { scores: string } | undefined
-    return row === undefined ? undefined : (JSON.parse(row.scores) as number[])
+  /** What a call came back with, or undefined. */
+  get(key: string): CachedRerankCall | undefined {
+    const row = this.#db
+      .prepare('select scores, rate_limit_retries from rerank_calls where key = ?')
+      .get(key) as { scores: string; rate_limit_retries: number } | undefined
+    return row === undefined
+      ? undefined
+      : {
+          scores: JSON.parse(row.scores) as number[],
+          rateLimitRetries: row.rate_limit_retries,
+        }
   }
 
   /** The first entry for a key stays: it is what the reports measured. */
-  put(key: string, provider: string, scores: readonly number[], tokens: number): void {
+  put(
+    key: string,
+    provider: string,
+    scores: readonly number[],
+    tokens: number,
+    rateLimitRetries = 0,
+  ): void {
     this.#db
       .prepare(
-        `insert or ignore into rerank_calls (key, provider, scores, tokens, created_at)
-         values (?, ?, ?, ?, ?)`,
+        `insert or ignore into rerank_calls
+         (key, provider, scores, tokens, created_at, rate_limit_retries)
+         values (?, ?, ?, ?, ?, ?)`,
       )
-      .run(key, provider, JSON.stringify(scores), tokens, new Date().toISOString())
+      .run(
+        key,
+        provider,
+        JSON.stringify(scores),
+        tokens,
+        new Date().toISOString(),
+        rateLimitRetries,
+      )
   }
 
   count(): number {

@@ -189,7 +189,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
     if (step === undefined) throw new Error('the rerank strategy needs a reranker')
     const rerankStart = now()
     const scored = ranking.slice(0, step.depth)
-    const { scores, from } = await rerankWithCache(
+    const { scores, from, rateLimitRetries } = await rerankWithCache(
       question,
       scored.map((id) => {
         const { context, text } = recordOf(id)
@@ -202,6 +202,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
       provider: step.provider.id,
       depth: step.depth,
       from,
+      rateLimitRetries,
       ms: now() - rerankStart,
       ranked,
     }

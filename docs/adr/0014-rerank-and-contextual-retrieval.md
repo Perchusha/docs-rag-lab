@@ -1,7 +1,7 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
-- Status: accepted as the test, before any run. The results come later, in this file.
-- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed.
+- Status: accepted as the test, before any run. The retrieval runs are in (see Result): neither H3 nor H4 meets T, so nothing is adopted. Answers wait for the owner.
+- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed. The retrieval results came the same day.
 - Milestone: M5
 
 ## Context
@@ -42,7 +42,9 @@ RRF, k, weights, list depth, the targets and the golden set do not change.
 
 **Paced, with no spend.** Rerank is on the Atlas free trial, and the owner's standing decision is to add no payment method. The real constraint is no spend. The limit of 10K tokens a minute only mattered as a way to avoid rejections. Measured from the index, at the largest billed-to-estimated ratio the check saw, a top 20 weighs at most about 11,100 billed tokens, and 17 of 45 pass 10K by themselves. With contexts of 100 tokens per chunk it is at most about 13,100, and 44 of 45 do. Voyage accepted the largest call as one request, a minute after the check, and again a minute later with about 100 tokens more per document: 10,936 and 12,871 billed tokens. So calls over 10K are sent, and the rate limiter paces them so that the average stays under 10K a minute: a call of 12K holds the next one for 72 seconds. A pass takes 45 to 55 minutes.
 
-**The fallback, fixed before any result.** A 429 can be a pacing collision, not a rejection of the call itself. So on a 429 the reranker sends nothing for `Retry-After` or a full minute, whichever is longer, with a `Retry-After` over five minutes counted as five, and then retries that same call once. A 429 again, after that idle window, is a rejection. Any other 4xx is a rejection at once. A server error or a network failure is not a rejection, and is retried as usual. A rejection stops the run and the owner is told. The fallback is a depth of 15 for both rows, and no other depth: at 15 the largest call stays under 10K with contexts of up to 100 tokens per chunk. What was measured before the switch is not read as a result, so the calls for rows 4 and 5 are made before either row's numbers are read, and both rows run again at 15. At that depth ts-0038, at rank 17, is out of the reranker's reach.
+**The fallback, fixed before any result.** A 429 can be a pacing collision, not a rejection of the call itself. So on a 429 the reranker sends nothing for `Retry-After` or a full minute, whichever is longer, with a `Retry-After` over five minutes counted as five, and then retries that same call once. A 429 again, after that idle window, is a rejection. Any other 4xx is a rejection at once. A server error or a network failure is not a rejection, and is retried as usual. A rejection stops the run and the owner is told. The fallback is a depth of 15 for both rows, and no other depth: at 15 the largest call stays under 10K with contexts of up to 100 tokens per chunk. What was measured before the switch is not read as a result, so the calls for rows 4 and 5 are made before either row's numbers are read, and both rows run again at 15. At that depth ts-0038, at rank 17, is out of the reranker's reach. In practice the calls come first, from development runs whose output goes unread, and the named runs then replay them from the cache in seconds.
+
+**A run that survived 429s says so.** The owner asked for this: each call keeps how many 429s it survived, also in the cache, and a run's output and its report's `run.rerank` give the total. A report replayed from the cache says the same as the run that made the calls.
 
 **Cache.** Scores are cached per call, by model, query and the documents as sent, in `data/rerank-cache.sqlite`, not per pair: a pair's score depends on the rest of its call. A cached call replays the scores exactly, so reruns and `drl eval verify` cost nothing. It is a file of its own, so that `data/cache.sqlite` keeps its schema and M4's reports never touch it.
 
@@ -117,6 +119,8 @@ A word that came from backticks and is one lowercase word with no leading dashes
 
 The weight of 2 is fixed here, because it is what the word gets today, and there is no sweep. Checked on the real index: repeating a phrase in the query doubles its part of `bm25()`, at a ratio of 2.0000.
 
+As in ADR-0011, this is a setting on a branch of its own, `exp/m5-h5`, measured under `vector` and `hybrid`. A tag keeps the commit that measured it, and the code reaches main only if it is adopted.
+
 ## What can move
 
 Known before any run, from M4's final report:
@@ -125,7 +129,7 @@ Known before any run, from M4's final report:
 - **Every target anchor is in reach, also at the fallback's depth:** ts-0033 at 3, ts-0027 at 9, ts-0004 at 7, and the two ts-0040 anchors at 3 and 6. The reranker can also push those last two out of the top 8.
 - **Contexts change every list,** so ts-0024 can come into reach in rows with contexts.
 - **All 40 questions can move under H3 and H4,** so a significant result is possible, at 6 to 0 for example.
-- **H5 changes the query of 13 questions,** H1's list in ADR-0011: ts-0002, 0003, 0004, 0007, 0010, 0012, 0025, 0026, 0027, 0029, 0033, 0034, 0035. Six of them suggested the idea (ts-0004, 0010, 0027, 0033, 0034, 0035), so they cannot be its evidence.
+- **H5 changes the query of 14 scored questions:** ts-0002, 0003, 0004, 0007, 0010, 0012, 0024, 0025, 0026, 0027, 0029, 0033, 0034, 0035, and of the unanswerable ts-0045, which is not scored. This first said 13, taking H1's list in ADR-0011. H1 leaves ts-0024 out because its exact query only changes case, from `string` to `String`, which the trigram index ignores, and H5 also doubles `string` in the keyword query. This was found from the query plans, with no index and no rank, before any run. Six of the questions suggested the idea (ts-0004, 0010, 0027, 0033, 0034, 0035), so they cannot be its evidence.
 - **H5 cannot reach ts-0033's target by itself.** ADR-0011 found that the keyword list alone puts another chunk first there. So target T is not asked of H5.
 
 ## Integrity checks
@@ -172,6 +176,107 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 - **The control decides nothing by itself.** `drl eval compare` of the control and contextual alone is reported with the rest. If it does not call contextual alone better on overall MRR or hit@1, stop and ask before H4 is adopted, since Haiku's contexts would then show nothing that a prefix from the headings does not.
 - **H5 passes:** stop and ask, since rows 4 and 5 would then be run again on top of it, for about $3.70.
 - **A candidate does not change the app by itself.** On the free trial a rerank takes up to about a minute per question, which a chat cannot wait for. Whether the app's default moves is the owner's decision, after the result.
+
+## Result of the retrieval runs
+
+Measured on 2026-11-04. No row met T, so neither H3 nor H4 can pass, whatever the answers show. Nothing is adopted, and the defaults and the code on main stay as they are. The sections above are unchanged from before the runs, apart from the status and date lines. No answers have run: that waits for the owner.
+
+The integrity checks that apply so far all passed, and are listed below. On primary anchors, on all 40 questions:
+
+| Target | Baseline | H3 | Contextual alone | H4 | Control | H5 |
+|---|---|---|---|---|---|---|
+| ts-0033, rank 1 | 3 | 3 | 4 | 3 | 4 | 2 |
+| ts-0027, pinned to `--strictNullChecks`, rank 6 or better | 9 | 3, met | 6, met | 4, met | 8 | 10 |
+| ts-0004, rank 2 or better | 7 | 2, met | 5 | 3 | 7 | 4 |
+| ts-0040, release notes, top 8 | 3, met | 2, met | 2, met | 2, met | 3, met | 3, met |
+| ts-0040, handbook, top 8 | 6, met | 6, met | 5, met | 6, met | 6, met | 6, met |
+| **Rows met** | 2 of 5 | **4 of 5** | 3 of 5 | 3 of 5 | 2 of 5 | 2 of 5 |
+
+| Full set | Baseline | H3 | Contextual alone | H4 | Control | H5 |
+|---|---|---|---|---|---|---|
+| hit@1 / 3 / 5 / 8 | 19 / 34 / 35 / 36 | 31 / 39 / 39 / 39 | 22 / 32 / 35 / 35 | 33 / 38 / 39 / 39 | 17 / 33 / 35 / 36 | 18 / 32 / 35 / 35 |
+| recall@8 | 0.881 | 0.948 | 0.863 | 0.954 | 0.887 | 0.856 |
+| MRR | 0.657 | 0.867 | 0.693 | 0.886 | 0.634 | 0.644 |
+| T | | no | no | no | no | not asked |
+| G | | yes | yes | yes | no, on MRR | yes |
+
+- **Left the top 8:** ts-0035 under contextual alone, 1 to 9, and under H5, 1 to 10. Nothing under H3, H4 or the control.
+- **Came into the top 8:** under H3, ts-0022 15 to 2, ts-0038 17 to 1, ts-0039 13 to 3. Under H4, ts-0022 15 to 1, ts-0038 17 to 1, ts-0039 13 to 4.
+- **The control's G:** on MRR the baseline is ahead on 5 questions and the control on 2, a net of 3 against a limit of 2, and not significant. It decides nothing.
+
+`drl eval compare`, overall, on primary anchors. "Better on" counts the questions where the first and the second row is ahead:
+
+| Comparison | hit@1 | Better on | p | MRR | Better on | p | Verdict |
+|---|---|---|---|---|---|---|---|
+| Baseline against H3, the reranker alone | 19 to 31 | 0 / 12 | < 0.001 | 0.657 to 0.867 | 0 / 18 | < 0.001 | H3 better on both |
+| Baseline against contextual alone | 19 to 22 | 2 / 5 | 0.453 | 0.657 to 0.693 | 5 / 11 | 0.210 | not significant |
+| Baseline against H4 | 19 to 33 | 0 / 14 | < 0.001 | 0.657 to 0.886 | 0 / 20 | < 0.001 | H4 better on both |
+| Contextual alone against H4, the reranker on top of contexts | 22 to 33 | 0 / 11 | 0.001 | 0.693 to 0.886 | 0 / 16 | < 0.001 | H4 better on both |
+| H3 against H4, contexts on top of the reranker | 31 to 33 | 0 / 2 | 0.500 | 0.867 to 0.886 | 2 / 3 | 1.000 | noise |
+| Baseline against control, the headings said twice | 19 to 17 | 2 / 0 | 0.500 | 0.657 to 0.634 | 5 / 2 | 0.453 | noise, not significant |
+| Control against contextual alone, Haiku's words beyond a prefix | 17 to 22 | 1 / 6 | 0.125 | 0.634 to 0.693 | 4 / 12 | 0.077 | not significant |
+| Baseline against H5 | 19 to 18 | 1 / 0 | 1.000 | 0.657 to 0.644 | 2 / 4 | 0.688 | noise |
+
+What this says:
+- **The reranker is what moves the full set.** Under H3, 18 primary ranks go up and none goes down, and the baseline is ahead on no question on any of the six metrics. On acceptable anchors too: hit@1 27 to 37, MRR 0.787 to 0.942. Its hit@8 of 39 is the limit this ADR named, since ts-0024, at rank 40, is out of reach. H4 leaves it at 37, also out of reach.
+- **H3 misses T on one row.** ts-0033 stays at 3 against a target of 1. The chunk on `@satisfies` in TypeScript 5.0 stays first, and the other chunk of the section, part 2 of 2, comes second, above the anchor's part 1 of 2. T asks for all five, so this is a fail. The target does not change. H4 also misses ts-0004, at 3 against 2.
+- **Contexts show no gain, alone or on top of the reranker.** Alone they are not significant against the baseline. On top of the reranker they are noise. The direction is up, by 0.036 and 0.019 of MRR. Alone they also push ts-0035 out of the top 8, and the reranker brings it back to 1 in H4.
+- **Haiku's words are not shown to beat a prefix from the headings.** `drl eval compare` does not call contextual alone better than the control on hit@1 or MRR, so the stop-and-ask rule applies. H4 is no candidate, so nothing waits on it. The direction favours the contexts, at 4 / 12 on MRR, and 40 questions do not settle it.
+- **Saying the headings twice shows no gain.** It moves seven primary ranks and no hit@8, and the small MRR difference favours the baseline.
+- **H5 fails.** ts-0033 goes 3 to 2 and ts-0004 7 to 4, but ts-0027's pinned anchor goes 9 to 10, and the criterion asks that none gets worse. G passes on all 40 and on the 34. On the 34 no hit metric moves, and the one rank that does is ts-0024, 40 to 36. It also keeps little of the topic signal ADR-0011 hoped for: against H1, ts-0027 is at 10 instead of 14, ts-0034 at 4 instead of 5, and ts-0035 at 10 instead of 11, still out of the top 8. The code stays at the tag `exp/m5-h5`, and rows 4 and 5 do not run again on top of it.
+
+Per tag, MRR on primary anchors, reported and deciding nothing:
+
+| Tag | Questions | Baseline | H3 | Contextual alone | H4 | Control | H5 |
+|---|---|---|---|---|---|---|---|
+| basic | 15 | 0.700 | 0.835 | 0.765 | 0.857 | 0.678 | 0.719 |
+| cross-lingual | 4 | 0.550 | 0.875 | 0.568 | 0.833 | 0.550 | 0.577 |
+| edge | 14 | 0.671 | 0.881 | 0.760 | 0.911 | 0.671 | 0.671 |
+| exact-token | 10 | 0.617 | 0.900 | 0.733 | 0.950 | 0.567 | 0.617 |
+| fresh | 4 | 0.409 | 0.833 | 0.410 | 0.813 | 0.411 | 0.409 |
+| version | 7 | 0.643 | 0.833 | 0.504 | 0.833 | 0.560 | 0.526 |
+
+### What to keep from this
+
+**The verdict stands as the rules give it.** H3 is not accepted under this ADR, and nothing in its criteria changes, now or after the answers. Whether the app uses the reranker is a product decision of the owner's. It gets an ADR of its own after the answer runs, which cites the set-level result and states that H3 stays formally not accepted.
+
+**A lesson for later ADRs: set-level criteria decide, and per-question targets are diagnostics.** T is a hard gate per question, so one question, ts-0033, vetoed a set-level gain that is significant and has no regression: H3 takes hit@1 from 19 to 31 and MRR from 0.657 to 0.867, with no question worse on any retrieval metric. A rank on one question says where to look. It should not be able to overrule the whole set.
+
+**The contexts added nothing significant on these docs.** Here every chunk already carries `document > sections`, and the Haiku contexts added nothing significant, alone or on top of rerank.
+
+### Integrity
+
+1. **Passed.** `m5-rerank` and `m5-h5` have queries `3cbc8c2527dd`, corpus `8224c2d1af73`, chunks `ba7aae0e36d9`.
+2. **Passed.** In `m5-rerank`, every field of `result` equals M4's final report for `vector` and `hybrid`: `scored`, `stale`, `review`, `unanswerable`, `comparison`, both strategies, and both ranks of each target. `chunks` keeps every entry of the final report. The rerank strategy only adds to these.
+3. **Passed.** After all the runs, `drl eval verify` on M4's final report says byte for byte, on the same vectors, and the plain index's sha256 is still `403465a8...`.
+4. **Passed.** `drl eval check --contextual` and `--control` each find the plain index's 994 chunks at its commit, 994 contexts and a clean golden set. The query hash of both reports is `3cbc8c2527dd`. For the control's 994 chunks: each prefix is the title and section path, the stored vector is the cached vector of the prefix and the text, the plain index holds no such vector, and no prefix has a word of six letters or more that its chunk's text and headings do not hold.
+5. **Passed.** The traces of both rows were computed again through the engine, from the caches, with providers that throw on any call, and none was attempted. For all 40 questions of each row, the rerank came from one cached call, scored the fused top 20 once each, and the top 8 came from that. The context and primary rank match the report. `data/rerank-cache.sqlite` holds 80 calls, the 40 of each row.
+6. **Passed.** `drl eval verify --record` says byte for byte for `m5-rerank`, `m5-contextual` and `m5-control`, from the caches. `m5-h5` says the same at its own commit with `--weight-backticks`. Without that flag it is not comparable, which is correct: this branch has no such setting.
+7. This needs answers.
+
+### What it took
+
+| | Estimate | Measured |
+|---|---|---|
+| Rerank, row 4 | about 935K tokens for both rows, 45 to 55 minutes per pass | 389,162 tokens in 40 calls, 40 minutes |
+| Rerank, row 5 | | 445,438 tokens in 40 calls, 44 minutes |
+| Voyage embeddings of the control | about 430K tokens, 50 to 60 minutes | 438,230 tokens in 156 requests, 52 minutes |
+
+**Voyage rejected nothing, and no call met a 429,** so depth 20 stands and the fallback was not used. Both reports say `rerank: 40 calls, none retried after a 429`. The calls have a median of 10,503 billed tokens and a largest of 13,330, so at least half passed 10K by themselves and were paced, as planned. Rerank came to about $0.04 at list prices, inside the free tokens, with no bill. The calls were made by development runs whose output nobody read, and the named runs replayed them from the cache.
+
+### Reproducing this
+
+The reports are `eval/reports/typescript/2026-11-04-1339ab72-m5-rerank`, `2026-11-04-d93f3325-m5-contextual`, `2026-11-04-62a32167-m5-control` and `2026-11-04-cdb7ef48-m5-h5`, each with `.json`, `.md` and what verify found.
+
+```
+pnpm drl eval verify eval/reports/typescript/2026-11-04-1339ab72-m5-rerank.json
+pnpm drl eval verify eval/reports/typescript/2026-11-04-d93f3325-m5-contextual.json
+pnpm drl eval verify eval/reports/typescript/2026-11-04-62a32167-m5-control.json
+```
+
+With this machine's `data/` these take seconds. Nothing in `data/` is committed, so elsewhere the indexes and rerank calls have to be made again, and new vectors bring `verify`'s second bar (ADR-0010).
+
+H5's code never reached main. The tag `exp/m5-h5` keeps the commit that measured it, `cdb7ef4`. It changes no schema, so the same `data/` serves. Check out the tag with a copy of the report outside the tree, and add `--weight-backticks` to `verify`.
 
 ## Estimates
 

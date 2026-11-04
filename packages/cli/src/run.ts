@@ -19,6 +19,7 @@ import {
   ContextsStoppedError,
   type EmbeddingProvider,
   type EvalClient,
+  type IndexVariant,
   type RerankProvider,
   type Source,
 } from '@docs-rag-lab/core'
@@ -72,6 +73,8 @@ Commands:
       [--name <name>]         A run to keep, such as baseline: needs a clean tree and check.
                               It measures every strategy, rerank too, one paced call per question
       [--strategy <s>]        One strategy instead of vector and hybrid
+      [--contextual]          Measure the contextual index instead of the plain one
+      [--control]             Measure the control index, under vector and hybrid only
       [--yes]                 Go on with rerank calls that are not cached: without it, a run
                               that needs them prints their estimate and stops
   eval verify <report>        Run a report again, and say whether it reproduces
@@ -92,6 +95,7 @@ Commands:
       [--after <report>]      Those labels are of a fresh round after that report
       [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
+      [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
@@ -177,6 +181,24 @@ function strategyOf(value: string | undefined, fallback: Strategy): Strategy {
   return strategy
 }
 
+/** `hybrid,rerank`: which strategy of each report to compare. */
+function strategyPairOf(value: string | undefined): [Strategy, Strategy] | undefined {
+  if (value === undefined) return undefined
+  const parts = value.split(',').map((part) => part.trim())
+  const [first, second] = parts
+  if (parts.length !== 2 || first === undefined || second === undefined) {
+    throw new CliError(`--strategies takes two strategies, such as hybrid,rerank, got "${value}"`)
+  }
+  const named = (name: string): Strategy => {
+    const strategy = STRATEGIES.find((known) => known === name)
+    if (strategy === undefined) {
+      throw new CliError(`--strategies names ${STRATEGIES.join(', ')}, got "${name}"`)
+    }
+    return strategy
+  }
+  return [named(first), named(second)]
+}
+
 function docTypesOf(values: readonly string[] | undefined): DocType[] {
   const docTypes: DocType[] = []
   for (const value of (values ?? []).flatMap((v) => v.split(','))) {
@@ -202,6 +224,7 @@ function refuseStrayEvalFlags(
     'sample-of'?: string | undefined
     contextual?: boolean | undefined
     control?: boolean | undefined
+    strategies?: string | undefined
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
@@ -219,8 +242,13 @@ function refuseStrayEvalFlags(
       ? ['--name']
       : []),
     ...(values.record === true && subcommand !== 'verify' ? ['--record'] : []),
-    ...(values.contextual === true && subcommand !== 'check' ? ['--contextual'] : []),
-    ...(values.control === true && subcommand !== 'check' ? ['--control'] : []),
+    ...(values.contextual === true && subcommand !== undefined && subcommand !== 'check'
+      ? ['--contextual']
+      : []),
+    ...(values.control === true && subcommand !== undefined && subcommand !== 'check'
+      ? ['--control']
+      : []),
+    ...(values.strategies !== undefined && subcommand !== 'compare' ? ['--strategies'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
       ? ['--after']
       : []),
@@ -283,6 +311,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         source: { type: 'string', default: sources[0]?.id ?? '' },
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
+        strategies: { type: 'string' },
         record: { type: 'boolean', default: false },
         after: { type: 'string' },
         'sample-of': { type: 'string' },
@@ -360,17 +389,20 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   try {
     const root = options.root ?? findRepoRoot(import.meta.dirname)
     loadRootEnv(root)
-    const engine = createEngine({
-      settings,
-      sources,
-      root,
-      createReranker: options.createReranker,
-      createProvider: options.createProvider,
-    })
+    const engineFor = (index?: IndexVariant) =>
+      createEngine({
+        settings,
+        sources,
+        root,
+        variant: index,
+        createReranker: options.createReranker,
+        createProvider: options.createProvider,
+      })
     const ctx = {
       settings,
       sources,
-      engine,
+      engine: engineFor(),
+      engineFor,
       root,
       meter,
       out,
@@ -425,6 +457,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
               ? undefined
               : strategyOf(values.strategy, settings.retrieval.strategy),
           yes: values.yes,
+          variant,
         })
       } else if (subcommand === 'answers') {
         const maxUsd = values['max-usd'] === undefined ? undefined : Number(values['max-usd'])
@@ -464,7 +497,11 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         if (first === undefined || second === undefined) {
           throw new CliError('eval compare needs two report files')
         }
-        evalCompareCommand(ctx, { a: first, b: second })
+        evalCompareCommand(ctx, {
+          a: first,
+          b: second,
+          strategies: strategyPairOf(values.strategies),
+        })
       } else if (subcommand === 'check') {
         if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
         const setVersion = values['set-version']

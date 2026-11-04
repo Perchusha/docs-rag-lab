@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { openDatabase } from './open.ts'
 import { openRerankCache } from './rerank-cache.ts'
 
 describe('RerankCache', () => {
@@ -18,15 +19,44 @@ describe('RerankCache', () => {
     const cache = openRerankCache(':memory:')
     const scores = [0.903148353099823, 0.3414119482040405, 5.960464477539063e-8, 1, 0]
     cache.put('k', 'voyage:rerank-test', scores, 60)
-    expect(cache.get('k')).toEqual(scores)
+    expect(cache.get('k')).toEqual({ scores, rateLimitRetries: 0 })
     cache.close()
+  })
+
+  it('keeps how many 429s a call survived, so a report replayed from here can say so', () => {
+    const cache = openRerankCache(':memory:')
+    cache.put('k', 'voyage:rerank-test', [0.5], 10, 1)
+    expect(cache.get('k')?.rateLimitRetries).toBe(1)
+    cache.close()
+  })
+
+  it('reads a file from before the count, as a call that survived none', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'drl-rerank-cache-'))
+    try {
+      const path = join(dir, 'rerank-cache.sqlite')
+      const db = openDatabase(path)
+      db.exec(`
+        create table rerank_calls (
+          key text primary key, provider text not null, scores text not null,
+          tokens integer not null, created_at text not null
+        ) without rowid;
+        insert into rerank_calls values ('k', 'p', '[0.5]', 10, 'then');
+        pragma user_version = 1;
+      `)
+      db.close()
+      const cache = openRerankCache(path)
+      expect(cache.get('k')).toEqual({ scores: [0.5], rateLimitRetries: 0 })
+      cache.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('keeps the first entry for a key, since that is what the reports measured', () => {
     const cache = openRerankCache(':memory:')
     cache.put('k', 'voyage:rerank-test', [0.5], 10)
     cache.put('k', 'voyage:rerank-test', [0.6], 10)
-    expect(cache.get('k')).toEqual([0.5])
+    expect(cache.get('k')?.scores).toEqual([0.5])
     expect(cache.count()).toBe(1)
     cache.close()
   })
@@ -39,7 +69,7 @@ describe('RerankCache', () => {
       first.put('k', 'voyage:rerank-test', [0.25], 10)
       first.close()
       const second = openRerankCache(path)
-      expect(second.get('k')).toEqual([0.25])
+      expect(second.get('k')?.scores).toEqual([0.25])
       second.close()
     } finally {
       rmSync(dir, { recursive: true, force: true })

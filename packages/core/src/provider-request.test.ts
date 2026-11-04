@@ -50,6 +50,30 @@ describe('requestWithRetries', () => {
   describe('with one retry of a 429', () => {
     const once = { retryRateLimitOnce: true }
 
+    it('says when it waits out a 429, and not for a rejection or another failure', async () => {
+      const { clock, limiter } = setup()
+      let told = 0
+      const onRateLimited = () => {
+        told++
+      }
+      const survived = failing(clock, rateLimit())
+      await requestWithRetries(1, survived.request, { limiter, ...once, onRateLimited })
+      expect(told).toBe(1)
+
+      const rejected = failing(clock, rateLimit(), rateLimit())
+      await expect(
+        requestWithRetries(1, rejected.request, { limiter, ...once, onRateLimited }),
+      ).rejects.toThrow('busy')
+      expect(told).toBe(2)
+
+      const other = failing(
+        clock,
+        new ProviderRequestError('unavailable', { status: 503, retryAfterMs: 1 }),
+      )
+      await requestWithRetries(1, other.request, { limiter, ...once, onRateLimited })
+      expect(told).toBe(2)
+    })
+
     it('sends that same call again after a minute when there is no Retry-After', async () => {
       const { clock, limiter } = setup()
       const { request, sentAt } = failing(clock, rateLimit())

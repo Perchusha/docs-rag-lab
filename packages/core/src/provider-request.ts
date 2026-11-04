@@ -32,6 +32,8 @@ export interface ProviderRequestOptions {
    * gets one retry after a full idle window, and a 429 straight after that is final.
    */
   retryRateLimitOnce?: boolean | undefined
+  /** Told each time a 429 is about to be waited out and retried. */
+  onRateLimited?: (() => void) | undefined
 }
 
 const DEFAULT_MAX_RETRIES = 6
@@ -64,6 +66,7 @@ export async function requestWithRetries<T extends { tokens: number }>(
       }
       const rateLimited = error.status === 429
       if (rateLimited && idledAfterRateLimit) throw error
+      if (rateLimited) options.onRateLimited?.()
       idledAfterRateLimit = rateLimited && options.retryRateLimitOnce === true
       const backoff = Math.min(
         MAX_BACKOFF_MS,

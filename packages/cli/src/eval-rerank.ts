@@ -6,6 +6,7 @@
 import { join } from 'node:path'
 
 import {
+  contextualText,
   estimateRerankTokens,
   isUnanswerable,
   openIndexes,
@@ -15,6 +16,7 @@ import {
   runBatchingCheck,
   type BatchingCheck,
   type BatchingCheckQuestion,
+  type IndexVariant,
 } from '@docs-rag-lab/core'
 
 import { findSource, rerankerFor, type CommandContext } from './commands.ts'
@@ -32,10 +34,18 @@ const count = (n: number): string => n.toLocaleString('en-US')
 const calls = (n: number): string => `${String(n)} call${n === 1 ? '' : 's'}`
 
 /** The fused top documents of every answerable question that is not stale, in the set's order. */
-async function fusedTops(ctx: CommandContext, sourceId: string): Promise<BatchingCheckQuestion[]> {
-  const { settings, engine, meter } = ctx
+async function fusedTops(
+  ctx: CommandContext,
+  sourceId: string,
+  variant?: IndexVariant,
+): Promise<BatchingCheckQuestion[]> {
+  const { settings, meter } = ctx
+  const engine = variant === undefined ? ctx.engine : ctx.engineFor(variant)
   const source = findSource(ctx.sources, sourceId)
-  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, { create: false })
+  const indexes = openIndexes(join(ctx.root, settings.dataDir), source.id, {
+    create: false,
+    variant,
+  })
   let golden
   try {
     golden = readGoldenFiles(ctx.root, source.id, indexes.index)
@@ -53,7 +63,11 @@ async function fusedTops(ctx: CommandContext, sourceId: string): Promise<Batchin
       { question, source: source.id, strategy: 'hybrid', topK: settings.rerank.depth },
       meter,
     )
-    tops.push({ id, question, documents: hits.map((hit) => hit.text) })
+    tops.push({
+      id,
+      question,
+      documents: hits.map(({ context, text }) => contextualText(context, text)),
+    })
   }
   return tops
 }
@@ -68,9 +82,10 @@ function durationOf(ctx: CommandContext, requests: number, estimatedTokens: numb
 export async function planRerankRun(
   ctx: CommandContext,
   sourceId: string,
+  variant?: IndexVariant,
 ): Promise<{ calls: number; estimatedTokens: number; duration: string }> {
   const { settings } = ctx
-  const tops = await fusedTops(ctx, sourceId)
+  const tops = await fusedTops(ctx, sourceId, variant)
   const provider = rerankerFor(ctx)
   const indexes = openIndexes(join(ctx.root, settings.dataDir), sourceId, { create: false })
   try {

@@ -8,8 +8,9 @@
 // 2: TraceChunk.sectionPath, the section a chunk starts in (M3).
 // 3: TraceChunk.part, which part of its section a chunk is (M3).
 // 4: the rerank strategy and RetrievalTrace.rerank (M5).
+// 5: TraceRerank.rateLimitRetries (M5).
 
-export const TRACE_VERSION = 4
+export const TRACE_VERSION = 5
 
 /** vector: KNN over embeddings. hybrid: lists fused by RRF. rerank: hybrid, with the top of it reranked. */
 export type Strategy = 'vector' | 'hybrid' | 'rerank'
@@ -84,6 +85,8 @@ export interface TraceRerank {
   depth: number
   /** Whether its one call came from the cache. */
   from: 'cache' | 'api'
+  /** How many 429s that call survived, also when it is replayed from the cache. */
+  rateLimitRetries: number
   ms: number
   /** The scored candidates, best first. Below them the fused order goes on. */
   ranked: TraceRerankedCandidate[]
