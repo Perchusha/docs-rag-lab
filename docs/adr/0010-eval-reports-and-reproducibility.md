@@ -77,6 +77,17 @@ The M2 targets in SPEC section 13 are in `packages/sources/<id>/eval/targets.jso
 
 Targets are not part of the golden set, so changing one does not change the set version.
 
+### 6. A run stays where it started
+
+Added in M5, at the owner's request. A report stamps the commit it came from, and a run can take an hour, while the working tree can move under it. On 2026-11-04 GitHub Desktop's branch list did that five minutes into a paid run (ADR-0014). That run was unharmed, but nothing would have said so.
+
+So every `drl` command notes HEAD and the branch when it starts, and checks both before each paid call, right before the request and after any wait for a rate limit, and before it writes a report. If either changed, it stops and says where it started and where it is now. What was paid for stays cached, so a rerun in the right place pays only for the rest, and no report is written.
+
+- **It covers** every Voyage call of every command, and Claude's calls for answers, the judge and contexts. `drl ask` streams one answer in seconds, so only its Voyage calls are checked.
+- **It applies to development runs too,** so a commit during a long run stops that run: start long runs when no commit is coming.
+- **Only the position counts.** Going away and coming back between two checks stops nothing, and a cached reply needs no check. Outside a repository there is nothing to hold, so there is no guard.
+- **The app has no such guard.** It is a server, and a branch switch under it is no report's concern.
+
 ## Measured
 
 The baseline, `eval/reports/typescript/2026-11-03-15a96498-baseline.json`, at docs `205122bb` and set version 1:

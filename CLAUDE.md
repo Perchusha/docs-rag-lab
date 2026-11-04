@@ -32,10 +32,10 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - A report again, to see if it reproduces: `pnpm drl eval verify <report>` (add `--record` to write what it found next to the report, for the dashboard)
 - Two reports, question by question: `pnpm drl eval compare <a> <b>` (add `--strategies hybrid,rerank` for a's `hybrid` against b's `rerank`)
 - How a rerank score depends on the rest of its call: `pnpm drl eval rerank-check` prints its plan, and calls Voyage with `--yes`
-- Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit). Reruns pay only for what is not cached.
+- Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit, `--rows 0,2,3,4,5` for rows 4 and 5, which rerank, and row 5 reads the contextual index). Reruns pay only for what is not cached.
 - The judge on answers whose grade is known, spends real tokens: `pnpm drl eval judge-check --yes`
-- The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions)
-- How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, or `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind)
+- The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions, or `--rows 4,5` for 15 answers from those rows)
+- How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind, or `--rows 4,5` for that round)
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Rate limits of embeddings and rerank: `pnpm drl limits`
@@ -43,7 +43,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
-`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.
 
 ## Hooks
 

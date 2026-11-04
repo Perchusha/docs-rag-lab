@@ -1,7 +1,7 @@
 # ADR-0014: Testing rerank and contextual retrieval
 
-- Status: accepted as the test, before any run. The retrieval runs are in (see Result): neither H3 nor H4 meets T, so nothing is adopted. Answers wait for the owner.
-- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed. The retrieval results came the same day.
+- Status: accepted as the test, before any run. The retrieval runs and the answers are in (see the two results): neither H3 nor H4 meets T, so neither is accepted. The app stays on hybrid, and rerank becomes an on-demand comparison in the inspector.
+- Date: 2026-11-03. Batching and the cache changed on 2026-11-04, after the batching check and before any run. The control row was added the same day, before any retrieval number existed. The retrieval results and the answers came the same day.
 - Milestone: M5
 
 ## Context
@@ -179,7 +179,7 @@ All on primary anchors, on all 40 questions, against the baseline's `hybrid`.
 
 ## Result of the retrieval runs
 
-Measured on 2026-11-04. No row met T, so neither H3 nor H4 can pass, whatever the answers show. Nothing is adopted, and the defaults and the code on main stay as they are. The sections above are unchanged from before the runs, apart from the status and date lines. No answers have run: that waits for the owner.
+Measured on 2026-11-04. No row met T, so neither H3 nor H4 can pass, whatever the answers show. Nothing is adopted, and the defaults and the code on main stay as they are. The sections above are unchanged from before the runs, apart from the status and date lines. The answers came after this, in their own section below.
 
 The integrity checks that apply so far all passed, and are listed below. On primary anchors, on all 40 questions:
 
@@ -238,7 +238,7 @@ Per tag, MRR on primary anchors, reported and deciding nothing:
 
 ### What to keep from this
 
-**The verdict stands as the rules give it.** H3 is not accepted under this ADR, and nothing in its criteria changes, now or after the answers. Whether the app uses the reranker is a product decision of the owner's. It gets an ADR of its own after the answer runs, which cites the set-level result and states that H3 stays formally not accepted.
+**The verdict stands as the rules give it.** H3 is not accepted under this ADR, and nothing in its criteria changes, now or after the answers. Whether the app uses the reranker is a product decision of the owner's, apart from this verdict. It is recorded with the answers below: hybrid stays the default.
 
 **A lesson for later ADRs: set-level criteria decide, and per-question targets are diagnostics.** T is a hard gate per question, so one question, ts-0033, vetoed a set-level gain that is significant and has no regression: H3 takes hit@1 from 19 to 31 and MRR from 0.657 to 0.867, with no question worse on any retrieval metric. A rank on one question says where to look. It should not be able to overrule the whole set.
 
@@ -252,7 +252,7 @@ Per tag, MRR on primary anchors, reported and deciding nothing:
 4. **Passed.** `drl eval check --contextual` and `--control` each find the plain index's 994 chunks at its commit, 994 contexts and a clean golden set. The query hash of both reports is `3cbc8c2527dd`. For the control's 994 chunks: each prefix is the title and section path, the stored vector is the cached vector of the prefix and the text, the plain index holds no such vector, and no prefix has a word of six letters or more that its chunk's text and headings do not hold.
 5. **Passed.** The traces of both rows were computed again through the engine, from the caches, with providers that throw on any call, and none was attempted. For all 40 questions of each row, the rerank came from one cached call, scored the fused top 20 once each, and the top 8 came from that. The context and primary rank match the report. `data/rerank-cache.sqlite` holds 80 calls, the 40 of each row.
 6. **Passed.** `drl eval verify --record` says byte for byte for `m5-rerank`, `m5-contextual` and `m5-control`, from the caches. `m5-h5` says the same at its own commit with `--weight-backticks`. Without that flag it is not comparable, which is correct: this branch has no such setting.
-7. This needs answers.
+7. Passed, with the answers: see their result.
 
 ### What it took
 
@@ -289,6 +289,61 @@ How they run, written before the run:
 - **Ten more rerank calls.** Retrieval scores 40 questions, and answers also cover the 5 the docs do not answer, each with a call per row. These were not among the calls made before any number was read, so that rule held for 80 of 90 calls. This was found while planning the answers. A rejection on one of the ten would still stop the run and go to the owner, now with numbers already read.
 - **Noise.** Rows 3, 4 and 5 answer twice. The judge gives a second opinion on row 3 alone, as in M4, which is in the cache. Rows 4 and 5 add no such calls, so the estimate above holds.
 - **The labels.** 15 answers, 7 from row 4 and 8 from row 5, with 3 on questions the docs do not answer, none on the same question twice, from a seed of their own, with all three dimensions to label: `drl eval label <report> --rows 4,5`, then `drl eval calibrate <report> <labels> --rows 4,5`. The latest blind round under the same prompts decides (ADR-0012), so a miss marks the judge uncalibrated for every report under those prompts.
+
+### Result of the answers
+
+Measured on 2026-11-04, in `eval/reports/typescript/2026-11-04-a5189068-m5-answers`. **Rows 4 and 5 pass A, and H3 and H4 stay not accepted, since T failed. A significant retrieval gain did not reach answer quality on this set.**
+
+| Of 40 questions, first run / second run | Row 3, hybrid | Row 4, rerank | Row 5, rerank with contexts |
+|---|---|---|---|
+| Fully correct, may run high | 34 / 34 | 36 / 36 | 37 / 37 |
+| All citations hold | 33 / 38 | 36 / 33 | 33 / 34 |
+| Wrongly refused, fewer is better | 2 / 2 | 1 / 1 | 0 / 1 |
+| Cites the right passage | 36 / 36 | 38 / 38 | 38 / 38 |
+| Correct and grounded, exploratory, may run high | 28 / 32 | 32 / 29 | 29 / 30 |
+| Refused rightly, of 5 | 5 / 5 | 5 / 5 | 5 / 5 |
+| Cost per answer | $0.0225 / $0.0225 | $0.0229 / $0.0228 | $0.0230 / $0.0229 |
+| Time per answer, retrieval not included | 4.7 s / 4.4 s | 4.7 s / 4.3 s | 4.7 s / 4.6 s |
+
+Compared question by question, first runs, with the first row's count first:
+
+| Comparison | Fully correct | All citations hold | Not wrongly refused | Correct and grounded |
+|---|---|---|---|---|
+| Row 3 against row 4 | 1 / 3, p = 0.63, noise | 4 / 7, p = 0.55, not significant | 0 / 1, noise | 3 / 7, p = 0.34, not significant |
+| Row 3 against row 5 | 0 / 3, p = 0.25, not significant | 5 / 5, noise | 0 / 2, noise | 4 / 5, noise |
+| Row 4 against row 5 | 0 / 1, noise | 6 / 3, p = 0.51, not significant | 0 / 1, noise | 6 / 3, p = 0.51, not significant |
+| Row 3 against itself | 0 / 0 | 0 / 5, p = 0.06, not significant | 0 / 0 | 0 / 4, p = 0.13, not significant |
+| Row 4 against itself | 0 / 0 | 4 / 1, p = 0.38, not significant | 0 / 0 | 4 / 1, p = 0.38, not significant |
+| Row 5 against itself | 0 / 0 | 2 / 3, noise | 1 / 0, noise | 2 / 3, noise |
+
+- **A: passed by both rows.** Row 3 is ahead by no question net on any of the three, and no verdict names it.
+- **Correct and grounded: moved by neither row.** No verdict names a row, and a margin would have to pass 10, twice the larger run-to-run count of 5.
+- **Row 5 shows nothing over row 4,** in line with the retrieval result.
+- **Why retrieval's gain stayed there is a reading, not a test.** Claude reads all eight chunks, so a rank within the eight may matter less than what is in them, and only 3 more questions got a primary anchor into them. The set has little room either way, with row 3 already at 34 of 40.
+
+The judge, on 15 answers the owner labelled blind, 7 from row 4 and 8 from row 5:
+
+| Dimension | Agreed | Kappa | 95% interval | Passed |
+|---|---|---|---|---|
+| Correctness | 11 of 12 | 0.82 | 65% to 99% | yes |
+| Refusal | 15 of 15 | 1.00 | 80% to 100% | yes |
+| Support | 11 of 12 | 0.63 | 65% to 99% | yes |
+
+The judge stays calibrated for these prompts. Its lean remains: the one new correctness disagreement is the judge scoring 2 where the human scored 1, on ts-0028 in row 5, so all 4 across the blind rounds go the same way, and correctness may run slightly high. The three questions the docs do not answer agree on 3 of 3, which is too little to decide anything.
+
+Integrity:
+- **Check 7 passed.** All 1,087 cited texts in rows 4 and 5 are in that chunk's original text, and none comes from a context. The comparison ignores whitespace, since a citation that spans blocks of a search result loses what separated them.
+- **Check 6 passed for this report too:** `drl eval verify` says byte for byte, at its own commit.
+- **Rows 0, 2 and 3 equal M4's final report** in every answer, verdict and support entry, from the cache, and all 160 scored answers of rows 4 and 5 read the context their retrieval report says.
+- **Check 3 passed again,** at the end, and the plain index's sha256 is unchanged.
+
+**What it took.** Claude came to $6.89 for this run and $0.66 for a pilot of 10 questions, against an estimate of $7.40, so about $7.83 in all with the contexts, under the $15 rule. The ten extra rerank calls were accepted with no 429: the cache holds 90 calls and 930,327 tokens, with no retry in any.
+
+**The working tree moved during this run.** At 15:26:11, five minutes in, GitHub Desktop's branch list switched the working tree from this branch to `main`, by its own log. The report's commit had been stamped by then and its code was already loaded, and the checks above show the run was unharmed. ADR-0010 now has a guard for this.
+
+### The app stays on hybrid
+
+The owner first decided to switch the app to rerank as a product decision, apart from the verdict, and after these answers decided against it. **A significant retrieval gain that did not reach answer quality on this set does not justify a rate-limited dependency in the chat path.** So hybrid stays the app's default, and no ADR or PR switches it. Rerank becomes an on-demand comparison in the inspector, as planned for "what the reranker changed".
 
 ## Estimates
 

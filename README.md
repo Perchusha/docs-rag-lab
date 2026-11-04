@@ -109,7 +109,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, and `/eval` only reads committed reports |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
-Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices.
+Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices. It also stops before its next paid call if HEAD or the branch changes under it, so that a report cannot name the wrong commit ([ADR-0010](docs/adr/0010-eval-reports-and-reproducibility.md)).
 
 ## Repository layout
 
