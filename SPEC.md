@@ -30,7 +30,7 @@ Everything runs locally. There is no deployment.
 - No deployment. Everything runs with `pnpm dev`, API keys in `.env`.
 - No LangChain, LlamaIndex or other RAG frameworks. The pipeline is written by hand so every step is visible and explainable.
 - No multi-user features, no auth.
-- Not competing with Context7 (docs for coding agents). The MCP server is a bonus milestone, not the core.
+- Not competing with Context7 (docs for coding agents). The MCP server comes later, after v1.0, and is not the core.
 
 ## 3. Main scenarios
 
@@ -41,7 +41,7 @@ Everything runs locally. There is no deployment.
    - the fused ranking and, on demand, what the reranker would change (ADR-0014: the chat stays on hybrid);
    - chunk boundaries inside the source document;
    - the final context sent to Claude.
-3. **Eval dashboard.** Its first screen answers three questions: does hybrid find the right chunks more often, does it give better answers and does RAG help at all, and can these numbers be trusted. Per-tag tables, per-question diffs, cited chunks and diffs between runs sit behind one disclosure. Every number has its uncertainty beside it, and the dashboard only reads committed reports (ADR-0013).
+3. **Eval dashboard.** Its first screen answers three questions: does hybrid find the right chunks more often, does it give better answers and does RAG help at all, and can these numbers be trusted. A report with the reranker's rows asks instead whether rerank finds the right chunks higher, whether that reaches the answers, and the same third question. Per-tag tables, per-question diffs, cited chunks and diffs between runs sit behind one disclosure. Every number has its uncertainty beside it, and the dashboard only reads committed reports (ADR-0013).
 4. **Interview prep.** Pick technologies and a level, then:
    - get a topic map built from the docs themselves;
    - train in different modes (see section 11);
@@ -67,7 +67,7 @@ packages/
   settings/         engine settings shared by the CLI and apps: models, prices, limits, retrieval defaults (ADR-0007)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   cli/              drl sync | ask | eval | questions
-  mcp/              MCP server over core (created in M10)
+  mcp/              MCP server over core (later, after v1.0)
   config/           shared tsconfig, eslint, vitest presets, dependency-cruiser rules
 tooling/
   claude-hooks/     Claude Code hooks: PreToolUse guard, PostToolUse checks, Stop tests (ADR-0002)
@@ -280,15 +280,16 @@ Every `drl` command that calls an API ends with the tokens it used and their est
 - The document is sent once with prompt caching and reused for all its chunks.
 - The context is prepended for both embedding and FTS. It is stored separately so the inspector can show it and eval can toggle it.
 - The context is for retrieval only. Claude receives and cites the original chunk text, never the generated prefix (ADR-0014).
+- Measured in M5: on these docs, where every chunk already carries `document > sections`, the contexts added nothing significant, alone or on top of rerank (ADR-0014).
 - Contexts are committed under `eval/contexts/<source>/` with their model and prompt hash, so the index can be rebuilt without calling Haiku. The contextual index is a second file, and the plain one stays as it is, so earlier reports can still be verified.
 
 ### Retrieval
 1. Vector search top 50 plus FTS5 BM25 top 50 over the question's terms, plus BM25 top 50 over its exact tokens: code in backticks, camelCase identifiers, `--flags` and source tokens (ADR-0005).
 2. Reciprocal Rank Fusion (k=60, equal weights). These are not tuned: a sweep over 40 questions would fit noise (ADR-0009).
-3. `rerank-3` over the top 20 (M5), in one call per question, since a score depends on the rest of its call. On the free trial the calls are paced to stay under the rate limit on average (ADR-0014).
+3. `rerank-3` over the top 20 (M5), in one call per question, since a score depends on the rest of its call. On the free trial the calls are paced to stay under the rate limit on average, so a wait of up to about a minute is pacing and not the reranker: one uncached call took 359 ms (ADR-0014).
 4. Top K (default 8) goes to generation.
 
-Strategies: `vector` (step 1's vector list only, ladder row 2) and `hybrid` (steps 1-2, ladder row 3). `drl ask` and `drl search` take `--strategy`.
+Strategies: `vector` (step 1's vector list only, ladder row 2), `hybrid` (steps 1-2, ladder row 3) and `rerank` (steps 1-3, ladder row 4, and row 5 on the contextual index). `drl ask` and `drl search` take `--strategy`. The app stays on hybrid: its chat refuses `rerank`, and the inspector offers it as an on-demand comparison, since the gain did not reach the answers (ADR-0014).
 
 Filters: docType runs inside the KNN query (a vec0 metadata column) and the keyword query. Source is the choice of index file, one per source. Version and block type filters are not built yet.
 
@@ -310,7 +311,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 built this, and the README has the measured rows: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
+M4 built this, M5 added ladder rows 4 and 5, and the README has the measured rows. M4's part: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -320,14 +321,14 @@ M4 built this, and the README has the measured rows: the golden set format, anch
 - `primary` anchors are the passages the answer was written from. The answer needs all of them, unless `"primaryMatch": "any"` says each one is enough on its own. `acceptable` anchors are other passages that also support the answer, and are never required. An unanswerable question has neither. An optional `note` says why a question is graded as it is.
 - An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that starts in the section or holds its heading, which the chunker records in `metadata.anchors`. Subsections packed into other chunks do not count for their parent, and a heading with no text of its own, whose subsections are all in other chunks, matches nothing. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
-- Start with 40 questions per source, written or reviewed by a human, plus a few unanswerable ones. Claude may draft candidates with the `write-eval-questions` skill. A human approves every question.
-- `eval/questions.lock.json` records what each anchor resolved to when a human last reviewed the set. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
+- TypeScript has 40 questions and 5 unanswerable ones, each written or reviewed by a human. React gets about 20. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015).
+- `eval/questions.lock.json` records what each anchor resolved to at the set's last review, which for React covers its flagged questions. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
 - The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared.
 
 **Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
 - hit@k, for k = 1, 3, 5 and 8: a primary anchor is in the top k. With `primaryMatch: all`, the best-ranked one counts;
 - recall@8: the share of primary anchors in the top 8. With `primaryMatch: any`, one is enough. The top 8 is what reaches the answer;
-- MRR: the reciprocal rank of the first primary anchor, or 0 if it is below the depth of one candidate list, which is 50 for both strategies.
+- MRR: the reciprocal rank of the first primary anchor, or 0 if it is below the depth of one candidate list, which is 50 for every strategy.
 
 Primary metrics are the headline. hit@k and MRR are also reported counting acceptable anchors, as a secondary number: many of those anchors were found by looking at what the current retrievers return, which favours those retrievers.
 
@@ -340,7 +341,7 @@ Primary metrics are the headline. hit@k and MRR are also reported counting accep
 - tokens and cost per question;
 - correct and grounded, exploratory: an answer that scores 2, has every cited claim supported, and cites an anchor. It was defined after seeing the first results and is no target. Row 0 cannot score on it by design (ADR-0012).
 
-Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by the whole request. `--noise` answers row 3 twice and asks the judge twice, so a report says how far a row differs from itself.
+Answers are not deterministic, because the API has no temperature for these models. Raw answers and judge verdicts are stored with the run, and cached by the whole request. `--noise` answers rows 3, 4 and 5 twice and asks the judge twice on row 3, so a report says how far a row differs from itself.
 
 **Noise.** 40 questions cannot resolve small differences. Reports compare runs question by question with an exact sign test, per tag and overall. A difference of one or two questions is marked as noise, a larger one with p >= 0.05 as not significant, and a win without the higher total as mixed. A tag with 5 questions or fewer cannot reach significance at all, so it is marked as too few (ADR-0010).
 
@@ -357,7 +358,7 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, the hypotheses, the answers, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
-**Judge calibration:** in each milestone that touches eval, a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. Its known bias is stated wherever correctness is reported: all three disagreements so far are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012).
+**Judge calibration:** a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. A new round is needed only when its prompt or model changes, and React gets a spot check on 10 answers instead (ADR-0015). Its known bias is stated wherever correctness is reported: all 4 disagreements on correctness so far are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012, ADR-0014).
 
 ## 11. Interview-prep app
 
@@ -406,7 +407,7 @@ This setup is part of the showcase. Keep it real and minimal.
     5. run eval;
     6. update the README table.
   - `run-eval`: run eval for a source and strategy, compare with the last report, flag regressions, write a summary.
-  - `write-eval-questions`: draft candidate golden questions with anchors for human review.
+  - `write-eval-questions`: draft candidate golden questions with anchors, and flag the ones a human should review (ADR-0015).
 - **Subagents** in `.claude/agents/`:
   - `code-reviewer`: a fresh-context review against the boundaries, ADRs and tests;
   - `eval-analyst`: classifies failures as retrieval miss, generation error or bad question.
@@ -415,7 +416,7 @@ This setup is part of the showcase. Keep it real and minimal.
   - Stop: `turbo run test --filter=...[HEAD]` (tests for affected packages only).
   - PreToolUse: block reading `.env*` and writing to `data/**` and `.cache/**`.
   - Add the hooks in M0 only after the commands exist and pass on the empty scaffold. Prove each hook works.
-- **`.mcp.json` (M10):** the project's own MCP server, so Claude Code can query TS and React docs through Docs RAG Lab while building Docs RAG Lab (dogfooding).
+- **`.mcp.json` (later, after v1.0):** the project's own MCP server, so Claude Code can query TS and React docs through Docs RAG Lab while building Docs RAG Lab (dogfooding).
 - **README section "How this repo is built with Claude Code":** an overview of the setup, plus links to real PRs (for example, a source added via `/add-source`, or a hook catching a mistake).
 
 ## 13. Milestones
@@ -433,11 +434,22 @@ Every milestone ends with:
 | M3 | ts-docs app | Streaming chat with citations, inspector panel, Storybook for `ui` | Inspector shows candidates, scores and chunk boundaries |
 | M4 | Eval harness | 40 TS questions plus 5 unanswerable, metrics, ladder rows 0, 2 and 3, reports, dashboard view | Report is reproducible from SHA + config |
 | M5 | Rerank + contextual | Ladder rows 4 and 5, prompt caching, cost tracking | README table has measured rows |
-| M6 | React via `/add-source` | `react-docs` app, 40 questions | Done through the skill; the PR links the session |
+| M6 | React via `/add-source` | `react-docs` app, about 20 questions | Done through the skill; the PR links the session |
 | M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text | `exact-token` questions improve and are measured |
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
-| M10 | MCP + more sources | Docs RAG Lab MCP server, dogfooding via `.mcp.json`. Optional: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD) | Claude Code uses Docs RAG Lab while working on Docs RAG Lab |
+
+**v1.0 is M5 through M9,** on top of M0 to M4, which are done (ADR-0015).
+
+**Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD).
+
+### The process from M6 on
+
+Lighter than M4 and M5, by the owner's decision (ADR-0015):
+- **Reuse** the eval harness, the calibrated judge and the dashboard.
+- **React's golden set is smaller,** about 20 questions. Claude drafts them, and the owner reviews only the flagged ones.
+- **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
+- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014).
 
 ### M4 retrieval targets from M2
 
@@ -454,7 +466,7 @@ Hypotheses to check first, on the full golden set and not tuned to these four qu
 1. **Backticked plain words are counted twice.** A word like `satisfies`, `strict`, `unknown` or `any` is both a search term and an exact token, so BM25 enters the fusion twice. Check: limit exact tokens to code-shaped ones (identifiers, flags, source tokens, code with punctuation).
 2. **Trigram matches 3-character terms inside other words.** `any` matches "many" and "company", so 488 of 994 chunks match it. Check: match 3-character terms as whole words, for example through a second unicode61 column or table.
 
-Both were tested on the full set under criteria fixed first, alone and together, and neither reached the targets, so neither was adopted (ADR-0011). The three rows stay unmet, and the M5 reranker (`rerank-3` over the fused top 20) is the next lever. ADR-0014 fixes that test before any run.
+Both were tested on the full set under criteria fixed first, alone and together, and neither reached the targets, so neither was adopted (ADR-0011). The M5 reranker (`rerank-3` over the fused top 20) then met ts-0027 at rank 3 and ts-0004 at rank 2, and left ts-0033 at rank 3. ADR-0014 asked for all five rows, so it is not accepted, and later ADRs treat these ranks as diagnostics.
 
 ## 14. Conventions
 
@@ -476,7 +488,6 @@ Both were tested on the full set under criteria fixed first, alone and together,
 
 - Commit the generated question bank, or regenerate it locally?
 - Voice mode in interview prep: browser speech API, or skip it.
-- More sources before or after the interview-prep MVP?
 
 ## 16. References
 

@@ -1,6 +1,6 @@
 # packages/core
 
-The RAG engine: ingest orchestration, embeddings and the embedding cache, contextualization, hybrid search, rerank, generation and the eval runner (SPEC sections 9 and 10). The chunker lives in source-kit (ADR-0003). M2 has ingest, hybrid search (vector, BM25 and exact tokens, fused by RRF) with the retrieval trace, and cited answers. M3 adds `ask()`, which reports an answer as `AnswerEvent`s, and `createEngine()`, the search, ask and document lookups that the CLI and the apps share (ADR-0006). M4 adds `src/eval/`: golden sets and their anchors (ADR-0009), retrieval metrics, comparison and reports (ADR-0010), answers, the judge and its calibration (ADR-0012), and the dashboard's data (ADR-0013).
+The RAG engine: ingest orchestration, embeddings and the embedding cache, contextualization, hybrid search, rerank, generation and the eval runner (SPEC sections 9 and 10). The chunker lives in source-kit (ADR-0003). M2 has ingest, hybrid search (vector, BM25 and exact tokens, fused by RRF) with the retrieval trace, and cited answers. M3 adds `ask()`, which reports an answer as `AnswerEvent`s, and `createEngine()`, the search, ask and document lookups that the CLI and the apps share (ADR-0006). M4 adds `src/eval/`: golden sets and their anchors (ADR-0009), retrieval metrics, comparison and reports (ADR-0010), answers, the judge and its calibration (ADR-0012), and the dashboard's data (ADR-0013). M5 adds the reranker in `src/rerank/`, the contextual and control indexes (ADR-0014), and the run guard (ADR-0010).
 
 ## Boundaries
 
@@ -12,7 +12,7 @@ The RAG engine: ingest orchestration, embeddings and the embedding cache, contex
 
 - The pipeline is hand-written: no LangChain, LlamaIndex or other RAG frameworks.
 - Model IDs, prices and limits arrive as arguments from the CLI or an app, which read them from `@docs-rag-lab/settings`. Never a literal in code, and never an imported value (ADR-0007).
-- API keys are read from `process.env` only inside the provider constructors (`createVoyageProvider`, `createClaudeClient`), with `requireKey`. Never pass a key through settings or options.
+- API keys are read from `process.env` only inside the provider constructors (`createVoyageProvider`, `createVoyageReranker`, `createClaudeClient`), with `requireKey`. Never pass a key through settings or options.
 - Call Claude through `@anthropic-ai/sdk` directly, so `search_result` blocks and citations work.
 - Every retrieval returns a serializable trace object (SPEC section 9, ADR-0005). Its type lives in `@docs-rag-lab/contracts` (ADR-0006); bump `TRACE_VERSION` there when its shape changes.
 - Embeddings go through the `EmbeddingProvider` interface and `embedWithCache`, never a provider client directly (ADR-0004).
