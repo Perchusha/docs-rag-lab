@@ -24,6 +24,8 @@ export interface EvalSplit {
   tied: number
   p: number
   verdict: DifferenceVerdict
+  /** What to call b where room is short, such as "+ contexts". */
+  shortB?: string
 }
 
 export interface DashboardRow {
@@ -38,18 +40,26 @@ export interface DashboardRow {
   comparisons: EvalSplit[]
   /** Questions that differ between two runs of hybrid; null when there was no second run. */
   runToRun: number | null
+  /** The same per column, when each has its own, and null for one with no second run. */
+  runToRuns?: (number | null)[]
 }
 
 export interface DashboardSection {
   question: string
   /** Plain sentences that claim only what a verdict names. Never an exploratory metric. */
   summary: string
+  /** Plain lines under the summary, with no control in them: what to read the numbers against. */
+  notes?: string[]
+  /** The column every comparison is against, when the section compares only with one. */
+  against?: string
   columns: string[]
   /** What the graphic's scale runs over, in words. */
   scale: string
   rows: DashboardRow[]
   /** Whether the section has a run-to-run column. Retrieval repeats exactly. */
   showRunToRun: boolean
+  /** That column's header, when it is not about hybrid alone. */
+  runToRunHeader?: string
 }
 
 export type CalibrationDimension = 'correctness' | 'refusal' | 'support'
@@ -100,6 +110,8 @@ export interface DashboardTrust {
   review: string[]
   /** What the last recorded re-run found, or null when none was recorded. */
   verify: { status: string; text: string; checkedAt: string } | null
+  /** Which other index this report read, in words, when it read one. */
+  index?: string
 }
 
 export interface DashboardRun {
@@ -148,6 +160,8 @@ export interface DashboardCandidate {
 }
 
 export interface DashboardDetails {
+  /** Every strategy and row, for a report with the reranker, whose first screen shows three. */
+  allRows?: DashboardSection[]
   /** One section per metric, with a row per tag. */
   tags: DashboardSection[]
   questions: DashboardQuestion[]

@@ -13,12 +13,15 @@ import { estimateRerankTokens, type RerankProvider } from './provider.ts'
 
 /** Voyage refused a rerank call for its limits or its size. The message says what happens next. */
 export class RerankRejectedError extends Error {
+  readonly status: number
+
   constructor(status: number, message: string, cause: unknown) {
     super(
       `Voyage rejected a rerank call (${String(status)}): ${message}. Stop here and tell the owner: ADR-0014 fixes a depth of 15 for both rows as the only fallback`,
       { cause },
     )
     this.name = 'RerankRejectedError'
+    this.status = status
   }
 }
 

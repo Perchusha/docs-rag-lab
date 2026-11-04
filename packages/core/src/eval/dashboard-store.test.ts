@@ -7,6 +7,7 @@ import { openSourceIndex } from '@docs-rag-lab/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { sourceIndexPath } from '../indexes.ts'
+import { strategyResult } from './metrics.ts'
 import {
   dashboardPage,
   dashboardRuns,
@@ -53,6 +54,103 @@ describe('runToShow', () => {
 
   it('takes an empty parameter as nothing asked for', () => {
     expect(runToShow(runs, '')).toEqual({ shown: runs[1], missing: undefined })
+  })
+})
+
+describe('row 5 of a report', () => {
+  let root: string
+  const answersId = '2026-11-04-abcdef12-answers'
+
+  const scores = (rank: number) =>
+    Array.from({ length: 10 }, (_, i) => ({
+      id: `ts-${String(i + 1).padStart(4, '0')}`,
+      tags: ['basic'],
+      anchors: [{ anchor: 'a.md', role: 'primary' as const, rank }],
+      primaryRank: rank,
+      acceptableRank: rank,
+      recallAt8: 1,
+      context: [],
+    }))
+
+  const report = (name: string, chunksHash: string, rank: number, queryHash = 'q') => ({
+    version: EVAL_REPORT_VERSION,
+    identity: {
+      goldenSet: { version: 1, hash: 'h' },
+      docs: { sha: 's' },
+      chunksHash,
+      contextModel: null,
+      rerank: { model: 'm', depth: 20 },
+    },
+    vectors: { queryHash, corpusHash: chunksHash },
+    result: {
+      scored: 10,
+      stale: [],
+      review: [],
+      unanswerable: [],
+      targets: [],
+      chunks: {},
+      strategies: [strategyResult('hybrid', scores(3)), strategyResult('rerank', scores(rank))],
+    },
+    run: { name, createdAt: '2026-11-04T00:00:00Z', repoSha: 'abcdef1234567890' },
+  })
+
+  const write = (id: string, value: object) => {
+    writeFileSync(join(reportsDir(root, 'demo'), `${id}.json`), JSON.stringify(value))
+  }
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'drl-dashboard-row5-'))
+    mkdirSync(reportsDir(root, 'demo'), { recursive: true })
+    write(answersId, {
+      ...report('answers', 'plain', 2),
+      answers: {
+        models: { answer: 'a', judge: 'j' },
+        prompts: {},
+        rows: [
+          {
+            row: 5,
+            sample: 1,
+            overall: {},
+            byTag: {},
+            refusals: {},
+            excluded: { truncated: [], refused: [], failed: [], unjudged: [] },
+          },
+        ],
+        comparisons: [],
+        judgeRetest: null,
+        candidates: [],
+        contextualIndex: { rows: [5], contextModel: 'haiku:abc', chunksHash: 'contextual' },
+        paidUsd: 0,
+        answers: [],
+        verdicts: [],
+        support: [],
+      },
+    })
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  const thirdColumn = () =>
+    loadDashboardRun({ root, dataDir: join(root, 'data'), sourceId: 'demo' }, answersId).retrieval
+      .rows[0]?.figures[2]
+
+  it('comes from the report that names the chunks it read', () => {
+    write('2026-11-04-abcdef13-other', report('other', 'other', 9))
+    write('2026-11-04-abcdef14-contextual', report('contextual', 'contextual', 1))
+
+    expect(thirdColumn()).toMatchObject({ kind: 'share', count: 10, of: 10 })
+  })
+
+  it('does not come from one of the same chunks on other questions', () => {
+    write('2026-11-04-abcdef14-contextual', report('contextual', 'contextual', 1, 'other-queries'))
+
+    expect(thirdColumn()).toEqual({ kind: 'none', reason: 'in its own report' })
+  })
+
+  it('says where it is when there is no such report', () => {
+    expect(thirdColumn()).toEqual({ kind: 'none', reason: 'in its own report' })
   })
 })
 
