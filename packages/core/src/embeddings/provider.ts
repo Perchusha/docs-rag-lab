@@ -30,27 +30,6 @@ export interface EmbeddingProvider {
   probeRateLimits?(): Promise<RateLimitProbe>
 }
 
-/** A failed provider request. `status` is undefined for network errors and timeouts. */
-export class EmbeddingRequestError extends Error {
-  readonly status: number | undefined
-  readonly retryAfterMs: number | undefined
-
-  constructor(
-    message: string,
-    options: { status?: number; retryAfterMs?: number; cause?: unknown },
-  ) {
-    super(message, { cause: options.cause })
-    this.name = 'EmbeddingRequestError'
-    this.status = options.status
-    this.retryAfterMs = options.retryAfterMs
-  }
-
-  /** Rate limits, server errors and network failures are worth retrying. */
-  get retryable(): boolean {
-    return this.status === undefined || this.status === 429 || this.status >= 500
-  }
-}
-
 /** The embedding cache key: sha256 of provider id (model and dimensions), input type and text. */
 export function embeddingCacheKey(providerId: string, inputType: InputType, text: string): string {
   return sha256Hex(JSON.stringify([providerId, inputType, text]))

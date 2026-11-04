@@ -1,5 +1,7 @@
 // A sliding one-minute window over requests and billed tokens, so a sync
-// stays under the provider's RPM and TPM limits instead of hitting 429s.
+// stays under the provider's RPM and TPM limits instead of hitting 429s. A
+// request over the whole TPM budget stays in the window for longer, in
+// proportion, so that the average stays under the limit (ADR-0014).
 
 export interface Clock {
   now(): number
@@ -54,6 +56,10 @@ export class RateLimiter {
     await this.#clock.sleep(ms)
   }
 
+  #leavesAt(entry: Entry): number {
+    return entry.time + WINDOW_MS * Math.max(1, entry.tokens / this.#tpm)
+  }
+
   /**
    * Waits until one more request of about `estimatedTokens` fits in the
    * window. A request larger than the whole TPM budget goes through once the
@@ -62,7 +68,7 @@ export class RateLimiter {
   async acquire(estimatedTokens: number): Promise<Slot> {
     for (;;) {
       const now = this.#clock.now()
-      this.#entries = this.#entries.filter((entry) => entry.time > now - WINDOW_MS)
+      this.#entries = this.#entries.filter((entry) => this.#leavesAt(entry) > now)
       const used = this.#entries.reduce((sum, entry) => sum + entry.tokens, 0)
       const fits =
         this.#entries.length < this.#rpm &&
@@ -76,8 +82,8 @@ export class RateLimiter {
           },
         }
       }
-      const oldest = this.#entries[0]?.time ?? now
-      await this.wait(Math.max(1, oldest + WINDOW_MS - now + MARGIN_MS))
+      const next = Math.min(...this.#entries.map((entry) => this.#leavesAt(entry)))
+      await this.wait(Math.max(1, next - now + MARGIN_MS))
     }
   }
 }

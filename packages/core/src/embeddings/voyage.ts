@@ -5,13 +5,8 @@ import type { VoyageEmbeddingsSettings } from '@docs-rag-lab/settings'
 import { VoyageAIClient, VoyageAIError, VoyageAITimeoutError } from 'voyageai'
 
 import { requireKey } from '../env.ts'
-import {
-  EmbeddingRequestError,
-  type EmbeddingProvider,
-  type EmbedResult,
-  type InputType,
-  type RateLimitProbe,
-} from './provider.ts'
+import { ProviderRequestError } from '../provider-request.ts'
+import type { EmbeddingProvider, EmbedResult, InputType, RateLimitProbe } from './provider.ts'
 
 interface EmbedRequest {
   input: string[]
@@ -41,9 +36,9 @@ function retryAfterMs(headers: Headers | undefined): number | undefined {
   return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now())
 }
 
-function toRequestError(error: unknown): unknown {
+export function toRequestError(error: unknown): unknown {
   if (error instanceof VoyageAITimeoutError) {
-    return new EmbeddingRequestError(`Voyage request timed out: ${error.message}`, { cause: error })
+    return new ProviderRequestError(`Voyage request timed out: ${error.message}`, { cause: error })
   }
   // The client wraps network failures in a VoyageAIError without a status code,
   // which makes them retryable. Anything else (a bug) passes through unchanged.
@@ -52,7 +47,7 @@ function toRequestError(error: unknown): unknown {
     if (error.statusCode !== undefined) options.status = error.statusCode
     const retryAfter = retryAfterMs(error.rawResponse?.headers)
     if (retryAfter !== undefined) options.retryAfterMs = retryAfter
-    return new EmbeddingRequestError(
+    return new ProviderRequestError(
       `Voyage request failed${error.statusCode === undefined ? '' : ` (${String(error.statusCode)})`}: ${error.message}`,
       options,
     )
@@ -81,6 +76,15 @@ function vectorsOf(response: EmbedResponse, count: number, dimensions: number): 
 
 // Atlas states the free-trial limits in x-api-warning instead of rate-limit headers.
 const RATE_LIMIT_HEADER = /ratelimit|rate-limit|retry-after|^x-api-warning$/i
+
+/** The rate-limit headers of a response, lowercased names. */
+export function rateLimitHeadersOf(headers: Headers): Record<string, string> {
+  const found: Record<string, string> = {}
+  headers.forEach((value, name) => {
+    if (RATE_LIMIT_HEADER.test(name)) found[name.toLowerCase()] = value
+  })
+  return found
+}
 
 /**
  * A Voyage provider. Without `api`, it builds the official client and reads
@@ -126,11 +130,10 @@ export function createVoyageProvider(
 
     async probeRateLimits(): Promise<RateLimitProbe> {
       const { data, rawResponse } = await request(['ok'], 'query')
-      const headers: Record<string, string> = {}
-      rawResponse.headers.forEach((value, name) => {
-        if (RATE_LIMIT_HEADER.test(name)) headers[name.toLowerCase()] = value
-      })
-      return { headers, tokens: data.usage?.totalTokens ?? 0 }
+      return {
+        headers: rateLimitHeadersOf(rawResponse.headers),
+        tokens: data.usage?.totalTokens ?? 0,
+      }
     },
   }
 }

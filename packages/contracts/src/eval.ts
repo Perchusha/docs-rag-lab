@@ -149,6 +149,8 @@ export interface EvalIdentity {
   retrievalVersion: number
   /** Every retrieval setting but the strategy, which is per result. */
   retrieval: Record<string, string | number | boolean>
+  /** Only in a report that measured the rerank strategy, so earlier reports stay comparable. */
+  rerank?: { model: string; depth: number }
 }
 
 /** The vectors behind a result. The same text can get different vectors (ADR-0010). */

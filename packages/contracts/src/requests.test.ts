@@ -26,7 +26,7 @@ describe('parseRetrievalRequest', () => {
     [{ question: '  ' }, 'question must be a non-empty string'],
     [{ question: 1 }, 'question must be a non-empty string'],
     [{ question: 'q', source: '' }, 'source must be a string'],
-    [{ question: 'q', strategy: 'bm25' }, 'strategy must be one of vector, hybrid'],
+    [{ question: 'q', strategy: 'bm25' }, 'strategy must be one of vector, hybrid, rerank'],
     [{ question: 'q', docTypes: 'option' }, 'docTypes must be an array of strings'],
     [{ question: 'q', docTypes: ['option', 1] }, 'docTypes must be an array of strings'],
     [{ question: 'q', topK: '8' }, 'topK must be a whole number'],

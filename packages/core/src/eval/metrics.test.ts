@@ -56,6 +56,32 @@ describe('rankingOf', () => {
     expect(rankingOf(trace)).toEqual(['f1'])
   })
 
+  it('puts what the reranker scored first, and keeps the fused order below it', () => {
+    const fused = ['a', 'b', 'c', 'd']
+    const trace = {
+      lists: [{ ...list, candidates }],
+      fusion: {
+        method: 'rrf',
+        k: 60,
+        ms: 0,
+        ranked: fused.map((chunkId, i) => ({ chunkId, rank: i + 1, score: 1, ranks: {} })),
+      },
+      rerank: {
+        provider: 'fake',
+        depth: 3,
+        from: 'cache',
+        ms: 0,
+        ranked: [
+          { chunkId: 'c', rank: 1, score: 0.9, fusedRank: 3 },
+          { chunkId: 'a', rank: 2, score: 0.5, fusedRank: 1 },
+          { chunkId: 'b', rank: 3, score: 0.1, fusedRank: 2 },
+        ],
+      },
+    } as unknown as RetrievalTrace
+
+    expect(rankingOf(trace)).toEqual(['c', 'a', 'b', 'd'])
+  })
+
   it('uses the vector list without fusion', () => {
     const trace = {
       lists: [{ ...list, candidates }],

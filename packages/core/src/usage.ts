@@ -3,13 +3,13 @@
 import type { PricingSettings } from '@docs-rag-lab/settings'
 
 export interface ModelUsage {
-  kind: 'embedding' | 'messages'
+  kind: 'embedding' | 'rerank' | 'messages'
   requests: number
   inputTokens: number
   outputTokens: number
   cacheWriteTokens: number
   cacheReadTokens: number
-  /** Embedding inputs served from the local cache instead of the API. */
+  /** Embedding inputs or rerank calls served from the local cache instead of the API. */
   cacheHits: number
 }
 
@@ -56,6 +56,16 @@ export class UsageMeter {
 
   recordEmbeddingCacheHits(model: string, count: number): void {
     if (count > 0) this.#entry(model, 'embedding').cacheHits += count
+  }
+
+  recordRerank(model: string, tokens: number): void {
+    const entry = this.#entry(model, 'rerank')
+    entry.requests++
+    entry.inputTokens += tokens
+  }
+
+  recordRerankCacheHits(model: string, count: number): void {
+    if (count > 0) this.#entry(model, 'rerank').cacheHits += count
   }
 
   recordMessage(model: string, usage: MessageUsage): void {
@@ -111,7 +121,7 @@ export function formatUsage(meter: UsageMeter, pricing: PricingSettings): string
   if (entries.length === 0) return 'usage: no API calls, 0 tokens, $0.0000'
   const parts = entries.map(([model, u]) => {
     const price = cost.byModel.has(model) ? usd(cost.byModel.get(model) ?? 0) : 'no price'
-    if (u.kind === 'embedding') {
+    if (u.kind !== 'messages') {
       const requests = `${count(u.requests)} request${u.requests === 1 ? '' : 's'}`
       return `${model} ${count(u.inputTokens)} tokens in ${requests}, ${count(u.cacheHits)} cached (${price})`
     }

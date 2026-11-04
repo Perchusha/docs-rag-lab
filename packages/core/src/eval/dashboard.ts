@@ -34,7 +34,11 @@ import { reciprocal } from './metrics.ts'
 import { judgeTrust, verifyWords } from './trust.ts'
 import { fieldDifferences } from './verify.ts'
 
-const STRATEGY_NAMES: Record<Strategy, string> = { vector: 'Vector', hybrid: 'Hybrid' }
+const STRATEGY_NAMES: Record<Strategy, string> = {
+  vector: 'Vector',
+  hybrid: 'Hybrid',
+  rerank: 'Hybrid + rerank',
+}
 const ROW_NAMES: Record<AnswerRow, string> = { 0: 'No RAG', 2: 'Vector', 3: 'Hybrid' }
 const ROWS: readonly AnswerRow[] = [0, 2, 3]
 

@@ -116,7 +116,7 @@ describe('run', () => {
         root,
       }),
     ).toBe(1)
-    expect(err.text()).toContain('--strategy must be one of vector, hybrid, got "bm25"')
+    expect(err.text()).toContain('--strategy must be one of vector, hybrid, rerank, got "bm25"')
 
     expect(
       await run(['ask', 'q', '--doc-type', 'option,manual'], {
@@ -220,7 +220,7 @@ describe('run', () => {
 
     expect(code).toBe(0)
     const trace = JSON.parse(out.text()) as RetrievalTrace
-    expect(trace).toMatchObject({ version: 3, strategy: 'hybrid', sourceId: 'typescript' })
+    expect(trace).toMatchObject({ version: 4, strategy: 'hybrid', sourceId: 'typescript' })
     expect(trace.embedding.from).toBe('cache')
     expect(trace.lists.find((list) => list.name === 'exact')?.candidates[0]?.chunkId).toBe('code')
     expect(trace.context.map((c) => c.chunkId)).toEqual(['code', 'near'])

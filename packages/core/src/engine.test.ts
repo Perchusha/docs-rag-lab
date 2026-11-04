@@ -18,7 +18,8 @@ import {
   UnknownSourceError,
   type EngineSettings,
 } from './engine.ts'
-import { IndexNotFoundError, openIndexes, sourceIndexPath } from './indexes.ts'
+import { IndexNotFoundError, openIndexes, rerankCachePath, sourceIndexPath } from './indexes.ts'
+import type { RerankProvider } from './rerank/provider.ts'
 import { fakeAnswerClient, fakeVector, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
 
@@ -34,6 +35,13 @@ const settings: EngineSettings = {
     model: 'fake-embed',
     dimensions: 8,
     batch: { maxInputs: 10, maxTokens: 1000 },
+    rateLimit: { rpm: 1000, tpm: 1_000_000 },
+  },
+  rerank: {
+    provider: 'voyage',
+    endpoint: 'https://ai.example.com/v1',
+    model: 'fake-rerank',
+    depth: 3,
     rateLimit: { rpm: 1000, tpm: 1_000_000 },
   },
   models: { answer: 'claude-test', contextualize: 'claude-small', judge: 'claude-judge' },
@@ -164,6 +172,50 @@ describe('createEngine', () => {
     expect(meter.entries().map(([model]) => model)).toEqual(['fake-embed'])
   })
 
+  it('reranks through the settings on request, and keeps its calls in a file of their own', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const calls: string[][] = []
+    const reranker: RerankProvider = {
+      id: 'fake:rerank',
+      model: 'fake-rerank',
+      rerank: (_query, documents) => {
+        calls.push([...documents])
+        return Promise.resolve({ scores: documents.map((text) => text.length), tokens: 9 })
+      },
+    }
+    const host = createEngine({
+      settings,
+      sources: [source],
+      root,
+      createProvider: () => provider,
+      createReranker: () => reranker,
+    })
+    const cachePath = rerankCachePath(join(root, settings.dataDir))
+
+    // A search with no rerank neither calls it nor creates its file.
+    await host.search({ question: QUESTION }, new UsageMeter())
+    expect(calls).toEqual([])
+    expect(existsSync(cachePath)).toBe(false)
+
+    const meter = new UsageMeter()
+    const { trace } = await host.search({ question: QUESTION, strategy: 'rerank' }, meter)
+    expect(trace.strategy).toBe('rerank')
+    expect(trace.rerank).toMatchObject({ provider: 'fake:rerank', depth: 3, from: 'api' })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toHaveLength(3)
+    expect(existsSync(cachePath)).toBe(true)
+    expect(meter.entries().map(([model, usage]) => [model, usage.kind])).toEqual([
+      ['fake-embed', 'embedding'],
+      ['fake-rerank', 'rerank'],
+    ])
+
+    // The cache outlives the call, since indexes are opened per call.
+    const again = await host.search({ question: QUESTION, strategy: 'rerank' }, new UsageMeter())
+    expect(again.trace.rerank?.from).toBe('cache')
+    expect(calls).toHaveLength(1)
+  })
+
   it('names what is wrong with a request: an unknown source or doc type', async () => {
     seed(new RecordingProvider())
     await expect(
@@ -183,7 +235,7 @@ describe('createEngine', () => {
 
     await expect(search({ question: '  ' })).rejects.toThrow(InvalidRequestError)
     await expect(search({ strategy: 'bm25' as Strategy })).rejects.toThrow(
-      'unknown strategy "bm25" (known: vector, hybrid)',
+      'unknown strategy "bm25" (known: vector, hybrid, rerank)',
     )
     for (const topK of [0, 1.5, MAX_TOP_K + 1]) {
       await expect(search({ topK })).rejects.toThrow(

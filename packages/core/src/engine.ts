@@ -29,13 +29,15 @@ import {
   type AnswerClient,
 } from './generate.ts'
 import { openIndexes, type OpenIndexes } from './indexes.ts'
+import { createRerankProvider } from './rerank/factory.ts'
+import type { RerankProvider } from './rerank/provider.ts'
 import { retrieve, type Retrieval } from './retrieve.ts'
 import type { UsageMeter } from './usage.ts'
 
 /** The settings the engine reads; a host passes its whole Settings object. */
 export type EngineSettings = Pick<
   Settings,
-  'dataDir' | 'embeddings' | 'models' | 'answer' | 'retrieval' | 'pricing'
+  'dataDir' | 'embeddings' | 'rerank' | 'models' | 'answer' | 'retrieval' | 'pricing'
 >
 
 export interface EngineOptions {
@@ -44,8 +46,9 @@ export interface EngineOptions {
   sources: readonly Source[]
   /** The repository root; settings.dataDir is relative to it. */
   root: string
-  /** For tests. Defaults to the provider and the Claude client named in settings. */
+  /** For tests. Defaults to the providers and the Claude client named in settings. */
   createProvider?: (() => EmbeddingProvider) | undefined
+  createReranker?: (() => RerankProvider) | undefined
   createClient?: (() => AnswerClient) | undefined
 }
 
@@ -135,13 +138,18 @@ export function createEngine(options: EngineOptions): Engine {
   const { settings, sources } = options
   const dataDir = join(options.root, settings.dataDir)
   let provider: EmbeddingProvider | undefined
+  let reranker: RerankProvider | undefined
   let client: AnswerClient | undefined
   const limiter = new RateLimiter(settings.embeddings.rateLimit)
+  // Limits are per model, so rerank calls do not wait on embeddings.
+  const rerankLimiter = new RateLimiter(settings.rerank.rateLimit)
 
   const providerOf = (): EmbeddingProvider =>
     (provider ??= (
       options.createProvider ?? (() => createEmbeddingProvider(settings.embeddings))
     )())
+  const rerankerOf = (): RerankProvider =>
+    (reranker ??= (options.createReranker ?? (() => createRerankProvider(settings.rerank)))())
   const clientOf = (): AnswerClient =>
     (client ??= (options.createClient ?? (() => createClaudeClient()))())
 
@@ -182,6 +190,16 @@ export function createEngine(options: EngineOptions): Engine {
     cache: indexes.cache,
     meter,
     limiter,
+    ...((request.strategy ?? settings.retrieval.strategy) === 'rerank'
+      ? {
+          rerank: {
+            provider: rerankerOf(),
+            depth: settings.rerank.depth,
+            cache: indexes.rerankCache(),
+            limiter: rerankLimiter,
+          },
+        }
+      : {}),
   })
 
   return {

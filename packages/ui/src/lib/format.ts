@@ -31,7 +31,7 @@ export function messageOf(error: unknown): string {
 /** Tokens and cost of one answer or search, from the engine's usage summary. */
 export function formatUsage(usage: UsageSummary): string {
   const models = usage.models.map((m) => {
-    if (m.kind === 'embedding') {
+    if (m.kind !== 'messages') {
       const cached = m.cacheHits > 0 ? `, ${INTEGER.format(m.cacheHits)} cached` : ''
       return `${m.model} ${INTEGER.format(m.inputTokens)} tokens${cached}`
     }

@@ -112,6 +112,7 @@ The app itself is a page and three one-line routes over the engine: `POST /api/a
 - App-specific state lives in its own file, for example `data/apps/interview-prep.sqlite` (progress, sessions).
 - The embedding cache is shared: `data/cache.sqlite`.
 - Eval answers and judge verdicts are cached in `data/eval-cache.sqlite`, so a rerun does not pay twice (ADR-0009).
+- Rerank calls are cached in `data/rerank-cache.sqlite`, one entry per call, since a score depends on the rest of its call (ADR-0014).
 - `data/` and `.cache/` are gitignored.
 
 ## 5. Tech stack
@@ -283,7 +284,7 @@ Every `drl` command that calls an API ends with the tokens it used and their est
 ### Retrieval
 1. Vector search top 50 plus FTS5 BM25 top 50 over the question's terms, plus BM25 top 50 over its exact tokens: code in backticks, camelCase identifiers, `--flags` and source tokens (ADR-0005).
 2. Reciprocal Rank Fusion (k=60, equal weights). These are not tuned: a sweep over 40 questions would fit noise (ADR-0009).
-3. `rerank-3` over the top 20 (M5). On the free trial the top 20 is split into calls under the rate limit, if a check shows that splitting does not change the scores (ADR-0014).
+3. `rerank-3` over the top 20 (M5), in one call per question, since a score depends on the rest of its call. On the free trial the calls are paced to stay under the rate limit on average (ADR-0014).
 4. Top K (default 8) goes to generation.
 
 Strategies: `vector` (step 1's vector list only, ladder row 2) and `hybrid` (steps 1-2, ladder row 3). `drl ask` and `drl search` take `--strategy`.

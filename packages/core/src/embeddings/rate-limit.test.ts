@@ -52,6 +52,26 @@ describe('RateLimiter', () => {
     await limiter.acquire(25_000)
     expect(clock.slept).toEqual([])
     await limiter.acquire(1)
+    expect(clock.slept).toEqual([150_250]) // 2.5 minutes of budget
+  })
+
+  it('holds the window longer after a request over the budget, so the average stays under it', async () => {
+    const clock = fakeClock()
+    const limiter = new RateLimiter({ rpm: 3, tpm: 10_000 }, clock)
+
+    const slot = await limiter.acquire(14_000)
+    slot.settle(12_000) // billed less than estimated: the billed count sets the hold
+    await limiter.acquire(14_000)
+    expect(clock.slept).toEqual([72_250])
+  })
+
+  it('holds a request at the budget or under it for the usual minute', async () => {
+    const clock = fakeClock()
+    const limiter = new RateLimiter({ rpm: 3, tpm: 10_000 }, clock)
+
+    const slot = await limiter.acquire(10_000)
+    slot.settle(10_000)
+    await limiter.acquire(10_000)
     expect(clock.slept).toEqual([60_250])
   })
 

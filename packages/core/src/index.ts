@@ -9,8 +9,12 @@ export {
   type ModelUsage,
 } from './usage.ts'
 export {
+  ProviderRequestError,
+  requestWithRetries,
+  type ProviderRequestOptions,
+} from './provider-request.ts'
+export {
   embeddingCacheKey,
-  EmbeddingRequestError,
   type EmbeddingProvider,
   type EmbedResult,
   type InputType,
@@ -25,16 +29,40 @@ export {
 } from './embeddings/cached.ts'
 export { createVoyageProvider, type VoyageEmbedApi } from './embeddings/voyage.ts'
 export { createEmbeddingProvider } from './embeddings/factory.ts'
+export { estimateRerankTokens, type RerankProvider, type RerankResult } from './rerank/provider.ts'
+export {
+  rerankCacheKey,
+  RerankRejectedError,
+  rerankWithCache,
+  type RerankWithCacheOptions,
+} from './rerank/cached.ts'
+export { createVoyageReranker, type VoyageRerankApi } from './rerank/voyage.ts'
+export { createRerankProvider } from './rerank/factory.ts'
+export {
+  batchForRerank,
+  compositionsOf,
+  planBatchingCheck,
+  runBatchingCheck,
+  type BatchingCheck,
+  type BatchingCheckOptions,
+  type BatchingCheckQuestion,
+  type Composition,
+  type CompositionName,
+  type CompositionResult,
+  type QuestionCheck,
+  type SetComparison,
+} from './rerank/batching-check.ts'
 export {
   embeddingCachePath,
   IndexNotFoundError,
   openIndexes,
+  rerankCachePath,
   sourceIndexPath,
   type OpenIndexes,
   type OpenIndexesOptions,
 } from './indexes.ts'
 export { syncSource, type SyncProgress, type SyncReport, type SyncSourceOptions } from './ingest.ts'
-export { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
+export { retrieve, type RerankStep, type Retrieval, type RetrieveOptions } from './retrieve.ts'
 export { ask, usageSummary, type AskOptions } from './ask.ts'
 export {
   createEngine,

@@ -1,15 +1,11 @@
 import { openEmbeddingCache, type EmbeddingCache } from '@docs-rag-lab/db'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { ProviderRequestError } from '../provider-request.ts'
 import { RecordingProvider } from '../test-helpers.ts'
 import { UsageMeter } from '../usage.ts'
 import { batchForProvider, embedWithCache } from './cached.ts'
-import {
-  EmbeddingRequestError,
-  type EmbeddingProvider,
-  type EmbedResult,
-  type InputType,
-} from './provider.ts'
+import type { EmbeddingProvider, EmbedResult, InputType } from './provider.ts'
 import { RateLimiter, type Clock } from './rate-limit.ts'
 
 let cache: EmbeddingCache
@@ -106,7 +102,7 @@ describe('embedWithCache', () => {
   it('retries rate limits and server errors with backoff counted as waiting', async () => {
     const provider = new FlakyProvider(
       2,
-      () => new EmbeddingRequestError('busy', { status: 429, retryAfterMs: 1_500 }),
+      () => new ProviderRequestError('busy', { status: 429, retryAfterMs: 1_500 }),
     )
     const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
 
@@ -125,7 +121,7 @@ describe('embedWithCache', () => {
   it('does not retry a client error', async () => {
     const provider = new FlakyProvider(
       1,
-      () => new EmbeddingRequestError('bad key', { status: 401 }),
+      () => new ProviderRequestError('bad key', { status: 401 }),
     )
     await expect(
       embedWithCache(['x'], { provider, cache, inputType: 'document', meter: new UsageMeter() }),
@@ -135,7 +131,7 @@ describe('embedWithCache', () => {
   it('retries server and network errors with exponential backoff, then gives up', async () => {
     const provider = new FlakyProvider(
       Number.POSITIVE_INFINITY,
-      () => new EmbeddingRequestError('unavailable', { status: 503 }),
+      () => new ProviderRequestError('unavailable', { status: 503 }),
     )
     const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
     let attempts = 0
@@ -166,7 +162,7 @@ describe('embedWithCache', () => {
   })
 
   it('retries a network error, which has no status', async () => {
-    const provider = new FlakyProvider(1, () => new EmbeddingRequestError('socket hang up', {}))
+    const provider = new FlakyProvider(1, () => new ProviderRequestError('socket hang up', {}))
     const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
     const vectors = await embedWithCache(['x'], {
       provider,
@@ -182,7 +178,7 @@ describe('embedWithCache', () => {
   it('caps a long Retry-After at 5 minutes', async () => {
     const provider = new FlakyProvider(
       1,
-      () => new EmbeddingRequestError('busy', { status: 429, retryAfterMs: 3_600_000 }),
+      () => new ProviderRequestError('busy', { status: 429, retryAfterMs: 3_600_000 }),
     )
     const limiter = new RateLimiter({ rpm: 100, tpm: 1_000_000 }, instantClock())
     await embedWithCache(['x'], {
@@ -205,7 +201,7 @@ describe('embedWithCache', () => {
       limits: inner.limits,
       embed: (texts, inputType) => {
         calls++
-        if (calls === 2) return Promise.reject(new EmbeddingRequestError('denied', { status: 403 }))
+        if (calls === 2) return Promise.reject(new ProviderRequestError('denied', { status: 403 }))
         return inner.embed(texts, inputType)
       },
     }

@@ -3,7 +3,7 @@ import { VoyageAIError } from 'voyageai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { MissingKeyError } from '../env.ts'
-import { EmbeddingRequestError } from './provider.ts'
+import { ProviderRequestError } from '../provider-request.ts'
 import { createVoyageProvider, type VoyageEmbedApi } from './voyage.ts'
 
 const config: VoyageEmbeddingsSettings = {
@@ -127,7 +127,7 @@ describe('createVoyageProvider', () => {
     const error = await createVoyageProvider(config, limited.api)
       .embed(['a'], 'document')
       .catch((e: unknown) => e)
-    expect(error).toBeInstanceOf(EmbeddingRequestError)
+    expect(error).toBeInstanceOf(ProviderRequestError)
     expect(error).toMatchObject({ status: 429, retryAfterMs: 20_000, retryable: true })
 
     const unauthorized = fakeApi(() =>

@@ -17,4 +17,5 @@ export {
   type StoredDocument,
 } from './source-index.ts'
 export { EmbeddingCache, openEmbeddingCache, type CachedEmbedding } from './embedding-cache.ts'
+export { openRerankCache, RerankCache } from './rerank-cache.ts'
 export { EvalCache, openEvalCache, type EvalCacheEntry, type EvalCacheStats } from './eval-cache.ts'

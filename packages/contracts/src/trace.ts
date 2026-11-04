@@ -7,12 +7,17 @@
 // 1: M2.
 // 2: TraceChunk.sectionPath, the section a chunk starts in (M3).
 // 3: TraceChunk.part, which part of its section a chunk is (M3).
+// 4: the rerank strategy and RetrievalTrace.rerank (M5).
 
-export const TRACE_VERSION = 3
+export const TRACE_VERSION = 4
 
-export type Strategy = 'vector' | 'hybrid'
+/** vector: KNN over embeddings. hybrid: lists fused by RRF. rerank: hybrid, with the top of it reranked. */
+export type Strategy = 'vector' | 'hybrid' | 'rerank'
 
-export const STRATEGIES: readonly Strategy[] = ['vector', 'hybrid']
+export const STRATEGIES: readonly Strategy[] = ['vector', 'hybrid', 'rerank']
+
+/** The strategies that search this machine's index, with no call beyond the query's vector. */
+export const LOCAL_STRATEGIES: readonly Strategy[] = ['vector', 'hybrid']
 
 /** vector: KNN over embeddings. keyword: BM25 over the question's terms. exact: BM25 over its exact tokens. */
 export type ListName = 'vector' | 'keyword' | 'exact'
@@ -59,6 +64,30 @@ export interface TraceFusedCandidate {
 
 export type TraceFusion =
   { method: 'none' } | { method: 'rrf'; k: number; ms: number; ranked: TraceFusedCandidate[] }
+
+/** One candidate the reranker scored. */
+export interface TraceRerankedCandidate {
+  chunkId: string
+  /** 1-based position after the rerank. */
+  rank: number
+  /** The reranker's relevance score: higher is better. */
+  score: number
+  /** 1-based position in the fused ranking, before the rerank. */
+  fusedRank: number
+}
+
+/** What the reranker did to the top of the fused ranking (ADR-0014). */
+export interface TraceRerank {
+  /** Provider and model, for example voyage:rerank-3. */
+  provider: string
+  /** How deep it was asked to score. There may be fewer candidates. */
+  depth: number
+  /** Whether its one call came from the cache. */
+  from: 'cache' | 'api'
+  ms: number
+  /** The scored candidates, best first. Below them the fused order goes on. */
+  ranked: TraceRerankedCandidate[]
+}
 
 /** Which of the chunks that start in one section this one is. 1-based. */
 export interface SectionPart {
@@ -118,6 +147,8 @@ export interface RetrievalTrace {
   embedding: { provider: string; from: 'cache' | 'api'; ms: number }
   lists: TraceList[]
   fusion: TraceFusion
+  /** Only under the rerank strategy. */
+  rerank?: TraceRerank
   chunks: Record<string, TraceChunk>
   context: TraceContextChunk[]
   totalMs: number

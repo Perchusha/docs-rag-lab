@@ -10,10 +10,13 @@ import {
   type TraceChunk,
   type TraceFusion,
   type TraceList,
+  type TraceRerank,
+  type TraceRerankedCandidate,
 } from '@docs-rag-lab/contracts'
 import type {
   Candidate,
   EmbeddingCache,
+  RerankCache,
   SearchFilter,
   SearchHit,
   SourceIndex,
@@ -26,15 +29,26 @@ import type { EmbeddingProvider } from './embeddings/provider.ts'
 import type { RateLimiter } from './embeddings/rate-limit.ts'
 import { citationSource, citationTitle, sectionPartOf, sectionPathOf } from './generate.ts'
 import { analyzeQuery } from './query.ts'
+import { rerankWithCache } from './rerank/cached.ts'
+import type { RerankProvider } from './rerank/provider.ts'
 import { fuseRrf } from './rrf.ts'
 import type { UsageMeter } from './usage.ts'
 
 /**
  * Bump when the code changes what a search ranks for the same settings, so a report
  * says which retrieval it measured (ADR-0010).
- * 1: M2 and M3.
+ * 1: M2 and M3. The rerank strategy of M5 changes nothing for vector and hybrid.
  */
 export const RETRIEVAL_VERSION = 1
+
+/** What the rerank strategy needs. */
+export interface RerankStep {
+  provider: RerankProvider
+  /** How many of the fused candidates are scored, in one call. */
+  depth: number
+  cache: RerankCache
+  limiter?: RateLimiter | undefined
+}
 
 export interface RetrieveOptions {
   question: string
@@ -48,6 +62,8 @@ export interface RetrieveOptions {
   cache: EmbeddingCache
   meter: UsageMeter
   limiter?: RateLimiter | undefined
+  /** Required by the rerank strategy, and not read by the others. */
+  rerank?: RerankStep | undefined
   /** Milliseconds, for timings; defaults to performance.now. */
   now?: (() => number) | undefined
 }
@@ -81,6 +97,21 @@ function toTraceList(
     ms,
     candidates: candidates.map((c, i) => ({ chunkId: c.chunkId, rank: i + 1, score: c.score })),
   }
+}
+
+/** The candidates by score, best first. Equal scores keep the fused order (ADR-0014). */
+function rerankedOrder(
+  chunkIds: readonly string[],
+  scores: readonly number[],
+): TraceRerankedCandidate[] {
+  return chunkIds
+    .map((chunkId, position) => {
+      const score = scores[position]
+      if (score === undefined) throw new Error(`no rerank score for ${chunkId}`)
+      return { chunkId, score, fusedRank: position + 1 }
+    })
+    .sort((a, b) => b.score - a.score || a.fusedRank - b.fusedRank)
+    .map((candidate, position) => ({ ...candidate, rank: position + 1 }))
 }
 
 export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
@@ -121,7 +152,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
 
   let fusion: TraceFusion = { method: 'none' }
   let ranking: string[] = vectorHits.map((hit) => hit.chunkId)
-  if (settings.strategy === 'hybrid') {
+  if (settings.strategy !== 'vector') {
     const keywordList = (name: ListName, query: string, none: string): TraceList => {
       if (query === '') return toTraceList(name, [], 0, { skipped: none })
       const [hits, ms] = timed(() => index.searchKeywords(query, depth, filter))
@@ -150,6 +181,29 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
     if (record === undefined) throw new Error(`candidate ${id} is not in the index`)
     return record
   }
+
+  let rerank: TraceRerank | undefined
+  if (settings.strategy === 'rerank') {
+    const step = options.rerank
+    if (step === undefined) throw new Error('the rerank strategy needs a reranker')
+    const rerankStart = now()
+    const scored = ranking.slice(0, step.depth)
+    const { scores, from } = await rerankWithCache(
+      question,
+      scored.map((id) => recordOf(id).text),
+      { provider: step.provider, cache: step.cache, limiter: step.limiter, meter: options.meter },
+    )
+    const ranked = rerankedOrder(scored, scores)
+    rerank = {
+      provider: step.provider.id,
+      depth: step.depth,
+      from,
+      ms: now() - rerankStart,
+      ranked,
+    }
+    ranking = [...ranked.map(({ chunkId }) => chunkId), ...ranking.slice(scored.length)]
+  }
+
   const hits = ranking.slice(0, settings.topK).map(recordOf)
 
   const chunks: Record<string, TraceChunk> = {}
@@ -178,6 +232,7 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
     embedding: { provider: provider.id, from: embedFrom, ms: embedMs },
     lists,
     fusion,
+    ...(rerank === undefined ? {} : { rerank }),
     chunks,
     context: hits.map((hit, i) => ({
       rank: i + 1,

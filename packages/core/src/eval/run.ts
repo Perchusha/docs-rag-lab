@@ -90,6 +90,8 @@ export interface RetrievalEvalOptions {
   targets: readonly EvalTarget[]
   manifest: Manifest
   retrieval: RetrievalSettings
+  /** The reranker, which the identity names only when the rerank strategy runs. */
+  rerank?: { model: string; depth: number } | undefined
   /** The index the corpus fingerprints come from. */
   index: Pick<SourceIndex, 'chunksHash' | 'vectorsHash' | 'schemaVersion'>
   meter: UsageMeter
@@ -189,6 +191,9 @@ export async function runRetrievalEval(options: RetrievalEvalOptions): Promise<E
       goldenSet: { version: check.setVersion, hash: check.lock.setHash },
       retrievalVersion: RETRIEVAL_VERSION,
       retrieval: settings,
+      ...(strategies.includes('rerank') && options.rerank !== undefined
+        ? { rerank: { model: options.rerank.model, depth: options.rerank.depth } }
+        : {}),
     },
     vectors: { queryHash: vectorsHash(queryVectors), corpusHash: index.vectorsHash() },
     result: {

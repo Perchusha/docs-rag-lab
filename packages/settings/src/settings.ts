@@ -23,6 +23,15 @@ export const settings = defineSettings({
     // batch: { maxInputs: 1000, maxTokens: 100_000 },
     // rateLimit: { rpm: 2_000, tpm: 8_000_000 },
   },
+  rerank: {
+    provider: 'voyage',
+    endpoint: 'https://ai.mongodb.com/v1',
+    model: 'rerank-3',
+    // One call per question, since a score depends on the rest of its call. A call can pass the
+    // limit below, and is then paced so that the average stays under it (ADR-0014).
+    depth: 20,
+    rateLimit: { rpm: 3, tpm: 10_000 },
+  },
   models: {
     answer: 'claude-sonnet-5-5',
     contextualize: 'claude-haiku-5-5',
@@ -38,7 +47,7 @@ export const settings = defineSettings({
   // per list are the usual defaults, not tuned: a sweep over 40 questions would fit noise (ADR-0009).
   retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
   pricing: {
-    checked: '2026-10-31',
+    checked: '2026-11-03',
     sources: [
       'https://platform.claude.com/docs/en/about-claude/pricing',
       'https://www.mongodb.com/docs/voyageai/management/billing/',
@@ -47,6 +56,7 @@ export const settings = defineSettings({
     // Voyage list price; Atlas includes 200M free tokens per model.
     models: {
       'voyage-4': { input: 0.06 },
+      'rerank-3': { input: 0.05 },
       'claude-sonnet-5-5': {
         input: 2,
         output: 10,

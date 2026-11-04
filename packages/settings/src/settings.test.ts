@@ -28,7 +28,12 @@ describe('settings', () => {
   })
 
   it('has a price for every model it uses', () => {
-    const used = [settings.embeddings.model, settings.models.answer, settings.models.contextualize]
+    const used = [
+      settings.embeddings.model,
+      settings.rerank.model,
+      settings.models.answer,
+      settings.models.contextualize,
+    ]
     for (const model of used) expect(Object.keys(settings.pricing.models)).toContain(model)
   })
 
@@ -38,5 +43,11 @@ describe('settings', () => {
     expect(topK).toBeLessThanOrEqual(100)
     expect(candidates).toBeGreaterThanOrEqual(topK)
     expect(rrfK).toBeGreaterThan(0)
+  })
+
+  it('reranks at least what goes to the answer, and no deeper than the lists reach', () => {
+    const { topK, candidates } = settings.retrieval
+    expect(settings.rerank.depth).toBeGreaterThanOrEqual(topK)
+    expect(settings.rerank.depth).toBeLessThanOrEqual(candidates)
   })
 })

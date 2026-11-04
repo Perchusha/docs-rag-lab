@@ -33,11 +33,24 @@ export interface VoyageEmbeddingsSettings {
 
 export type EmbeddingsSettings = VoyageEmbeddingsSettings
 
+export interface VoyageRerankSettings {
+  provider: 'voyage'
+  /** The Voyage API through MongoDB Atlas, the same as embeddings. */
+  endpoint: string
+  model: string
+  /** How many of the fused candidates are scored, in one call per question (ADR-0014). */
+  depth: number
+  /** Requests and billed tokens per minute. Limits are per model, so these are separate from embeddings'. */
+  rateLimit: { rpm: number; tpm: number }
+}
+
+export type RerankSettings = VoyageRerankSettings
+
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 export interface RetrievalSettings {
   /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
-  strategy: 'vector' | 'hybrid'
+  strategy: 'vector' | 'hybrid' | 'rerank'
   /** Chunks that go to generation. */
   topK: number
   /** Depth of each candidate list (vector, keyword, exact) before fusion. */
@@ -59,6 +72,7 @@ export interface Settings {
   /** Options per source, keyed by source ID. Hosts build the Source objects (the CLI in sourcesFor). */
   sources: { typescript: SourceSettings }
   embeddings: EmbeddingsSettings
+  rerank: RerankSettings
   models: {
     answer: string
     contextualize: string
