@@ -118,6 +118,10 @@ These come first. If one fails, the numbers are not read as a result.
 - A report reads the judge's rounds for its prompts and model from every source's folder, not only its own.
 - `drl eval label --spot` for the sheet and `drl eval spot-check` for what it found, as above.
 
+**For the draft,** in the skill's PR, since the walk and the check of copied wording have to be what they say:
+- `drl eval walk` lists the walk's entries in the walk's order. A sync's checkout is shallow, so it keeps a clone of the history under the cache.
+- `drl eval check --draft` says which anchors do not resolve, and what each question copies from the pages it is anchored to. A heading of one word counts only if it starts with a capital and has no other: a parsed heading has lost its backticks, so `memo` is an identifier and `Caveats` is not. A hit only sends a question to the owner.
+
 **The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and this ADR records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 
 **`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes.

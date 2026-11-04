@@ -100,6 +100,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm depcruise` | Boundary check only |
 | `pnpm format` | Format with Prettier |
 | `pnpm format:check` | Check Prettier formatting, then check that no file contains an em dash |
+| `pnpm turbo gen source` | Scaffold a source in `packages/sources/<id>`: it asks for the id, repository, branch, site, directories, license and attribution, or takes them with `--args`. Its parser refuses every file until it is written |
 | `pnpm drl sync typescript [--full] [--at <sha>]` | Sync the TypeScript docs into `data/sources/typescript.sqlite`, at the head of the branch or at that commit (the next sync without `--at` returns to the head). Re-embeds only new or changed chunks |
 | `pnpm drl sync typescript --contextual [--pilot <n>] [--yes]` | Build the second index of [ADR-0014](docs/adr/0014-rerank-and-contextual-retrieval.md), `data/sources/typescript.contextual.sqlite`, at the plain index's commit: Claude writes a context per chunk, kept under `eval/contexts/`, and each chunk is embedded with its context. Spends real tokens: without `--yes` it prints the estimate and stops. `--pilot` writes contexts for a few chunks and prints them with the forecast. Reruns call nothing for what the file and the cache hold |
 | `pnpm drl sync typescript --control [--yes]` | The same with the prefix `title > section path` from code, and no call to Claude, in `data/sources/typescript.control.sqlite`. It is the control for the contexts |
@@ -116,6 +117,8 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl eval spot-check <report> <labels>` | How often those 10 labels agree with the judge on a source's own answers ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)). It has a file of its own and decides no calibration |
 | `pnpm drl eval calibrate <report> <labels> [--after <report>] [--sample-of <report>] [--rows <list>]` | How often the labels agree with the judge. Also writes what named reports' markdown says of the judge |
 | `pnpm drl eval check [--accept]` | Check the golden set against the index, with no API calls: which questions are stale, and which anchors changed since the lock |
+| `pnpm drl eval check --draft` | The same for `eval/questions.draft.jsonl`: which anchors do not resolve, and what each question copies from the pages it is anchored to ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)) |
+| `pnpm drl eval walk [--top <n>]` | Every indexed page and heading, newest first by git history at the index's commit, to pick fresh questions from ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)). It clones the docs' history once, under the cache, and looks at no question or ranking |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
@@ -138,6 +141,7 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 | `packages/config` | `@docs-rag-lab/config` | Shared tsconfig, ESLint and Vitest presets; dependency-cruiser rules |
 | `tooling/claude-hooks` | `@docs-rag-lab/claude-hooks` | Claude Code hooks |
 | `tooling/repo-checks` | `@docs-rag-lab/repo-checks` | Repository checks (no em dashes) |
+| `tooling/generators` | `@docs-rag-lab/generators` | `turbo gen source`, which scaffolds a source |
 | `eval/` | | Committed reports, the contexts of the contextual index and the human labels that check the judge |
 | `docs/adr` | | Architecture decision records |
 
@@ -164,6 +168,9 @@ The Claude Code setup is part of the project, and it is kept small and real.
   - [CLAUDE.md](CLAUDE.md), under 200 lines: commands, boundaries, definition of done, and the Never list;
   - nested `CLAUDE.md` files in `packages/core`, `packages/sources`, `packages/ui` and `apps`, which load when Claude works there;
   - a path-scoped rule for tests: [.claude/rules/testing.md](.claude/rules/testing.md).
+- **Skills:**
+  - [add-source](.claude/skills/add-source/SKILL.md), which only a person can start, takes a new source from `turbo gen source` to measured numbers;
+  - [write-eval-questions](.claude/skills/write-eval-questions/SKILL.md) drafts golden questions from the docs' text alone, with no retriever in the loop, and flags what a person has to review.
 - **Subagent:** [code-reviewer](.claude/agents/code-reviewer.md) does a fresh-context review against the boundaries, ADRs and tests before each milestone is committed. In M0 it found a way to launder any import through the config package; that hole is now a tested rule.
 - **Hooks** ([.claude/settings.json](.claude/settings.json), code in `tooling/claude-hooks`, unit-tested):
   - **PreToolUse** blocks tool calls that name a dotenv file (case-insensitive; the committed example is allowed). It also blocks file-tool writes under `data/` and `.cache/`.
