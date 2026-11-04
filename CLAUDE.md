@@ -25,7 +25,8 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Boundary check only: `pnpm depcruise` (`lint` already runs it)
 - Format: `pnpm format`
 - Sync a source: `pnpm drl sync typescript` (add `--full` to re-parse everything; only changed chunks are re-embedded; add `--at <full sha>` to index that commit instead of the head of the branch; the next sync without it returns to the head)
-- Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set)
+- The contextual index, spends real tokens: `pnpm drl sync typescript --contextual` prints the estimate and stops, add `--yes` to run it, about an hour in the background (`--pilot 10` for a pilot, which builds no index). Reruns call nothing for what `eval/contexts/` and the cache hold.
+- Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set, or `--contextual` for that index, also against the plain one's chunks)
 - Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree, measures rerank too, one paced call per question, and prints its estimate until `--yes`)
 - A report again, to see if it reproduces: `pnpm drl eval verify <report>` (add `--record` to write what it found next to the report, for the dashboard)
 - Two reports, question by question: `pnpm drl eval compare <a> <b>`

@@ -77,6 +77,25 @@ For each chunk, `settings.models.contextualize` writes a short context from the 
 
 **A second index, so that M4 stays reproducible.** The contextual index is `data/sources/typescript.contextual.sqlite`, built at the same docs commit, which it takes from the plain index, so a contextual sync takes no `--at`. It reads every chunk each time, and embeds only what the index and the cache do not hold. `data/sources/typescript.sqlite` is never written, and its sha256 is `403465a8e1bd8296a8440aa35e78cb5d13f74ad121c5453e08936404900ca1c7` before this work. `data/cache.sqlite` only gains entries. A report has one index, so H3 and H4 are separate named reports, `m5-rerank` and `m5-contextual`, compared with `drl eval compare`.
 
+### The contextual index as built
+
+Built on 2026-11-04, after a pilot of 10 chunks that came to $0.0023 and forecast $0.27. No retrieval number exists yet.
+
+| | Estimate | Measured |
+|---|---|---|
+| Haiku, 994 contexts | $0.20, up to $0.30 | $0.28, or about $0.91 without caching |
+| Tokens in | | 790,228 uncached, 7,175,817 cache read, 597,294 cache write |
+| Tokens out | about 100 per context | 107,225, or 108 per context |
+| Voyage embeddings | 490K to 575K tokens, 59 to 69 minutes | 491,265 tokens in 183 requests, about 60 minutes |
+
+The contexts are 152 to 522 characters, with a median of 312, and the committed file is 445 KB. 993 of the 994 open with "This chunk" or "This section", so those words are in almost every chunk's context.
+
+Checked with no API call:
+- **Integrity check 3, after this sync:** `drl eval verify` on M4's final report says byte for byte, and the plain index's sha256 is unchanged.
+- **Integrity check 4, so far:** `drl eval check --contextual` finds the same 994 chunk IDs and text hashes at the same commit, 994 contexts that are not empty, and a clean golden check. The query hash waits for the first run.
+- **The contexts feed both indexes, on the real data, for all 994 chunks:** the stored vector is the cached vector of the context and the text, and the plain index holds no such vector. A word that only the context has finds the chunk by keyword.
+- **The file holds what the index holds,** in chunk ID order, with model `claude-haiku-5-5` and prompt hash `75010bc9e7d5`.
+
 ### The control: a prefix from the headings
 
 The owner added this row to tell whether Haiku's contexts add anything beyond the heading metadata. It is the contextual pipeline, but each chunk's context is `document title > section path`, written by code with no call to Claude. It feeds the embeddings and BM25 the same way. It is `data/sources/typescript.control.sqlite`, at the same docs commit, and nothing needs committing, since the prefix comes from the chunk. It is measured for retrieval only, under `vector` and `hybrid`, with no answers and no reranker. A row with the reranker would be a separate hypothesis.
