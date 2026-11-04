@@ -24,6 +24,7 @@ const text =
 const hit: SearchHit = {
   chunkId: 'c1',
   text,
+  context: null,
   headingPath: ['Union Types'],
   anchor: 'union-types',
   blockTypes: ['prose', 'code'],
@@ -39,6 +40,29 @@ const hit: SearchHit = {
   title: 'Everyday Types',
   docType: 'handbook',
 }
+
+describe('a chunk with a generated context', () => {
+  const context = 'GENERATED: this chunk situates union types within Everyday Types.'
+  const withContext: SearchHit = { ...hit, context }
+
+  it('reaches Claude as the original text alone, so a citation can only quote the docs', () => {
+    const request = buildAnswerRequest({
+      question: 'What is a union type?',
+      hits: [withContext],
+      model: 'claude-test',
+      effort: 'low',
+      maxTokens: 100,
+    })
+    expect(JSON.stringify(request)).not.toContain('GENERATED')
+    expect(toSearchResult(withContext)).toEqual(toSearchResult(hit))
+  })
+
+  it('gets the same search result without spans too, where the text is sent whole', () => {
+    const plain: SearchHit = { ...hit, metadata: {} }
+    expect(toSearchResult({ ...plain, context })).toEqual(toSearchResult(plain))
+    expect(JSON.stringify(toSearchResult({ ...plain, context }))).not.toContain('GENERATED')
+  })
+})
 
 describe('citationTitle', () => {
   it('names the section a pack under the document root starts in, not just the document', () => {

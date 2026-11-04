@@ -43,6 +43,7 @@ const [answerable, refused] = parseGoldenSet(
 const hit = (chunkId: string): SearchHit => ({
   chunkId,
   text: `text of ${chunkId}`,
+  context: null,
   docPath: 'a.md',
   url: 'https://x.dev/a',
   title: 'A',
