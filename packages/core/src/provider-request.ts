@@ -27,6 +27,8 @@ export class ProviderRequestError extends Error {
 export interface ProviderRequestOptions {
   limiter?: RateLimiter | undefined
   maxRetries?: number | undefined
+  /** False makes a 429 final, for a caller whose answer to a rejection is to stop. */
+  retryRateLimits?: boolean | undefined
 }
 
 const DEFAULT_MAX_RETRIES = 6
@@ -52,7 +54,12 @@ export async function requestWithRetries<T extends { tokens: number }>(
     } catch (error) {
       // The failed attempt still counts as a request, but carried no billed tokens.
       slot?.settle(0)
-      if (!(error instanceof ProviderRequestError) || !error.retryable || attempt >= maxRetries) {
+      if (
+        !(error instanceof ProviderRequestError) ||
+        !error.retryable ||
+        attempt >= maxRetries ||
+        (error.status === 429 && options.retryRateLimits === false)
+      ) {
         throw error
       }
       const backoff = Math.min(
