@@ -82,9 +82,13 @@ export function walkEntriesOf(path: string, doc: ParsedDoc, history: DocHistory)
   const { page, headings } = history
   if (page === undefined) throw new CliError(`${path} has no history at this commit`)
   const entries: WalkEntry[] = [{ ...page, path, anchor: '', title: doc.title, dated: true }]
+  const anchors = new Set<string>()
   for (const section of doc.sections) {
     const title = section.headingPath.at(-1)
     if (title === undefined) continue
+    // A parser may return to a heading after a part that has its own, under the same anchor.
+    if (section.anchor !== '' && anchors.has(section.anchor)) continue
+    anchors.add(section.anchor)
     const added = headings.get(normalizeHeading(title))
     entries.push({
       ...(added ?? page),
