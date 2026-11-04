@@ -1,6 +1,6 @@
 # ADR-0009: Golden sets and their anchors
 
-- Status: accepted
+- Status: accepted. ADR-0015 says who reviews a new source's set.
 - Date: 2026-11-02
 - Milestone: M4
 
