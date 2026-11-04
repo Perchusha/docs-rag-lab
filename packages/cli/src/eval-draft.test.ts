@@ -196,7 +196,8 @@ describe('copiedWording', () => {
   })
 })
 
-describe('the commands', () => {
+// Many git commands per test, on a CI runner every package shares.
+describe('the commands', { timeout: 30_000 }, () => {
   let root: string
   let repo: string
 
