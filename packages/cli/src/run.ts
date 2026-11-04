@@ -52,6 +52,7 @@ import {
   parseRows,
 } from './eval-answers.ts'
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
+import { evalDraftCheckCommand, evalWalkCommand, WALK_TOP } from './eval-draft.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
 import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
 import { formatDuration } from './format.ts'
@@ -117,6 +118,12 @@ Commands:
       [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
       [--contextual]          That index, also against the plain one's chunks
       [--control]             That index, also against the plain one's chunks
+      [--draft]               questions.draft.jsonl instead: which anchors do not resolve,
+                              and what each question copies from the docs (ADR-0016)
+  eval walk                   Every indexed page and heading, newest first by git history, at
+                              the index's commit, to pick fresh questions from (ADR-0016).
+                              Clones the docs' history once, under the cache
+      [--top <n>]             How many to print (default: ${String(WALK_TOP)})
 
 Retrieval options (ask and search):
   --source <id>               The source to search (default: the first in settings)
@@ -140,6 +147,8 @@ Set DRL_DEBUG=1 to print stack traces of failures.
 const MAX_SET_VERSION = 9999
 /** A pilot is a look at the prompt and the cost, not a first part of the run. */
 const MAX_PILOT = 50
+/** More than the pages and headings of any source here. */
+const MAX_WALK = 100_000
 
 /** The Source objects for the configured sources. Settings hold their options as data. */
 export function sourcesFor(settings: Settings): Source[] {
@@ -244,6 +253,8 @@ function refuseStrayEvalFlags(
     only?: string | undefined
     noise?: boolean | undefined
     spot?: boolean | undefined
+    draft?: boolean | undefined
+    top?: string | undefined
     'max-usd'?: string | undefined
     yes?: boolean | undefined
     'top-k'?: string | undefined
@@ -270,6 +281,8 @@ function refuseStrayEvalFlags(
       : []),
     ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
     ...(values.spot === true && subcommand !== 'label' ? ['--spot'] : []),
+    ...(values.draft === true && subcommand !== 'check' ? ['--draft'] : []),
+    ...(values.top !== undefined && subcommand !== 'walk' ? ['--top'] : []),
     ...(values.rows !== undefined &&
     subcommand !== 'answers' &&
     subcommand !== 'label' &&
@@ -343,6 +356,8 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         only: { type: 'string' },
         noise: { type: 'boolean', default: false },
         spot: { type: 'boolean', default: false },
+        draft: { type: 'boolean', default: false },
+        top: { type: 'string' },
         'max-usd': { type: 'string' },
         yes: { type: 'boolean', default: false },
         'doc-type': { type: 'string', multiple: true },
@@ -550,19 +565,34 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         })
       } else if (subcommand === 'check') {
         if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')
-        const setVersion = values['set-version']
-        evalCheckCommand(ctx, {
+        if (values.draft) {
+          if (values.accept || variant !== undefined) {
+            throw new CliError(
+              'a draft is checked against the plain index and is never accepted as it is',
+            )
+          }
+          evalDraftCheckCommand(ctx, { source: values.source })
+        } else {
+          const setVersion = values['set-version']
+          evalCheckCommand(ctx, {
+            source: values.source,
+            accept: values.accept,
+            variant,
+            setVersion:
+              setVersion === undefined
+                ? undefined
+                : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
+          })
+        }
+      } else if (subcommand === 'walk') {
+        if (rest.length > 1) throw new CliError('eval walk takes no arguments: use --source <id>')
+        await evalWalkCommand(ctx, {
           source: values.source,
-          accept: values.accept,
-          variant,
-          setVersion:
-            setVersion === undefined
-              ? undefined
-              : positiveInteger(setVersion, 1, '--set-version', MAX_SET_VERSION),
+          top: positiveInteger(values.top, WALK_TOP, '--top', MAX_WALK),
         })
       } else {
         throw new CliError(
-          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, spot-check, rerank-check, verify)`,
+          `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, spot-check, rerank-check, verify, walk)`,
         )
       }
     } else {

@@ -302,6 +302,9 @@ importers:
       '@docs-rag-lab/settings':
         specifier: workspace:*
         version: link:../settings
+      '@docs-rag-lab/source-kit':
+        specifier: workspace:*
+        version: link:../source-kit
       '@docs-rag-lab/source-typescript':
         specifier: workspace:*
         version: link:../sources/typescript
