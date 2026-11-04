@@ -27,8 +27,11 @@ export class ProviderRequestError extends Error {
 export interface ProviderRequestOptions {
   limiter?: RateLimiter | undefined
   maxRetries?: number | undefined
-  /** False makes a 429 final, for a caller whose answer to a rejection is to stop. */
-  retryRateLimits?: boolean | undefined
+  /**
+   * For a caller whose answer to a rejection is to stop. A 429 can be a pacing collision, so it
+   * gets one retry after a full idle window, and a 429 straight after that is final.
+   */
+  retryRateLimitOnce?: boolean | undefined
 }
 
 const DEFAULT_MAX_RETRIES = 6
@@ -45,6 +48,8 @@ export async function requestWithRetries<T extends { tokens: number }>(
 ): Promise<T> {
   const { limiter } = options
   const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES
+  // The last attempt got a 429, and nothing has been sent since, for a full window.
+  let idledAfterRateLimit = false
   for (let attempt = 0; ; attempt++) {
     const slot = await limiter?.acquire(estimate)
     try {
@@ -54,21 +59,21 @@ export async function requestWithRetries<T extends { tokens: number }>(
     } catch (error) {
       // The failed attempt still counts as a request, but carried no billed tokens.
       slot?.settle(0)
-      if (
-        !(error instanceof ProviderRequestError) ||
-        !error.retryable ||
-        attempt >= maxRetries ||
-        (error.status === 429 && options.retryRateLimits === false)
-      ) {
+      if (!(error instanceof ProviderRequestError) || !error.retryable || attempt >= maxRetries) {
         throw error
       }
+      const rateLimited = error.status === 429
+      if (rateLimited && idledAfterRateLimit) throw error
+      idledAfterRateLimit = rateLimited && options.retryRateLimitOnce === true
       const backoff = Math.min(
         MAX_BACKOFF_MS,
         error.retryAfterMs ??
-          (error.status === 429 ? RATE_LIMITED_BACKOFF_MS : ERROR_BACKOFF_MS * 2 ** attempt),
+          (rateLimited ? RATE_LIMITED_BACKOFF_MS : ERROR_BACKOFF_MS * 2 ** attempt),
       )
-      if (limiter !== undefined) await limiter.wait(backoff)
-      else await new Promise((resolve) => setTimeout(resolve, backoff))
+      // However short a Retry-After, a second 429 only says something after a full idle window.
+      const wait = idledAfterRateLimit ? Math.max(RATE_LIMITED_BACKOFF_MS, backoff) : backoff
+      if (limiter !== undefined) await limiter.wait(wait)
+      else await new Promise((resolve) => setTimeout(resolve, wait))
     }
   }
 }

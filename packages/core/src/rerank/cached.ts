@@ -1,7 +1,8 @@
 // One rerank call through its cache (ADR-0014). The key is the whole call, since a score
 // depends on the rest of its call: the provider and model, the query and the documents as
-// sent. A rejection stops the run, instead of waiting and trying again: the ADR fixes what
-// happens next, and what was cached so far stays.
+// sent. A 429 gets one retry after a full idle window, since it can be a pacing collision. A
+// second one, or any other 4xx, is a rejection and stops the run: the ADR fixes what happens
+// next, and what was cached so far stays.
 import type { RerankCache } from '@docs-rag-lab/db'
 import { sha256Hex } from '@docs-rag-lab/source-kit'
 
@@ -62,7 +63,7 @@ export async function rerankWithCache(
     const { scores, tokens } = await requestWithRetries(
       estimateRerankTokens(query, documents),
       () => provider.rerank(query, documents),
-      { limiter, maxRetries, retryRateLimits: false },
+      { limiter, maxRetries, retryRateLimitOnce: true },
     )
     meter.recordRerank(provider.model, tokens)
     cache.put(key, provider.id, scores, tokens)

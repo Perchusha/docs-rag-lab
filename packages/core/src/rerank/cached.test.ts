@@ -111,8 +111,46 @@ describe('rerankWithCache', () => {
     ).rejects.toThrow(/holds 1 scores for a call of 2/)
   })
 
+  it('gives a 429 one retry after a full idle window, since it can be a pacing collision', async () => {
+    const { provider, calls } = fakeProvider((call) =>
+      call === 1 ? new ProviderRequestError('busy', { status: 429 }) : { scores: [0.5], tokens: 5 },
+    )
+    const clock = fakeClock()
+    const result = await rerankWithCache('q', ['a'], {
+      provider,
+      cache,
+      meter: new UsageMeter(),
+      limiter: new RateLimiter({ rpm: 100, tpm: 1_000_000 }, clock),
+    })
+    expect(result).toEqual({ scores: [0.5], from: 'api' })
+    expect(calls).toEqual([
+      { query: 'q', documents: ['a'] },
+      { query: 'q', documents: ['a'] },
+    ])
+    expect(clock.slept).toEqual([60_000])
+    expect(cache.count()).toBe(1)
+  })
+
+  it('takes a second 429 as a rejection, keeps nothing and tells what happens next', async () => {
+    const { provider, calls } = fakeProvider(
+      () => new ProviderRequestError('busy', { status: 429 }),
+    )
+    const clock = fakeClock()
+    const error: unknown = await rerankWithCache('q', ['a'], {
+      provider,
+      cache,
+      meter: new UsageMeter(),
+      limiter: new RateLimiter({ rpm: 100, tpm: 1_000_000 }, clock),
+    }).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(RerankRejectedError)
+    expect((error as Error).message).toContain('(429)')
+    expect((error as Error).message).toContain('depth of 15 for both rows')
+    expect(calls).toHaveLength(2)
+    expect(clock.slept).toEqual([60_000])
+    expect(cache.count()).toBe(0)
+  })
+
   it.each([
-    ['a rate limit', 429],
     ['a request too large', 413],
     ['a bad request', 400],
   ])('stops at once on %s, keeps nothing and tells what happens next', async (_, status) => {

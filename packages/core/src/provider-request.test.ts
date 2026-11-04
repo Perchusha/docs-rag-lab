@@ -3,50 +3,139 @@ import { describe, expect, it } from 'vitest'
 import { RateLimiter, type Clock } from './embeddings/rate-limit.ts'
 import { ProviderRequestError, requestWithRetries } from './provider-request.ts'
 
-function fakeClock(): Clock {
+function fakeClock(): Clock & { slept: number[] } {
   let now = 1_000_000
+  const slept: number[] = []
   return {
+    slept,
     now: () => now,
     sleep: (ms) => {
+      slept.push(ms)
       now += ms
       return Promise.resolve()
     },
   }
 }
 
-function failingOnce(error: Error) {
-  let calls = 0
+/** A request that fails with each of `errors` in turn and then succeeds, and when it was sent. */
+function failing(clock: Clock, ...errors: Error[]) {
+  const sentAt: number[] = []
   const request = () => {
-    calls++
-    return calls === 1 ? Promise.reject(error) : Promise.resolve({ tokens: 1 })
+    sentAt.push(clock.now())
+    const error = errors[sentAt.length - 1]
+    return error === undefined ? Promise.resolve({ tokens: 1 }) : Promise.reject(error)
   }
-  return { request, calls: () => calls }
+  return { request, sentAt }
 }
 
+const rateLimit = (retryAfterMs?: number): ProviderRequestError =>
+  new ProviderRequestError('busy', {
+    status: 429,
+    ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+  })
+
 describe('requestWithRetries', () => {
-  const limiter = () => new RateLimiter({ rpm: 100, tpm: 1_000_000 }, fakeClock())
+  const setup = () => {
+    const clock = fakeClock()
+    return { clock, limiter: new RateLimiter({ rpm: 100, tpm: 1_000_000 }, clock) }
+  }
 
-  it('retries a 429 by default, as a sync needs', async () => {
-    const { request, calls } = failingOnce(new ProviderRequestError('busy', { status: 429 }))
-    await expect(requestWithRetries(1, request, { limiter: limiter() })).resolves.toEqual({
-      tokens: 1,
+  it('retries a 429 up to the limit by default, as a sync needs', async () => {
+    const { clock, limiter } = setup()
+    const { request, sentAt } = failing(clock, rateLimit(), rateLimit(), rateLimit())
+    await expect(requestWithRetries(1, request, { limiter })).resolves.toEqual({ tokens: 1 })
+    expect(sentAt).toHaveLength(4)
+  })
+
+  describe('with one retry of a 429', () => {
+    const once = { retryRateLimitOnce: true }
+
+    it('sends that same call again after a minute when there is no Retry-After', async () => {
+      const { clock, limiter } = setup()
+      const { request, sentAt } = failing(clock, rateLimit())
+      await expect(requestWithRetries(1, request, { limiter, ...once })).resolves.toEqual({
+        tokens: 1,
+      })
+      expect(sentAt).toHaveLength(2)
+      expect(clock.slept).toEqual([60_000])
     })
-    expect(calls()).toBe(2)
-  })
 
-  it('makes a 429 final when the caller stops on a rejection', async () => {
-    const { request, calls } = failingOnce(new ProviderRequestError('busy', { status: 429 }))
-    await expect(
-      requestWithRetries(1, request, { limiter: limiter(), retryRateLimits: false }),
-    ).rejects.toThrow('busy')
-    expect(calls()).toBe(1)
-  })
+    it('makes a second 429 final, as a rejection', async () => {
+      const { clock, limiter } = setup()
+      const { request, sentAt } = failing(clock, rateLimit(), rateLimit())
+      await expect(requestWithRetries(1, request, { limiter, ...once })).rejects.toThrow('busy')
+      expect(sentAt).toHaveLength(2)
+      expect(clock.slept).toEqual([60_000])
+    })
 
-  it('still retries a server error when the caller stops on a rejection', async () => {
-    const { request, calls } = failingOnce(
-      new ProviderRequestError('unavailable', { status: 503, retryAfterMs: 1 }),
-    )
-    await requestWithRetries(1, request, { limiter: limiter(), retryRateLimits: false })
-    expect(calls()).toBe(2)
+    it('waits as long as Retry-After says when that is over a minute', async () => {
+      const { clock, limiter } = setup()
+      const { request } = failing(clock, rateLimit(90_000))
+      await requestWithRetries(1, request, { limiter, ...once })
+      expect(clock.slept).toEqual([90_000])
+    })
+
+    it('waits the full minute when Retry-After says less, so a second 429 means something', async () => {
+      const { clock, limiter } = setup()
+      const { request } = failing(clock, rateLimit(5_000))
+      await requestWithRetries(1, request, { limiter, ...once })
+      expect(clock.slept).toEqual([60_000])
+    })
+
+    it('counts a Retry-After over five minutes as five', async () => {
+      const { clock, limiter } = setup()
+      const { request } = failing(clock, rateLimit(3_600_000))
+      await requestWithRetries(1, request, { limiter, ...once })
+      expect(clock.slept).toEqual([300_000])
+    })
+
+    it('leaves the window idle for that time, after a paced call too', async () => {
+      const clock = fakeClock()
+      const limiter = new RateLimiter({ rpm: 3, tpm: 10_000 }, clock)
+      // 12K billed: the next call waits 72 seconds for the pacing.
+      await requestWithRetries(14_000, () => Promise.resolve({ tokens: 12_000 }), { limiter })
+      const { request, sentAt } = failing(clock, rateLimit())
+      await requestWithRetries(14_000, request, { limiter, ...once })
+      const [first, second] = sentAt
+      expect((second ?? 0) - (first ?? 0)).toBeGreaterThanOrEqual(60_000)
+      expect(clock.slept).toEqual([72_250, 60_000])
+    })
+
+    it('still retries a server error and a network failure as usual', async () => {
+      const { clock, limiter } = setup()
+      const { request, sentAt } = failing(
+        clock,
+        new ProviderRequestError('unavailable', { status: 503, retryAfterMs: 1 }),
+        new ProviderRequestError('socket hang up', { retryAfterMs: 1 }),
+      )
+      await requestWithRetries(1, request, { limiter, ...once })
+      expect(sentAt).toHaveLength(3)
+      expect(clock.slept).toEqual([1, 1])
+    })
+
+    it('gives a 429 after a server error its own retry, since that came with no idle window', async () => {
+      const { clock, limiter } = setup()
+      const { request, sentAt } = failing(
+        clock,
+        rateLimit(),
+        new ProviderRequestError('unavailable', { status: 503, retryAfterMs: 1 }),
+        rateLimit(),
+      )
+      await requestWithRetries(1, request, { limiter, ...once })
+      expect(sentAt).toHaveLength(4)
+    })
+
+    it('stops at once on any other 4xx', async () => {
+      const { clock, limiter } = setup()
+      const { request, sentAt } = failing(
+        clock,
+        new ProviderRequestError('too large', { status: 413 }),
+      )
+      await expect(requestWithRetries(1, request, { limiter, ...once })).rejects.toThrow(
+        'too large',
+      )
+      expect(sentAt).toHaveLength(1)
+      expect(clock.slept).toEqual([])
+    })
   })
 })
