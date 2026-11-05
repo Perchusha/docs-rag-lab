@@ -159,6 +159,32 @@ This section reports the first compile and the index it built, before the set ch
 
 **One fault, caught before any number.** The first try broke every route of ts-docs: the compile read its files when its module loaded, and the app's bundler had moved the module. The dashboard check found it. The compile now loads nothing until it is used.
 
+## The set's version 2, as drafted
+
+Claude drafted it on 2026-11-05 by the rules above, from the text of both indexes' chunks, with no search and no answer read. The owner reviews all 9 questions it adds or changes before it is frozen, in [`questions.review.md`](../../packages/sources/typescript/eval/questions.review.md).
+
+**The codes,** read from the top of the list, by the rule past the named fallbacks:
+
+| Code | Chunks of the plain index | Compiled chunks that show its message | |
+|---|---|---|---|
+| TS2367 | 6 | 6 | kept |
+| TS2532 | 6 | 1 | kept |
+| TS2341 | 5 | 5 | kept |
+| TS2540 | 5 | 4 | kept |
+| TS2554 | 4 | 3 | kept |
+| TS2344 | 3 | 3 | kept |
+| TS2375 | 3 | 0 | skipped |
+| TS2571 | 3 | 0 | skipped |
+| TS7006 | 3 | 2 | kept, the 7th |
+| TS18046 | 3 | 0 | skipped |
+| TS1005 | 2 | 1 | kept, the 8th |
+
+So TS7006 and TS1005 take the places of TS2375 and TS2571. The three chunks that name TS18046 are the three that name TS2571 beside it, and their examples did not compile, because typescript 6.0.2 does not raise TS2571 there.
+
+**The anchors.** The 8 questions are ts-0046 to ts-0053, in that order, with 35 primary anchors: one for each chunk whose directive names the code, pinned to the directive line. Each resolves on both indexes, only to chunks whose directive names the code. The compiled index cuts the Utility Types page differently, and one more of its chunks names TS2344, so TS2344 has an anchor for it, which on the plain index resolves to the same chunk as another of its anchors.
+
+**ts-0040 had a case this ADR did not foresee:** one of its two handbook chunks states TS2345's message on the compiled index and the other does not. The literal inference chunk gives it. The excess property checks example did not compile, because typescript 6.0.2 raises TS2561 there, so its chunk does not. The draft makes the first a primary anchor and keeps the second acceptable, and the owner decides.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
