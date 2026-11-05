@@ -2157,6 +2157,30 @@ describe('drl eval verify', () => {
   })
 })
 
+describe('drl eval compare --without-tag', () => {
+  it('leaves out the questions with that tag, and says so', async () => {
+    const a = reportPathIn((await drl('eval')).out)
+    clock += 1000
+    const b = reportPathIn((await drl('eval')).out)
+
+    const { code, out } = await drl('eval', 'compare', a, b, '--without-tag', 'edge')
+
+    expect(code).toBe(0)
+    expect(out).toContain('without the questions tagged edge')
+    expect(out).toContain('1 questions')
+    expect(out).not.toContain('edge (1)')
+  })
+
+  it('takes only a tag the set knows', async () => {
+    const a = reportPathIn((await drl('eval')).out)
+
+    const { code, err } = await drl('eval', 'compare', a, a, '--without-tag', 'nope')
+
+    expect(code).toBe(1)
+    expect(err).toContain('--without-tag takes one of')
+  })
+})
+
 describe('drl eval compare', () => {
   async function twoRuns() {
     const a = reportPathIn((await drl('eval')).out)

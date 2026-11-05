@@ -116,6 +116,7 @@ Commands:
                               decides nothing for any other report
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
       [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
+      [--without-tag <tag>]   Leave out the questions with that tag (ADR-0017)
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
@@ -260,6 +261,7 @@ function refuseStrayEvalFlags(
     control?: boolean | undefined
     compiled?: boolean | undefined
     strategies?: string | undefined
+    'without-tag'?: string | undefined
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
@@ -290,6 +292,7 @@ function refuseStrayEvalFlags(
       ? ['--compiled']
       : []),
     ...(values.strategies !== undefined && subcommand !== 'compare' ? ['--strategies'] : []),
+    ...(values['without-tag'] !== undefined && subcommand !== 'compare' ? ['--without-tag'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
       ? ['--after']
       : []),
@@ -364,6 +367,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
         strategies: { type: 'string' },
+        'without-tag': { type: 'string' },
         record: { type: 'boolean', default: false },
         after: { type: 'string' },
         'sample-of': { type: 'string' },
@@ -584,6 +588,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           a: first,
           b: second,
           strategies: strategyPairOf(values.strategies),
+          withoutTag: values['without-tag'],
         })
       } else if (subcommand === 'check') {
         if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')

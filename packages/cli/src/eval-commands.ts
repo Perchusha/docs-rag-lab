@@ -15,6 +15,7 @@ import {
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
+  GOLDEN_TAGS,
   compareScores,
   fieldDifferences,
   isSidecarName,
@@ -306,8 +307,18 @@ function movedRanks(a: EvalStrategyResult, b: EvalStrategyResult): string[] {
 /** `drl eval compare <a> <b>`: two reports, question by question. */
 export function evalCompareCommand(
   ctx: CommandContext,
-  args: { a: string; b: string; strategies: [Strategy, Strategy] | undefined },
+  args: {
+    a: string
+    b: string
+    strategies: [Strategy, Strategy] | undefined
+    /** Leaves out the questions with this tag, such as ADR-0017's C2 on the questions before M7. */
+    withoutTag?: string | undefined
+  },
 ): void {
+  const { withoutTag } = args
+  if (withoutTag !== undefined && !(GOLDEN_TAGS as readonly string[]).includes(withoutTag)) {
+    throw new CliError(`--without-tag takes one of ${GOLDEN_TAGS.join(', ')}, got "${withoutTag}"`)
+  }
   const a = readReport(ctx.root, args.a)
   const b = readReport(ctx.root, args.b)
   if (a.identity.sourceId !== b.identity.sourceId) {
@@ -348,6 +359,9 @@ export function evalCompareCommand(
   ) {
     ctx.out.write('with other vectors, ranks below the context can move by themselves (ADR-0010)\n')
   }
+  if (withoutTag !== undefined) {
+    ctx.out.write(`without the questions tagged ${withoutTag}\n`)
+  }
   ctx.out.write(`\n${NOISE_NOTE}\n\n`)
   // Like-named strategies, or the two asked for: H3 is one report's hybrid and another's rerank.
   const pairs: readonly [Strategy, Strategy][] =
@@ -364,18 +378,26 @@ export function evalCompareCommand(
       throw new CliError(`${labels.b} did not measure ${second}`)
     }
     if (before === undefined || after === undefined) return []
+    const kept = (result: EvalStrategyResult): EvalStrategyResult =>
+      withoutTag === undefined
+        ? result
+        : {
+            ...result,
+            questions: result.questions.filter(({ tags }) => !tags.includes(withoutTag)),
+          }
+    const [beforeKept, afterKept] = [kept(before), kept(after)]
     const strategy = first === second ? first : `${first} against ${second}`
     const comparison = compareScores(
-      { name: labels.a, questions: before.questions },
-      { name: labels.b, questions: after.questions },
+      { name: labels.a, questions: beforeKept.questions },
+      { name: labels.b, questions: afterKept.questions },
     )
     const ids = (result: EvalStrategyResult) => new Set(result.questions.map(({ id }) => id))
     const dropped = [
-      ...[...ids(before)].filter((id) => !ids(after).has(id)),
-      ...[...ids(after)].filter((id) => !ids(before).has(id)),
+      ...[...ids(beforeKept)].filter((id) => !ids(afterKept).has(id)),
+      ...[...ids(afterKept)].filter((id) => !ids(beforeKept).has(id)),
     ]
     return [
-      formatEvalComparison(comparison, strategy, movedRanks(before, after)) +
+      formatEvalComparison(comparison, strategy, movedRanks(beforeKept, afterKept)) +
         (dropped.length > 0 ? `\nscored by only one report: ${dropped.join(', ')}` : ''),
     ]
   })
