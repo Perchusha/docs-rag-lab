@@ -1,6 +1,30 @@
 # React's golden set: the questions for review
 
-**10 of the 20 questions are flagged, and these are all you need to read.** The other 10 (react-0004 to 0007, 0009 to 0014) will be frozen unread, by ADR-0015, unless you ask to see them.
+**10 of the 20 questions were flagged, and the owner reviewed those.** Of the other 10, the owner decided the anchors of react-0007, 0010, 0011 and 0012, from a short description of each. The other 6 (react-0004 to 0006, 0009, 0013 and 0014) were frozen unread, by ADR-0015.
+
+This file keeps the draft's questions and what was asked, as the owner saw them. The set as frozen is `questions.jsonl`.
+
+## What the owner decided, on 2026-11-05
+
+After the review below, a text search of the docs found passages that also settle some questions, and the draft had no `acceptable` anchor for them. It was a search for key words, with no retrieval, so it may have missed some. The owner decided each one.
+
+| Question | Decision |
+|---|---|
+| react-0001, 0002 | The status rule applies as written, with no exception on react-0002. Two cases of known grade try it. |
+| react-0003 | Both sections stay primary, with `primaryMatch: any`. |
+| react-0007 | Acceptable: `reference/react/use.md#use-browser`. |
+| react-0008 | It counts as fresh, and the status rule stays out of it. Acceptable: `reference/react/Suspense.md#coordinating-fonts-images-and-stylesheets`. |
+| react-0010 | Acceptable: the sections on reading the value when submitting a form in `input.md`, `select.md` and `textarea.md`. |
+| react-0011 | No new anchor. By ADR-0009, an acceptable anchor cannot answer only half: the expected answer gives the array of state pairs as well as the call order, and `lints/rules-of-hooks.md` states only the order. The status rule does not apply, and the note says so. |
+| react-0012 | Acceptable: `reference/eslint-plugin-react-hooks/lints/static-components.md#rule-details`. The status rule does not apply, and the note says so. |
+| react-0015 | The copy stays. `reference/react/useReducer.md#im-getting-an-error-too-many-re-renders` is a second primary, with `primaryMatch: any`, as for ts-0040. `learn/tutorial-tic-tac-toe.md#lifting-state-up` is acceptable. The expected answer does not change: the question names no hook, so the note makes the `useReducer` case optional to mention. |
+| react-0016 | The answer stands. Acceptable: `reference/react/useImperativeHandle.md#parameters`. |
+| react-0017, 0018 | The false premises stay: they test whether an answer trusts the docs over memory. |
+| react-0019 | The docs are silent, confirmed by a second search. The note now says that a row that gives other libraries' sizes as if they answered has not answered. |
+| react-0020 | The docs are silent, confirmed by a second search. As written. |
+| The walk | A heading that only lost `<CanaryBadge />` stays skipped, with the reason in ADR-0016. |
+
+## The questions as they were asked
 
 Claude drafted the set at `2177e28d`, from the pages' text alone. No retrieval ran, and no answer was read. "The docs" means the indexed pages, under `src/content/learn` and `src/content/reference`. The blog and the community pages are not indexed.
 

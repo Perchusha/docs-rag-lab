@@ -20,7 +20,7 @@ SPEC section 6 also planned `eval_runs` and `eval_results` tables in the per-sou
 
 ### 1. Primary and acceptable anchors
 
-A question has `primary` anchors, the passages its answer was written from, and `acceptable` anchors, other passages that also support the answer and are never required. Metrics are reported both ways, and primary metrics are the headline (section 9). Primary anchors are all required by default, since ts-0038 needs three sections for one answer. `"primaryMatch": "any"` says each one is enough on its own; ts-0040 is the only such question, because the 5.7 and 5.9 notes show the same error text.
+A question has `primary` anchors, the passages its answer was written from, and `acceptable` anchors, other passages that also support the answer and are never required. Metrics are reported both ways, and primary metrics are the headline (section 9). Primary anchors are all required by default, since ts-0038 needs three sections for one answer. `"primaryMatch": "any"` says each one is enough on its own; ts-0040 is the only such question in TypeScript's set, because the 5.7 and 5.9 notes show the same error text. In React's set, react-0015 is the same case, on the `useState` and `useReducer` pages, and react-0003 has two sections of one page that each settle it.
 
 An acceptable anchor supports the answer itself, if less fully than a primary one: the handbook chunks of ts-0040 show the error on an example, without its text. A chunk that backs only a caveat, or cannot answer half of a two-part question, is not one, since a hit on it would count with the answer missing from the context. Most acceptable anchors came from reading what vector and hybrid search return in their top 8, the usual way to judge relevance when no one can read 994 chunks per question. That favours chunks these two strategies can find, so a later strategy that surfaces a new correct chunk needs a new judgment before its numbers are compared.
 
@@ -94,6 +94,7 @@ The version and a hash of the file are in the lock, so the freeze is checked and
 | Source | Version | Set hash | Date | Change | Reason from the docs text |
 |---|---|---|---|---|---|
 | typescript | 1 | `0d270eac9aef` | 2026-11-03 | The first reviewed set: 40 answerable questions and 5 unanswerable, at docs `205122bb` | The first version. Each expected answer and anchor was checked against the anchored text in two reviews |
+| react | 1 | `5ea47810f40e` | 2026-11-05 | The first reviewed set: 16 answerable questions and 4 unanswerable, at docs `2177e28d` | The first version. Claude drafted it from the docs' text, with no retrieval and no answer read. The owner reviewed the 10 flagged questions and decided the anchors of 4 others, by ADR-0015. The other 6 were frozen unread |
 
 ## Measured before and after
 
