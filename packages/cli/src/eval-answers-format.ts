@@ -284,7 +284,7 @@ export function formatLabelSheet(
     `Sample \`${hash}\`. Grade each answer without looking at the report: the judge has graded these too, and this measures how often you agree. Reply with the item number and your labels.`,
     '- **Correctness, on what the question asks:** 2 is correct and gives everything asked. 1 has the main point right with any part of what is asked missing or wrong, however small. 0 has the main point wrong, or is empty or a refusal. Details the question did not ask for do not count either way.',
     '- **A question the docs do not answer:** correct-refusal says so, or rejects the false premise, and cites nothing for an answer. It may add general knowledge that it marks as not from the docs. hallucination names a version, describes a made-up option as real, or presents outside knowledge as from the docs. wrong is anything else.',
-    '- **Refused, on a question the docs do answer:** it says the docs do not cover this, or declines to answer. That is a refusal the question did not call for, and it scores 0. Your count of these goes against the judge across all 15 answers.',
+    `- **Refused, on a question the docs do answer:** it says the docs do not cover this, or declines to answer. That is a refusal the question did not call for, and it scores 0. Your count of these goes against the judge across all ${String(sample.length)} answers.`,
     '- **Supported:** a reader could confirm each cited claim from its passages alone.',
     ...items,
   ].join('\n\n')

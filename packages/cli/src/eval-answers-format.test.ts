@@ -386,6 +386,7 @@ describe('formatLabelSheet', () => {
     )
 
     expect(text).toContain('Sample `abc123`')
+    expect(text).toContain('across all 2 answers')
     expect(text).toContain('## Item 1')
     expect(text).toContain('**Question:** First?')
     expect(text).toContain('**Expert answer:** Expert.')
