@@ -5,7 +5,11 @@ import { join } from 'node:path'
 import { EVAL_REPORT_VERSION } from '@docs-rag-lab/contracts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { goldenSetHash } from './golden.ts'
 import {
+  archivedSets,
+  goldenSetPath,
+  goldenSetPathFor,
   isSidecarName,
   listRuns,
   readCalibrations,
@@ -148,6 +152,33 @@ describe('readRun', () => {
     write('2026-11-02-abcdef12-old.json', { ...report('old', 'x'), version: 0 })
 
     expect(() => readRun(root, 'demo', '2026-11-02-abcdef12-old')).toThrow('version')
+  })
+})
+
+describe('the set a report names', () => {
+  const evalDir = () => join(root, 'packages', 'sources', 'demo', 'eval')
+  const setText = (question: string) =>
+    `${JSON.stringify({ id: 'q-0001', question, answer: 'A.', tags: ['unanswerable'] })}\n`
+
+  beforeEach(() => {
+    mkdirSync(evalDir(), { recursive: true })
+    writeFileSync(join(evalDir(), 'questions.jsonl'), setText('Now?'))
+    writeFileSync(join(evalDir(), 'questions.v1.jsonl'), setText('Then?'))
+    writeFileSync(join(evalDir(), 'questions.v10.jsonl'), setText('Much later?'))
+  })
+
+  it('lists the earlier versions kept beside the set, by version', () => {
+    expect(archivedSets(root, 'demo').map(({ version }) => version)).toEqual([1, 10])
+  })
+
+  it('is the current file or an earlier version, by hash, and undefined for an unknown hash', () => {
+    expect(goldenSetPathFor(root, 'demo', goldenSetHash(setText('Now?')))).toBe(
+      goldenSetPath(root, 'demo'),
+    )
+    expect(goldenSetPathFor(root, 'demo', goldenSetHash(setText('Then?')))).toBe(
+      join(evalDir(), 'questions.v1.jsonl'),
+    )
+    expect(goldenSetPathFor(root, 'demo', 'unknown')).toBeUndefined()
   })
 })
 

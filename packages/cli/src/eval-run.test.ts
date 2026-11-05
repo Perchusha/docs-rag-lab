@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import type { EvalReport } from '@docs-rag-lab/contracts'
 import {
   CHUNKER_VERSION,
+  COMPILER_IDENTITY_PREFIX,
   CONTROL_IDENTITY,
   createEmbeddingProvider,
   embeddingCacheKey,
@@ -36,7 +37,7 @@ import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { reportsDir } from './eval-commands.ts'
-import { goldenSetPath, goldenTargetsPath } from './golden.ts'
+import { archivedSetPath, goldenLockPath, goldenSetPath, goldenTargetsPath } from './golden.ts'
 import { run } from './run.ts'
 
 // Each test runs git and several commands, which is slow when the whole repo's tests run at once.
@@ -199,22 +200,28 @@ const git = (...args: string[]) =>
 
 const QUESTIONS = ['First?', 'Second?', 'Not covered?']
 
-/** The plain index, or another one with a context on each chunk and the same vectors. */
+/**
+ * The plain index, or another one with a context on each chunk and the same vectors, or the
+ * compiled one, whose chunks are its own and end with the compiler's output.
+ */
 function seedIndex(variant?: IndexVariant): void {
+  const compiled = variant === 'compiled'
   const { dimensions } = settings.embeddings
   const providerId = createEmbeddingProvider(settings.embeddings).id
   const unit = (i: number) => Float32Array.from({ length: dimensions }, (_, j) => (j === i ? 1 : 0))
   const chunk = (id: string, i: number) => ({
-    id,
+    id: compiled ? `${id}-compiled` : id,
     ordinal: i,
     headingPath: [id],
     anchor: id,
     blockTypes: ['prose'],
-    text: `A > ${id}\n\nText of ${id}.`,
-    context: variant === undefined ? null : `Context of ${id}.`,
+    text: compiled
+      ? `A > ${id}\n\nText of ${id}.\n\nCompiler output for ${id}.`
+      : `A > ${id}\n\nText of ${id}.`,
+    context: variant === undefined || compiled ? null : `Context of ${id}.`,
     metadata: { anchors: [id] },
     tokenCount: 5,
-    textHash: id,
+    textHash: compiled ? `${id}-compiled` : id,
     vector: unit(i),
   })
   const indexes = openIndexes(join(root, settings.dataDir), 'typescript', { variant })
@@ -241,7 +248,13 @@ function seedIndex(variant?: IndexVariant): void {
       embedModel: providerId,
       embedDimensions: dimensions,
       contextModel:
-        variant === undefined ? null : variant === 'control' ? CONTROL_IDENTITY : 'claude-test:abc',
+        variant === undefined
+          ? null
+          : variant === 'control'
+            ? CONTROL_IDENTITY
+            : compiled
+              ? `${COMPILER_IDENTITY_PREFIX}twoslash test`
+              : 'claude-test:abc',
       chunkerVersion: CHUNKER_VERSION,
       parserVersion: 1,
     },
@@ -434,6 +447,62 @@ describe('drl eval', () => {
     beforeEach(() => {
       rerankCalls = []
       rerankJitter = 0
+    })
+
+    it("checks the compiled index against a lock of its own, at the plain lock's version", async () => {
+      seedIndex('compiled')
+
+      const before = await drl('eval', 'check', '--compiled')
+      expect(before.code).toBe(1)
+      expect(before.out).toContain("the compiled index is at the plain index's commit")
+
+      const accepted = await drl('eval', 'check', '--compiled', '--accept')
+      expect(accepted.code).toBe(0)
+      expect(accepted.out).toContain('the compiled lock now records set version 1')
+      const lock = JSON.parse(
+        readFileSync(goldenLockPath(root, 'typescript', 'compiled'), 'utf8'),
+      ) as {
+        setVersion: number
+        anchors: Record<string, { chunkId: string }[]>
+      }
+      expect(lock.setVersion).toBe(1)
+      expect(lock.anchors['docs/a.md#one']?.map(({ chunkId }) => chunkId)).toEqual(['one-compiled'])
+      expect(readFileSync(goldenLockPath(root, 'typescript'), 'utf8')).toContain('"one"')
+
+      expect((await drl('eval', 'check', '--compiled')).code).toBe(0)
+      const versioned = await drl('eval', 'check', '--compiled', '--accept', '--set-version', '2')
+      expect(versioned.code).toBe(1)
+      expect(versioned.err).toContain('takes no --set-version')
+    })
+
+    it('measures the compiled index against its own lock, and verifies against it', async () => {
+      seedIndex('compiled')
+      await drl('eval', 'check', '--compiled', '--accept')
+      commitAll()
+
+      const { code, out } = await drl('eval', '--compiled', '--name', 'compiled')
+
+      expect(code).toBe(0)
+      const path = reportPathIn(out)
+      const report = readReport(path)
+      expect(report.identity.contextModel).toBe(`${COMPILER_IDENTITY_PREFIX}twoslash test`)
+      expect(report.result.stale).toEqual([])
+      expect(report.result.strategies.map(({ strategy }) => strategy)).toEqual(['vector', 'hybrid'])
+      const verified = await drl('eval', 'verify', path)
+      expect(verified.out).toContain('byte for byte')
+    })
+
+    it('measures the compiled index without the reranker', async () => {
+      seedIndex('compiled')
+      const { code, err } = await drl('eval', '--compiled', '--strategy', 'rerank')
+      expect(code).toBe(1)
+      expect(err).toContain('without the reranker (ADR-0017)')
+    })
+
+    it('refuses to build the compiled index until the compile exists', async () => {
+      const { code, err } = await drl('sync', 'typescript', '--compiled')
+      expect(code).toBe(2)
+      expect(err).toContain('sync --compiled comes with the compile')
     })
 
     it('says what to run when an index is not built yet', async () => {
@@ -1036,6 +1105,40 @@ describe('drl eval answers', () => {
       expect(err).toContain('the repository moved during this run')
       expect(rerankCalls).toHaveLength(2)
       expect(reportFiles()).toEqual([])
+    })
+  })
+
+  describe('row 7, hybrid on the compiled index (ADR-0017)', () => {
+    it('reads the compiled index, says so, and counts its own anchors as cited', async () => {
+      seedIndex('compiled')
+      await drl('eval', 'check', '--compiled', '--accept')
+
+      const { code, out } = await drl('eval', 'answers', '--rows', '3,7', '--yes')
+
+      expect(code).toBe(0)
+      const answers = answersOf(out)
+      expect(answers.compiledIndex).toMatchObject({
+        rows: [7],
+        compiler: `${COMPILER_IDENTITY_PREFIX}twoslash test`,
+      })
+      expect(answers.comparisons.map(({ a, b }) => [a, b])).toEqual([['row 3', 'row 7']])
+      expect(JSON.stringify(claudeRequests)).toContain('Compiler output for one.')
+      const hits = (row: number) =>
+        answers.rows.find((result) => result.row === row)?.overall.citationAccuracy.hit
+      expect(hits(7)).toBeGreaterThan(0)
+      expect(hits(7)).toBe(hits(3))
+      const markdown = readFileSync(reportPathIn(out).replace(/\.json$/, '.md'), 'utf8')
+      expect(markdown).toContain('Row 7 read the compiled index instead')
+    })
+
+    it('refuses while the compiled index has no clean lock, before anything is spent', async () => {
+      seedIndex('compiled')
+
+      const { code, err } = await drl('eval', 'answers', '--rows', '7', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('run drl eval check --compiled first')
+      expect(claudeRequests).toEqual([])
     })
   })
 
@@ -1793,6 +1896,54 @@ function writeThreeQuestions(): void {
   )
 }
 
+describe('drl eval verify, after a later version of the set', () => {
+  /** Keeps version 1 beside the set, adds a question, and records version 2. */
+  async function nextVersion(archive: boolean): Promise<void> {
+    if (archive) {
+      writeFileSync(
+        archivedSetPath(root, 'typescript', 1),
+        readFileSync(goldenSetPath(root, 'typescript')),
+      )
+      writeFileSync(
+        goldenLockPath(root, 'typescript').replace('questions.lock.json', 'questions.v1.lock.json'),
+        readFileSync(goldenLockPath(root, 'typescript')),
+      )
+    }
+    const path = goldenSetPath(root, 'typescript')
+    const extra = {
+      id: 'ts-0004',
+      question: 'Third?',
+      answer: 'A.',
+      primary: ['docs/a.md#two'],
+      tags: ['basic'],
+    }
+    writeFileSync(path, `${readFileSync(path, 'utf8')}${JSON.stringify(extra)}\n`)
+    expect((await drl('eval', 'check', '--accept', '--set-version', '2')).code).toBe(0)
+    commitAll()
+  }
+
+  it('checks a report against the set it names, kept beside the new one', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    await nextVersion(true)
+
+    const { code, out } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(0)
+    expect(out).toContain('byte for byte')
+    expect(readReport(reportPathIn((await drl('eval')).out)).identity.goldenSet.version).toBe(2)
+  })
+
+  it('says which set is missing, when the version a report names was not kept', async () => {
+    const path = reportPathIn((await drl('eval')).out)
+    await nextVersion(false)
+
+    const { code, err } = await drl('eval', 'verify', path)
+
+    expect(code).toBe(1)
+    expect(err).toContain('no version of the typescript golden set has the hash')
+  })
+})
+
 describe('drl eval verify', () => {
   it('says a report reproduces byte for byte, at the same commit', async () => {
     const path = reportPathIn((await drl('eval', '--name', 'baseline', '--yes')).out)
@@ -2003,6 +2154,30 @@ describe('drl eval verify', () => {
 
     const none = await drl('eval', 'verify')
     expect(none.err).toContain('eval verify needs a report file')
+  })
+})
+
+describe('drl eval compare --without-tag', () => {
+  it('leaves out the questions with that tag, and says so', async () => {
+    const a = reportPathIn((await drl('eval')).out)
+    clock += 1000
+    const b = reportPathIn((await drl('eval')).out)
+
+    const { code, out } = await drl('eval', 'compare', a, b, '--without-tag', 'edge')
+
+    expect(code).toBe(0)
+    expect(out).toContain('without the questions tagged edge')
+    expect(out).toContain('1 questions')
+    expect(out).not.toContain('edge (1)')
+  })
+
+  it('takes only a tag the set knows', async () => {
+    const a = reportPathIn((await drl('eval')).out)
+
+    const { code, err } = await drl('eval', 'compare', a, a, '--without-tag', 'nope')
+
+    expect(code).toBe(1)
+    expect(err).toContain('--without-tag takes one of')
   })
 })
 

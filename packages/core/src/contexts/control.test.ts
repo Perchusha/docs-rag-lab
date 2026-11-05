@@ -12,6 +12,7 @@ describe('variantOfContextModel', () => {
     expect(variantOfContextModel(null)).toBeUndefined()
     expect(variantOfContextModel(CONTROL_IDENTITY)).toBe('control')
     expect(variantOfContextModel('claude-haiku-5-5:75010bc9e7d5')).toBe('contextual')
+    expect(variantOfContextModel('compiler:twoslash 0.3.9, typescript 6.0.2')).toBe('compiled')
   })
 })
 

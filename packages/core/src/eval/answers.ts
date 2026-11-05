@@ -39,13 +39,17 @@ export const ROW_STRATEGY: Partial<Record<AnswerRow, Strategy>> = {
   3: 'hybrid',
   4: 'rerank',
   5: 'rerank',
+  7: 'hybrid',
 }
 
-/** The index behind a row, when it is not the plain one (ADR-0014). */
-export const ROW_VARIANT: Partial<Record<AnswerRow, IndexVariant>> = { 5: 'contextual' }
+/** The index behind a row, when it is not the plain one (ADR-0014, ADR-0017). */
+export const ROW_VARIANT: Partial<Record<AnswerRow, IndexVariant>> = {
+  5: 'contextual',
+  7: 'compiled',
+}
 
 /** The rows a noise run answers twice: row 3, and the rows measured against it. */
-export const NOISE_ROWS: readonly AnswerRow[] = [3, 4, 5]
+export const NOISE_ROWS: readonly AnswerRow[] = [3, 4, 5, 7]
 
 /** Row 0: Claude without RAG. It is told it has no docs, and to say so rather than guess. */
 export function noRagSystemPrompt(sourceId: string): string {

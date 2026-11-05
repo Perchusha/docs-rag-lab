@@ -47,11 +47,13 @@ const ROW_NAMES: Record<AnswerRow, string> = {
   3: 'Hybrid',
   4: 'Rerank',
   5: 'Rerank + contexts',
+  7: 'Hybrid, compiled',
 }
-const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5]
+const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5, 7]
 const HYBRID = ROW_NAMES[3]
 const RERANK = ROW_NAMES[4]
 const WITH_CONTEXTS = ROW_NAMES[5]
+const COMPILED = ROW_NAMES[7]
 
 /** Where room is short, a column that adds to another says only what it adds. */
 const SHORT_NAMES: Readonly<Record<string, string>> = { [WITH_CONTEXTS]: '+ contexts' }
@@ -744,6 +746,38 @@ function rerankRetrieval(
   }
 }
 
+/**
+ * The first screen's retrieval for a report with row 7 (ADR-0017): hybrid on the plain index against
+ * hybrid on the compiled one, whose numbers are in a report of their own.
+ */
+function compiledRetrieval(
+  report: EvalReport,
+  compiled: EvalStrategyResult | undefined,
+): DashboardSection | undefined {
+  const hybrid = strategyOf(report, 'hybrid')
+  if (hybrid === undefined || report.answers?.compiledIndex === undefined) return undefined
+  const plainSide: RetrievalSide = { name: HYBRID, result: hybrid }
+  const compiledSide: RetrievalSide = { name: COMPILED, result: compiled }
+  const sides = [plainSide, compiledSide]
+  const rows = retrievalRows(sides, [[plainSide, compiledSide]])
+  return {
+    question: 'Does the compiled index find the right chunks higher?',
+    summary: [
+      claimsAgainstFirst(
+        rows,
+        sides.map(({ name }) => name),
+        `No difference from the plain index holds up on these ${String(hybrid.overall.questions)} questions.`,
+      ),
+      'Both are hybrid. The compiled index has the twoslash output after each example.',
+    ].join(' '),
+    against: HYBRID,
+    columns: sides.map(({ name }) => name),
+    scale: '0 to 1 (100%)',
+    rows,
+    showRunToRun: false,
+  }
+}
+
 /** "Without docs: 36 of 40 fully correct (77-96%), may run high." */
 function withoutDocsLine(values: Values, note: string | null): string | undefined {
   const figure = shareFigure(sum(values.values()), values.size)
@@ -916,11 +950,67 @@ function allRowsSections(
   return sections
 }
 
+/**
+ * The first screen's answers for a report with row 7: row 3 against row 7, which C3 of ADR-0017
+ * decides on, with each column's own run to run.
+ */
+function compiledAnswers(
+  report: EvalReport,
+  answers: EvalAnswers,
+  judge: DashboardJudge,
+): DashboardSection {
+  const present = rowsIn(answers)
+  const rows = ([3, 7] as const).filter((row) => present.includes(row))
+  const pairs: RowPair[] = [[3, 7]]
+  const columns = rows.map((row) => ROW_NAMES[row])
+  const view: AnswerView = { rows, fullyPairs: pairs, pairs, perColumn: true }
+  const measures = answerMeasures(report, answers, judge, view)
+  const shown = [
+    measures.fullyCorrect,
+    measures.citationsHold,
+    measures.falseRefusals,
+    measures.grounded,
+  ].map((row) => clearNoise(row, columns))
+  const claims = claimsAgainstFirst(shown, columns, '')
+  const reached = shown
+    .filter(({ exploratory }) => !exploratory)
+    .some((row) => row.comparisons.some(({ verdict }) => verdict === 'b'))
+  const withoutDocs = present.includes(0)
+    ? withoutDocsLine(measures.fully(0), correctnessNote(judge))
+    : undefined
+  const notes = [
+    ...(withoutDocs === undefined ? [] : [withoutDocs]),
+    ...(reached
+      ? []
+      : ['The app stays on the plain index: no verdict names the compiled one (ADR-0017).']),
+  ]
+  return {
+    question: 'Does that reach the answers?',
+    summary: [
+      ...(judge.calibrated
+        ? []
+        : ['The judge is not calibrated for these prompts, so these are provisional.']),
+      claims === '' ? 'No difference from the plain index holds up.' : claims,
+    ].join(' '),
+    ...(notes.length === 0 ? {} : { notes }),
+    against: HYBRID,
+    columns,
+    scale: '0 to 100%',
+    rows: shown,
+    showRunToRun: rows.some((row) => answeredTwice(answers, row)),
+    runToRunHeader: RUN_TO_RUN_EACH,
+  }
+}
+
 /** Which other index a report read, in words: the trust section says so, when it did. */
 function otherIndexWords(report: EvalReport): string | undefined {
   const index = report.answers?.contextualIndex
   if (index !== undefined) {
     return `${WITH_CONTEXTS} read the contextual index: ${index.contextModel}.`
+  }
+  const compiled = report.answers?.compiledIndex
+  if (compiled !== undefined) {
+    return `${ROW_NAMES[7]} read the compiled index: ${compiled.compiler}.`
   }
   const { contextModel } = report.identity
   return contextModel === null || contextModel === ''
@@ -976,6 +1066,8 @@ export interface BuildRunOptions {
   indexDocsSha: string | null
   /** Row 5's retrieval, from the report of its own index (ADR-0014). */
   contextual?: EvalStrategyResult | undefined
+  /** Row 7's retrieval, hybrid on the compiled index, from a report of its own (ADR-0017). */
+  compiled?: EvalStrategyResult | undefined
 }
 
 /** Everything on the first screen for one run. */
@@ -985,7 +1077,10 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
     report.answers === undefined
       ? null
       : judgeTrust(report.answers, calibrations, unreadableCalibrations, report.identity.sourceId)
-  const retrieval = rerankRetrieval(report, options.contextual) ?? retrievalSection(report)
+  const retrieval =
+    compiledRetrieval(report, options.compiled) ??
+    rerankRetrieval(report, options.contextual) ??
+    retrievalSection(report)
   const index = otherIndexWords(report)
   return {
     id,
@@ -996,15 +1091,17 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
     answers:
       judge === null
         ? null
-        : report.answers !== undefined && hasRerankRows(report.answers)
-          ? rerankAnswers(
-              report,
-              report.answers,
-              judge,
-              retrieval,
-              about?.staysOnHybrid ?? APP_STAYS_ON_HYBRID,
-            )
-          : answersSection(report, judge),
+        : report.answers?.compiledIndex !== undefined
+          ? compiledAnswers(report, report.answers, judge)
+          : report.answers !== undefined && hasRerankRows(report.answers)
+            ? rerankAnswers(
+                report,
+                report.answers,
+                judge,
+                retrieval,
+                about?.staysOnHybrid ?? APP_STAYS_ON_HYBRID,
+              )
+            : answersSection(report, judge),
     trust: {
       judge,
       goldenSet: {

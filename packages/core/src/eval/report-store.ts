@@ -20,12 +20,47 @@ import {
   type EvalVerifyRecord,
 } from '@docs-rag-lab/contracts'
 
+import { goldenSetHash } from './golden.ts'
+
 export function reportsDir(root: string, sourceId: string): string {
   return join(root, 'eval', 'reports', sourceId)
 }
 
 export function goldenSetPath(root: string, sourceId: string): string {
   return join(root, 'packages', 'sources', sourceId, 'eval', 'questions.jsonl')
+}
+
+/** Where an earlier version of the set stays, byte for byte, once a later one replaces it. */
+export function archivedSetPath(root: string, sourceId: string, version: number): string {
+  return join(root, 'packages', 'sources', sourceId, 'eval', `questions.v${String(version)}.jsonl`)
+}
+
+/** The earlier versions kept beside the set, oldest first (ADR-0017). */
+export function archivedSets(root: string, sourceId: string): { version: number; path: string }[] {
+  const dir = join(root, 'packages', 'sources', sourceId, 'eval')
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .flatMap((name) => {
+      const match = /^questions\.v(\d+)\.jsonl$/.exec(name)
+      return match?.[1] === undefined ? [] : [{ version: Number(match[1]), path: join(dir, name) }]
+    })
+    .sort((a, b) => a.version - b.version)
+}
+
+/**
+ * The file of the set with this hash: the current one, or an earlier version beside it, so that a
+ * report is read with the set it was measured on. Undefined when no file has that hash.
+ */
+export function goldenSetPathFor(
+  root: string,
+  sourceId: string,
+  setHash: string,
+): string | undefined {
+  const current = goldenSetPath(root, sourceId)
+  return [
+    ...(existsSync(current) ? [current] : []),
+    ...archivedSets(root, sourceId).map(({ path }) => path),
+  ].find((path) => goldenSetHash(readFileSync(path, 'utf8')) === setHash)
 }
 
 /**

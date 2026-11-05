@@ -18,6 +18,7 @@ import { buildDashboardDetails, buildDashboardRun, compareDashboardRuns } from '
 import { parseGoldenSet } from './golden.ts'
 import {
   goldenSetPath,
+  goldenSetPathFor,
   listRuns,
   readCalibrations,
   readRun,
@@ -116,6 +117,31 @@ function contextualRetrieval(
   return undefined
 }
 
+/**
+ * Row 7's retrieval comes from a report of the compiled index (ADR-0017): the one that names the
+ * chunks row 7 read, for the same questions and set, with hybrid in it.
+ */
+function compiledRetrieval(
+  store: DashboardStore,
+  report: EvalReport,
+): EvalStrategyResult | undefined {
+  const index = report.answers?.compiledIndex
+  if (index === undefined) return undefined
+  const { root, sourceId } = store
+  for (const { id } of listRuns(root, sourceId).runs) {
+    const other = readRun(root, sourceId, id)
+    const same =
+      other.identity.chunksHash === index.chunksHash &&
+      other.vectors.queryHash === report.vectors.queryHash &&
+      other.identity.goldenSet.hash === report.identity.goldenSet.hash
+    const found = same
+      ? other.result.strategies.find(({ strategy }) => strategy === 'hybrid')
+      : undefined
+    if (found !== undefined) return found
+  }
+  return undefined
+}
+
 export function loadDashboardRun(store: DashboardStore, id: string): DashboardRun {
   const { root, sourceId, dataDir } = store
   const { rounds, unreadable } = readCalibrations(root)
@@ -124,6 +150,7 @@ export function loadDashboardRun(store: DashboardStore, id: string): DashboardRu
     id,
     report,
     contextual: contextualRetrieval(store, report),
+    compiled: compiledRetrieval(store, report),
     calibrations: rounds,
     unreadableCalibrations: unreadable,
     verify: readVerifyRecord(root, sourceId, id),
@@ -140,7 +167,14 @@ export function loadDashboardDetails(store: DashboardStore, id: string): Dashboa
   return buildDashboardDetails({
     report,
     contextual: contextualRetrieval(store, report),
-    questions: parseGoldenSet(readFileSync(goldenSetPath(root, sourceId), 'utf8')),
+    // The questions of the set the report names, which a later version can have changed.
+    questions: parseGoldenSet(
+      readFileSync(
+        goldenSetPathFor(root, sourceId, report.identity.goldenSet.hash) ??
+          goldenSetPath(root, sourceId),
+        'utf8',
+      ),
+    ),
     calibrations: rounds,
     unreadableCalibrations: unreadable,
   })

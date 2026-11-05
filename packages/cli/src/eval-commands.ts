@@ -15,6 +15,7 @@ import {
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import {
+  GOLDEN_TAGS,
   compareScores,
   fieldDifferences,
   isSidecarName,
@@ -67,6 +68,8 @@ export async function measure(
   name: string | null,
   strategies: readonly Strategy[] = LOCAL_STRATEGIES,
   variant?: IndexVariant,
+  /** The set a report names, for verify. Without it, the current set (ADR-0017). */
+  setHash?: string,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
   const repo = await readRepoState(root)
@@ -77,7 +80,7 @@ export async function measure(
   }
   const indexes = openIndexes(join(root, settings.dataDir), source.id, { create: false, variant })
   try {
-    const golden = readGoldenFiles(root, source.id, indexes.index)
+    const golden = readGoldenFiles(root, source.id, indexes.index, { setHash, variant })
     if (golden === undefined) {
       throw new CliError(
         `${source.id} has no golden set: ${goldenSetPath(root, source.id)} does not exist`,
@@ -142,13 +145,16 @@ export async function evalRunCommand(
   if (variant === 'control' && args.strategy === 'rerank') {
     throw new CliError('the control is measured without the reranker (ADR-0014)')
   }
+  if (variant === 'compiled' && args.strategy === 'rerank') {
+    throw new CliError('the compiled index is measured without the reranker (ADR-0017)')
+  }
   const source = findSource(ctx.sources, args.source)
   // A development run stays quick: a rerank takes up to a minute per question on the free trial.
-  // The control is retrieval only, with no reranker (ADR-0014).
+  // The control and the compiled index are measured with no reranker (ADR-0014, ADR-0017).
   const strategies =
     args.strategy !== undefined
       ? [args.strategy]
-      : name === undefined || variant === 'control'
+      : name === undefined || variant === 'control' || variant === 'compiled'
         ? LOCAL_STRATEGIES
         : STRATEGIES
   if (args.yes && !strategies.includes('rerank')) {
@@ -244,7 +250,7 @@ export async function evalVerifyCommand(
   const source = findSource(ctx.sources, report.identity.sourceId)
   const strategies = report.result.strategies.map(({ strategy }) => strategy)
   const variant = variantOfContextModel(report.identity.contextModel)
-  const now = await measure(ctx, source, null, strategies, variant)
+  const now = await measure(ctx, source, null, strategies, variant, report.identity.goldenSet.hash)
   const verification = verifyReport(report, now)
   const code =
     now.run.repoSha === report.run.repoSha ? 'the same commit' : now.run.repoSha.slice(0, 8)
@@ -301,8 +307,18 @@ function movedRanks(a: EvalStrategyResult, b: EvalStrategyResult): string[] {
 /** `drl eval compare <a> <b>`: two reports, question by question. */
 export function evalCompareCommand(
   ctx: CommandContext,
-  args: { a: string; b: string; strategies: [Strategy, Strategy] | undefined },
+  args: {
+    a: string
+    b: string
+    strategies: [Strategy, Strategy] | undefined
+    /** Leaves out the questions with this tag, such as ADR-0017's C2 on the questions before M7. */
+    withoutTag?: string | undefined
+  },
 ): void {
+  const { withoutTag } = args
+  if (withoutTag !== undefined && !(GOLDEN_TAGS as readonly string[]).includes(withoutTag)) {
+    throw new CliError(`--without-tag takes one of ${GOLDEN_TAGS.join(', ')}, got "${withoutTag}"`)
+  }
   const a = readReport(ctx.root, args.a)
   const b = readReport(ctx.root, args.b)
   if (a.identity.sourceId !== b.identity.sourceId) {
@@ -343,6 +359,9 @@ export function evalCompareCommand(
   ) {
     ctx.out.write('with other vectors, ranks below the context can move by themselves (ADR-0010)\n')
   }
+  if (withoutTag !== undefined) {
+    ctx.out.write(`without the questions tagged ${withoutTag}\n`)
+  }
   ctx.out.write(`\n${NOISE_NOTE}\n\n`)
   // Like-named strategies, or the two asked for: H3 is one report's hybrid and another's rerank.
   const pairs: readonly [Strategy, Strategy][] =
@@ -359,18 +378,26 @@ export function evalCompareCommand(
       throw new CliError(`${labels.b} did not measure ${second}`)
     }
     if (before === undefined || after === undefined) return []
+    const kept = (result: EvalStrategyResult): EvalStrategyResult =>
+      withoutTag === undefined
+        ? result
+        : {
+            ...result,
+            questions: result.questions.filter(({ tags }) => !tags.includes(withoutTag)),
+          }
+    const [beforeKept, afterKept] = [kept(before), kept(after)]
     const strategy = first === second ? first : `${first} against ${second}`
     const comparison = compareScores(
-      { name: labels.a, questions: before.questions },
-      { name: labels.b, questions: after.questions },
+      { name: labels.a, questions: beforeKept.questions },
+      { name: labels.b, questions: afterKept.questions },
     )
     const ids = (result: EvalStrategyResult) => new Set(result.questions.map(({ id }) => id))
     const dropped = [
-      ...[...ids(before)].filter((id) => !ids(after).has(id)),
-      ...[...ids(after)].filter((id) => !ids(before).has(id)),
+      ...[...ids(beforeKept)].filter((id) => !ids(afterKept).has(id)),
+      ...[...ids(afterKept)].filter((id) => !ids(beforeKept).has(id)),
     ]
     return [
-      formatEvalComparison(comparison, strategy, movedRanks(before, after)) +
+      formatEvalComparison(comparison, strategy, movedRanks(beforeKept, afterKept)) +
         (dropped.length > 0 ? `\nscored by only one report: ${dropped.join(', ')}` : ''),
     ]
   })

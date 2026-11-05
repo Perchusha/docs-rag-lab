@@ -12,6 +12,8 @@ export const GOLDEN_TAGS = [
   'exact-token',
   'cross-lingual',
   'unanswerable',
+  // A question on what a compiler error code means, chosen by ADR-0017's rule.
+  'error-code',
 ] as const
 
 export type GoldenTag = (typeof GOLDEN_TAGS)[number]

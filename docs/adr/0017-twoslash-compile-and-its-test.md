@@ -35,6 +35,8 @@ M7 runs under the lighter process of ADR-0015. This ADR fixes the test before an
 - **A lock for each index.** The compiled index's chunks differ in IDs and text, so `drl eval check --compiled` keeps its own lock beside the plain one, with the same set hash.
 - **`drl eval compare --without-tag <tag>`,** so that C2 can be read on the questions that predate M7.
 - **`drl eval label --spot` takes this ADR's mix,** below. Today it takes ADR-0016's, from rows 0, 3 and 4.
+- **The compiled index names its compiler in the manifest's field for what else wrote a variant's chunks,** with the prefix `compiler:`, and a report's identity names it from there. A column of its own would change the index schema, which every report's identity names, so no report before M7 would verify.
+- **The dashboard's first screen for a report with row 7** asks whether the compiled index finds the right chunks higher, from the compiled index's own report, and whether that reaches the answers, row 3 against row 7. It says that the app stays on the plain index when no verdict names row 7.
 
 ## The golden set, version 2
 

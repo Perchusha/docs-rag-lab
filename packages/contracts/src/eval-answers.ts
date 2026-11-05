@@ -3,7 +3,7 @@
 import type { DifferenceVerdict } from './eval-difference.ts'
 
 /** The rows of the strategy ladder (SPEC section 10) that answer metrics measure so far. */
-export const ANSWER_ROWS = [0, 2, 3, 4, 5] as const
+export const ANSWER_ROWS = [0, 2, 3, 4, 5, 7] as const
 
 export type AnswerRow = (typeof ANSWER_ROWS)[number]
 
@@ -186,6 +186,8 @@ export interface EvalAnswers {
    * section is of the plain index, and row 5 reads the contextual one. Earlier reports have none.
    */
   contextualIndex?: { rows: AnswerRow[]; contextModel: string; chunksHash: string }
+  /** The same for row 7, which reads the compiled index, with the compiler that wrote it (ADR-0017). */
+  compiledIndex?: { rows: AnswerRow[]; compiler: string; chunksHash: string }
   /** What this run itself paid. Cached answers and verdicts cost nothing again. */
   paidUsd: number
   answers: EvalAnswer[]

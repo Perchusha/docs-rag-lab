@@ -17,7 +17,7 @@ import {
 import { settings } from '@docs-rag-lab/settings'
 import { describe, expect, it } from 'vitest'
 
-import { goldenLockPath, goldenSetPath, goldenTargetsPath } from './golden.ts'
+import { archivedSets, goldenLockPath, goldenSetPath, goldenTargetsPath } from './golden.ts'
 import { sourcesFor } from './run.ts'
 
 const root = findRepoRoot(import.meta.dirname)
@@ -29,6 +29,47 @@ const ANSWERABLE: Readonly<Record<string, number>> = { typescript: 40, react: 16
 const sourceIds = sourcesFor(settings)
   .map((source) => source.id)
   .filter((sourceId) => existsSync(goldenSetPath(root, sourceId)))
+
+// An earlier version stays beside the set, so that reports measured on it can be checked (ADR-0017).
+const archived = sourceIds.flatMap((sourceId) =>
+  archivedSets(root, sourceId).map(({ version, path }) => ({ sourceId, version, path })),
+)
+
+describe.each(archived)(
+  'version $version of the $sourceId set, kept beside it',
+  ({ sourceId, version, path }) => {
+    const text = readFileSync(path, 'utf8')
+    const lock = parseGoldenLock(readFileSync(path.replace(/\.jsonl$/, '.lock.json'), 'utf8'))
+
+    it('matches its own lock, at its own version', () => {
+      expect(lock.setHash).toBe(goldenSetHash(text))
+      expect(lock.setVersion).toBe(version)
+    })
+
+    it('locks exactly its anchors', () => {
+      const anchors = parseGoldenSet(text).flatMap((question) => [
+        ...question.primary,
+        ...question.acceptable,
+      ])
+
+      expect(Object.keys(lock.anchors).sort()).toEqual([...new Set(anchors.map(anchorKey))].sort())
+    })
+
+    it('has its changelog entry in ADR-0009', () => {
+      const adr = readFileSync(join(root, 'docs/adr/0009-golden-sets-and-anchors.md'), 'utf8')
+
+      expect(adr).toContain(
+        `| ${sourceId} | ${String(version)} | \`${lock.setHash.slice(0, 12)}\` |`,
+      )
+    })
+  },
+)
+
+it('keeps version 1 of the TypeScript set, which every report before M7 names', () => {
+  expect(archived.map(({ sourceId, version }) => `${sourceId} ${String(version)}`)).toContain(
+    'typescript 1',
+  )
+})
 
 describe("what React's report and dashboard say beside its numbers", () => {
   const about = readSourceAbout(root, 'react')

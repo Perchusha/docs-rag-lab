@@ -85,16 +85,18 @@ Commands:
       [--strategy <s>]        One strategy instead of vector and hybrid
       [--contextual]          Measure the contextual index instead of the plain one
       [--control]             Measure the control index, under vector and hybrid only
+      [--compiled]            Measure the compiled index, with the twoslash output (ADR-0017)
       [--yes]                 Go on with rerank calls that are not cached: without it, a run
                               that needs them prints their estimate and stops
   eval verify <report>        Run a report again, and say whether it reproduces
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
-      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, or 5,
-                              rerank on the contextual index, when asked for
+      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, 5,
+                              rerank on the contextual index, or 7, hybrid on the compiled
+                              index, when asked for
       [--only <ids>]          Only these questions, for a pilot
-      [--noise]               Answer rows 3, 4 and 5 twice, and ask the judge twice about row
+      [--noise]               Answer rows 3, 4, 5 and 7 twice, and ask the judge twice about row
                               3, to measure noise
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
@@ -104,7 +106,8 @@ Commands:
   eval label <report>         Write the sheet a human labels from, with no verdicts
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
       [--rows <list>]         A round on those rows: 15 answers, for rows new in a milestone
-      [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016)
+      [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016), or 0,
+                              3 and 7 for a report with row 7 (ADR-0017)
   eval calibrate <r> <labels> How often the human and the judge agree
       [--after <report>]      Those labels are of a fresh round after that report
       [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind
@@ -113,12 +116,15 @@ Commands:
                               decides nothing for any other report
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
       [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
+      [--without-tag <tag>]   Leave out the questions with that tag (ADR-0017)
   eval check [--source <id>]  Check the golden set against the index (no API calls): which
                               questions are stale, and which anchors changed since the lock
       [--accept]              After reviewing them, record what the anchors resolve to now
       [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
       [--contextual]          That index, also against the plain one's chunks
       [--control]             That index, also against the plain one's chunks
+      [--compiled]            That index, against a lock of its own: with --accept, it records
+                              that lock, at the version the plain lock records
       [--draft]               questions.draft.jsonl instead: which anchors do not resolve,
                               what each question copies from the docs, and fails above 2
                               fresh questions on a page (ADR-0016)
@@ -253,7 +259,9 @@ function refuseStrayEvalFlags(
     'sample-of'?: string | undefined
     contextual?: boolean | undefined
     control?: boolean | undefined
+    compiled?: boolean | undefined
     strategies?: string | undefined
+    'without-tag'?: string | undefined
     rows?: string | undefined
     only?: string | undefined
     noise?: boolean | undefined
@@ -280,7 +288,11 @@ function refuseStrayEvalFlags(
     ...(values.control === true && subcommand !== undefined && subcommand !== 'check'
       ? ['--control']
       : []),
+    ...(values.compiled === true && subcommand !== undefined && subcommand !== 'check'
+      ? ['--compiled']
+      : []),
     ...(values.strategies !== undefined && subcommand !== 'compare' ? ['--strategies'] : []),
+    ...(values['without-tag'] !== undefined && subcommand !== 'compare' ? ['--without-tag'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
       ? ['--after']
       : []),
@@ -346,6 +358,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         at: { type: 'string' },
         contextual: { type: 'boolean', default: false },
         control: { type: 'boolean', default: false },
+        compiled: { type: 'boolean', default: false },
         pilot: { type: 'string' },
         accept: { type: 'boolean', default: false },
         'set-version': { type: 'string' },
@@ -354,6 +367,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         'top-k': { type: 'string' },
         strategy: { type: 'string' },
         strategies: { type: 'string' },
+        'without-tag': { type: 'string' },
         record: { type: 'boolean', default: false },
         after: { type: 'string' },
         'sample-of': { type: 'string' },
@@ -393,9 +407,16 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --at works only with sync\n\n${USAGE}`)
     return 2
   }
-  const variant = values.contextual ? 'contextual' : values.control ? 'control' : undefined
-  if (values.contextual && values.control) {
-    err.write(`drl: --contextual and --control are two different indexes\n\n${USAGE}`)
+  const variants = (['contextual', 'control', 'compiled'] as const).filter((name) => values[name])
+  const variant = variants[0]
+  if (variants.length > 1) {
+    err.write(`drl: --${variants.join(' and --')} are different indexes\n\n${USAGE}`)
+    return 2
+  }
+  if (variant === 'compiled' && command === 'sync') {
+    err.write(
+      `drl: sync --compiled comes with the compile, in M7's next step (ADR-0017)\n\n${USAGE}`,
+    )
     return 2
   }
   if (variant !== undefined && command !== 'sync' && command !== 'eval') {
@@ -567,6 +588,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           a: first,
           b: second,
           strategies: strategyPairOf(values.strategies),
+          withoutTag: values['without-tag'],
         })
       } else if (subcommand === 'check') {
         if (rest.length > 1) throw new CliError('eval check takes no arguments: use --source <id>')

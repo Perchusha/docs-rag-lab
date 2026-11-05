@@ -310,6 +310,36 @@ describe('planAnswers', () => {
     expect(jobs.map(({ row }) => row)).toEqual([4, 5])
   })
 
+  it('row 7 runs hybrid on the compiled index (ADR-0017)', async () => {
+    const plain = engine()
+    const compiled = engine()
+    const variants: string[] = []
+
+    const jobs = await planAnswers({
+      engine: plain.fake,
+      engineFor: (variant) => {
+        variants.push(variant)
+        return compiled.fake
+      },
+      sourceId: 'demo',
+      questions: [answerable],
+      rows: [3, 7],
+      noise: true,
+      settings,
+      meter: new UsageMeter(),
+    })
+
+    expect(plain.strategies).toEqual(['hybrid'])
+    expect(compiled.strategies).toEqual(['hybrid'])
+    expect(variants).toEqual(['compiled'])
+    expect(jobs.map(({ row, sample }) => [row, sample])).toEqual([
+      [3, 1],
+      [3, 2],
+      [7, 1],
+      [7, 2],
+    ])
+  })
+
   it('row 5 cannot run on the plain index by accident', async () => {
     await expect(
       planAnswers({

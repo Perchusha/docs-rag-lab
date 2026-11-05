@@ -79,10 +79,12 @@ export {
   CONTROL_IDENTITY,
   controlContexts,
   headingPrefix,
+  COMPILER_IDENTITY_PREFIX,
   variantOfContextModel,
 } from './contexts/control.ts'
 export { contextualText } from './contexts/text.ts'
 export {
+  hasPrefixedChunks,
   variantIndexPath,
   embeddingCachePath,
   IndexNotFoundError,
@@ -197,6 +199,10 @@ export {
   spotCheckSampleForLabels,
   SPOT_CHECK_ANSWERS,
   SPOT_CHECK_ROWS,
+  COMPILED_SPOT_CHECK,
+  SOURCE_SPOT_CHECK,
+  spotCheckPlanFor,
+  type SpotCheckPlan,
   wilsonInterval,
   type CalibrateOptions,
   type FreshSampleOptions,
@@ -227,6 +233,9 @@ export {
   readCalibrations,
   reportSources,
   readRun,
+  archivedSetPath,
+  archivedSets,
+  goldenSetPathFor,
   readSourceAbout,
   readSpotCheck,
   readVerifyRecord,
