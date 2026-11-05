@@ -139,7 +139,7 @@ function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
 /** The answer sections of a report's markdown. */
 export function answerSections(answers: EvalAnswers, judgeLine: string): string[] {
   const { rows } = answers
-  const { contextualIndex } = answers
+  const { contextualIndex, compiledIndex } = answers
   const sections = [
     '## Answers',
     `Answered by \`${answers.models.answer}\`, judged by \`${answers.models.judge}\`, which does not know the row. This run paid ${usd(answers.paidUsd)} at list prices. ${judgeLine}`,
@@ -147,6 +147,11 @@ export function answerSections(answers: EvalAnswers, judgeLine: string): string[
       ? []
       : [
           `The retrieval above is of the plain index. Row ${contextualIndex.rows.join(', ')} read the contextual index instead, with contexts from \`${contextualIndex.contextModel}\` and chunks \`${contextualIndex.chunksHash.slice(0, 12)}\`, and its retrieval has a report of its own.`,
+        ]),
+    ...(compiledIndex === undefined
+      ? []
+      : [
+          `The retrieval above is of the plain index. Row ${compiledIndex.rows.join(', ')} read the compiled index instead, written by \`${compiledIndex.compiler}\`, with chunks \`${compiledIndex.chunksHash.slice(0, 12)}\` (ADR-0017).`,
         ]),
     table(
       CORRECT_HEADER,

@@ -47,8 +47,9 @@ const ROW_NAMES: Record<AnswerRow, string> = {
   3: 'Hybrid',
   4: 'Rerank',
   5: 'Rerank + contexts',
+  7: 'Hybrid, compiled',
 }
-const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5]
+const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5, 7]
 const HYBRID = ROW_NAMES[3]
 const RERANK = ROW_NAMES[4]
 const WITH_CONTEXTS = ROW_NAMES[5]
@@ -921,6 +922,10 @@ function otherIndexWords(report: EvalReport): string | undefined {
   const index = report.answers?.contextualIndex
   if (index !== undefined) {
     return `${WITH_CONTEXTS} read the contextual index: ${index.contextModel}.`
+  }
+  const compiled = report.answers?.compiledIndex
+  if (compiled !== undefined) {
+    return `${ROW_NAMES[7]} read the compiled index: ${compiled.compiler}.`
   }
   const { contextModel } = report.identity
   return contextModel === null || contextModel === ''

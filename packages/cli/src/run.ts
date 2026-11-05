@@ -92,10 +92,11 @@ Commands:
       [--record]              Write what it found next to the report, for the dashboard
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
-      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, or 5,
-                              rerank on the contextual index, when asked for
+      [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, 5,
+                              rerank on the contextual index, or 7, hybrid on the compiled
+                              index, when asked for
       [--only <ids>]          Only these questions, for a pilot
-      [--noise]               Answer rows 3, 4 and 5 twice, and ask the judge twice about row
+      [--noise]               Answer rows 3, 4, 5 and 7 twice, and ask the judge twice about row
                               3, to measure noise
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
@@ -105,7 +106,8 @@ Commands:
   eval label <report>         Write the sheet a human labels from, with no verdicts
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
       [--rows <list>]         A round on those rows: 15 answers, for rows new in a milestone
-      [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016)
+      [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016), or 0,
+                              3 and 7 for a report with row 7 (ADR-0017)
   eval calibrate <r> <labels> How often the human and the judge agree
       [--after <report>]      Those labels are of a fresh round after that report
       [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind

@@ -56,7 +56,7 @@ import {
   spotCheckSentence,
   readSpotCheck,
   SPOT_CHECK_ANSWERS,
-  SPOT_CHECK_ROWS,
+  spotCheckPlanFor,
   SUPPORT_SYSTEM_PROMPT,
   ANSWER_SYSTEM_PROMPT,
   type EvalCache,
@@ -141,13 +141,14 @@ function goldenOf(ctx: CommandContext, source: Source, setHash?: string): Golden
 /** Rows 4 and 5 take up to a minute a question on the free trial, so they are asked for by name. */
 const DEFAULT_ROWS: readonly AnswerRow[] = [0, 2, 3]
 
-/** Pairs a report compares when it has both rows. Rows 4 and 5 are measured against row 3. */
+/** Pairs a report compares when it has both rows. Rows 4, 5 and 7 are measured against row 3. */
 const COMPARED_ROWS: readonly (readonly [AnswerRow, AnswerRow])[] = [
   [2, 3],
   [0, 3],
   [3, 4],
   [3, 5],
   [4, 5],
+  [3, 7],
 ]
 
 export function parseRows(text: string | undefined): AnswerRow[] {
@@ -200,6 +201,39 @@ function contextualIndexOf(
   }
 }
 
+/**
+ * The index row 7 reads (ADR-0017). Its chunks are its own, so it is checked against its own lock,
+ * which has to be clean before anything is spent.
+ */
+function compiledIndexOf(
+  ctx: CommandContext,
+  source: Source,
+  rows: readonly AnswerRow[],
+): EvalAnswers['compiledIndex'] {
+  const reading = rows.filter((row) => ROW_VARIANT[row] === 'compiled')
+  if (reading.length === 0) return undefined
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, {
+    create: false,
+    variant: 'compiled',
+  })
+  try {
+    const check = readGoldenFiles(ctx.root, source.id, indexes.index, {
+      variant: 'compiled',
+    })?.check
+    if (check === undefined) throw new CliError(`${source.id} has no golden set`)
+    if (check.setChanged || check.findings.length > 0 || check.docsMovedFrom !== undefined) {
+      throw new CliError(
+        'row 7 reads the compiled index, whose golden check is not clean: run drl eval check --compiled first',
+      )
+    }
+    const compiler = indexes.index.getManifest()?.contextModel
+    if (compiler == null) throw new CliError('the compiled index names no compiler')
+    return { rows: reading, compiler, chunksHash: indexes.index.chunksHash() }
+  } finally {
+    indexes.close()
+  }
+}
+
 /** The rerank calls these rows and questions still need. They are free, and they take a while. */
 async function missingRerankCalls(
   ctx: CommandContext,
@@ -245,6 +279,7 @@ export async function evalAnswersCommand(
           return question
         })
   const contextualIndex = contextualIndexOf(ctx, source, args.rows)
+  const compiledIndex = compiledIndexOf(ctx, source, args.rows)
   if (!args.yes) {
     const { calls, estimatedTokens } = await missingRerankCalls(ctx, source, args.rows, questions)
     if (calls > 0) {
@@ -353,6 +388,7 @@ export async function evalAnswersCommand(
       judgeRetest: judgeRetest(verdicts),
       candidates: anchorCandidates(options, (id) => report.result.chunks[id]?.docPath ?? ''),
       ...(contextualIndex === undefined ? {} : { contextualIndex }),
+      ...(compiledIndex === undefined ? {} : { compiledIndex }),
       paidUsd: ctx.meter.estimateCost(settings.pricing).total,
       answers,
       verdicts,
@@ -457,20 +493,27 @@ function newRowsSampleOf(answers: EvalAnswers, golden: Golden, rows: readonly An
   })
 }
 
-/** The spot check's sample (ADR-0016). It needs the rows it takes its answers from. */
+/**
+ * The spot check's sample: ADR-0017's for a report with row 7, and ADR-0016's otherwise. It needs
+ * the rows it takes its answers from.
+ */
 function spotCheckSampleOf(answers: EvalAnswers, golden: Golden) {
   const present = new Set(answers.answers.map(({ row }) => row))
-  const missing = SPOT_CHECK_ROWS.filter((row) => !present.has(row))
+  const plan = spotCheckPlanFor(present)
+  const missing = plan.rows.filter((row) => !present.has(row))
   if (missing.length > 0) {
     throw new CliError(
-      `a spot check takes answers from rows ${[...SPOT_CHECK_ROWS].sort().join(', ')}, and this report has no row ${missing.join(', ')}`,
+      `a spot check takes answers from rows ${[...plan.rows].sort().join(', ')}, and this report has no row ${missing.join(', ')}`,
     )
   }
-  return spotCheckSampleForLabels({
-    answers: answers.answers,
-    verdicts: answers.verdicts,
-    questions: golden.questions,
-  })
+  return spotCheckSampleForLabels(
+    {
+      answers: answers.answers,
+      verdicts: answers.verdicts,
+      questions: golden.questions,
+    },
+    plan,
+  )
 }
 
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */

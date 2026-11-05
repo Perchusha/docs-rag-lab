@@ -1108,6 +1108,40 @@ describe('drl eval answers', () => {
     })
   })
 
+  describe('row 7, hybrid on the compiled index (ADR-0017)', () => {
+    it('reads the compiled index, says so, and counts its own anchors as cited', async () => {
+      seedIndex('compiled')
+      await drl('eval', 'check', '--compiled', '--accept')
+
+      const { code, out } = await drl('eval', 'answers', '--rows', '3,7', '--yes')
+
+      expect(code).toBe(0)
+      const answers = answersOf(out)
+      expect(answers.compiledIndex).toMatchObject({
+        rows: [7],
+        compiler: `${COMPILER_IDENTITY_PREFIX}twoslash test`,
+      })
+      expect(answers.comparisons.map(({ a, b }) => [a, b])).toEqual([['row 3', 'row 7']])
+      expect(JSON.stringify(claudeRequests)).toContain('Compiler output for one.')
+      const hits = (row: number) =>
+        answers.rows.find((result) => result.row === row)?.overall.citationAccuracy.hit
+      expect(hits(7)).toBeGreaterThan(0)
+      expect(hits(7)).toBe(hits(3))
+      const markdown = readFileSync(reportPathIn(out).replace(/\.json$/, '.md'), 'utf8')
+      expect(markdown).toContain('Row 7 read the compiled index instead')
+    })
+
+    it('refuses while the compiled index has no clean lock, before anything is spent', async () => {
+      seedIndex('compiled')
+
+      const { code, err } = await drl('eval', 'answers', '--rows', '7', '--yes')
+
+      expect(code).toBe(1)
+      expect(err).toContain('run drl eval check --compiled first')
+      expect(claudeRequests).toEqual([])
+    })
+  })
+
   describe('rows 4 and 5', () => {
     beforeEach(() => {
       rerankCalls = []

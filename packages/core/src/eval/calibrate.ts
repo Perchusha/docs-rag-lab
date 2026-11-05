@@ -19,7 +19,7 @@ import type {
 } from '@docs-rag-lab/contracts'
 
 import { seeded } from './bootstrap.ts'
-import type { GoldenQuestion } from './golden.ts'
+import type { GoldenQuestion, GoldenTag } from './golden.ts'
 import { isUnanswerable } from './judge.ts'
 
 /** The bar for trusting the judge: 13 of 15 on each dimension. */
@@ -50,6 +50,36 @@ export const SPOT_CHECK_ANSWERS = 10
 const SPOT_CHECK_UNANSWERABLE = 2
 /** The last row gets the extra answer, so this is 3 from row 0, 3 from row 4 and 4 from row 3. */
 export const SPOT_CHECK_ROWS: readonly AnswerRow[] = [0, 4, 3]
+
+/** Which rows a spot check takes its 10 answers from, and what they have to cover. */
+export interface SpotCheckPlan {
+  /** The last row gets the extra answer. */
+  rows: readonly AnswerRow[]
+  unanswerable: number
+  /** A tag the sample has to cover at least this often, before anything else. */
+  required?: { tag: GoldenTag; count: number }
+}
+
+/** ADR-0016's, for a new source: 3 from row 0, 3 from row 4 and 4 from row 3, 2 unanswerable. */
+export const SOURCE_SPOT_CHECK: SpotCheckPlan = {
+  rows: SPOT_CHECK_ROWS,
+  unanswerable: SPOT_CHECK_UNANSWERABLE,
+}
+
+/**
+ * ADR-0017's, for the compiled index: 3 from row 0, 3 from row 3 and 4 from row 7, 1 unanswerable,
+ * and at least 5 on the questions about error codes.
+ */
+export const COMPILED_SPOT_CHECK: SpotCheckPlan = {
+  rows: [0, 3, 7],
+  unanswerable: 1,
+  required: { tag: 'error-code', count: 5 },
+}
+
+/** The plan for a report: the compiled index's when it has row 7, and a new source's otherwise. */
+export function spotCheckPlanFor(rows: ReadonlySet<AnswerRow>): SpotCheckPlan {
+  return rows.has(7) ? COMPILED_SPOT_CHECK : SOURCE_SPOT_CHECK
+}
 /** What ADR-0012's bar allows at 8 and at 12 compared. */
 const SPOT_CHECK_ALLOWED = 1
 
@@ -139,6 +169,8 @@ export interface FreshSampleOptions extends SampleOptions {
   total?: number
   /** How many of them are on questions the docs do not answer. None by default. */
   unanswerable?: number
+  /** A tag the round has to cover at least this often, taken in turn across the rows. */
+  required?: { tag: GoldenTag; count: number } | undefined
 }
 
 /**
@@ -204,6 +236,18 @@ export function freshSampleForLabels(options: FreshSampleOptions): EvalAnswer[] 
     const i = round % rows.length
     if (take(i, (answer) => !isAnswerable(answer))) taken++
   }
+  // A tag the round has to cover comes next, in turn across the rows (ADR-0017). Without one, the
+  // sample is what it always was, so earlier labels still match theirs.
+  const { required } = options
+  if (required !== undefined) {
+    const tagged = new Set(
+      questions.filter(({ tags }) => tags.includes(required.tag)).map(({ id }) => id),
+    )
+    for (let round = 0, got = 0; round < total && got < required.count; round++) {
+      const i = round % rows.length
+      if (take(i, (answer) => tagged.has(answer.questionId))) got++
+    }
+  }
   // One low score per row in turn, up to the minimum, then whatever else fills each row.
   for (let round = 0, lows = 0; round < total && lows < MIN_LOW; round++) {
     for (let i = 0; i < rows.length && lows < MIN_LOW; i++) {
@@ -232,16 +276,20 @@ export function newRowsSampleForLabels(options: SampleOptions): EvalAnswer[] {
 }
 
 /**
- * The spot check of a new source (ADR-0016): 10 answers with all three dimensions to label, 2 of
- * them on questions the docs do not answer, none on the same question twice.
+ * A spot check (ADR-0016, ADR-0017): 10 answers with all three dimensions to label, from the plan's
+ * rows, none on the same question twice. A new source's plan by default.
  */
-export function spotCheckSampleForLabels(options: Omit<SampleOptions, 'rows'>): EvalAnswer[] {
+export function spotCheckSampleForLabels(
+  options: Omit<SampleOptions, 'rows'>,
+  plan: SpotCheckPlan = SOURCE_SPOT_CHECK,
+): EvalAnswer[] {
   return freshSampleForLabels({
     ...options,
-    rows: SPOT_CHECK_ROWS,
+    rows: plan.rows,
     exclude: [],
     total: SPOT_CHECK_ANSWERS,
-    unanswerable: SPOT_CHECK_UNANSWERABLE,
+    unanswerable: plan.unanswerable,
+    required: plan.required,
     seed: options.seed ?? SPOT_CHECK_SEED,
   })
 }

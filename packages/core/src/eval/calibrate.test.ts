@@ -10,13 +10,16 @@ import { describe, expect, it } from 'vitest'
 import {
   calibrate,
   cohensKappa,
+  COMPILED_SPOT_CHECK,
   FRESH_SEED,
   freshSampleForLabels,
   LABEL_SEED,
   newRowsSampleForLabels,
   sampleForLabels,
   sampleHash,
+  SOURCE_SPOT_CHECK,
   spotCheck,
+  spotCheckPlanFor,
   spotCheckSampleForLabels,
   SPOT_CHECK_ROWS,
   SPOT_CHECK_SEED,
@@ -393,6 +396,53 @@ describe('spotCheckSampleForLabels', () => {
     expect(spotCheckSampleForLabels({ answers, verdicts: [], questions })).toEqual(sample)
     expect(sample).not.toEqual(
       spotCheckSampleForLabels({ answers, verdicts: [], questions, seed: SPOT_CHECK_SEED + 1 }),
+    )
+  })
+})
+
+describe('the spot check of the compiled index (ADR-0017)', () => {
+  const ids = Array.from({ length: 12 }, (_, i) => `ts-${String(i + 1).padStart(4, '0')}`)
+  const questions = parseGoldenSet(
+    ids
+      .map((id, i) =>
+        JSON.stringify({
+          id,
+          question: `Q${String(i)}?`,
+          answer: 'A.',
+          ...(i === 11 ? {} : { primary: ['a.md'] }),
+          tags: i === 11 ? ['unanswerable'] : i < 6 ? ['exact-token', 'error-code'] : ['basic'],
+        }),
+      )
+      .join('\n'),
+  )
+  const answers = ([0, 3, 7] as const).flatMap((row) => ids.map((_, i) => answer(i + 1, row)))
+  const verdicts = ([0, 3, 7] as const).flatMap((row) => ids.map((_, i) => verdict(i + 1, row, 2)))
+
+  it('takes 3 from row 0, 3 from row 3 and 4 from row 7, 1 unanswerable, and 5 on error codes', () => {
+    const sample = spotCheckSampleForLabels({ answers, verdicts, questions }, COMPILED_SPOT_CHECK)
+    const tagged = new Set(ids.slice(0, 6))
+
+    expect(sample).toHaveLength(10)
+    expect([0, 3, 7].map((row) => sample.filter((item) => item.row === row).length)).toEqual([
+      3, 3, 4,
+    ])
+    expect(sample.filter(({ questionId }) => questionId === 'ts-0012')).toHaveLength(1)
+    expect(sample.filter(({ questionId }) => tagged.has(questionId)).length).toBeGreaterThanOrEqual(
+      5,
+    )
+    expect(new Set(sample.map(({ questionId }) => questionId)).size).toBe(10)
+  })
+
+  it("is the plan of a report with row 7, and a new source's otherwise", () => {
+    expect(spotCheckPlanFor(new Set([0, 3, 7]))).toBe(COMPILED_SPOT_CHECK)
+    expect(spotCheckPlanFor(new Set([0, 3, 4]))).toBe(SOURCE_SPOT_CHECK)
+  })
+
+  it("leaves a new source's sample as it was, so that earlier labels still match theirs", () => {
+    const options = { answers, verdicts, questions }
+
+    expect(spotCheckSampleForLabels(options)).toEqual(
+      spotCheckSampleForLabels(options, SOURCE_SPOT_CHECK),
     )
   })
 })
