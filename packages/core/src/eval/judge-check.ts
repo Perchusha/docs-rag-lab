@@ -1,7 +1,8 @@
 // Does the judge get the obvious cases right? (ADR-0012.) Before any full run it grades
 // answers whose grade is known: the expert's own answer, an empty one, "I don't know", a
-// confident answer to another question, a made-up fact, and citations that do and do not
-// support their claim. A wrong grade here means no verdict from it can be trusted.
+// confident answer to another question, a made-up fact, a status left out that a grading note
+// asks for, and citations that do and do not support their claim. A wrong grade here means no
+// verdict from it can be trusted.
 import type Anthropic from '@anthropic-ai/sdk'
 import type { EvalClaim } from '@docs-rag-lab/contracts'
 
@@ -83,6 +84,25 @@ const TWO_PARTS: GoldenQuestion = {
   acceptable: [],
   tags: ['basic'],
   note: undefined,
+}
+
+const STATUS_LEFT_OUT =
+  'No. It is not an MCP server and does not go in the MCP client config. It is a small browser library you import into the page you are debugging, and it runs inside that page. The only MCP server you configure is Chrome DevTools MCP, which discovers the React tools automatically when it connects to the page.'
+
+/**
+ * ADR-0016's status rule, in the words of react-0002. The question does not ask for the
+ * status, and the prompt says that details the question did not ask for do not count, so the
+ * grading note is what has to make leaving it out cost a point.
+ */
+const STATUS_RULE: GoldenQuestion = {
+  id: 'status-rule',
+  question: 'Do I have to add `react-devtools-cdt-mcp` as a server in my MCP client configuration?',
+  answer: `${STATUS_LEFT_OUT} It is experimental.`,
+  primary: [],
+  primaryMatch: 'all',
+  acceptable: [],
+  tags: ['fresh'],
+  note: 'The status rule of ADR-0016: this API is on the experimental channel, so the status is part of what a fully correct answer gives, and an answer that does not say it is experimental scores at most 1.',
 }
 
 /** The cases, built from the golden set so that they read like real ones. */
@@ -169,6 +189,12 @@ export function judgeCases(
     })
   }
   cases.push(
+    {
+      name: 'a status its grading note asks for, left out',
+      request: correctnessRequest(settings, STATUS_RULE, STATUS_LEFT_OUT),
+      expected: 'score 1',
+      read: correctness('answer'),
+    },
     {
       name: 'a claim its passage supports',
       request: supportRequest(settings, [SUPPORTED_CLAIM]),

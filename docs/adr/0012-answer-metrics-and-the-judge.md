@@ -46,7 +46,7 @@ Row 0 has no citations, so its answers can be told apart from answers that cite 
 
 Two rows that give the same text share one verdict, because the request is the same. That is the blindness working.
 
-`drl eval judge-check` grades answers whose grade is known before any run: the expert's own answer, an empty one, "I do not know", a confident answer to another question, a made-up fact, and citations that do and do not support their claim.
+`drl eval judge-check` grades answers whose grade is known before any run: the expert's own answer, an empty one, "I do not know", a confident answer to another question, a made-up fact, a status left out that a grading note asks for (ADR-0016), and citations that do and do not support their claim.
 
 ### 5. A human checks the judge
 

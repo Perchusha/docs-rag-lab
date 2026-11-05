@@ -59,6 +59,9 @@ function perfect(request: Anthropic.MessageCreateParamsNonStreaming): unknown {
     const score = text.includes('gamma') ? 2 : 1
     return { reasoning: 'r', correctness: score, false_refusal: false }
   }
+  if (text.includes('<grading_note>')) {
+    return { reasoning: 'r', correctness: 1, false_refusal: false }
+  }
   const answer = /<answer>(.*)<\/answer>/s.exec(text)?.[1] ?? ''
   const expert = /<expert_answer>(.*)<\/expert_answer>/s.exec(text)?.[1] ?? ''
   if (answer.includes('I do not know')) {
@@ -100,7 +103,22 @@ describe('judgeCases', () => {
     expect(names).toContain('two parts, one part missing, however small')
     expect(names).toContain('two parts, one part wrong')
     expect(names).toContain('two parts, details the question did not ask for')
-    expect(names).toHaveLength(19)
+    expect(names).toContain('a status its grading note asks for, left out')
+    expect(names).toHaveLength(20)
+  })
+
+  it('gives the status case a grading note, and an answer that differs only by the status', () => {
+    const status = judgeCases(questions, settings).find(
+      ({ name }) => name === 'a status its grading note asks for, left out',
+    )
+    const text = (status?.request.messages[0]?.content as { text: string }[])[0]?.text ?? ''
+    const expert = /<expert_answer>(.*)<\/expert_answer>/s.exec(text)?.[1]
+    const answer = /<answer>(.*)<\/answer>/s.exec(text)?.[1]
+
+    expect(text).toContain('<grading_note>The status rule of ADR-0016:')
+    expect(expert).toBe(`${answer ?? ''} It is experimental.`)
+    expect(answer).not.toContain('experimental')
+    expect(status?.expected).toBe('score 1')
   })
 
   it('gives each question the expert answer of another as the confident wrong one', () => {
@@ -121,7 +139,7 @@ describe('runJudgeCheck', () => {
     const results = await run(judgeSaying(perfect))
 
     expect(results.filter((result) => !result.passed)).toEqual([])
-    expect(results).toHaveLength(19)
+    expect(results).toHaveLength(20)
   })
 
   it('catches a judge that gives everything full marks', async () => {
@@ -142,6 +160,7 @@ describe('runJudgeCheck', () => {
     expect(wrong).toContain('a claim its passage does not support')
     expect(wrong).toContain('two parts, one part missing, however small')
     expect(wrong).toContain('two parts, one part wrong')
+    expect(wrong).toContain('a status its grading note asks for, left out')
     expect(wrong).not.toContain('two parts, details the question did not ask for')
     expect(wrong).not.toContain("ts-0001, the expert's answer")
   })
@@ -156,6 +175,6 @@ describe('runJudgeCheck', () => {
     await run(judgeSaying(perfect))
 
     expect(cache?.stats('judge').calls).toBe(0)
-    expect(cache?.stats('judge-check').calls).toBe(19)
+    expect(cache?.stats('judge-check').calls).toBe(20)
   })
 })
