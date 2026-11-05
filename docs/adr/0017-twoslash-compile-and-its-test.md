@@ -187,6 +187,16 @@ So TS7006 and TS1005 take the places of TS2375 and TS2571. The three chunks that
 
 **What an expected answer requires.** The owner's rule for the 8, at the review: everything an expected answer requires is visible in the compiled chunks its anchors resolve to, and anything from general knowledge goes in the note as optional. Each answer was checked against the literals that show it. Five answers changed for it: ts-0046, ts-0047, ts-0048, ts-0051 and ts-0053. On ts-0053 the answer keeps to the one message the docs show, `',' expected.`, and the general form of TS1005 is in the note. The owner kept every anchor by the rule, including the 5 of TS2532's 6 whose examples did not compile, and the extra anchor of TS2344.
 
+## Before the compiled index is measured
+
+Written on 2026-11-06 from the named report [`2026-11-05-58ea72d2-m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), the plain index on version 2, with every strategy. Nothing had been measured on the compiled index yet.
+
+**Integrity check 6 holds.** On the 40 earlier answerable questions, the primary and acceptable ranks of vector, hybrid and rerank equal those of `2026-11-04-6b2d15f7-final`, question by question, and so does every context of 8 chunks. The earlier questions' vectors and rerank calls came from the caches. The 8 new questions took one embedding request and 8 rerank calls, 69,075 tokens, with no 429.
+
+**C1's ceiling: C1 cannot be shown.** Hybrid on the plain index already ranks a primary anchor first on 7 of the 8 `error-code` questions. Only ts-0050, on TS2554, at rank 2, can move. The smallest split that can be significant is 6 to 0, so no verdict can name the compiled index on MRR. The exact token is why: a question on TS2554 also searches for `2554`, and keyword search finds the directive line, `// @errors: 2554`, which the plain chunks already hold. Vector search alone has a primary anchor in its top 50 on only 2 of the 8.
+
+**What is still measured, as written.** C1's other half, whether any verdict names the plain index on hit@1, hit@3, hit@5, hit@8 or recall@8 on these 8 questions. C2, on the 40 earlier questions. And C3, on the answers, which is where compiling can still show: the plain chunks name the code but not its message, and the compiled chunks give it.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
