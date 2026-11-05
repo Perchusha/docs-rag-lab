@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 // The compiler loads its library on first use, which takes seconds when other packages test too.
 vi.setConfig({ testTimeout: 60_000 })
 
-import { COMPILER, createDocsCompiler, isTwoslash } from './compile.ts'
+import { compilerName, createDocsCompiler, isTwoslash } from './compile.ts'
 
 const compiler = createDocsCompiler()
 
@@ -41,7 +41,7 @@ describe('createDocsCompiler', () => {
       ).version
 
     expect(installed('typescript-docs')).toBe('6.0.2')
-    expect(COMPILER).toBe(`twoslash ${installed('twoslash')}, typescript 6.0.2`)
+    expect(compilerName()).toBe(`twoslash ${installed('twoslash')}, typescript 6.0.2`)
   })
 
   it('gives each named error with its code, its message and the line of the shown code', () => {

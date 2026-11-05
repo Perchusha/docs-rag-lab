@@ -9,7 +9,7 @@ import type {
   SourceFile,
 } from '@docs-rag-lab/source-kit'
 
-import { COMPILER, createDocsCompiler, type DocsCompiler } from './compile.ts'
+import { compilerName, createDocsCompiler, type DocsCompiler } from './compile.ts'
 import { parseMarkdown, type ExampleCompiler } from './markdown.ts'
 import { docTypeOf, INCLUDES, isOption, matchPath, optionOf, permalinkUrl } from './paths.ts'
 
@@ -32,7 +32,7 @@ export const PARSER_VERSION = 1
  */
 export const COMPILED_PARSER_VERSION = 2
 
-export { COMPILER } from './compile.ts'
+export { compilerName } from './compile.ts'
 
 /**
  * Exact tokens for keyword search. The docs write compiler errors as bare
@@ -153,7 +153,7 @@ export function typescriptSource(options: TypescriptSourceOptions = {}): Source 
       return {
         ...base,
         parserVersion: COMPILED_PARSER_VERSION,
-        compiler: COMPILER,
+        compiler: compilerName(),
         parse: (file) =>
           parseFile(file, exampleCompiler(file.path, compiler, compileOptions.onResult)),
       }

@@ -2,30 +2,51 @@
 // through the compiler the docs pin, `typescript` 6.0.2, and what it said goes on the code block:
 // its errors, its type queries and the file it emits when the example asks to show one. The code
 // itself stays as written. An example that does not compile gets nothing, and the reason.
+//
+// Nothing here runs when the module loads: the apps import this source to search, and their
+// bundler moves the module, so the compiler and its files are found only when a compile asks.
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import type { CompilerOutput } from '@docs-rag-lab/source-kit'
-import { createTwoslasher, type CreateTwoslashOptions, type TwoslashInstance } from 'twoslash'
+import type { CreateTwoslashOptions, TwoslashInstance } from 'twoslash'
 
-const require = createRequire(import.meta.url)
+interface Toolchain {
+  /** The compiler the docs pin at the indexed commit, in their root package.json. */
+  ts: typeof import('typescript-docs')
+  createTwoslasher: typeof import('twoslash').createTwoslasher
+  /** This package's directory, with no trailing slash, which twoslash would double in its paths. */
+  packageDir: string
+  name: string
+}
 
-/** The compiler the docs pin at the indexed commit, in their root package.json. */
-const ts = require('typescript-docs') as typeof import('typescript-docs')
-/** This package's directory, with no trailing slash, which twoslash would double in its paths. */
-const PACKAGE_DIR = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
-const TWOSLASH_VERSION = (
-  JSON.parse(
-    readFileSync(join(PACKAGE_DIR, 'node_modules', 'twoslash', 'package.json'), 'utf8'),
-  ) as {
-    version: string
+let toolchain: Toolchain | undefined
+
+/** The compiler and twoslash, loaded on first use. */
+function loadToolchain(): Toolchain {
+  if (toolchain !== undefined) return toolchain
+  const require = createRequire(import.meta.url)
+  const packageDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
+  const ts = require('typescript-docs') as typeof import('typescript-docs')
+  const twoslash = require('twoslash') as typeof import('twoslash')
+  const { version } = JSON.parse(
+    readFileSync(join(packageDir, 'node_modules', 'twoslash', 'package.json'), 'utf8'),
+  ) as { version: string }
+  toolchain = {
+    ts,
+    createTwoslasher: twoslash.createTwoslasher,
+    packageDir,
+    name: `twoslash ${version}, typescript ${ts.version}`,
   }
-).version
+  return toolchain
+}
 
 /** What the compiled index's manifest names (ADR-0017). */
-export const COMPILER = `twoslash ${TWOSLASH_VERSION}, typescript ${ts.version}`
+export function compilerName(): string {
+  return loadToolchain().name
+}
 
 /** An example fenced as twoslash: `ts twoslash`, `tsx twoslash {1}` and the like. */
 export function isTwoslash(meta: string | null | undefined): boolean {
@@ -71,12 +92,13 @@ export interface DocsCompiler {
  * packages this source installs, so the same example compiles the same way on any machine.
  */
 export function createDocsCompiler(): DocsCompiler {
+  const { ts, createTwoslasher, packageDir } = loadToolchain()
   const twoslasher: TwoslashInstance = createTwoslasher({
     // twoslash types its module by the typescript it resolves itself, which has the same API.
     tsModule: ts as unknown as NonNullable<CreateTwoslashOptions['tsModule']>,
-    tsLibDirectory: dirname(require.resolve('typescript-docs/lib/lib.d.ts')),
+    tsLibDirectory: dirname(createRequire(import.meta.url).resolve('typescript-docs/lib/lib.d.ts')),
     // Imports in an example resolve from this package.
-    vfsRoot: PACKAGE_DIR,
+    vfsRoot: packageDir,
     fsCache: false,
   })
   return {

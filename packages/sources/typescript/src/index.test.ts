@@ -15,7 +15,7 @@ vi.setConfig({ testTimeout: 60_000 })
 
 import {
   COMPILED_PARSER_VERSION,
-  COMPILER,
+  compilerName,
   errorCodesOf,
   exactTokensOf,
   matchPath,
@@ -63,7 +63,7 @@ describe('the compiled source (ADR-0017)', () => {
     const compiled = source.compiled?.()
 
     expect(compiled?.parserVersion).toBe(COMPILED_PARSER_VERSION)
-    expect(compiled?.compiler).toBe(COMPILER)
+    expect(compiled?.compiler).toBe(compilerName())
     expect(compiled?.id).toBe('typescript')
     expect(compiled && 'compiled' in compiled).toBe(false)
     expect(source.parserVersion).toBe(PARSER_VERSION)
