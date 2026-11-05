@@ -4,7 +4,7 @@ import { dashboardPage } from '@docs-rag-lab/core'
 import { EvalDashboard } from '@docs-rag-lab/ui'
 
 import config from '../../rag.config.ts'
-import { evalStore } from '../../src/server/eval-store.ts'
+import { appEvalStore } from '../../src/server.ts'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ export default async function EvalPage({
   searchParams: Promise<{ run?: string | string[] }>
 }) {
   const { runs, unreadable, initial, missing } = dashboardPage(
-    evalStore(),
+    appEvalStore(),
     (await searchParams).run,
   )
   return (

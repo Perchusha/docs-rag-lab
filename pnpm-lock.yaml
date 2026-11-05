@@ -238,12 +238,12 @@ importers:
 
   apps/ts-docs:
     dependencies:
-      '@docs-rag-lab/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@docs-rag-lab/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@docs-rag-lab/docs-server':
+        specifier: workspace:*
+        version: link:../../packages/docs-server
       '@docs-rag-lab/settings':
         specifier: workspace:*
         version: link:../../packages/settings
@@ -444,6 +444,37 @@ importers:
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      eslint:
+        specifier: 'catalog:'
+        version: 10.13.0(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(yaml@2.9.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/browser-playwright@5.0.5)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(yaml@2.9.1))
+
+  packages/docs-server:
+    dependencies:
+      '@docs-rag-lab/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@docs-rag-lab/core':
+        specifier: workspace:*
+        version: link:../core
+      '@docs-rag-lab/settings':
+        specifier: workspace:*
+        version: link:../settings
+    devDependencies:
+      '@docs-rag-lab/config':
+        specifier: workspace:*
+        version: link:../config
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6

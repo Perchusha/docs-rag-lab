@@ -1,5 +1,6 @@
-import { appEngine } from '../../../src/server/engine.ts'
-import { handleDocument } from '../../../src/server/handlers.ts'
+import { handleDocument } from '@docs-rag-lab/docs-server'
+
+import { appEngine } from '../../../src/server.ts'
 
 export const dynamic = 'force-dynamic'
 
