@@ -259,6 +259,99 @@ function ladderAnswers(
   })
 }
 
+describe('a report with row 7, hybrid on the compiled index (ADR-0017)', () => {
+  const COMPILED_INDEX = {
+    rows: [7] as AnswerRow[],
+    compiler: 'compiler:twoslash test',
+    chunksHash: 'compiled',
+  }
+  /** Rows 3 and 7 answer twice; row 3 scores what it is told, and the others 2. */
+  const compiledAnswers = (score3: (i: number) => 0 | 1 | 2 = () => 2): EvalAnswers => {
+    const ids = [1, 2, 3, 4, 5, 6, 7, 8]
+    const rows: AnswerRow[] = [0, 2, 3, 7]
+    const sampled = (row: AnswerRow): number[] => (row === 3 || row === 7 ? [1, 2] : [1])
+    return answersFixture({
+      rows: rows.flatMap((row) => sampled(row).map((sample) => rowResult(row, sample))),
+      answers: ids.flatMap((i) =>
+        rows.flatMap((row) => sampled(row).map((sample) => answer(i, row, { sample }))),
+      ),
+      verdicts: ids.flatMap((i) =>
+        rows.flatMap((row) =>
+          sampled(row).map((sample) => verdict(i, row, row === 3 ? score3(i) : 2, { sample })),
+        ),
+      ),
+      support: ids.flatMap((i) =>
+        rows
+          .filter((row) => row !== 0)
+          .flatMap((row) => sampled(row).map((sample) => ({ ...support(i, row, true), sample }))),
+      ),
+      compiledIndex: COMPILED_INDEX,
+    })
+  }
+  const compiledHybrid = strategyResult(
+    'hybrid',
+    Array.from({ length: 10 }, (_, i) => score(ID(i + 1), 1)),
+  )
+  const run = (
+    answers: EvalAnswers,
+    compiled: typeof compiledHybrid | undefined = compiledHybrid,
+  ) =>
+    buildDashboardRun({
+      id: 'run-id',
+      report: report({ hybrid: Array.from({ length: 10 }, () => 3), answers }),
+      compiled,
+      calibrations: [],
+      verify: null,
+      indexDocsSha: 'docs-sha',
+    })
+
+  it('asks whether the compiled index finds the right chunks higher, against hybrid', () => {
+    const { retrieval } = run(compiledAnswers())
+
+    expect(retrieval.question).toBe('Does the compiled index find the right chunks higher?')
+    expect(retrieval.columns).toEqual(['Hybrid', 'Hybrid, compiled'])
+    expect(retrieval.rows[0]?.comparisons).toMatchObject([
+      { a: 'Hybrid', b: 'Hybrid, compiled', aAhead: 0, bAhead: 10, verdict: 'b' },
+    ])
+  })
+
+  it('says the compiled retrieval is in a report of its own when that report is missing', () => {
+    const { retrieval } = buildDashboardRun({
+      id: 'run-id',
+      report: report({ hybrid: Array.from({ length: 10 }, () => 3), answers: compiledAnswers() }),
+      calibrations: [],
+      verify: null,
+      indexDocsSha: 'docs-sha',
+    })
+
+    expect(retrieval.rows[0]?.figures[1]).toEqual({ kind: 'none', reason: 'in its own report' })
+  })
+
+  it('compares row 3 with row 7, and keeps the app on the plain index when nothing names row 7', () => {
+    const { answers } = run(compiledAnswers())
+
+    expect(answers?.question).toBe('Does that reach the answers?')
+    expect(answers?.columns).toEqual(['Hybrid', 'Hybrid, compiled'])
+    expect(answers?.summary).toContain('No difference from the plain index holds up.')
+    expect(answers?.notes).toContain(
+      'The app stays on the plain index: no verdict names the compiled one (ADR-0017).',
+    )
+  })
+
+  it('does not say so when a verdict names row 7', () => {
+    const { answers } = run(compiledAnswers(() => 1))
+
+    expect(answers?.rows[0]?.comparisons).toMatchObject([{ verdict: 'b' }])
+    expect(answers?.notes?.join(' ') ?? '').not.toContain('stays on the plain index')
+  })
+
+  it('names the compiled index and its compiler in the trust section', () => {
+    expect(run(compiledAnswers()).trust.index).toBe(
+      'Hybrid, compiled read the compiled index: compiler:twoslash test.',
+    )
+  })
+})
+
 describe('a report with the reranker', () => {
   const buildWith = (value: EvalReport, contextual?: ReturnType<typeof contextualResult>) =>
     buildDashboardRun({
