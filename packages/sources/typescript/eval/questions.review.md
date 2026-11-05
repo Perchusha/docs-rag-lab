@@ -1,15 +1,41 @@
 # TypeScript's golden set, version 2: the questions for review
 
-**All 9 questions that version 2 adds or changes are flagged,** as ADR-0017 asks: ts-0040, revisited, and ts-0046 to ts-0053, the 8 questions on error codes. The other 44 questions of version 1 are unchanged, byte for byte.
+**All 9 questions that version 2 adds or changes were flagged, and the owner reviewed all 9,** as ADR-0017 asks: ts-0040, revisited, and ts-0046 to ts-0053, the 8 questions on error codes. The other 44 questions of version 1 are unchanged, byte for byte.
 
-The draft is [`questions.draft.jsonl`](questions.draft.jsonl): version 1 with these 9 lines changed or added. Claude drafted it on 2026-11-05 from the text of the plain and compiled indexes' chunks, at docs `205122bb`. Nothing was searched or ranked on either index, and no answer was read.
+This file keeps the draft's questions and what was asked, as the owner saw them. The set as frozen is [`questions.jsonl`](questions.jsonl), version 2, with both locks: `questions.lock.json` for the plain index and `questions.compiled.lock.json` for the compiled one. Version 1 stays as `questions.v1.jsonl`, with its lock. Claude drafted the questions on 2026-11-05 from the text of the plain and compiled indexes' chunks, at docs `205122bb`. Nothing was searched or ranked on either index, and no answer was read.
 
 The repository's check refuses em dashes in this file, so one from the docs would be written as a hyphen. None of these passages has one.
 
+## What the owner decided, on 2026-11-05
+
+| Question | Decision |
+|---|---|
+| ts-0040 | The draft's reading, per chunk: literal inference is primary, and excess property checks stays acceptable. The expected answer drops the claim that the handbook shows TS2345 in excess property checks. |
+| ts-0047 | All 6 anchors stay, as the rule says. Anchors are not edited by which examples compiled. |
+| ts-0051 | The anchor on `#example-13` stays: it follows the same rule. |
+| ts-0053 | The expected answer keeps to what the docs show, `',' expected.` on that example. The general form goes in the note, as also fully correct and not required. |
+| All 8 | Everything an expected answer requires is visible in the compiled chunks its anchors resolve to, and anything from general knowledge goes in the note as optional. |
+
+**Why ts-0040's expected answer changed.** It said the handbook shows TS2345 "in excess property checks". That example's directive names 2345, but typescript 6.0.2 raises TS2561 there, so the example did not compile, and no chunk of either index states TS2345's message for it. The note says so.
+
+**The 8 answers against the owner's rule.** Each answer's required parts were listed as literals and checked, by a script, against the text of the compiled chunks its anchors resolve to. All are there. Five answers changed for the rule, and three did not:
+
+| Question | What changed |
+|---|---|
+| ts-0046, TS2367 | "the result of the comparison is fixed by the types" is my reading, so it moved to the note as optional. The answer now says what the handbook says, that it is among "basic logic errors". "has already narrowed `value` to `"a"`" became what the example shows: the `else` branch of `if (value !== "a")`, where the types are `"a"` and `"b"`. |
+| ts-0047, TS2532 | "a value whose type includes `undefined`" became "the object a method is called on may be `undefined`", which the message and the code show. "a property read through an index signature may be `undefined`" became the properties read through `Options`' index signature, which the code's comment names. The chunk does not hold the release note's prose on the flag. |
+| ts-0048, TS2341 | "since TypeScript's `private` lets bracket notation through and is only enforced during type checking" is in a passage before these chunks. The answer now says that `s["secretKey"]` is allowed, an escape hatch JavaScript's `#` private fields do not offer, which its chunk shows. The note gives the rest as optional. |
+| ts-0051, TS2344 | "a type argument does not meet the constraint of the type parameter it is passed to" became "the type given to a utility type is not of the kind its constraint asks for", and each utility type's kind is the one its section names: a function type, or a constructor function type. The general reading, for any generic type, is in the note as optional. |
+| ts-0053, TS1005 | Rewritten, as decided above. |
+| ts-0049, ts-0050, ts-0052 | Unchanged: every part is in the compiled chunks. |
+
 ## The checks
 
-- `pnpm drl eval check --draft --source typescript` passes: every anchor resolves on the plain index, and none of the 9 questions copies a heading or a passage.
-- The same anchors were resolved with core's own `resolveAnchor` on the compiled index, by a script that only reads it. Every one resolves, and each only to chunks whose `// @errors:` line names the code. The compiled lock is written after the freeze.
+- `pnpm drl eval check --draft --source typescript` passed: every anchor resolves on the plain index, and none of the 9 questions copies a heading or a passage.
+- The same anchors were resolved with core's own `resolveAnchor` on the compiled index, by a script that only reads it. Every one resolves, and each only to chunks whose `// @errors:` line names the code.
+- After the freeze, `pnpm drl eval check --source typescript` and the same with `--compiled` say that every anchor resolves and matches its lock.
+
+The draft's answers below are as the owner reviewed them. The frozen answers are in `questions.jsonl`.
 
 ## How the codes were chosen
 
@@ -107,6 +133,6 @@ TS18046 is named beside TS2571 in the same three examples, and none of them comp
 - **Not foreseen by ADR-0017,** which says what happens when both chunks state the message or neither does. The draft reads it per chunk.
 - **To decide:** the draft's reading, or the other one: neither moves, since only one of the two states it, and only the note changes.
 
-## After the review
+## The freeze
 
-Your decisions go into the draft, which becomes `questions.jsonl`. Then `pnpm drl eval check --source typescript --accept --set-version 2` writes the plain lock, `pnpm drl eval check --source typescript --compiled --accept` the compiled one, and ADR-0009's changelog gets version 2. Version 1 stays as `questions.v1.jsonl`, with its lock. All of it goes in one commit, before anything is searched on the compiled index.
+The owner's decisions went into the draft, which became `questions.jsonl`. `pnpm drl eval check --source typescript --accept --set-version 2` wrote the plain lock, `pnpm drl eval check --source typescript --compiled --accept` the compiled one, and ADR-0009's changelog has version 2, hash `5eca5d63e26a`. All of it is one commit, before anything was searched on the compiled index.

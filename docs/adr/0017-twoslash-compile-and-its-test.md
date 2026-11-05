@@ -159,9 +159,9 @@ This section reports the first compile and the index it built, before the set ch
 
 **One fault, caught before any number.** The first try broke every route of ts-docs: the compile read its files when its module loaded, and the app's bundler had moved the module. The dashboard check found it. The compile now loads nothing until it is used.
 
-## The set's version 2, as drafted
+## The set's version 2, as frozen
 
-Claude drafted it on 2026-11-05 by the rules above, from the text of both indexes' chunks, with no search and no answer read. The owner reviews all 9 questions it adds or changes before it is frozen, in [`questions.review.md`](../../packages/sources/typescript/eval/questions.review.md).
+Claude drafted it on 2026-11-05 by the rules above, from the text of both indexes' chunks, with no search and no answer read. The owner reviewed all 9 questions it adds or changes, in [`questions.review.md`](../../packages/sources/typescript/eval/questions.review.md), and it was frozen the same day, before anything was searched on the compiled index. Its hash starts `5eca5d63e26a`, and both locks, plain and compiled, record it, with 106 anchors.
 
 **The codes,** read from the top of the list, by the rule past the named fallbacks:
 
@@ -183,7 +183,9 @@ So TS7006 and TS1005 take the places of TS2375 and TS2571. The three chunks that
 
 **The anchors.** The 8 questions are ts-0046 to ts-0053, in that order, with 35 primary anchors: one for each chunk whose directive names the code, pinned to the directive line. Each resolves on both indexes, only to chunks whose directive names the code. The compiled index cuts the Utility Types page differently, and one more of its chunks names TS2344, so TS2344 has an anchor for it, which on the plain index resolves to the same chunk as another of its anchors.
 
-**ts-0040 had a case this ADR did not foresee:** one of its two handbook chunks states TS2345's message on the compiled index and the other does not. The literal inference chunk gives it. The excess property checks example did not compile, because typescript 6.0.2 raises TS2561 there, so its chunk does not. The draft makes the first a primary anchor and keeps the second acceptable, and the owner decides.
+**ts-0040 had a case this ADR did not foresee:** one of its two handbook chunks states TS2345's message on the compiled index and the other does not. The literal inference chunk gives it. The excess property checks example did not compile, because typescript 6.0.2 raises TS2561 there, so its chunk does not. The owner decided it per chunk: the first is a primary anchor, and the second stays acceptable. The owner also had the expected answer drop the claim that the handbook shows TS2345 in excess property checks, since the compiler reports TS2561 there.
+
+**What an expected answer requires.** The owner's rule for the 8, at the review: everything an expected answer requires is visible in the compiled chunks its anchors resolve to, and anything from general knowledge goes in the note as optional. Each answer was checked against the literals that show it. Five answers changed for it: ts-0046, ts-0047, ts-0048, ts-0051 and ts-0053. On ts-0053 the answer keeps to the one message the docs show, `',' expected.`, and the general form of TS1005 is in the note. The owner kept every anchor by the rule, including the 5 of TS2532's 6 whose examples did not compile, and the extra anchor of TS2344.
 
 ## Alternatives considered
 
