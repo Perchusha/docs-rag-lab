@@ -79,10 +79,12 @@ export {
   CONTROL_IDENTITY,
   controlContexts,
   headingPrefix,
+  COMPILER_IDENTITY_PREFIX,
   variantOfContextModel,
 } from './contexts/control.ts'
 export { contextualText } from './contexts/text.ts'
 export {
+  hasPrefixedChunks,
   variantIndexPath,
   embeddingCachePath,
   IndexNotFoundError,
@@ -227,6 +229,9 @@ export {
   readCalibrations,
   reportSources,
   readRun,
+  archivedSetPath,
+  archivedSets,
+  goldenSetPathFor,
   readSourceAbout,
   readSpotCheck,
   readVerifyRecord,

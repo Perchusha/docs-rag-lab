@@ -18,6 +18,7 @@ import { buildDashboardDetails, buildDashboardRun, compareDashboardRuns } from '
 import { parseGoldenSet } from './golden.ts'
 import {
   goldenSetPath,
+  goldenSetPathFor,
   listRuns,
   readCalibrations,
   readRun,
@@ -140,7 +141,14 @@ export function loadDashboardDetails(store: DashboardStore, id: string): Dashboa
   return buildDashboardDetails({
     report,
     contextual: contextualRetrieval(store, report),
-    questions: parseGoldenSet(readFileSync(goldenSetPath(root, sourceId), 'utf8')),
+    // The questions of the set the report names, which a later version can have changed.
+    questions: parseGoldenSet(
+      readFileSync(
+        goldenSetPathFor(root, sourceId, report.identity.goldenSet.hash) ??
+          goldenSetPath(root, sourceId),
+        'utf8',
+      ),
+    ),
     calibrations: rounds,
     unreadableCalibrations: unreadable,
   })

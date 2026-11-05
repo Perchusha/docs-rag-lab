@@ -16,8 +16,17 @@ export function sourceIndexPath(dataDir: string, sourceId: string): string {
   return join(dataDir, 'sources', `${sourceId}.sqlite`)
 }
 
-/** An index whose chunks carry a prefix (ADR-0014). The plain one stays as it is. */
-export type IndexVariant = 'contextual' | 'control'
+/**
+ * Another index of the same source, beside the plain one, which stays as it is. The contextual and
+ * control indexes have the plain index's chunks with a prefix (ADR-0014). The compiled one has
+ * chunks of its own, with the twoslash compiler's output after each example (ADR-0017).
+ */
+export type IndexVariant = 'contextual' | 'control' | 'compiled'
+
+/** The variants whose chunks are the plain index's, each with a prefix. */
+export function hasPrefixedChunks(variant: IndexVariant): variant is 'contextual' | 'control' {
+  return variant !== 'compiled'
+}
 
 export function variantIndexPath(dataDir: string, sourceId: string, variant: IndexVariant): string {
   return join(dataDir, 'sources', `${sourceId}.${variant}.sqlite`)

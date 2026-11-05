@@ -86,7 +86,7 @@ import {
   writeReport,
 } from './eval-commands.ts'
 import { durationOf, planRerankRun } from './eval-rerank.ts'
-import { readGoldenFiles } from './golden.ts'
+import { readGoldenFiles, readGoldenLock } from './golden.ts'
 
 /** The Claude client. Tests pass a fake through the command context. */
 const clientOf = (ctx: CommandContext): EvalClient =>
@@ -104,19 +104,27 @@ interface Golden {
   anchorChunks: (questionId: string) => ReadonlySet<string>
 }
 
-/** The set, without stale questions, and the chunks each question's anchors resolved to. */
-function goldenOf(ctx: CommandContext, source: Source): Golden {
+/**
+ * The set, without stale questions, and the chunks each question's anchors resolved to. A report's
+ * commands pass the set it names. The compiled index has chunks of its own, so its lock's anchors
+ * count too: row 7 cites them (ADR-0017).
+ */
+function goldenOf(ctx: CommandContext, source: Source, setHash?: string): Golden {
   const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, { create: false })
   try {
-    const golden = readGoldenFiles(ctx.root, source.id, indexes.index)
+    const golden = readGoldenFiles(ctx.root, source.id, indexes.index, { setHash })
     if (golden === undefined) throw new CliError(`${source.id} has no golden set`)
     const { questions, check } = golden
+    const compiled = readGoldenLock(ctx.root, source.id, { setHash, variant: 'compiled' })
+    const locks = [check.lock, ...(compiled?.setHash === check.lock.setHash ? [compiled] : [])]
     const chunks = new Map(
       questions.map((question) => [
         question.id,
         new Set(
           [...question.primary, ...question.acceptable].flatMap((anchor) =>
-            (check.lock.anchors[anchorKey(anchor)] ?? []).map(({ chunkId }) => chunkId),
+            locks.flatMap((lock) =>
+              (lock.anchors[anchorKey(anchor)] ?? []).map(({ chunkId }) => chunkId),
+            ),
           ),
         ),
       ]),
@@ -477,7 +485,7 @@ export function evalLabelCommand(
 ): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
-  const golden = goldenOf(ctx, source)
+  const golden = goldenOf(ctx, source, report.identity.goldenSet.hash)
   const fresh = args.after !== undefined
   const spot = args.spot === true
   if (fresh && args.rows !== undefined) throw new CliError('--after and --rows cannot go together')
@@ -588,7 +596,7 @@ export function evalSpotCheckCommand(
 ): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
-  const golden = goldenOf(ctx, source)
+  const golden = goldenOf(ctx, source, report.identity.goldenSet.hash)
   const sample = spotCheckSampleOf(answers, golden)
   const found = spotCheck({
     report: {
@@ -629,7 +637,7 @@ export function evalCalibrateCommand(
   }
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
-  const golden = goldenOf(ctx, source)
+  const golden = goldenOf(ctx, source, report.identity.goldenSet.hash)
   // The sample comes from a fixed seed, so the item numbers need no key next to them. For an
   // earlier round graded again, it is that report's sample, and this report's verdicts.
   const earlier = args.sampleOf === undefined ? undefined : reportWithAnswers(ctx, args.sampleOf)

@@ -67,6 +67,8 @@ export async function measure(
   name: string | null,
   strategies: readonly Strategy[] = LOCAL_STRATEGIES,
   variant?: IndexVariant,
+  /** The set a report names, for verify. Without it, the current set (ADR-0017). */
+  setHash?: string,
 ): Promise<EvalReport> {
   const { root, settings, meter } = ctx
   const repo = await readRepoState(root)
@@ -77,7 +79,7 @@ export async function measure(
   }
   const indexes = openIndexes(join(root, settings.dataDir), source.id, { create: false, variant })
   try {
-    const golden = readGoldenFiles(root, source.id, indexes.index)
+    const golden = readGoldenFiles(root, source.id, indexes.index, { setHash, variant })
     if (golden === undefined) {
       throw new CliError(
         `${source.id} has no golden set: ${goldenSetPath(root, source.id)} does not exist`,
@@ -142,13 +144,16 @@ export async function evalRunCommand(
   if (variant === 'control' && args.strategy === 'rerank') {
     throw new CliError('the control is measured without the reranker (ADR-0014)')
   }
+  if (variant === 'compiled' && args.strategy === 'rerank') {
+    throw new CliError('the compiled index is measured without the reranker (ADR-0017)')
+  }
   const source = findSource(ctx.sources, args.source)
   // A development run stays quick: a rerank takes up to a minute per question on the free trial.
-  // The control is retrieval only, with no reranker (ADR-0014).
+  // The control and the compiled index are measured with no reranker (ADR-0014, ADR-0017).
   const strategies =
     args.strategy !== undefined
       ? [args.strategy]
-      : name === undefined || variant === 'control'
+      : name === undefined || variant === 'control' || variant === 'compiled'
         ? LOCAL_STRATEGIES
         : STRATEGIES
   if (args.yes && !strategies.includes('rerank')) {
@@ -244,7 +249,7 @@ export async function evalVerifyCommand(
   const source = findSource(ctx.sources, report.identity.sourceId)
   const strategies = report.result.strategies.map(({ strategy }) => strategy)
   const variant = variantOfContextModel(report.identity.contextModel)
-  const now = await measure(ctx, source, null, strategies, variant)
+  const now = await measure(ctx, source, null, strategies, variant, report.identity.goldenSet.hash)
   const verification = verifyReport(report, now)
   const code =
     now.run.repoSha === report.run.repoSha ? 'the same commit' : now.run.repoSha.slice(0, 8)

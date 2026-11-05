@@ -14,6 +14,7 @@ import {
   createEmbeddingProvider,
   createRerankProvider,
   GoldenSetError,
+  hasPrefixedChunks,
   openIndexes,
   RateLimiter,
   syncSource,
@@ -42,7 +43,7 @@ import {
   formatSyncReport,
   formatTrace,
 } from './format.ts'
-import { checkGoldenFiles, goldenSetPath, writeGoldenLock } from './golden.ts'
+import { checkGoldenFiles, goldenSetPath, readGoldenLock, writeGoldenLock } from './golden.ts'
 
 export interface Writer {
   write(text: string): unknown
@@ -185,7 +186,12 @@ export function evalCheckCommand(
   const { out, root } = ctx
   const source = findSource(ctx.sources, args.source)
   const { variant } = args
-  if (variant !== undefined && args.accept) {
+  if (variant === 'compiled' && args.setVersion !== undefined) {
+    throw new CliError(
+      'the compiled index keeps the version the plain lock records, so --compiled takes no --set-version',
+    )
+  }
+  if (variant !== undefined && hasPrefixedChunks(variant) && args.accept) {
     throw new CliError(
       `--accept records the lock from the plain index, so it takes no --${variant}`,
     )
@@ -193,7 +199,21 @@ export function evalCheckCommand(
   const dataDir = join(root, ctx.settings.dataDir)
   const indexes = openIndexes(dataDir, source.id, { create: false, variant })
   try {
-    if (variant !== undefined) {
+    if (variant === 'compiled') {
+      const plain = openIndexes(dataDir, source.id, { create: false })
+      try {
+        const at = plain.index.getManifest()?.commitSha
+        const own = indexes.index.getManifest()?.commitSha
+        if (at !== own) {
+          throw new CliError(
+            `the plain index is at ${String(at)}, and the compiled one at ${String(own)}`,
+          )
+        }
+        out.write("the compiled index is at the plain index's commit, with a lock of its own\n")
+      } finally {
+        plain.close()
+      }
+    } else if (variant !== undefined) {
       const plain = openIndexes(dataDir, source.id, { create: false })
       try {
         const { chunks, contexts, problems } = checkVariantIndex(
@@ -211,14 +231,34 @@ export function evalCheckCommand(
         plain.close()
       }
     }
-    const check = checkGoldenFiles(root, source.id, indexes.index)
+    const check = checkGoldenFiles(root, source.id, indexes.index, { variant })
     if (check === undefined) {
       throw new CliError(
         `${source.id} has no golden set: ${goldenSetPath(root, source.id)} does not exist`,
       )
     }
     out.write(`${formatGoldenCheck(check)}\n`)
-    if (args.accept) {
+    if (args.accept && variant === 'compiled') {
+      const unresolved = check.findings.filter(
+        ({ problem }) => problem !== 'changed' && problem !== 'not-locked',
+      )
+      if (unresolved.length > 0) {
+        throw new CliError(
+          'anchors that do not resolve cannot be accepted: fix or remove them first',
+        )
+      }
+      // The plain lock decides the version, so the two locks can never name different ones.
+      const plainLock = readGoldenLock(root, source.id)
+      if (plainLock?.setHash !== check.lock.setHash) {
+        throw new CliError(
+          'accept the set on the plain index first: the compiled lock takes the version it records',
+        )
+      }
+      writeGoldenLock(root, source.id, { ...check.lock, setVersion: plainLock.setVersion }, variant)
+      out.write(
+        `the compiled lock now records set version ${String(plainLock.setVersion)}, with ${String(check.anchors)} anchors at ${check.docsSha.slice(0, 8)}\n`,
+      )
+    } else if (args.accept) {
       const unresolved = check.findings.filter(
         ({ problem }) => problem !== 'changed' && problem !== 'not-locked',
       )

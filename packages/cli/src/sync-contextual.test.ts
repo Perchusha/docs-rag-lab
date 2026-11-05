@@ -364,7 +364,7 @@ describe('drl sync --contextual', () => {
     ],
     [['search', 'q', '--contextual'], '--contextual works only with sync and eval check'],
     [['search', 'q', '--control'], '--control works only with sync and eval check'],
-    [['sync', 'demo', '--control', '--contextual'], 'are two different indexes'],
+    [['sync', 'demo', '--control', '--contextual'], 'are different indexes'],
     [['sync', 'demo', '--control', '--pilot', '2'], '--pilot works only with sync --contextual'],
     [['sync', 'demo', '--control', '--full'], 'no --full or --at'],
   ])('refuses %j', async (argv, message) => {

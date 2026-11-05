@@ -85,6 +85,7 @@ Commands:
       [--strategy <s>]        One strategy instead of vector and hybrid
       [--contextual]          Measure the contextual index instead of the plain one
       [--control]             Measure the control index, under vector and hybrid only
+      [--compiled]            Measure the compiled index, with the twoslash output (ADR-0017)
       [--yes]                 Go on with rerank calls that are not cached: without it, a run
                               that needs them prints their estimate and stops
   eval verify <report>        Run a report again, and say whether it reproduces
@@ -119,6 +120,8 @@ Commands:
       [--set-version <n>]     With --accept: the new version of a set that changed (ADR-0009)
       [--contextual]          That index, also against the plain one's chunks
       [--control]             That index, also against the plain one's chunks
+      [--compiled]            That index, against a lock of its own: with --accept, it records
+                              that lock, at the version the plain lock records
       [--draft]               questions.draft.jsonl instead: which anchors do not resolve,
                               what each question copies from the docs, and fails above 2
                               fresh questions on a page (ADR-0016)
@@ -253,6 +256,7 @@ function refuseStrayEvalFlags(
     'sample-of'?: string | undefined
     contextual?: boolean | undefined
     control?: boolean | undefined
+    compiled?: boolean | undefined
     strategies?: string | undefined
     rows?: string | undefined
     only?: string | undefined
@@ -279,6 +283,9 @@ function refuseStrayEvalFlags(
       : []),
     ...(values.control === true && subcommand !== undefined && subcommand !== 'check'
       ? ['--control']
+      : []),
+    ...(values.compiled === true && subcommand !== undefined && subcommand !== 'check'
+      ? ['--compiled']
       : []),
     ...(values.strategies !== undefined && subcommand !== 'compare' ? ['--strategies'] : []),
     ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
@@ -346,6 +353,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         at: { type: 'string' },
         contextual: { type: 'boolean', default: false },
         control: { type: 'boolean', default: false },
+        compiled: { type: 'boolean', default: false },
         pilot: { type: 'string' },
         accept: { type: 'boolean', default: false },
         'set-version': { type: 'string' },
@@ -393,9 +401,16 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --at works only with sync\n\n${USAGE}`)
     return 2
   }
-  const variant = values.contextual ? 'contextual' : values.control ? 'control' : undefined
-  if (values.contextual && values.control) {
-    err.write(`drl: --contextual and --control are two different indexes\n\n${USAGE}`)
+  const variants = (['contextual', 'control', 'compiled'] as const).filter((name) => values[name])
+  const variant = variants[0]
+  if (variants.length > 1) {
+    err.write(`drl: --${variants.join(' and --')} are different indexes\n\n${USAGE}`)
+    return 2
+  }
+  if (variant === 'compiled' && command === 'sync') {
+    err.write(
+      `drl: sync --compiled comes with the compile, in M7's next step (ADR-0017)\n\n${USAGE}`,
+    )
     return 2
   }
   if (variant !== undefined && command !== 'sync' && command !== 'eval') {
