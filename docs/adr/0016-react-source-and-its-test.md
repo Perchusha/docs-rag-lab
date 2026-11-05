@@ -135,7 +135,7 @@ These come first. If one fails, the numbers are not read as a result.
 
 **For the draft,** in the skill's PR, since the walk and the check of copied wording have to be what they say:
 - `drl eval walk` lists the walk's entries in the walk's order. A sync's checkout is shallow, so it keeps a clone of the history under the cache.
-- `drl eval check --draft` says which anchors do not resolve, and what each question copies from the pages it is anchored to. A heading of one word counts only if it starts with a capital and has no other: a parsed heading has lost its backticks, so `memo` is an identifier and `Caveats` is not. A hit only sends a question to the owner.
+- `drl eval check --draft` says which anchors do not resolve and what each question copies from the pages it is anchored to, and it fails above 2 `fresh` questions on a page. A heading of one word counts only if it starts with a capital and has no other: a parsed heading has lost its backticks, so `memo` is an identifier and `Caveats` is not. A hit only sends a question to the owner.
 
 **The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and "The source, as surveyed" below records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 
