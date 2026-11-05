@@ -17,7 +17,7 @@ M6 adds React through `/add-source`, with an app and a golden set of its own, un
 | 3, hybrid | yes | twice |
 | 4, hybrid + rerank | yes | twice |
 
-- **One index, at one pinned docs commit:** the head of `reactjs/react.dev` when the first full sync runs.
+- **One index, at one pinned docs commit:** the head of `reactjs/react.dev` when the first full sync runs. That is `2177e28d3c3c16a8183346b9140f11ce0ee6af25`, of 2026-11-04, synced on 2026-11-05. Upstream has moved since, so any later sync of this index names that commit with `--at`.
 - **Nothing is tuned.** Prompts, models, RRF, list depth and rerank depth stay as they are. A change to any of them is a new hypothesis.
 - **No row 5.** On TypeScript the Haiku contexts added nothing significant on chunks that already carry their headings (ADR-0014), and React's chunks carry theirs the same way.
 - **No row 1 or row 6.** Row 1 has never been measured, and row 6 is M9.
@@ -149,7 +149,7 @@ From every file under `src/content/learn` and `src/content/reference` at `2177e2
 
 | Component | Uses | What becomes of it |
 |---|---|---|
-| `Sandpack`, `SandpackWithHTMLOutput` | 733, 9 | Each file is a code block, labelled with its language and file name. The 253 files marked `hidden` are dropped, since a reader cannot see them or check a citation of them. |
+| `Sandpack`, `SandpackWithHTMLOutput` | 733, 9 | Each file is a code block, labelled with its language and file name. The 251 files marked `hidden` are dropped, since a reader cannot see them or check a citation of them. |
 | `Note`, `Pitfall`, `DeepDive`, `Deprecated` | 164, 95, 84, 4 | A callout: `Note`, `Pitfall`, `Deep Dive`, `Deprecated` |
 | `Experimental`, `Wip`, `RSC` | 3, 1, 7 | A callout: `Experimental Feature`, `Under Construction`, `React Server Components` |
 | `YouWillLearn` | 43 | A callout: `You will learn`, or `In this chapter` with `isChapter` |
@@ -170,7 +170,7 @@ From every file under `src/content/learn` and `src/content/reference` at `2177e2
 
 **A component the survey did not see is an error,** with its file and line. It could be a status box, and passing its markup through would put it in the index without anyone deciding. A later sync that meets one stops there.
 
-**Anchors.** All 2,113 headings write their id as `{/*id*/}`, and the anchor is that id, unchanged, underscores included. A heading without one is an error, which upstream's own check does not allow. `github-slugger` is not needed. No page uses an anchor twice for different headings.
+**Anchors.** All 2,113 headings write their id as `{/*id*/}`, and the anchor is that id, unchanged, underscores included. A heading without one is an error, which upstream's own check does not allow. `github-slugger` is not needed. No page uses an anchor twice for different headings. 116 of the headings have no text of their own, such as `## Usage` directly above its first `###`: no chunk records them, so no golden anchor can point at them, and the walk's skip for an entry with no fact covers them.
 
 **A heading inside a box keeps its section,** since it has an anchor a citation can link to: 94 in `DeepDive`, 91 in `Challenges`, 63 in `Recipes`, 17 in `Note`, 9 in `Pitfall`. What follows the box belongs to the heading before it, as it does on the page. That takes a second section with the same heading path and anchor, 10 in all, which the chunker already tells apart by occurrence. `drl eval walk` lists such a heading once.
 
@@ -181,6 +181,8 @@ From every file under `src/content/learn` and `src/content/reference` at `2177e2
 **What the parser leaves in the text.** A code block's label keeps the language and the file name, and drops the highlights, `active` and `{expectedErrors}`. The file name matters, since examples import each other by it. 8 code blocks nested in list items stay inside their prose, as in TypeScript's parser. Frontmatter has `title`, except 4 pages of tags that write `link: "<link>"` and so on, and `version` goes in `metadata`.
 
 **The size,** before any embedding: 180 files, 3,141,916 bytes, 1,586 chunks, about 838K estimated tokens. The largest chunk is 2,350 tokens, a single code block. Over all 180 files the conformance suite has no failures, and outside code, titles and headings no component markup or import line is left.
+
+**What came out of the sync,** read back from the index: 180 documents, each with chunks, and 1,586 chunks with a vector each, byte for byte the chunks of the dry run above. No component markup or import line is left, and each of the 3,360 visible code blocks is whole in one chunk. The sync took 1h 25m, 1h 22m of it waiting on rate limits, and Voyage billed 705,447 tokens in 256 requests, which is $0.0423 at list prices.
 
 ## Estimates
 

@@ -247,6 +247,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
 
 ### React
 - **Repo and license:** `reactjs/react.dev`, branch `main`. Content is CC BY 4.0 (`LICENSE-DOCS.md`).
+- **Pin:** `2177e28d3c3c16a8183346b9140f11ce0ee6af25`, of 2026-11-04, the head when the first full sync ran (ADR-0016). A sync without `--at` returns to the head, so a later sync of this index names that commit.
 - **Paths** (markdown files and bytes at `2177e28d`; `docType` in the last column):
 
   | Path | Files | Bytes | docType |
