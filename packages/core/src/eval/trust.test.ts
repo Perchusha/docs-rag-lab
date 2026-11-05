@@ -247,12 +247,54 @@ describe('a spot check', () => {
     prompts: PROMPTS,
     judgeModel: 'j',
     correctnessDisagreements: [],
+    supportDisagreements: [],
     labelled: 10,
     agreement: [result('correctness', 8, 8), result('refusal', 10, 10), result('support', 5, 6)],
     unanswerableOnly: { compared: 2, agreed: 2 },
     allowed: 1,
     passed: true,
     ...overrides,
+  })
+
+  it('says which way a disagreement on citations leans', () => {
+    const on = (human: boolean, judge: boolean) => ({
+      questionId: 'q',
+      row: 3 as const,
+      human,
+      judge,
+    })
+
+    expect(spotCheckView(spot({ supportDisagreements: [on(true, false)] })).bias).toBe(
+      'The 1 disagreement on citations is the judge finding a claim unsupported that the human took as supported.',
+    )
+    expect(spotCheckView(spot({ supportDisagreements: [on(false, true)] })).bias).toBe(
+      'The 1 disagreement on citations is the judge taking a claim as supported that the human did not.',
+    )
+    expect(
+      spotCheckView(spot({ supportDisagreements: [on(true, false), on(true, false)] })).bias,
+    ).toBe(
+      'All 2 disagreements on citations are the judge finding a claim unsupported that the human took as supported.',
+    )
+    expect(
+      spotCheckView(spot({ supportDisagreements: [on(false, true), on(false, true)] })).bias,
+    ).toBe(
+      'All 2 disagreements on citations are the judge taking a claim as supported that the human did not.',
+    )
+    expect(
+      spotCheckView(spot({ supportDisagreements: [on(true, false), on(false, true)] })).bias,
+    ).toBe('On citations, the judge is stricter than the human on 1 and more lenient on 1.')
+  })
+
+  it('says both when it disagrees on correctness and on citations, and the sentence does too', () => {
+    const found = spot({
+      correctnessDisagreements: [disagreement(1, 2)],
+      supportDisagreements: [{ questionId: 'q', row: 3, human: true, judge: false }],
+    })
+
+    expect(spotCheckView(found).bias).toBe(
+      'The 1 disagreement is the judge scoring higher than the human: correctness may be slightly inflated. The 1 disagreement on citations is the judge finding a claim unsupported that the human took as supported.',
+    )
+    expect(spotCheckSentence(found)).toContain('The 1 disagreement on citations')
   })
 
   it('says what it found, in a sentence', () => {

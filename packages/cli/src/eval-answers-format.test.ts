@@ -4,6 +4,7 @@ import type {
   AnswerRowResult,
   EvalAnswer,
   EvalAnswers,
+  EvalSpotCheck,
 } from '@docs-rag-lab/contracts'
 import type { GoldenQuestion } from '@docs-rag-lab/core'
 import { describe, expect, it } from 'vitest'
@@ -15,6 +16,7 @@ import {
   formatCostEstimate,
   formatJudgeCheck,
   formatLabelSheet,
+  formatSpotCheck,
 } from './eval-answers-format.ts'
 
 const metrics = (overrides: Partial<AnswerMetrics> = {}): AnswerMetrics => ({
@@ -386,6 +388,7 @@ describe('formatLabelSheet', () => {
     )
 
     expect(text).toContain('Sample `abc123`')
+    expect(text).toContain('across all 2 answers')
     expect(text).toContain('## Item 1')
     expect(text).toContain('**Question:** First?')
     expect(text).toContain('**Expert answer:** Expert.')
@@ -443,6 +446,35 @@ describe('formatLabelSheet', () => {
     expect(text).not.toMatch(/\brow\b/i)
     expect(text).not.toContain('chunk-id')
     expect(text).not.toContain('ts-0001')
+  })
+})
+
+describe('formatSpotCheck', () => {
+  const spot: EvalSpotCheck = {
+    report: { repoSha: 'abcdef12', name: 'm6', createdAt: 'then' },
+    prompts: {},
+    judgeModel: 'j',
+    correctnessDisagreements: [],
+    supportDisagreements: [],
+    labelled: 10,
+    agreement: [],
+    unanswerableOnly: { compared: 0, agreed: 0 },
+    allowed: 1,
+    passed: true,
+  }
+
+  it('names each disagreement on citations, with what each side said', () => {
+    const text = formatSpotCheck({
+      ...spot,
+      supportDisagreements: [{ questionId: 'react-0015', row: 3, human: true, judge: false }],
+    })
+
+    expect(text).toContain('Disagreements on citations:')
+    expect(text).toContain('- react-0015, row 3: human supported, judge unsupported')
+  })
+
+  it('has no such list when there is none', () => {
+    expect(formatSpotCheck(spot)).not.toContain('Disagreements on citations')
   })
 })
 

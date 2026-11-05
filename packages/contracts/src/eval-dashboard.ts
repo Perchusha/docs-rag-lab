@@ -117,7 +117,8 @@ export interface DashboardTrust {
   judge: DashboardJudge | null
   /** Only for a report that was spot-checked. */
   spotCheck?: DashboardSpotCheck
-  goldenSet: { version: number; hash: string }
+  /** `about` says who drafted the set and how it is weighted, when the source says (ADR-0015). */
+  goldenSet: { version: number; hash: string; about?: string }
   docs: { repo: string; branch: string; sha: string }
   /** The commit the index is at now, or null when there is no index. */
   indexDocsSha: string | null

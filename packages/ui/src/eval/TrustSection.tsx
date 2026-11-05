@@ -114,6 +114,7 @@ export function TrustSection({ trust }: { trust: DashboardTrust }) {
         <dd>
           Golden set v{String(goldenSet.version)} ({goldenSet.hash.slice(0, 12)}), docs{' '}
           {docs.sha.slice(0, 8)}: {indexWords}. {staleWords(stale.length, review.length)}.
+          {goldenSet.about !== undefined && ` ${goldenSet.about}`}
         </dd>
         <dt>Verify</dt>
         <dd>{verify === null ? 'Not checked.' : verify.text}</dd>

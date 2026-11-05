@@ -9,6 +9,7 @@
 import type {
   EvalAnswers,
   EvalCalibration,
+  EvalSourceAbout,
   EvalSpotCheck,
   EvalVerifyRecord,
 } from './eval-answers.ts'
@@ -266,7 +267,23 @@ export function parseEvalSpotCheck(value: unknown): Parsed<EvalSpotCheck> {
   if (typeof value.passed !== 'boolean' || typeof value.allowed !== 'number') {
     return { ok: false, error: 'a spot check needs passed and allowed' }
   }
+  if (!Array.isArray(value.supportDisagreements)) {
+    return { ok: false, error: 'a spot check needs supportDisagreements' }
+  }
   return { ok: true, value: value as unknown as EvalSpotCheck }
+}
+
+/** A source's `eval/about.json`, or why it is not one. */
+export function parseEvalSourceAbout(value: unknown): Parsed<EvalSourceAbout> {
+  if (!isRecord(value)) return { ok: false, error: 'an about file must be a JSON object' }
+  const { set, staysOnHybrid } = value
+  if (set !== undefined && typeof set !== 'string') {
+    return { ok: false, error: 'set must be a string' }
+  }
+  if (staysOnHybrid !== undefined && typeof staysOnHybrid !== 'string') {
+    return { ok: false, error: 'staysOnHybrid must be a string' }
+  }
+  return { ok: true, value }
 }
 
 const VERIFY_STATUSES: readonly string[] = [

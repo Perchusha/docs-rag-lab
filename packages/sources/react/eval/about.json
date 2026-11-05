@@ -1,0 +1,4 @@
+{
+  "set": "Claude drafted this set from the docs' text, and the owner reviewed the flagged questions (ADR-0015). 10 of its 16 answerable questions come from the newest pages, so its overall numbers do not describe the docs at large.",
+  "staysOnHybrid": "The app stays on hybrid, because the retrieval gain did not reach the answers (R3 of ADR-0016)."
+}

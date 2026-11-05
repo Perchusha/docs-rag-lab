@@ -22,6 +22,7 @@ import {
   parseEvalTargets,
   readRepoState,
   reportsDir,
+  readSourceAbout,
   runRetrievalEval,
   variantOfContextModel,
   verifyRecordPath,
@@ -205,7 +206,8 @@ export function writeReport(
   const { jsonPath, markdownPath } = reportPaths(ctx, source, name, report.run.repoSha)
   mkdirSync(join(jsonPath, '..'), { recursive: true })
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx' })
-  writeFileSync(markdownPath, reportMarkdown(report, extraSections), { flag: 'wx' })
+  const about = readSourceAbout(ctx.root, source.id).set
+  writeFileSync(markdownPath, reportMarkdown(report, extraSections, about), { flag: 'wx' })
   return jsonPath
 }
 
@@ -213,9 +215,10 @@ export function writeReport(
 export function reportMarkdown(
   report: EvalReport,
   extraSections: (answers: NonNullable<EvalReport['answers']>) => string[],
+  aboutTheSet?: string,
 ): string {
   const extra = report.answers === undefined ? [] : extraSections(report.answers)
-  return [formatEvalMarkdown(report).trimEnd(), ...extra].join('\n\n') + '\n'
+  return [formatEvalMarkdown(report, aboutTheSet).trimEnd(), ...extra].join('\n\n') + '\n'
 }
 
 export function readReport(root: string, path: string): EvalReport {

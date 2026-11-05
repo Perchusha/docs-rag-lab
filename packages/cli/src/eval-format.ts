@@ -176,7 +176,7 @@ function rerankUsage({ run }: EvalReport): string | undefined {
     : `${String(calls)} calls, which survived ${String(rateLimitRetries)} 429s with one retry each`
 }
 
-export function formatEvalMarkdown(report: EvalReport): string {
+export function formatEvalMarkdown(report: EvalReport, aboutTheSet?: string): string {
   const { identity, result, run, vectors } = report
   const { strategies, comparison, targets } = result
   const names = strategies.map(({ strategy }) => strategy)
@@ -221,6 +221,7 @@ export function formatEvalMarkdown(report: EvalReport): string {
         ],
       ],
     ),
+    ...(aboutTheSet === undefined ? [] : [aboutTheSet]),
     'Retrieval only, with no Claude call. Primary anchors are the headline: acceptable anchors are secondary, because many were found by looking at what the current retrievers return (ADR-0009).',
     '## Primary anchors',
     table(

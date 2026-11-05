@@ -496,6 +496,8 @@ function spotChecked(change: (run: DashboardRun) => void = () => undefined): Das
     high: 1,
     passed: compared - agreed <= 1,
   })
+  run.trust.goldenSet.about =
+    "Claude drafted this set from the docs' text, and the owner reviewed the flagged questions (ADR-0015)."
   run.trust.spotCheck = {
     passed: true,
     labelled: 10,
@@ -522,6 +524,7 @@ export const SpotCheckPassed: Story = {
     ).toBeVisible()
     await expect(canvas.getByText('Passed on these answers.')).toBeVisible()
     await expect(canvas.getByText(/10 labelled blind, with 1 disagreement allowed/)).toBeVisible()
+    await expect(canvas.getByText(/Claude drafted this set/)).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'How this was calibrated' }))
     await expect(canvas.getAllByText('First round, on typescript').length).toBeGreaterThan(0)
   },

@@ -12,6 +12,7 @@ import {
   parseEvalTargets,
   parseGoldenLock,
   parseGoldenSet,
+  readSourceAbout,
 } from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
 import { describe, expect, it } from 'vitest'
@@ -28,6 +29,24 @@ const ANSWERABLE: Readonly<Record<string, number>> = { typescript: 40, react: 16
 const sourceIds = sourcesFor(settings)
   .map((source) => source.id)
   .filter((sourceId) => existsSync(goldenSetPath(root, sourceId)))
+
+describe("what React's report and dashboard say beside its numbers", () => {
+  const about = readSourceAbout(root, 'react')
+
+  it('says who drafted the set, who reviewed it and how it is weighted (ADR-0015)', () => {
+    expect(about.set).toContain('Claude drafted')
+    expect(about.set).toContain('flagged questions')
+    expect(about.set).toContain('newest pages')
+  })
+
+  it('gives its own ADR as the reason its app stays on hybrid', () => {
+    expect(about.staysOnHybrid).toContain('R3 of ADR-0016')
+  })
+
+  it('leaves TypeScript with nothing more to say', () => {
+    expect(readSourceAbout(root, 'typescript')).toEqual({})
+  })
+})
 
 describe.each(sourceIds)('the %s golden set', (sourceId) => {
   const text = readFileSync(goldenSetPath(root, sourceId), 'utf8')

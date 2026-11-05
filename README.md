@@ -13,7 +13,15 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M5 (rerank and contextual retrieval) is done.** Five rows of the strategy ladder are measured on a frozen golden set of 40 TypeScript questions and 5 the docs do not answer, at docs commit `205122bb`. v1.0 is M5 through M9, so next come React, the compiler's output in the chunks, the interview-prep app and agentic mode. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)).
+**M6 (React, through `/add-source`) is done.** v1.0 is M5 through M9, so next come the compiler's output in the chunks, the interview-prep app and agentic mode. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). TypeScript's results come first and React's follow. They are different questions on different docs, and their numbers are never compared.
+
+The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
+
+Every claim about retrieval quality is backed by a measured row in the tables below, and every report behind one is in [eval/reports/](eval/reports/).
+
+### TypeScript
+
+**M5 (rerank and contextual retrieval) is done.** Five rows of the strategy ladder are measured on a frozen golden set of 40 TypeScript questions and 5 the docs do not answer, at docs commit `205122bb`.
 
 | Row | Right chunk in top 8 | How high it ranks (MRR) | Fully correct, may run high | All citations hold | Cites the right passage | Wrongly refused, fewer is better | Time and cost per answer |
 |---|---|---|---|---|---|---|---|
@@ -60,9 +68,35 @@ Before M3:
 - M1 synced the TypeScript docs incrementally, embedded them with Voyage through a shared cache, and answered with native citations from `drl ask`, with tokens and cost after every command.
 - M2 added hybrid search (FTS5 BM25 and exact tokens fused with vector search by Reciprocal Rank Fusion), doc type filters and the retrieval trace.
 
-The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
+### React
 
-Every claim about retrieval quality is backed by a measured row in the table above, and every report behind one is in [eval/reports/typescript/](eval/reports/typescript/).
+**M6 added React, with an app of its own.** `pnpm dev:react` starts it on http://127.0.0.1:3001. Four rows are measured on 16 questions and 4 the docs do not answer, at docs commit `2177e28d`, by a test fixed first in [ADR-0016](docs/adr/0016-react-source-and-its-test.md).
+
+**What this set is.** Claude drafted it from the docs' text, with no retrieval and no answer read. The owner reviewed the 10 flagged questions and decided the anchors of 4 others, and the other 6 were frozen unread (ADR-0015). 10 of the 16 are `fresh`: they come from the newest parts of the docs, by a walk down git history back to 2026-06-24. So the overall numbers describe a set weighted towards new pages, not the docs at large. Fresh means newest in these docs, and not past the model's training cutoff.
+
+**Do not read this table across to TypeScript's.** It has the same columns, but these are other questions on other docs, and the set is weighted as above.
+
+| Row | Right chunk in top 8 | How high it ranks (MRR) | Fully correct, may run high | All citations hold | Cites the right passage | Wrongly refused, fewer is better | Time and cost per answer |
+|---|---|---|---|---|---|---|---|
+| 0, Claude without RAG | no retrieval | no retrieval | 7 of 16 (23-67%) | cannot: no docs | cannot: no docs | 5 of 16 (14-56%) | 4.2 s (3.8-4.7), $0.004 ($0.004-0.005) |
+| 2, vector | 16 of 16 (81-100%) | 0.859 (0.73-0.97) | 15 of 16 (72-99%) | 15 of 16 (72-99%) | 16 of 16 (81-100%) | 0 of 16 (0-19%) | 4.1 s (3.3-4.9), $0.020 ($0.019-0.021) |
+| 3, hybrid | 14 of 16 (64-97%) | 0.726 (0.54-0.90) | 13 of 16 (57-93%) | 15 of 16 (72-99%) | 15 of 16 (72-99%) | 1 of 16 (1-28%) | 4.3 s (3.5-5.2), $0.020 ($0.019-0.022) |
+| 4, hybrid + rerank | 16 of 16 (81-100%) | 0.969 (0.91-1.00) | 14 of 16 (64-97%) | 16 of 16 (81-100%) | 16 of 16 (81-100%) | 0 of 16 (0-19%) | 4.6 s (3.8-5.5), $0.021 ($0.020-0.022) |
+
+Each number has its 95% interval beside it, as in the table above. Time and cost are from when each answer was first made, since the named run read a pilot's answers from the cache, and time leaves out retrieval, and with it the rerank call. On the 4 questions the docs do not answer, rows 3 and 4 refuse rightly on all 4 (51-100%), and rows 0 and 2 on 3 (30-95%). Row 2's fourth is a judge's error, below.
+
+Row 0's 7 of 16 is 2 of 10 on fresh (6-51%) and 5 of 6 on the rest (44-97%). Hybrid's 13 is 9 of 10 (60-98%) and 4 of 6 (30-90%). This describes the set and decides nothing.
+
+**What M6 found:**
+- **On the newest docs, RAG beats Claude's memory, by the rule fixed first.** On the 10 fresh questions hybrid is fully correct on 9 (60-98%) and Claude without docs on 2 (6-51%), and both may run high. Hybrid is ahead on 7, Claude on 0, with 3 tied, p = 0.016. Hybrid does not differ from itself on that tag between two runs. The judge's second opinion on row 3 moves one of those answers, and with that grade it is 8 of 10, at 6 to 0, p = 0.03. Of the 7, Claude declined to answer on 4 and answered in part on 3: all 5 of its zeros are refusals, and none is a wrong answer. Over all 16 it is 13 against 7, at 7 to 1, p = 0.07, not significant. If anything this is conservative: the judge's own knowledge is older than the docs, which on fresh pages biases it against RAG. The one verdict that shows this is on another question, below, so it gives a direction and no number.
+- **Rerank's retrieval gain is not repeated, by the rule written first.** MRR goes from 0.726 (0.54-0.90) to 0.969 (0.91-1.00), at 6 to 0, p = 0.03, which names rerank. The right chunk comes first on 15 (72-99%) instead of 10 (39-82%), at 5 to 0, p = 0.06, not significant, and the rule asks for both. Hybrid is not first on 6 questions, so this metric could be significant only if rerank moved all 6, and it moved 5. Hybrid is ahead on no question, on any retrieval metric.
+- **It did not reach the answers, so this app stays on hybrid.** Fully correct is 14 against 13, at 2 to 1. All citations hold is 16 against 15, at 1 to 0. Wrongly refused is 0 against 1, at 1 to 0. All three are noise.
+- **No difference between vector and hybrid holds up.** MRR is 4 to 2, right chunk in top 8 is 2 to 0, and fully correct is 2 to 0. Hybrid misses the top 8 on react-0007 and react-0011. On react-0011, in Russian, its answer refuses wrongly in both runs, the only wrong refusal in any row that reads the docs. Keyword search pushes the right chunk down here, as on ts-0004 and ts-0038 in TypeScript's set. Nothing is tuned for this, and [the journal](docs/journal.md) has the hypothesis to test.
+- **A status is easy to leave out.** A fresh question about an experimental API has an expected answer that states that, and without it the answer scores at most 1. Asked how to set up an experimental tool, no row says it is experimental, so no row can pass 9 of 10 on `fresh`. Two cases of known grade show that the judge enforces this, and the four answers that state it on another question scored 2.
+
+**How far to trust the judge here.** It was calibrated on TypeScript's answers and spot-checked on these: the owner labelled 10 answers blind, and it agreed on correctness 8 of 8 (68-100%), refusals 10 of 10 (72-100%) and citations 5 of 6 (44-97%), being the stricter one on that one. The owner marked all 6 as supported, so this sample has no case of a claim the owner found unsupported. One verdict outside that sample is wrong on reading: it calls `use(browser())` made up, though the answer cites a passage that is in the docs. The API is newer than what the judge knows, and it sees the cited passage but not the docs, so it cannot tell a real passage from a made-up one. That verdict is in row 2, which decides nothing, and it stands.
+
+The numbers come from [React's report](eval/reports/react/2026-11-05-8dfcae6f-m6.md). `drl eval verify` reproduced its retrieval byte for byte on the same vectors, and answers do not repeat, so they are stored in the report. `pnpm dev:react` serves it at `/eval`. It cost $4.08 of Claude at list prices.
 
 ## Requirements
 

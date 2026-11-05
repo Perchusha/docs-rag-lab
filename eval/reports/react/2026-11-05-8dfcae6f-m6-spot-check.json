@@ -1,0 +1,66 @@
+{
+  "report": {
+    "repoSha": "8dfcae6f47e300d46c0a7fb17632413a94b793ff",
+    "name": "m6",
+    "createdAt": "2026-11-05T15:16:30.529Z"
+  },
+  "prompts": {
+    "answer": "78e59535b65e",
+    "noRag": "1237fd2412b1",
+    "correctness": "4efbbfbbc7b7",
+    "refusal": "2b76e9978a16",
+    "support": "a5e0160d7313"
+  },
+  "judgeModel": "claude-opus-5-5",
+  "correctnessDisagreements": [],
+  "supportDisagreements": [
+    {
+      "questionId": "react-0015",
+      "row": 3,
+      "human": true,
+      "judge": false
+    }
+  ],
+  "labelled": 10,
+  "agreement": [
+    {
+      "dimension": "correctness",
+      "compared": 8,
+      "agreed": 8,
+      "kappa": 1,
+      "interval": [
+        0.6755924316585924,
+        1
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "refusal",
+      "compared": 10,
+      "agreed": 10,
+      "kappa": 1,
+      "interval": [
+        0.7224671969739421,
+        0.9999999999999999
+      ],
+      "passed": true
+    },
+    {
+      "dimension": "support",
+      "compared": 6,
+      "agreed": 5,
+      "kappa": 0,
+      "interval": [
+        0.4364971749742326,
+        0.969946630588185
+      ],
+      "passed": true
+    }
+  ],
+  "unanswerableOnly": {
+    "compared": 2,
+    "agreed": 2
+  },
+  "allowed": 1,
+  "passed": true
+}

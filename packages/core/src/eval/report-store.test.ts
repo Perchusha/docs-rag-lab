@@ -11,6 +11,7 @@ import {
   readCalibrations,
   reportSources,
   readRun,
+  readSourceAbout,
   readSpotCheck,
   readVerifyRecord,
   reportsDir,
@@ -150,10 +151,35 @@ describe('readRun', () => {
   })
 })
 
+describe('what a source says beside its numbers', () => {
+  const writeAbout = (text: string): void => {
+    const dir = join(root, 'packages', 'sources', 'demo', 'eval')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'about.json'), text)
+  }
+
+  it('is nothing when the source has no such file', () => {
+    expect(readSourceAbout(root, 'demo')).toEqual({})
+  })
+
+  it('is read from the source, next to its set', () => {
+    writeAbout(JSON.stringify({ set: 'Drafted.', staysOnHybrid: 'Because.' }))
+
+    expect(readSourceAbout(root, 'demo')).toEqual({ set: 'Drafted.', staysOnHybrid: 'Because.' })
+  })
+
+  it('is an error when it cannot be read, so that nothing an ADR asks for goes missing quietly', () => {
+    writeAbout(JSON.stringify({ set: 1 }))
+
+    expect(() => readSourceAbout(root, 'demo')).toThrow('set must be a string')
+  })
+})
+
 describe('a spot check', () => {
   const spot = {
     report: { createdAt: '2026-11-03T00:00:00Z' },
     agreement: [],
+    supportDisagreements: [],
     allowed: 1,
     passed: true,
   }

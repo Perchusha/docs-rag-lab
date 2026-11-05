@@ -435,6 +435,33 @@ describe('spotCheck', () => {
     expect(check([label(1, 2), label(2, 1), label(3, 1)]).passed).toBe(false)
   })
 
+  it('records the disagreements on citations, each with what the human and the judge said', () => {
+    const claims = (...supported: boolean[]) =>
+      supported.map((value, claim) => ({ claim, reason: 'r', supported: value }))
+    const support = [
+      { questionId: ID(1), row: 3, sample: 1, status: 'ok', claims: claims(true, false) },
+      { questionId: ID(2), row: 3, sample: 1, status: 'ok', claims: claims(true) },
+      { questionId: ID(3), row: 3, sample: 1, status: 'ok', claims: claims(true) },
+    ] as unknown as EvalSupport[]
+    const found = spotCheck({
+      report: REPORT,
+      labels: [
+        { ...label(1, 2), supported: true },
+        { ...label(2, 2), supported: false },
+        { ...label(3, 2), supported: true },
+      ],
+      verdicts: [1, 2, 3].map((i) => verdict(i, 3, 2)),
+      support,
+      prompts: { correctness: 'c' },
+      judgeModel: 'j',
+    })
+
+    expect(found.supportDisagreements).toEqual([
+      { questionId: ID(1), row: 3, human: true, judge: false },
+      { questionId: ID(2), row: 3, human: false, judge: true },
+    ])
+  })
+
   it('leaves out a dimension it could not compare', () => {
     const found = check([label(1, 2)])
 

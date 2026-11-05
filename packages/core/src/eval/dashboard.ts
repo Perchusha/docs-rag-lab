@@ -17,6 +17,7 @@ import type {
   EvalCalibration,
   EvalFigure,
   EvalReport,
+  EvalSourceAbout,
   EvalSpotCheck,
   EvalSplit,
   EvalStrategyResult,
@@ -758,6 +759,7 @@ function rerankAnswers(
   answers: EvalAnswers,
   judge: DashboardJudge,
   retrieval: DashboardSection,
+  staysOnHybrid: string,
 ): DashboardSection {
   const present = rowsIn(answers)
   const rows = ([3, 4, 5] as const).filter((row) => present.includes(row))
@@ -813,7 +815,7 @@ function rerankAnswers(
     : undefined
   const notes = [
     ...(withoutDocs === undefined ? [] : [withoutDocs]),
-    ...(gained && !reached ? [APP_STAYS_ON_HYBRID] : []),
+    ...(gained && !reached ? [staysOnHybrid] : []),
   ]
   return {
     question: 'Does that reach the answers?',
@@ -969,6 +971,8 @@ export interface BuildRunOptions {
   verify: EvalVerifyRecord | null
   /** The report's spot check, when it has one (ADR-0016). */
   spotCheck?: EvalSpotCheck | null
+  /** What the source says beside its numbers, when it does (ADR-0015). */
+  about?: EvalSourceAbout
   indexDocsSha: string | null
   /** Row 5's retrieval, from the report of its own index (ADR-0014). */
   contextual?: EvalStrategyResult | undefined
@@ -976,7 +980,7 @@ export interface BuildRunOptions {
 
 /** Everything on the first screen for one run. */
 export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
-  const { id, report, calibrations, unreadableCalibrations, verify, indexDocsSha } = options
+  const { id, report, calibrations, unreadableCalibrations, verify, indexDocsSha, about } = options
   const judge =
     report.answers === undefined
       ? null
@@ -993,11 +997,20 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
       judge === null
         ? null
         : report.answers !== undefined && hasRerankRows(report.answers)
-          ? rerankAnswers(report, report.answers, judge, retrieval)
+          ? rerankAnswers(
+              report,
+              report.answers,
+              judge,
+              retrieval,
+              about?.staysOnHybrid ?? APP_STAYS_ON_HYBRID,
+            )
           : answersSection(report, judge),
     trust: {
       judge,
-      goldenSet: report.identity.goldenSet,
+      goldenSet: {
+        ...report.identity.goldenSet,
+        ...(about?.set === undefined ? {} : { about: about.set }),
+      },
       docs: report.identity.docs,
       indexDocsSha,
       stale: report.result.stale,
