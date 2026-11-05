@@ -1,0 +1,15 @@
+{
+  "sample": "ba73ef7a4d6f",
+  "labels": [
+    { "item": 1, "correctness": 2 },
+    { "item": 2, "correctness": 2, "supported": false },
+    { "item": 3, "correctness": 2 },
+    { "item": 4, "correctness": 2, "supported": true },
+    { "item": 5, "outcome": "correct-refusal" },
+    { "item": 6, "correctness": 2, "supported": true },
+    { "item": 7, "correctness": 2, "supported": true },
+    { "item": 8, "correctness": 0, "refused": true, "supported": false },
+    { "item": 9, "correctness": 1, "supported": true },
+    { "item": 10, "correctness": 0, "supported": true }
+  ]
+}
