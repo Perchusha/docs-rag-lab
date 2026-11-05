@@ -133,6 +133,30 @@ From M6's measured costs, with no API call: about $0.038 per answer with its jud
 | Voyage embeddings, the changed chunks only, at most 217 chunks and about 114K tokens before the output | 15 to 25 minutes, inside the free tokens |
 | Rerank | none: no hypothesis reads it on the compiled index |
 
+## What the compile found
+
+This section reports the first compile and the index it built, before the set changes and before any retrieval on it. Nothing above it changed because of it.
+
+**The stop at 90% was not hit.** At `205122bb`, 712 code blocks are fenced as twoslash where the parser reads code blocks, and 654 of them compiled, 91.9%. Another 6 sit inside lists, where the parser keeps code as prose, as it always has, so they are not compiled. The 58 that did not compile:
+- **39 name an error the compiler does not raise there.** 7 of them name TS2532, and 3 name TS2571, so none of the three chunks that name TS2571 shows its message.
+- **18 raise an error they do not name.**
+- **1 asks for completions,** and the compiler gives none.
+
+[`eval/compile/typescript/205122bb73dcbf6f3b373de5bdb0d9fa5434d015.json`](../../eval/compile/typescript/205122bb73dcbf6f3b373de5bdb0d9fa5434d015.json) records each, with its reason. Three compiles gave the same record, which a fourth would be refused for not matching.
+
+**The compiled index** has 248 documents and 1,019 chunks, against the plain index's 994, each with a vector. Its manifest names `compiler:twoslash 0.3.9, typescript 6.0.2` and parser version 2, at `205122bb`. It embedded 201 new texts: Voyage billed 97,046 tokens in 33 requests, in 13 minutes, which is $0.0058 at list prices and inside the free tokens.
+
+**Integrity check 4 holds:**
+- Each of the plain index's 2,306 code blocks is in the compiled index byte for byte.
+- Of the 985 chunks with the same ID in both indexes, 934 have the plain text once the compiler's output is taken out. The other 51, and the 25 documents that the longer examples cut differently, hold every paragraph of the plain text. Only 7 headings moved, into the first line of a chunk they now open.
+- 183 chunks show output, and 254 hold it in their metadata. The others' examples compiled with nothing to say. 21 chunks give TS2345's message.
+
+**Every one of the set's 72 anchors resolves on the compiled index.** None is locked there yet: the compiled lock is written for version 2.
+
+**The other integrity checks hold:** the same 10 named reports say byte for byte, both dashboards answer as before, and the four other indexes keep their sha256.
+
+**One fault, caught before any number.** The first try broke every route of ts-docs: the compile read its files when its module loaded, and the app's bundler had moved the module. The dashboard check found it. The compile now loads nothing until it is used.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
