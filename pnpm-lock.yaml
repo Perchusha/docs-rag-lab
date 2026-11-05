@@ -236,6 +236,61 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  apps/react-docs:
+    dependencies:
+      '@docs-rag-lab/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@docs-rag-lab/docs-server':
+        specifier: workspace:*
+        version: link:../../packages/docs-server
+      '@docs-rag-lab/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
+      '@docs-rag-lab/source-react':
+        specifier: workspace:*
+        version: link:../../packages/sources/react
+      '@docs-rag-lab/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      next:
+        specifier: ^16.4.3
+        version: 16.4.3(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: 'catalog:'
+        version: 19.3.1
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.1(react@19.3.1)
+    devDependencies:
+      '@docs-rag-lab/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@next/eslint-plugin-next':
+        specifier: ^16.4.3
+        version: 16.4.3(eslint@10.13.0(supports-color@7.2.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.13.0(supports-color@7.2.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(yaml@2.9.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/browser-playwright@5.0.5)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(yaml@2.9.1))
+
   apps/ts-docs:
     dependencies:
       '@docs-rag-lab/core':

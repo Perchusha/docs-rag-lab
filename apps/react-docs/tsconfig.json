@@ -1,0 +1,16 @@
+{
+  "extends": "@docs-rag-lab/config/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "plugins": [{ "name": "next" }]
+  },
+  "include": [
+    "next-env.d.ts",
+    "app",
+    "src",
+    "rag.config.ts",
+    "next.config.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ]
+}
