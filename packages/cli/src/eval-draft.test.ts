@@ -90,6 +90,37 @@ describe('walkEntriesOf', () => {
     ])
   })
 
+  it('lists a heading once, when the parser returns to it after a part of its own', () => {
+    const page = { commit: 'c1', date: '2026-01-01T00:00:00Z' }
+    const returning: ParsedDoc = {
+      ...doc,
+      sections: [
+        { headingPath: ['Old'], anchor: 'old', blocks: [] },
+        { headingPath: ['Old', 'Inside'], anchor: 'inside', blocks: [] },
+        { headingPath: ['Old'], anchor: 'old', blocks: [] },
+      ],
+    }
+
+    const entries = walkEntriesOf('a.md', returning, { page, headings: new Map() })
+
+    expect(entries.map(({ anchor }) => anchor)).toEqual(['', 'old', 'inside'])
+  })
+
+  it('keeps headings that have no anchor, as an option page has', () => {
+    const page = { commit: 'c1', date: '2026-01-01T00:00:00Z' }
+    const noAnchors: ParsedDoc = {
+      ...doc,
+      sections: [
+        { headingPath: ['One'], anchor: '', blocks: [] },
+        { headingPath: ['Two'], anchor: '', blocks: [] },
+      ],
+    }
+
+    const entries = walkEntriesOf('a.md', noAnchors, { page, headings: new Map() })
+
+    expect(entries.map(({ title }) => title)).toEqual(['A page', 'One', 'Two'])
+  })
+
   it('refuses a page with no history', () => {
     expect(() => walkEntriesOf('a.md', doc, { page: undefined, headings: new Map() })).toThrow(
       'no history',

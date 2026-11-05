@@ -31,6 +31,7 @@ import {
   type Source,
 } from '@docs-rag-lab/core'
 import { settings as defaultSettings, type Settings } from '@docs-rag-lab/settings'
+import { reactSource } from '@docs-rag-lab/source-react'
 import { typescriptSource } from '@docs-rag-lab/source-typescript'
 
 import {
@@ -150,9 +151,12 @@ const MAX_PILOT = 50
 /** More than the pages and headings of any source here. */
 const MAX_WALK = 100_000
 
-/** The Source objects for the configured sources. Settings hold their options as data. */
+/**
+ * The Source objects for the configured sources. Settings hold their options as data. The first
+ * is what `--source` defaults to, so TypeScript stays first.
+ */
 export function sourcesFor(settings: Settings): Source[] {
-  return [typescriptSource(settings.sources.typescript)]
+  return [typescriptSource(settings.sources.typescript), reactSource(settings.sources.react)]
 }
 
 export interface RunOptions {

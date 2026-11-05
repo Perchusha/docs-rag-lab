@@ -20,8 +20,8 @@ TypeScript documentation
                code in that repository is MIT
   Attribution: TypeScript documentation, Copyright (c) Microsoft Corporation.
 
-React documentation (planned, from milestone M6)
-  Source:      https://github.com/reactjs/react.dev (branch main)
+React documentation
+  Source:     https://github.com/reactjs/react.dev (branch main)
   Site:        https://react.dev
   License:     documentation content CC BY 4.0, see LICENSE-DOCS.md in that
                repository (https://creativecommons.org/licenses/by/4.0/)

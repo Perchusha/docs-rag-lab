@@ -6,7 +6,7 @@ import { defineSettings } from './types.ts'
 export const settings = defineSettings({
   dataDir: 'data',
   cacheDir: '.cache',
-  sources: { typescript: { branch: 'v2' } },
+  sources: { typescript: { branch: 'v2' }, react: { branch: 'main' } },
   embeddings: {
     provider: 'voyage',
     // Voyage through MongoDB Atlas. Keys scoped to a region use eu. or us.ai.mongodb.com.
