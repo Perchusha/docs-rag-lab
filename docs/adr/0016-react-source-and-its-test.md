@@ -52,6 +52,8 @@ If the survey of the docs finds that pages state dates of their own, those dates
 
 `drl eval check --draft` holds the limit of 2 per page: it counts the `fresh` questions by the pages of their anchors, and fails above 2. The owner asked for this on 2026-11-05, so that the rule does not rest on reading `fresh-walk.md`.
 
+**A heading that only lost a badge is reworded, not new.** The commit that prepared the site for React 19.3, of 2026-09-09, took `<CanaryBadge />` off 10 headings, `FragmentInstance` and `use(browser())` among them, so the walk's dates list them as new. The walk looks for new facts on the page, and removing a badge adds none about how the API works. Counting them would make R1 test whether the model knows a status changed, which is a much narrower question. The owner decided this on 2026-11-05, after the walk had run and with no retrieval or answer seen. It keeps the reading the walk had already used, so no question changed.
+
 ### A fresh question about an API that is not stable
 
 The newest pages of react.dev often describe unstable APIs. So the owner added this on 2026-11-05, before any walk on React. If a fresh question is about an API on any non-stable release channel (canary, experimental, release candidate or beta), its expected answer states that status, and an answer that omits it cannot be fully correct. The owner worded it by channel so that none has to be decided case by case.
