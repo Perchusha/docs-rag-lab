@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { chunkDocument, chunkId, packBalanced, renderBlock } from './chunker.ts'
+import {
+  chunkDocument,
+  chunkId,
+  packBalanced,
+  renderBlock,
+  renderCompilerOutput,
+} from './chunker.ts'
 import { estimateTokens } from './tokens.ts'
-import type { Block, ParsedDoc, Section } from './types.ts'
+import type { Block, CompilerOutput, ParsedDoc, Section } from './types.ts'
 
 const prose = (text: string): Block => ({ kind: 'prose', text })
 const code = (text: string, lang = 'ts'): Block => ({ kind: 'code', lang, code: text })
@@ -348,6 +354,84 @@ describe('chunkDocument', () => {
     for (const chunk of chunks) {
       expect(estimateTokens(chunk.text)).toBeLessThanOrEqual(420)
     }
+  })
+})
+
+describe('the compiler output on a code block (ADR-0017)', () => {
+  const output: CompilerOutput = {
+    errors: [
+      {
+        code: 2345,
+        line: 'handleRequest(req.url, req.method);',
+        text: 'Argument of type \'string\' is not assignable to parameter of type \'"GET" | "POST"\'.',
+      },
+    ],
+    queries: [{ target: 's', line: 'let s = "hello";', text: 'let s: string' }],
+  }
+  const compiled = (text: string, out: CompilerOutput = output): Block => ({
+    kind: 'code',
+    lang: 'ts',
+    code: text,
+    compiled: out,
+  })
+
+  it('follows the code, which stays byte for byte, with each error and query', () => {
+    expect(renderBlock(compiled('// @errors: 2345\nhandleRequest(req.url, req.method);'))).toBe(
+      [
+        '```ts\n// @errors: 2345\nhandleRequest(req.url, req.method);\n```',
+        [
+          'Compiler output:',
+          '- Error TS2345 on `handleRequest(req.url, req.method);`: Argument of type \'string\' is not assignable to parameter of type \'"GET" | "POST"\'.',
+          '- Type of `s`: `let s: string`',
+        ].join('\n'),
+      ].join('\n\n'),
+    )
+  })
+
+  it('shows an emitted file as a code block of its own, labelled with its name', () => {
+    expect(
+      renderCompilerOutput({
+        errors: [],
+        queries: [],
+        emitted: { name: 'index.js', lang: 'js', code: 'var x = 1;' },
+      }),
+    ).toBe('Emitted index.js:\n\n```js\nvar x = 1;\n```')
+  })
+
+  it('indents a message of several lines, and quotes a line that has backticks', () => {
+    expect(
+      renderCompilerOutput({
+        errors: [{ code: 2322, line: 'let s = `a`', text: 'Type mismatch.\n  Details.' }],
+        queries: [],
+      }),
+    ).toBe('Compiler output:\n- Error TS2322 on `` let s = `a` ``: Type mismatch.\n    Details.')
+  })
+
+  it('adds nothing when the compiler said nothing, so the block renders as without a compile', () => {
+    expect(renderBlock(compiled('let s = 1', { errors: [], queries: [] }))).toBe(
+      renderBlock(code('let s = 1')),
+    )
+  })
+
+  it('records the output on the chunk, also from code inside a callout, and not on others', () => {
+    const chunks = chunkDocument(
+      'a.md',
+      doc(
+        section(['A'], prose('Plain.'), compiled('one()')),
+        section(['B'], { kind: 'callout', variant: 'Note', blocks: [compiled('two()')] }),
+      ),
+      { maxTokens: 60 },
+    )
+
+    expect(chunks.flatMap((chunk) => chunk.compiler ?? [])).toHaveLength(2)
+    expect(
+      chunks
+        .filter((chunk) => chunk.text.includes('Compiler output:'))
+        .map(({ compiler }) => compiler?.length),
+    ).toEqual([1, 1])
+    const plain = chunkDocument('a.md', doc(section(['A'], prose('Plain.'), code('one()'))))
+    expect(plain[0]?.compiler).toBeUndefined()
+    expect(Object.keys(plain[0] ?? {})).not.toContain('compiler')
   })
 })
 

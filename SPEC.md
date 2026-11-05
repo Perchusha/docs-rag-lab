@@ -202,7 +202,7 @@ export type Block =
   | { kind: 'callout'; variant: string; blocks: Block[] } // Pitfall, DeepDive, Note...
 ```
 
-Sync, diffing, hashing and chunking live in `source-kit`, and the embedding cache in `core` (ADR-0003), never in individual sources. A source only knows how to parse its own format. The `compiled` field of code blocks arrives with the twoslash compile in M7.
+Sync, diffing, hashing and chunking live in `source-kit`, and the embedding cache in `core` (ADR-0003), never in individual sources. A source only knows how to parse its own format. The `compiled` field of a code block holds the twoslash compiler's output, in the compiled index only (ADR-0017).
 
 **Conformance suite.** Every source must pass `runSourceConformance(source, fixtures)`. It returns a list of failures (empty when the source passes):
 - has a positive integer `parserVersion`;
@@ -241,10 +241,10 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
   Release notes are 48% of the bytes. Not indexed: `handbook-v1/`, `tutorials/`, `get-started/` and `Nightly Builds.md`.
 - **URLs:** documentation frontmatter has `title`, `permalink` and `oneline`; URLs are `https://www.typescriptlang.org` + `permalink` (file names do not match URLs). Option files have only `display` and `oneline`. Each option has its own case-sensitive page, `https://www.typescriptlang.org/tsconfig/<name>.html`, except the `typeAcquisition/` options, which live at `https://www.typescriptlang.org/tsconfig/#type-<name>`. Heading anchors follow github-slugger. All verified on the live site.
 - **Markup:** about 10 upstream files use CRLF line endings. Raw HTML appears (background-reading boxes, `<details>`, the 282-row tsc options table); HTML comments hide whole sections in `TypeScript 5.0.md`, which the site does not render.
-- **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. In M7, compile them at ingest with twoslash and inline the real compiler errors and inferred types into the chunk text. Keep the structured compiler output in metadata for interview questions.
+- **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. M7 compiles them with twoslash 0.3.9 and `typescript` 6.0.2, the docs' own pin, for a compiled index beside the plain one (ADR-0017). The real errors and the types of `^?` queries follow each example in the chunk text, the code stays byte for byte, and each chunk keeps the structured output in its metadata for interview questions. 654 of the 712 examples compile at `205122bb`.
 - **Metadata:**
   - the release-notes version becomes `version_introduced`;
-  - error codes from `@errors` are stored per document as `error_codes`. Keyword search finds them in the chunk text instead, which is per chunk, and `exactTokens` turns `TS2345` into `2345` (ADR-0005). Per-chunk compiler metadata arrives with M7.
+  - error codes from `@errors` are stored per document as `error_codes`. Keyword search finds them in the chunk text instead, which is per chunk, and `exactTokens` turns `TS2345` into `2345` (ADR-0005). The compiled index keeps each chunk's own error codes, from the compiler (ADR-0017).
 
 ### React
 - **Repo and license:** `reactjs/react.dev`, branch `main`. Content is CC BY 4.0 (`LICENSE-DOCS.md`).

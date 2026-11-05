@@ -14,6 +14,7 @@ import {
   type Chunk,
   type Source,
   type SourceFile,
+  type CompilerOutput,
 } from '@docs-rag-lab/source-kit'
 
 import type { ContextDocument } from './contexts/generate.ts'
@@ -52,6 +53,11 @@ export interface SyncSourceOptions {
   at?: string | undefined
   /** Build a contextual index. Every chunk is then read again, and needs a context. */
   contexts?: SyncContexts | undefined
+  /**
+   * What else wrote this index's chunks, for its manifest, when no context did: the compiled
+   * index names its compiler here (ADR-0017).
+   */
+  identity?: string | undefined
   onProgress?: ((event: SyncProgress) => void) | undefined
   now?: () => Date
 }
@@ -69,6 +75,13 @@ export interface SyncReport {
   /** Estimated tokens of the texts sent to the provider, to compare with billed tokens. */
   estimatedTokens: number
   stats: IndexStats
+}
+
+/** The error codes the compiler gave on a chunk's examples, once each, in order. */
+function errorCodesOf(outputs: readonly CompilerOutput[]): number[] {
+  return [...new Set(outputs.flatMap(({ errors }) => errors.map(({ code }) => code)))].sort(
+    (a, b) => a - b,
+  )
 }
 
 /** Same entries in any order: reordering include paths changes nothing. */
@@ -258,6 +271,11 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
           sectionPath: chunk.sectionPath,
           part: chunk.part,
           anchors: chunk.anchors,
+          // What the compiler said of the chunk's examples, and their error codes, which are the
+          // chunk's own instead of the document's (ADR-0017). A chunk with no output has neither.
+          ...(chunk.compiler === undefined
+            ? {}
+            : { compiler: chunk.compiler, error_codes: errorCodesOf(chunk.compiler) }),
         },
         tokenCount: chunk.tokenCount,
         textHash: chunk.textHash,
@@ -277,7 +295,7 @@ export async function syncSource(options: SyncSourceOptions): Promise<SyncReport
       syncedAt: (options.now?.() ?? new Date()).toISOString(),
       embedModel: provider.id,
       embedDimensions: provider.dimensions,
-      contextModel: options.contexts?.identity ?? null,
+      contextModel: options.contexts?.identity ?? options.identity ?? null,
       chunkerVersion: CHUNKER_VERSION,
       parserVersion: source.parserVersion,
     },

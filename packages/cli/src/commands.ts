@@ -119,7 +119,9 @@ export async function runSync(
   ctx: CommandContext,
   source: Source,
   indexes: OpenIndexes,
-  extra: Pick<SyncSourceOptions, 'full' | 'at' | 'contexts'>,
+  extra: Pick<SyncSourceOptions, 'full' | 'at' | 'contexts' | 'identity'>,
+  /** The index this sync writes, for the golden check after it. The plain one by default. */
+  variant?: IndexVariant,
 ): Promise<void> {
   const { out } = ctx
   const { provider, limiter } = embeddingsFor(ctx)
@@ -155,7 +157,7 @@ export async function runSync(
     const billed = ctx.meter.entries().find(([model]) => model === provider.model)?.[1].inputTokens
     const ratio = formatEstimateRatio(billed ?? 0, report.estimatedTokens)
     if (ratio !== undefined) out.write(`${ratio}\n`)
-    reportGoldenSet(ctx, source.id, index)
+    reportGoldenSet(ctx, source.id, index, variant)
   }
 }
 
@@ -163,9 +165,14 @@ export async function runSync(
  * SPEC section 9, step 6: says which golden questions a sync made stale. The
  * sync itself has succeeded by now, so a broken golden set does not fail it.
  */
-function reportGoldenSet(ctx: CommandContext, sourceId: string, index: AnchorIndex): void {
+function reportGoldenSet(
+  ctx: CommandContext,
+  sourceId: string,
+  index: AnchorIndex,
+  variant?: IndexVariant,
+): void {
   try {
-    const check = checkGoldenFiles(ctx.root, sourceId, index)
+    const check = checkGoldenFiles(ctx.root, sourceId, index, { variant })
     if (check !== undefined) ctx.out.write(`\n${formatGoldenCheck(check)}\n`)
   } catch (error) {
     if (!(error instanceof GoldenSetError)) throw error

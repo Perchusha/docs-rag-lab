@@ -1,10 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { readSourceFile, type ParsedDoc, type Block } from '@docs-rag-lab/source-kit'
-import { describe, expect, it } from 'vitest'
+import {
+  chunkDocument,
+  readSourceFile,
+  type Block,
+  type CompileResult,
+  type ParsedDoc,
+} from '@docs-rag-lab/source-kit'
+import { describe, expect, it, vi } from 'vitest'
+
+// The compiler loads its library on first use, which takes seconds when other packages test too.
+vi.setConfig({ testTimeout: 60_000 })
 
 import {
+  COMPILED_PARSER_VERSION,
+  compilerName,
   errorCodesOf,
   exactTokensOf,
   matchPath,
@@ -25,6 +36,49 @@ async function parse(path: string): Promise<ParsedDoc> {
 function allBlocks(doc: ParsedDoc): Block[] {
   return doc.sections.flatMap((section) => section.blocks)
 }
+
+describe('the compiled source (ADR-0017)', () => {
+  const path = `${DOCS}/handbook-v2/Everyday Types.md`
+  const file = () => readSourceFile(fixtureRoot, path)
+
+  it('compiles each twoslash example, reports each, and keeps the code as written', async () => {
+    const results: CompileResult[] = []
+    const compiled = source.compiled?.({ onResult: (result) => results.push(result) })
+    if (compiled === undefined) throw new Error('no compiled source')
+    const doc = await compiled.parse(file(), { commitSha: undefined })
+    const plainDoc = await source.parse(file(), { commitSha: undefined })
+
+    const code = allBlocks(doc).filter((block) => block.kind === 'code')
+    const plainCode = allBlocks(plainDoc).filter((block) => block.kind === 'code')
+    expect(code.map(({ code: text }) => text)).toEqual(plainCode.map(({ code: text }) => text))
+    expect(plainCode.some((block) => 'compiled' in block)).toBe(false)
+    expect(results.length).toBeGreaterThan(10)
+    expect(results.map(({ index }) => index)).toEqual(results.map((_, i) => i))
+    expect(results.every(({ path: at }) => at === path)).toBe(true)
+    const errors = code.flatMap((block) => block.compiled?.errors ?? [])
+    expect(errors.find(({ code: id }) => id === 2345)?.text).toContain('Argument of type')
+  })
+
+  it('has its own parser version and names its compiler, and the plain source stays as it is', () => {
+    const compiled = source.compiled?.()
+
+    expect(compiled?.parserVersion).toBe(COMPILED_PARSER_VERSION)
+    expect(compiled?.compiler).toBe(compilerName())
+    expect(compiled?.id).toBe('typescript')
+    expect(compiled && 'compiled' in compiled).toBe(false)
+    expect(source.parserVersion).toBe(PARSER_VERSION)
+  })
+
+  it('puts the output after the example in the chunk, and the plain chunks do not change', async () => {
+    const compiled = source.compiled?.()
+    if (compiled === undefined) throw new Error('no compiled source')
+    const chunks = chunkDocument(path, await compiled.parse(file(), { commitSha: undefined }))
+    const plain = chunkDocument(path, await source.parse(file(), { commitSha: undefined }))
+
+    expect(chunks.some(({ text }) => text.includes('- Error TS2345 on '))).toBe(true)
+    expect(plain.some(({ text }) => text.includes('Compiler output:'))).toBe(false)
+  })
+})
 
 describe('typescriptSource', () => {
   it('describes the upstream repository and the eight include paths', () => {

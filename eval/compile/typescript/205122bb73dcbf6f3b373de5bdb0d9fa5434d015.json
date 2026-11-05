@@ -1,0 +1,356 @@
+{
+  "compiler": "twoslash 0.3.9, typescript 6.0.2",
+  "docsCommit": "205122bb73dcbf6f3b373de5bdb0d9fa5434d015",
+  "examples": 712,
+  "compiled": 654,
+  "failed": [
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Basics.md",
+      "index": 3,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 6133."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Basics.md",
+      "index": 5,
+      "lang": "ts",
+      "reason": "Invalid completion query: The request on line 6 in index.ts for completions via ^| returned no completions from the compiler. (prefix: sen)"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Classes.md",
+      "index": 31,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2445."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Classes.md",
+      "index": 44,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2699"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Everyday Types.md",
+      "index": 7,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2551"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 9,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2322"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 24,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532, 18048"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 25,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532, 18048"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 26,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 36,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2532."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/More on Functions.md",
+      "index": 38,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2571"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "index": 4,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2531"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "index": 6,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2872."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "index": 25,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "index": 26,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 15,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2561."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 16,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2561."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 17,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2345, 2739"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 26,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2561."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 30,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2322"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Object Types.md",
+      "index": 39,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2575"
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Type Declarations.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2664."
+    },
+    {
+      "path": "packages/documentation/copy/en/handbook-v2/Understanding Errors.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2353."
+    },
+    {
+      "path": "packages/documentation/copy/en/javascript/JSDoc Reference.md",
+      "index": 26,
+      "lang": "js",
+      "reason": "Expected errors were not raised: 2540"
+    },
+    {
+      "path": "packages/documentation/copy/en/javascript/Type Checking JavaScript Files.md",
+      "index": 2,
+      "lang": "js",
+      "reason": "Expected errors were not raised: 2683"
+    },
+    {
+      "path": "packages/documentation/copy/en/javascript/Type Checking JavaScript Files.md",
+      "index": 10,
+      "lang": "js",
+      "reason": "Expected errors were not raised: 7006"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "index": 4,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2345"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "index": 14,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2532"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "index": 26,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 1005, 1128, 2693"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "index": 38,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2300"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Advanced Types.md",
+      "index": 40,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2315, 2456"
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Decorators.md",
+      "index": 9,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2882 2339."
+    },
+    {
+      "path": "packages/documentation/copy/en/reference/Decorators.md",
+      "index": 10,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2882 2339."
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "index": 5,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 5084"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "index": 8,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 18048"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "index": 12,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2571"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.0.md",
+      "index": 15,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 1049"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.1.md",
+      "index": 11,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 18048"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.2.md",
+      "index": 4,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2361"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.2.md",
+      "index": 11,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2344"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "index": 5,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2375"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "index": 6,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2375"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "index": 7,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2571"
+    },
+    {
+      "path": "packages/documentation/copy/en/release-notes/TypeScript 4.4.md",
+      "index": 9,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2322"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/allowJs.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2307"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/allowSyntheticDefaultImports.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 1192, 1259"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/checkJs.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2307."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/checkJs.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2307."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/downlevelIteration.md",
+      "index": 3,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2354."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/exactOptionalPropertyTypes.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2322"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/isolatedModules.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 1277"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/jsxFactory.md",
+      "index": 1,
+      "lang": "tsx",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2307 7026."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/jsxFragmentFactory.md",
+      "index": 1,
+      "lang": "tsx",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2307 7026."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/noImplicitReturns.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2322"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/noPropertyAccessFromIndexSignature.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 4111"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/resolveJsonModule.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2307."
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/strictNullChecks.md",
+      "index": 1,
+      "lang": "ts",
+      "reason": "Expected errors were not raised: 2339, 2532"
+    },
+    {
+      "path": "packages/tsconfig-reference/copy/en/options/suppressExcessPropertyErrors.md",
+      "index": 0,
+      "lang": "ts",
+      "reason": "Errors were thrown in the sample, but not included in an error tag: These errors were not marked as being expected: 2353."
+    }
+  ]
+}

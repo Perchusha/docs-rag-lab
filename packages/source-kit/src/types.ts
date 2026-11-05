@@ -51,6 +51,43 @@ export interface Source {
    * found by core.
    */
   exactTokens?(question: string): string[]
+  /**
+   * The same source with its examples compiled, for an index of its own (ADR-0017). Only a source
+   * whose docs have examples a compiler checks has one.
+   */
+  compiled?(options?: CompileOptions): CompiledSource
+}
+
+/** A source whose code blocks carry what a compiler said of them. */
+export interface CompiledSource extends Source {
+  /** The compiler and its versions, as the compiled index's manifest names them. */
+  compiler: string
+}
+
+export interface CompileOptions {
+  /** Called once for every example the compiler ran on, whether it compiled or not. */
+  onResult?: (result: CompileResult) => void
+}
+
+/** One example the compiler ran on. */
+export interface CompileResult {
+  path: string
+  /** Its place among the file's compiled examples, from 0. */
+  index: number
+  lang: string
+  ok: boolean
+  /** Why it did not compile, in one line, when it did not. */
+  reason?: string
+}
+
+/**
+ * What the compiler said of one example (ADR-0017): its errors and its type queries, each with the
+ * line of the shown code it is on, and the emitted file when the example asks to show it.
+ */
+export interface CompilerOutput {
+  errors: { code: number; line: string; text: string }[]
+  queries: { target: string; line: string; text: string }[]
+  emitted?: { name: string; lang: string; code: string }
 }
 
 export interface ParsedDoc {
@@ -76,5 +113,5 @@ export interface Section {
 
 export type Block =
   | { kind: 'prose'; text: string }
-  | { kind: 'code'; lang: string; code: string }
+  | { kind: 'code'; lang: string; code: string; compiled?: CompilerOutput }
   | { kind: 'callout'; variant: string; blocks: Block[] }

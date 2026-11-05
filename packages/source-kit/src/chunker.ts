@@ -14,7 +14,7 @@
 // code block or a single line longer than the budget is never split.
 import { sha256Hex } from './hash.ts'
 import { estimateTokens } from './tokens.ts'
-import type { Block, ParsedDoc, Section } from './types.ts'
+import type { Block, CompilerOutput, ParsedDoc, Section } from './types.ts'
 
 /**
  * Bump when chunk boundaries or chunk text change: it forces a full rebuild.
@@ -69,6 +69,8 @@ export interface Chunk {
   tokenCount: number
   /** Character ranges of the rendered blocks in `text`; a heading is joined to the block after it. */
   spans: [number, number][]
+  /** What the compiler said of the chunk's examples, in order, when it ran on any (ADR-0017). */
+  compiler?: CompilerOutput[]
 }
 
 export interface ChunkOptions {
@@ -83,6 +85,8 @@ interface Piece {
   tokens: number
   /** The URL fragment of the section a heading piece opens. */
   anchor?: string
+  /** What the compiler said of the code in this piece, when it ran (ADR-0017). */
+  compiled?: CompilerOutput[]
 }
 
 interface Node {
@@ -119,14 +123,47 @@ function longestBacktickRun(text: string): number {
   return Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length))
 }
 
-/** The markdown for one block. Code is fenced byte-for-byte. */
+function fenced(lang: string, code: string): string {
+  const fence = '`'.repeat(Math.max(3, longestBacktickRun(code) + 1))
+  return `${fence}${lang}\n${code}\n${fence}`
+}
+
+const inline = (text: string): string => {
+  const fence = '`'.repeat(longestBacktickRun(text) + 1)
+  return text.includes('`') ? `${fence} ${text} ${fence}` : `${fence}${text}${fence}`
+}
+
+/**
+ * What the compiler said of an example, as the docs site shows it under the example: each error
+ * with its code and the line it is on, each type query, then the emitted file. Nothing when it
+ * said nothing, so such a block renders as it does without a compile (ADR-0017).
+ */
+export function renderCompilerOutput(output: CompilerOutput): string {
+  const lines = [
+    ...output.errors.map(
+      ({ code, line, text }) =>
+        `- Error TS${String(code)} on ${inline(line.trim())}: ${text.replaceAll('\n', '\n  ')}`,
+    ),
+    ...output.queries.map(({ target, text }) => `- Type of ${inline(target)}: ${inline(text)}`),
+  ]
+  const parts = [
+    ...(lines.length === 0 ? [] : [['Compiler output:', ...lines].join('\n')]),
+    ...(output.emitted === undefined
+      ? []
+      : [`Emitted ${output.emitted.name}:`, fenced(output.emitted.lang, output.emitted.code)]),
+  ]
+  return parts.join('\n\n')
+}
+
+/** The markdown for one block. Code is fenced byte-for-byte, and the compiler's output follows it. */
 export function renderBlock(block: Block): string {
   switch (block.kind) {
     case 'prose':
       return block.text.trim()
     case 'code': {
-      const fence = '`'.repeat(Math.max(3, longestBacktickRun(block.code) + 1))
-      return `${fence}${block.lang}\n${block.code}\n${fence}`
+      const code = fenced(block.lang, block.code)
+      const output = block.compiled === undefined ? '' : renderCompilerOutput(block.compiled)
+      return output === '' ? code : `${code}\n\n${output}`
     }
     case 'callout':
       return [`[${block.variant}]`, ...block.blocks.map(renderBlock)].join('\n\n')
@@ -217,11 +254,20 @@ function splitProse(text: string, max: number): string[] {
     .filter((part) => part !== '')
 }
 
+/** The compiler's output on a block and on any code inside it, in order. */
+function compiledOf(block: Block): CompilerOutput[] {
+  if (block.kind === 'code') return block.compiled === undefined ? [] : [block.compiled]
+  return block.kind === 'callout' ? block.blocks.flatMap(compiledOf) : []
+}
+
 function ownPieces(node: Node, max: number): Piece[] {
   return node.section.blocks.flatMap((block) => {
     const text = renderBlock(block)
     if (text === '') return []
-    if (block.kind !== 'prose') return [piece(block.kind, text)]
+    const compiled = compiledOf(block)
+    if (block.kind !== 'prose') {
+      return [{ ...piece(block.kind, text), ...(compiled.length === 0 ? {} : { compiled }) }]
+    }
     return splitProse(text, max).map((part) => piece('prose', part))
   })
 }
@@ -315,6 +361,7 @@ export function chunkDocument(
     const anchors = [
       ...new Set([start.anchor, ...pieces.flatMap((p) => p.anchor ?? [])].filter((a) => a !== '')),
     ]
+    const compiler = pieces.flatMap((p) => p.compiled ?? [])
     chunks.push({
       id: chunkId(docPath, headingPath, node.occurrence, ordinal),
       docPath,
@@ -329,6 +376,7 @@ export function chunkDocument(
       textHash: sha256Hex(text),
       tokenCount: estimateTokens(text),
       spans,
+      ...(compiler.length === 0 ? {} : { compiler }),
     })
   }
 
