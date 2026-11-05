@@ -21,6 +21,9 @@ import { sourcesFor } from './run.ts'
 
 const root = findRepoRoot(import.meta.dirname)
 
+/** How many answerable questions each set has to have: SPEC section 13, and ADR-0016 for React. */
+const ANSWERABLE: Readonly<Record<string, number>> = { typescript: 40, react: 16 }
+
 // A source gets its golden set after it gets its parser, so one without a set yet is fine.
 const sourceIds = sourcesFor(settings)
   .map((source) => source.id)
@@ -31,10 +34,12 @@ describe.each(sourceIds)('the %s golden set', (sourceId) => {
   const questions = parseGoldenSet(text)
   const lock = parseGoldenLock(readFileSync(goldenLockPath(root, sourceId), 'utf8'))
 
-  it('has the 40 answerable questions SPEC section 13 asks for', () => {
+  it('has the answerable questions its milestone asks for', () => {
     const answerable = questions.filter((question) => !question.tags.includes('unanswerable'))
 
-    expect(answerable.length).toBeGreaterThanOrEqual(40)
+    expect(answerable.length).toBeGreaterThanOrEqual(
+      ANSWERABLE[sourceId] ?? Number.POSITIVE_INFINITY,
+    )
   })
 
   it('locks exactly its anchors', () => {

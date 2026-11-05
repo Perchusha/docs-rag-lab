@@ -1,0 +1,187 @@
+{
+  "setVersion": 2,
+  "setHash": "099ca3b20cb0fb8e7995b5fd7e362302d91b55ea50ad46baf44e55651313ab3a",
+  "docsSha": "2177e28d3c3c16a8183346b9140f11ce0ee6af25",
+  "anchors": {
+    "src/content/learn/preserving-and-resetting-state.md#different-components-at-the-same-position-reset-state contains function is created for every render of": [
+      {
+        "chunkId": "5e65e29cf2233a9a973d9acc",
+        "textHash": "2da24b9afd58927c07139502cfa73cdcc9c0f0d25e92effb269dd2cc2508026f"
+      }
+    ],
+    "src/content/learn/queueing-a-series-of-state-updates.md#react-batches-state-updates contains each render's state values are fixed": [
+      {
+        "chunkId": "bb2094403d039fcc0a2de6be",
+        "textHash": "eeac64a885bbcfca148c1ea8862439690adfe4c28cf38b65270e9068fba8bf79"
+      }
+    ],
+    "src/content/learn/state-a-components-memory.md#how-does-react-know-which-state-to-return contains rely on a stable call order": [
+      {
+        "chunkId": "23eb1d4ec78997cafccfacd5",
+        "textHash": "11ccf689f8df0e2e260ee4616cb36f1694d2057ce1d4f8251102e0e449afabd0"
+      }
+    ],
+    "src/content/learn/state-as-a-snapshot.md#rendering-takes-a-snapshot-in-time contains value of `number` is still `0`": [
+      {
+        "chunkId": "f2f9e77104525423e003b348",
+        "textHash": "d6a036237f7d6467f292f010688f41b225e83ab176c5fbe41f51202c3ed9fe0f"
+      }
+    ],
+    "src/content/learn/tutorial-tic-tac-toe.md#lifting-state-up contains leading to an infinite loop": [
+      {
+        "chunkId": "eaebdd481932283265e8f758",
+        "textHash": "56aecaced216d22cc581b541e15d32b027bdded5182c9902e4509d055a94e347"
+      }
+    ],
+    "src/content/reference/dev-tools/react-devtools-cdt-mcp.md contains the same view of your app that React DevTools gives you": [
+      {
+        "chunkId": "4c75461c68669bf3c5dbf224",
+        "textHash": "0672a35a4d652d5e223cb7dc2b41a8c9d0d924b78de89f35a83b3881c4151e55"
+      }
+    ],
+    "src/content/reference/dev-tools/react-devtools-cdt-mcp.md#overview contains The only MCP server you configure is Chrome DevTools MCP": [
+      {
+        "chunkId": "4c75461c68669bf3c5dbf224",
+        "textHash": "0672a35a4d652d5e223cb7dc2b41a8c9d0d924b78de89f35a83b3881c4151e55"
+      }
+    ],
+    "src/content/reference/eslint-plugin-react-hooks/lints/rules-of-hooks.md#rule-details contains React relies on the order in which hooks are called": [
+      {
+        "chunkId": "fb41b01ebf5fceb03d0fb5af",
+        "textHash": "c3486f2b3bf1f8337d37d155eaf580c21bb594d6d5f889acb9535a748dbda77a"
+      }
+    ],
+    "src/content/reference/eslint-plugin-react-hooks/lints/static-components.md#rule-details contains Components defined inside other components are recreated on every render": [
+      {
+        "chunkId": "0036b8d44a5343ef7a22d94f",
+        "textHash": "6ed2801371ef03c1b1ca0b1220d9d258c073fc6d18b4c2d8476a1c737c88d389"
+      }
+    ],
+    "src/content/reference/react-dom/browser.md contains lets you mark a component as browser-only": [
+      {
+        "chunkId": "d712ad2662e7c0707a39628d",
+        "textHash": "fe332bfa4871b503e4e35079a813f9dc87fd510b6367ff351fb2fea31e407276"
+      }
+    ],
+    "src/content/reference/react-dom/browser.md#browser contains stops rendering the component": [
+      {
+        "chunkId": "d712ad2662e7c0707a39628d",
+        "textHash": "fe332bfa4871b503e4e35079a813f9dc87fd510b6367ff351fb2fea31e407276"
+      }
+    ],
+    "src/content/reference/react-dom/browser.md#conditionally-rendering-on-the-server contains inside a conditional statement or after an early return": [
+      {
+        "chunkId": "a98001972494504c2ad8b3b9",
+        "textHash": "1df2f3c083d587e66699bf90e9870db1af67aa4ece09f4e62478d7d2c59ecd47"
+      }
+    ],
+    "src/content/reference/react-dom/components/form.md#handle-form-submission-with-an-event-handler contains sends the form data to the current URL and refreshes the page": [
+      {
+        "chunkId": "a9a3bb3800febd7131857445",
+        "textHash": "59463bb54a9ba123971a24e08e84a8dfc443d58dbf42ce548aac776561279d83"
+      }
+    ],
+    "src/content/reference/react-dom/components/img.md#caveats contains It may cause the browser to request the current page again": [
+      {
+        "chunkId": "fa97e7a93e7bff70406079c5",
+        "textHash": "74d154e5460366a9c355cd7be7e2c63238cc20c2955fe6069a1ab018a0e22dbd"
+      }
+    ],
+    "src/content/reference/react-dom/components/img.md#controlling-image-preloading-during-server-rendering contains to an image that should not receive this hint": [
+      {
+        "chunkId": "a9e58cd164d1f343bc487698",
+        "textHash": "d93d1369cfd9069a9f9e074bd394b7c7fa64e1a4c4456c7fe659a5e161d7c4f7"
+      }
+    ],
+    "src/content/reference/react-dom/components/img.md#props contains also prevents React from": [
+      {
+        "chunkId": "3194d9c70339317f2fadd764",
+        "textHash": "b80d7a34295daac16715948eaa5c4fb43c9e8153fee275044828560ab124a4db"
+      }
+    ],
+    "src/content/reference/react-dom/components/input.md#reading-the-input-values-when-submitting-a-form contains You can override that behavior by calling": [
+      {
+        "chunkId": "e777e0582f758bf53e5bd591",
+        "textHash": "78ad6ca29e0ecfe079c938d79ba4613a5619c8e6863e78f8d816e0eb33773318"
+      }
+    ],
+    "src/content/reference/react-dom/components/select.md#reading-the-select-box-value-when-submitting-a-form contains You can override that behavior by calling": [
+      {
+        "chunkId": "366ecef4d19887cab43410bf",
+        "textHash": "f345581871a6c463808a53d02a6440fbb9f574d3677a6be29c88cd982f769951"
+      }
+    ],
+    "src/content/reference/react-dom/components/textarea.md#reading-the-text-area-value-when-submitting-a-form contains You can override that behavior by calling": [
+      {
+        "chunkId": "c70a0058e6a4f052b95ef6b0",
+        "textHash": "a3ec98829a4899cd4412bde41541886119e0aafbbc7d9a1beabf0076f9fc36fe"
+      }
+    ],
+    "src/content/reference/react/Suspense.md#coordinating-fonts-images-and-stylesheets contains Waiting for fonts and images only happens during a": [
+      {
+        "chunkId": "1b1c2fc185e9b10f997bac06",
+        "textHash": "565199e9a26d397213bd1c3fa1cb4c62232cc70200296d16a410f2b78f9bb317"
+      }
+    ],
+    "src/content/reference/react/Suspense.md#suspense-enabled-frameworks contains maintains a cache of Promises": [
+      {
+        "chunkId": "3f698f04a7bd340c863e89a6",
+        "textHash": "0a6cfcde148a7444f1ad2a0c4021b58b731859175594c5a14551b67173eaed6a"
+      }
+    ],
+    "src/content/reference/react/Suspense.md#what-activates-a-suspense-boundary contains doesn't wait for fonts by default": [
+      {
+        "chunkId": "3f698f04a7bd340c863e89a6",
+        "textHash": "0a6cfcde148a7444f1ad2a0c4021b58b731859175594c5a14551b67173eaed6a"
+      }
+    ],
+    "src/content/reference/react/forwardRef.md contains is no longer necessary": [
+      {
+        "chunkId": "cac4f12a6a66fe9702e988ae",
+        "textHash": "5514e8f8fe675596199999348315f99f7ba74e9cb7115b74698cca053ccb7243"
+      }
+    ],
+    "src/content/reference/react/use.md#use-browser contains in a component that should only render in the browser": [
+      {
+        "chunkId": "d023dac16a43dbe3f26712f4",
+        "textHash": "be0a32c010ee4e93291d082fc27a5c9c9f18a27f16b22a7507591398449227cd"
+      }
+    ],
+    "src/content/reference/react/useImperativeHandle.md#parameters contains it was necessary to get the": [
+      {
+        "chunkId": "8c404f6a70c2e94db3498f60",
+        "textHash": "37ee265022f5fe1377e9894445c8acb06a31580d8fc89fb962a44a69b851af52"
+      }
+    ],
+    "src/content/reference/react/useReducer.md#im-getting-an-error-too-many-re-renders contains unconditionally dispatching an action": [
+      {
+        "chunkId": "07546e018624eda7d59d9fa2",
+        "textHash": "153227251ccc6407e24baefbef7d1266b398f88f66deef88354f091729809404"
+      }
+    ],
+    "src/content/reference/react/useState.md#im-getting-an-error-too-many-re-renders contains unconditionally setting state": [
+      {
+        "chunkId": "590037b9178b78d5eed2d66f",
+        "textHash": "803196410479499888603f0c2b7062e3663c8517f598e58383ca71faddc42f8b"
+      }
+    ],
+    "src/content/reference/react/useState.md#ive-updated-the-state-but-the-screen-doesnt-update contains ignore your update if the next state is equal to the previous state": [
+      {
+        "chunkId": "590037b9178b78d5eed2d66f",
+        "textHash": "803196410479499888603f0c2b7062e3663c8517f598e58383ca71faddc42f8b"
+      }
+    ],
+    "src/content/reference/react/useState.md#setstate-caveats contains skip re-rendering the component and its children": [
+      {
+        "chunkId": "4375ec71bc669b07a2319f8c",
+        "textHash": "5c331576eb213ec6de530b256430fd7dce59d17a88360e392692baed62c727bb"
+      }
+    ],
+    "src/content/reference/rsc/server-components.md#rendering-a-context-provider-in-a-server-component contains Server Components cannot create context": [
+      {
+        "chunkId": "1318bbb7bc4db5ddd6300b12",
+        "textHash": "7ea6981ab4cc05001dde68cbf69b2be929ec85c098b819c477aab6831e3bb27e"
+      }
+    ]
+  }
+}

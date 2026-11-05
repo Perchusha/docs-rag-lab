@@ -5,7 +5,13 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import { openIndexes, parseGoldenSet, resolveAnchor, type AnchorRef } from '@docs-rag-lab/core'
+import {
+  openIndexes,
+  parseGoldenSet,
+  resolveAnchor,
+  type AnchorRef,
+  type GoldenQuestion,
+} from '@docs-rag-lab/core'
 import { git, GitError, normalizeText, type ParsedDoc, type Source } from '@docs-rag-lab/source-kit'
 
 import { findSource, type CommandContext } from './commands.ts'
@@ -17,6 +23,9 @@ export const WALK_TOP = 50
 
 /** A run of this many words shared with the docs counts as copied (ADR-0016). */
 const COPIED_RUN = 4
+
+/** One page gives at most this many fresh questions, so `fresh` cannot describe one page (ADR-0016). */
+const FRESH_PER_PAGE = 2
 
 export interface Dated {
   commit: string
@@ -298,8 +307,28 @@ function headingsOf(document: {
 }
 
 /**
+ * The pages with too many fresh questions, each with their ids. It counts by the pages of a
+ * question's anchors, acceptable ones too, so the limit does not rest on reading the walk. A
+ * question counts once for a page, however many of its anchors are there.
+ */
+export function freshOverLimit(questions: readonly GoldenQuestion[]): string[] {
+  const byPage = new Map<string, string[]>()
+  for (const question of questions) {
+    if (!question.tags.includes('fresh')) continue
+    const refs = [...question.primary, ...question.acceptable]
+    for (const page of new Set(refs.map(({ at }) => at.split('#')[0] ?? ''))) {
+      byPage.set(page, [...(byPage.get(page) ?? []), question.id])
+    }
+  }
+  return [...byPage]
+    .filter(([, ids]) => ids.length > FRESH_PER_PAGE)
+    .map(([page, ids]) => `${page}: ${ids.join(', ')}`)
+}
+
+/**
  * `drl eval check --draft`: a draft against the index, before any review. It says which anchors
- * do not resolve, and what each question copies from the docs. It looks at no ranking.
+ * do not resolve, what each question copies from the docs, and which pages give too many fresh
+ * questions. It looks at no ranking.
  */
 export function evalDraftCheckCommand(ctx: CommandContext, args: { source: string }): void {
   const { out, root } = ctx
@@ -345,9 +374,16 @@ export function evalDraftCheckCommand(ctx: CommandContext, args: { source: strin
       .map(([tag, n]) => `${tag} ${String(n)}`)
     out.write(`${String(questions.length)} questions: ${counted.join(', ')}\n`)
     out.write(copied.length === 0 ? 'No copied wording.\n' : `\n${copied.join('\n')}\n`)
-    if (unresolved.length > 0) {
-      throw new CliError(`anchors that do not resolve:\n${unresolved.join('\n')}`)
-    }
+    const overLimit = freshOverLimit(questions)
+    const problems = [
+      ...(unresolved.length > 0 ? [`anchors that do not resolve:\n${unresolved.join('\n')}`] : []),
+      ...(overLimit.length > 0
+        ? [
+            `more than ${String(FRESH_PER_PAGE)} fresh questions on a page (ADR-0016):\n${overLimit.join('\n')}`,
+          ]
+        : []),
+    ]
+    if (problems.length > 0) throw new CliError(problems.join('\n'))
   } finally {
     indexes.close()
   }

@@ -21,7 +21,7 @@ A frozen set is never changed for a ranking. To add to one, follow ADR-0009 sect
 The two commands read the index and git, and rank nothing:
 
 - `pnpm drl eval walk --source $0` lists every indexed page and heading, newest first by git history. The first run clones the docs' history under the cache.
-- `pnpm drl eval check --draft --source $0` checks `eval/questions.draft.jsonl`: which anchors do not resolve, and what each question copies from the docs.
+- `pnpm drl eval check --draft --source $0` checks `eval/questions.draft.jsonl`: which anchors do not resolve and what each question copies from the docs, and it fails above the limit of `fresh` questions on a page.
 
 ## 1. Fresh questions, by the walk
 

@@ -5,13 +5,19 @@ import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync }
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import { CHUNKER_VERSION, createEmbeddingProvider, openIndexes } from '@docs-rag-lab/core'
+import {
+  CHUNKER_VERSION,
+  createEmbeddingProvider,
+  openIndexes,
+  type GoldenQuestion,
+} from '@docs-rag-lab/core'
 import { settings } from '@docs-rag-lab/settings'
 import type { ParsedDoc, Source, SourceFile } from '@docs-rag-lab/source-kit'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   copiedWording,
+  freshOverLimit,
   longestSharedRun,
   normalizeHeading,
   orderWalk,
@@ -156,6 +162,61 @@ describe('orderWalk', () => {
       'tie, later path',
       'oldest',
     ])
+  })
+})
+
+describe('freshOverLimit', () => {
+  const question = (
+    id: string,
+    tags: GoldenQuestion['tags'],
+    primary: string[],
+    acceptable: string[] = [],
+  ): GoldenQuestion => ({
+    id,
+    question: 'Q?',
+    answer: 'A.',
+    primary: primary.map((at) => ({ at })),
+    primaryMatch: 'all',
+    acceptable: acceptable.map((at) => ({ at })),
+    tags,
+    note: undefined,
+  })
+
+  it('allows 2 on a page and names a third, with the page without its section', () => {
+    const two = [question('a', ['fresh'], ['p.md#x']), question('b', ['fresh'], ['p.md#y'])]
+
+    expect(freshOverLimit(two)).toEqual([])
+    expect(freshOverLimit([...two, question('c', ['fresh'], ['p.md'])])).toEqual(['p.md: a, b, c'])
+  })
+
+  it('counts a question once for a page, however many of its anchors are there', () => {
+    expect(
+      freshOverLimit([
+        question('a', ['fresh'], ['p.md#x', 'p.md#y'], ['p.md#z']),
+        question('b', ['fresh'], ['p.md#x']),
+      ]),
+    ).toEqual([])
+  })
+
+  it('counts acceptable anchors, and a question for each of its pages', () => {
+    expect(
+      freshOverLimit([
+        question('a', ['fresh'], ['p.md'], ['q.md']),
+        question('b', ['fresh'], ['q.md']),
+        question('c', ['fresh'], ['r.md'], ['q.md#s']),
+      ]),
+    ).toEqual(['q.md: a, b, c'])
+  })
+
+  it('does not count a question that is not fresh', () => {
+    expect(
+      freshOverLimit([
+        question('a', ['fresh'], ['p.md']),
+        question('b', ['fresh'], ['p.md']),
+        question('c', ['basic'], ['p.md']),
+        question('d', ['unanswerable'], []),
+      ]),
+    ).toEqual([])
   })
 })
 
@@ -543,6 +604,52 @@ describe('the commands', { timeout: 30_000 }, () => {
       expect(err).toContain('docs-0001: docs/a.md#nowhere does not resolve (no-section)')
       expect(err).toContain('docs-0001: docs/a.md#sec does not resolve (no-passage)')
       expect(err).toContain('docs-0001: docs/b.md does not resolve (no-document)')
+    })
+
+    const freshOn = (id: string, ...primary: string[]) => ({
+      id,
+      question: 'Something else entirely?',
+      answer: 'A.',
+      primary,
+      tags: ['fresh'],
+    })
+
+    it('passes with 2 fresh questions on a page', async () => {
+      seedOne()
+      writeDraft(freshOn('docs-0001', 'docs/a.md#sec'), freshOn('docs-0002', 'docs/a.md'))
+
+      const { code } = await drl('eval', 'check', '--draft', '--source', 'docs')
+
+      expect(code).toBe(0)
+    })
+
+    it('fails on a third fresh question on a page, by its anchors, and says which', async () => {
+      seedOne()
+      writeDraft(
+        freshOn('docs-0001', 'docs/a.md#sec'),
+        freshOn('docs-0002', 'docs/a.md'),
+        freshOn('docs-0003', 'docs/a.md#sec'),
+      )
+
+      const { code, err } = await drl('eval', 'check', '--draft', '--source', 'docs')
+
+      expect(code).toBe(1)
+      expect(err).toContain('more than 2 fresh questions on a page (ADR-0016)')
+      expect(err).toContain('docs/a.md: docs-0001, docs-0002, docs-0003')
+    })
+
+    it('says both, when anchors do not resolve and a page is over the limit', async () => {
+      seedOne()
+      writeDraft(
+        freshOn('docs-0001', 'docs/a.md#sec'),
+        freshOn('docs-0002', 'docs/a.md'),
+        freshOn('docs-0003', 'docs/a.md#nowhere'),
+      )
+
+      const { err } = await drl('eval', 'check', '--draft', '--source', 'docs')
+
+      expect(err).toContain('docs-0003: docs/a.md#nowhere does not resolve (no-section)')
+      expect(err).toContain('docs/a.md: docs-0001, docs-0002, docs-0003')
     })
 
     it('refuses a draft that does not parse', async () => {

@@ -120,7 +120,8 @@ Commands:
       [--contextual]          That index, also against the plain one's chunks
       [--control]             That index, also against the plain one's chunks
       [--draft]               questions.draft.jsonl instead: which anchors do not resolve,
-                              and what each question copies from the docs (ADR-0016)
+                              what each question copies from the docs, and fails above 2
+                              fresh questions on a page (ADR-0016)
   eval walk                   Every indexed page and heading, newest first by git history, at
                               the index's commit, to pick fresh questions from (ADR-0016).
                               Clones the docs' history once, under the cache
