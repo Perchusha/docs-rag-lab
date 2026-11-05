@@ -61,6 +61,17 @@ module.exports = {
       to: { path: '^packages/settings/', dependencyTypesNot: ['type-only'] },
     },
     {
+      name: 'docs-server-allowed-packages',
+      comment:
+        'docs-server imports only core, contracts and settings: never ui, db, a concrete source or an app. An app builds its source and passes it in (ADR-0016).',
+      severity: 'error',
+      from: { path: '^packages/docs-server/' },
+      to: {
+        path: INTERNAL,
+        pathNot: ['^packages/(docs-server|core|contracts|settings)/', CONFIG],
+      },
+    },
+    {
       name: 'settings-is-leaf',
       comment:
         'settings imports no other internal package: it is plain data and its schema, shared by the CLI and apps (ADR-0007).',
