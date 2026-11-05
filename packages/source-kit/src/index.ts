@@ -3,6 +3,10 @@
 export {
   DOC_TYPES,
   type Block,
+  type CompiledSource,
+  type CompileOptions,
+  type CompileResult,
+  type CompilerOutput,
   type DocType,
   type License,
   type ParseContext,
@@ -20,6 +24,7 @@ export {
   chunkId,
   packBalanced,
   renderBlock,
+  renderCompilerOutput,
   type Chunk,
   type ChunkOptions,
   type SectionPart,
