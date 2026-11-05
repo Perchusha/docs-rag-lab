@@ -2,6 +2,48 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M6 - React through `/add-source`: RAG beats memory on the newest docs (2026-11-05)
+
+React's docs went through the six steps of `/add-source` with their own app, a smaller set and a test fixed first in ADR-0016. On the newest pages, the app's hybrid search is fully correct on 9 of 10 questions (60-98%), and Claude without docs on 2 (6-51%), and both may run high. There is no before: these numbers are new, and they are never compared with TypeScript's. Claude drafted the set from the docs' text and the owner reviewed the flagged questions, and 10 of the 16 answerable questions come from the newest pages, so the overall numbers do not describe the docs at large.
+
+| On 16 questions, at docs `2177e28d` | No docs | Vector | Hybrid | Hybrid + rerank |
+|---|---|---|---|---|
+| Right chunk first | no retrieval | 12 (51-90%) | 10 (39-82%) | 15 (72-99%) |
+| Right chunk in top 8 | no retrieval | 16 (81-100%) | 14 (64-97%) | 16 (81-100%) |
+| MRR | no retrieval | 0.859 (0.73-0.97) | 0.726 (0.54-0.90) | 0.969 (0.91-1.00) |
+| Fully correct, may run high | 7 (23-67%) | 15 (72-99%) | 13 (57-93%) | 14 (64-97%) |
+| Fully correct on the 10 fresh, may run high | 2 (6-51%) | 9 (60-98%) | 9 (60-98%) | 8 (49-94%), then 9 (60-98%) |
+| Wrongly refused, fewer is better | 5 (14-56%) | 0 (0-19%) | 1 (1-28%) | 0 (0-19%) |
+
+**What it showed:**
+- **R1 is shown.** On the fresh tag hybrid is ahead of Claude without docs on 7, behind on 0, with 3 tied, p = 0.016, and it does not differ from itself on that tag between two runs. The judge's second opinion on row 3 moves one of those answers, and with that grade it is 6 to 0, p = 0.03. Over all 16 it is 7 to 1, p = 0.07, not significant.
+- **R2 is not repeated, by the rule written first.** Rerank is named on MRR, 6 to 0, p = 0.031. Right chunk first is 5 to 0, p = 0.06, and the rule asked for both. Hybrid is not first on 6 questions, so this metric could be significant only if rerank moved all 6, and it moved 5. Hybrid is ahead on nothing.
+- **R3 is not reached, so hybrid stays for this app too.** Every comparison of rows 3 and 4 on answers is noise.
+- **The spot check passed:** correctness 8 of 8 (68-100%), refusals 10 of 10 (72-100%), citations 5 of 6 (44-97%), with the judge the stricter one on that one.
+
+**What only real runs showed:**
+- **The judge graded a new API from memory.** On react-0018 it called `use(browser())` made up, "React has no such API", though the answer cites a passage that is in the docs. It sees the cited passage but not the docs, so it cannot tell a real passage from a made-up one. It is one verdict, in a row that decides nothing, and it stands. On docs newer than the judge's knowledge this can happen again.
+- **A status is easy to leave out.** No answer on react-0002 says the tool is experimental, though every chunk of that page has `(Experimental)` in its title. On react-0001, 4 of the 5 answers from the docs say so. It takes the rule to see that, since neither question asks.
+- **The walk's dates overstate what is new.** 18 of the newest headings were only reworded, or lost a badge, which only the commits' diffs show. The owner ruled that a removed badge is no new fact, after the walk ran.
+- **The draft had no acceptable anchors where the docs repeat themselves.** Seven questions had a second passage that also supports the answer, found by a search for key words while preparing the review. Before the freeze that took one decision per question. After it, each would have needed a new set version.
+- **The frozen set moved once, before any row answered.** Settling two grading questions took version 2, since the check accepts a changed set only under the next number.
+- **On react-0011, in Russian, hybrid's answer refuses wrongly in both runs,** with the right chunk at rank 11, where vector and rerank have it first. Nothing is tuned for it.
+
+**Spend:** $4.08 of Claude at list prices, against an estimate of about $5 and a limit of $10. Voyage stayed inside the free tokens: 705,447 tokens for the index in 1h 25m, and 20 rerank calls in two runs of 4 and 14 minutes, with no 429.
+
+**Next:** M7, the compiler's output in the chunks.
+
+### Open items for M7
+
+None of these was fixed in M6, and none changes a result above. The first three are about what React's report and dashboard say, and the review before committing found them:
+- **A spot check's sentence reads only the disagreements on correctness,** so React's report does not say which way its one disagreement leans, on citations, as ADR-0016 asks. The ADR says it instead. It needs the disagreements on citations in the spot check's file, and in `contracts`, `core` and `cli`.
+- **React's report and dashboard do not say who drafted the set.** ADR-0015 asks for that wherever React's numbers appear. The README and this journal say it.
+- **React's dashboard gives ADR-0014 as the reason the app stays on hybrid.** There the reason is R3 of ADR-0016 (`packages/core/src/eval/dashboard.ts`).
+- **A case of known grade for a real API the judge may not know,** as on react-0018, would show how often this happens. It spends tokens, so it is for the owner to decide.
+- **A status in other words has no known grade.** The two cases of `drl eval judge-check` score the expert's answer, and the same without its last sentence. Four answers on react-0001 give the status in their own words and scored 2, none of them labelled: the spot check's two status answers both leave it out.
+- **Why hybrid misses on react-0007 and react-0011** is not looked into. A question to test would be a new hypothesis, written down first.
+- **`drl eval answers` shows the estimate of its paid calls only after its rerank calls.** On a cold cache, `--max-usd 0.01 --yes` makes those free calls and stops at the estimate, which is what this run did. A flag would say so more plainly.
+
 ## M5 - Rerank and contexts: retrieval moved, the answers did not (2026-11-04)
 
 Before M5, hybrid search put the right chunk first on 19 of 40 questions. A reranker takes that to 31, significantly, and no question gets worse. The answers stay where they were. So the reranker is not in the chat, and the inspector shows on demand what it would change.

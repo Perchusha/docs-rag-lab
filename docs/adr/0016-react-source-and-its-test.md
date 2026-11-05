@@ -1,6 +1,6 @@
 # ADR-0016: The React source, and what M6 tests on it
 
-- Status: accepted as the test, before any React index, question or answer exists.
+- Status: accepted as the test, before any React index, question or answer exists. The result is in "What came out", and nothing above that section changed because of it.
 - Date: 2026-11-04
 - Milestone: M6
 
@@ -205,6 +205,38 @@ From M5's measured costs, with no API call: $0.0043 per answer in row 0, and $0.
 | **Claude, in all** | **about $5**, with a limit of $10 |
 | Voyage embeddings, about 0.8M tokens (SPEC section 8) | 80 to 100 minutes, inside the free tokens |
 | Voyage rerank, 20 calls | 20 to 25 minutes, inside the free tokens |
+
+## What came out
+
+The report is [`2026-11-05-8dfcae6f-m6`](../../eval/reports/react/2026-11-05-8dfcae6f-m6.md), on set version 2, at docs `2177e28d`. No stop was hit: hybrid has the right chunk in its top 8 on 14 of the 16, the forecast stayed under $10, Voyage rejected nothing, the spot check passed and R3 was not reached.
+
+| Hypothesis | Result | The numbers |
+|---|---|---|
+| R1, RAG against memory on the newest docs | **Shown** | Fully correct on `fresh`, may run high: hybrid 9 of 10 (60-98%), no docs 2 of 10 (6-51%). Hybrid ahead on 7, no docs on 0, 3 tied, p = 0.016. Hybrid's two runs differ on none of the 10, so the margin of 7 passes twice 0 |
+| R2, rerank repeats its retrieval gain | **Not repeated** | MRR 0.726 (0.54-0.90) to 0.969 (0.91-1.00), rerank ahead on 6 and hybrid on 0, p = 0.031, which names rerank. Right chunk first 10 (39-82%) to 15 (72-99%), 5 to 0, p = 0.06, which does not, and the rule asks for both |
+| R3, that reaches the answers | **Not reached** | Fully correct 13 (57-93%) to 14 (64-97%), at 2 to 1. All citations hold 15 (72-99%) to 16 (81-100%), at 1 to 0. Wrongly refused 1 (1-28%) to 0 (0-19%), at 1 to 0. All noise |
+
+- **R1 decides what the README may say.** Over all 16 the same comparison is 13 against 7, 7 to 1, p = 0.07, not significant. Correctness may run high, by the calibration on TypeScript's answers. The judge's second opinion on row 3 moves one of the fresh answers, react-0007, from 2 to 1, which is the one change in 20: with that grade it is 8 of 10, 6 to 0, p = 0.031, and the margin of 6 still passes twice 0. Of the 7 wins, no docs declined to answer on 4 and answered in part on 3.
+- **R2 could have passed on right chunk first only with 6 to 0,** the smallest significant split, and hybrid is not first on just 6 questions. Rerank moved 5, and react-0013 went from rank 3 to rank 2. On all six metrics hybrid is ahead on no question, no verdict is `mixed` and no anchor leaves the top 8. It decides nothing for the chat. The rule stands as written.
+- **Hybrid stays, for this app too.** Correct and grounded, which decides nothing, is 13 against 14, at 2 to 1, noise. Hybrid's one failure on all citations hold is react-0015 in its first run, the answer on which the owner and the judge disagree, so by the owner's label it would be 16 against 16.
+- **Vector against hybrid decides nothing, and no difference holds up:** MRR 0.859 against 0.726, at 4 to 2; right chunk in top 8, 16 against 14, at 2 to 0; fully correct 15 against 13, at 2 to 0. Two anchors leave the top 8 under hybrid: react-0007, from rank 2 to rank 17, and react-0011, from rank 1 to rank 11.
+
+**The spot check passed.** The owner labelled 10 answers blind: correctness 8 of 8 (68-100%), refusals 10 of 10 (72-100%), citations 5 of 6 (44-97%). The one disagreement leans the other way from TypeScript's: on react-0015 the judge found a claim unsupported, and the owner took it as supported. **The report does not say this itself,** although this ADR asks it to: its sentence reads only the disagreements on correctness, so this section is where it is said.
+
+**What the status rule did.** No answer on react-0002 says that the tool is experimental, so every row that reads the docs scored 1 there, in each of its runs. On react-0001, 4 of the 5 answers from the docs say so in their own words and scored 2, none of them labelled, and the one that does not scored 1, as the owner labelled it too. Claude without docs refused both, which scores 0 with or without the rule. So the rule holds every row to 9 of 10 on `fresh`, and it did not make R1.
+
+**One verdict is wrong on reading, and it stands.** On react-0018, row 2 rejects the premise and mentions `use(browser())`, citing a passage that is in the docs. The judge called it a hallucination: "React has no such API", and it wrote that the passage "appears fabricated". The API is newer than what the judge knows, and it sees the cited passage but not the docs, so it cannot tell a real passage from a made-up one. So row 2 has 3 correct refusals of 4 where reading gives 4. Row 2 enters no hypothesis, verdicts are not edited and the prompts do not change. A search of the reasoning in all 140 verdicts, for anything said not to be real, finds no other case.
+
+**One failure repeats.** On react-0011, in Russian, hybrid ranks the right chunk 11th, where vector and rerank rank it first, and hybrid's answer refuses wrongly in both runs. It is the only wrong refusal in any row that reads the docs. Nothing is tuned for it, and a change would be a new hypothesis.
+
+**The integrity checks passed:**
+1. `drl eval verify` on `2026-11-04-6b2d15f7-final` says byte for byte, and the plain index's sha256 still starts `403465a8`.
+2. All 228 dashboard responses for TypeScript's reports are identical to the ones from before PR 5.
+3. The commit that froze version 2, `90e58fb`, is an ancestor of `8dfcae6f`, which the report stamps.
+4. React's report reproduces byte for byte, recorded at `77d25e6e`.
+5. All 473 cited texts are in their chunk's text, ignoring whitespace.
+
+**What it took.** $4.08 of Claude at list prices, against an estimate of about $5 and a limit of $10: $3.02 for the named run, $1.03 for the pilot, $0.01 for two known-grade judge cases and $0.02 for the app's smoke test. The pilot took the first question of each group, react-0001, 0005, 0011, 0013 and 0017, and the named run read those answers from the cache. Voyage took 20 rerank calls in two runs of 4 and 14 minutes, with no 429, inside the free tokens.
 
 ## Alternatives considered
 
