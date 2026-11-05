@@ -2,7 +2,10 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// The compiler loads its library on first use, which takes seconds when other packages test too.
+vi.setConfig({ testTimeout: 60_000 })
 
 import { COMPILER, createDocsCompiler, isTwoslash } from './compile.ts'
 

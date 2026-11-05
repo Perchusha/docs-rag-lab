@@ -8,7 +8,10 @@ import {
   type CompileResult,
   type ParsedDoc,
 } from '@docs-rag-lab/source-kit'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// The compiler loads its library on first use, which takes seconds when other packages test too.
+vi.setConfig({ testTimeout: 60_000 })
 
 import {
   COMPILED_PARSER_VERSION,
