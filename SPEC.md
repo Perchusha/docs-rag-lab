@@ -367,6 +367,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 4. Hybrid + rerank
 5. Hybrid + rerank + contextual retrieval
 6. Agentic
+7. Hybrid on the compiled index, with the twoslash output in the chunks (M7, ADR-0017)
 
 Hybrid + contextual retrieval without the reranker is measured too, for retrieval only, to tell what each adds. It is no ladder row (ADR-0014).
 
@@ -449,7 +450,7 @@ Every milestone ends with:
 | M4 | Eval harness | 40 TS questions plus 5 unanswerable, metrics, ladder rows 0, 2 and 3, reports, dashboard view | Report is reproducible from SHA + config |
 | M5 | Rerank + contextual | Ladder rows 4 and 5, prompt caching, cost tracking | README table has measured rows |
 | M6 | React via `/add-source` | `react-docs` app, 20 questions (ADR-0016) | Done through the skill; the PR links the session |
-| M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text | `exact-token` questions improve and are measured |
+| M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text. The test is in ADR-0017 | `exact-token` questions improve and are measured |
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
 | M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
 
@@ -463,7 +464,7 @@ Lighter than M4 and M5, by the owner's decision (ADR-0015):
 - **Reuse** the eval harness, the calibrated judge and the dashboard.
 - **React's golden set is smaller,** 20 questions: 16 answerable and 4 not. 10 of the answerable are fresh, by the docs' own dates, and 3 are in Russian. Claude drafts them, and the owner reviews only the flagged ones.
 - **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
-- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016.
+- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016, and M7's in ADR-0017.
 - **Not built in M6:** the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app` (ADR-0016).
 
 ### M4 retrieval targets from M2
