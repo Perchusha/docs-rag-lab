@@ -199,20 +199,22 @@ Written on 2026-11-06 from the named report [`2026-11-05-58ea72d2-m7-plain`](../
 
 ## What M7 found
 
-From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge has not been labelled yet, so every result on the answers waits for it.
+From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge missed, below, so no result on the answers is read until the owner decides.
 
 **C1 is not shown, as its ceiling said.** Hybrid on the compiled index ranks a primary anchor first on all 8 `error-code` questions, against 7 on the plain index: ts-0050 moved from 2 to 1. MRR goes from 0.938 to 1.000, better on 1 question, which is noise. No verdict names the plain index: hit@1 goes from 7 to 8, and hit@8 stays at 8, so no anchor of the 8 leaves the top 8.
 
 **C2 holds.** On the 40 earlier questions, hybrid on the compiled index against hybrid on the plain index: hit@1 19 to 21, hit@3 34 to 34, hit@5 and hit@8 35 and 36 unchanged, recall@8 0.881 unchanged, MRR 0.657 to 0.682. Every verdict is noise, and the plain index is ahead on none of them, net. No anchor leaves the top 8. The ranks that fell are ts-0028 from 2 to 3, ts-0035 from 1 to 2 and ts-0040 from 3 to 4, all inside the top 8, and ts-0024 from 40 to 42, outside it on both.
 
-**C3 is reached, on fully correct.** Row 3 against row 7:
+**C3 is reached by the judge's grades, on fully correct.** Row 3 against row 7:
 
 | Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
 |---|---|---|---|---|---|
 | All 48 | 35 | 41 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better: 6 clears twice 1 |
 | `error-code`, 8 | 1 | 7 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better |
 
-All citations hold and wrongly refused give no verdict: 39 to 42 of 48 citations hold, 3 to 6, and 3 to 2 wrongly refused, 0 to 1. All 6 questions that moved are `error-code` questions, so on the other 40 the two rows give the same number of fully correct answers. By this ADR the work stops here, and the owner is asked whether the ts-docs app reads the compiled index. C2 holds, which that needs.
+All citations hold and wrongly refused give no verdict: 39 to 42 of 48 citations hold, 3 to 6, and 3 to 2 wrongly refused, 0 to 1. All 6 questions that moved are `error-code` questions, so on the other 40 the two rows give the same number of fully correct answers. By this ADR the work stops here, and the owner is asked whether the ts-docs app reads the compiled index. C2 holds, which that needs. The owner said yes, if the spot check passes, in a PR of its own.
+
+**The spot check missed, on correctness.** The owner labelled 10 answers blind, sample `ba73ef7a4d6f`, in [`eval/labels/typescript/`](../../eval/labels/typescript/2026-11-05-cd07c310-m7-answers-spot-check.json). Correctness agreed on 7 of 9, with 2 disagreements against the 1 allowed. Refusal agreed on 10 of 10, and support on 6 of 7. Both disagreements are row 3 answers on `error-code` questions, ts-0046 and ts-0047, which the owner scored 2 and the judge 1. Each answer gives the meaning right, from the examples, and not the message text, which the plain chunks do not hold. The judge read the notes' "an answer that gives the message and explains it is fully correct" as asking for the message text, and said both times that the case is borderline. The same reason gives all 6 of row 3's scores of 1 on these 8 questions, in its first run. So C3 rests on what fully correct means here: with the message text optional, row 3 would be close to row 7 on these questions. The prompt and the notes do not change without the owner, and the app stays on the plain index for now.
 
 **Reported, and deciding nothing:**
 - **Claude without the docs already knows these codes.** Row 0 is fully correct on all 8 `error-code` questions, row 7 on 7, row 0 better on 1, ts-0051, which is noise. Compiling brings the answers from the docs up to what Claude knows, with citations: correct and grounded goes from 1 to 7 of the 8, and from 29 to 36 of 48 overall, 3 to 10, not significant.
