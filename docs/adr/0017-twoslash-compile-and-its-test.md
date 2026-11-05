@@ -56,6 +56,8 @@ On the plain index at `205122bb` the rule gives, with their chunks: **TS2367** (
 
 **One fallback, also mechanical.** If, after the compile, no chunk of a chosen code shows that code's message, the code is replaced by the next by the same rule, and the ADR says which and why. TS2571 may be one: the current compiler reports TS18046 where older ones reported TS2571.
 
+**Past the named fallbacks, by the same list.** The owner asked for this on 2026-11-05, after PR 3 found that no chunk of the compiled index shows the message of TS2375 or of TS2571, and before any replacement was chosen or anything was searched on the compiled index. The list is the rule's own: the codes held by 2 to 6 chunks of the plain index, 2345 left out, more chunks first, then the lower code. It is read from the top, and a code is kept when at least one chunk of the compiled index shows its message, as a line of compiler output that gives the code and the message. The reading stops when 8 are kept. A code that shows no message is skipped, TS7006 and TS18046 included, and the next one down is tried. Nothing else decides: no code is picked or passed over by hand. If the list runs out before 8, the work stops and the owner is asked.
+
 **Each question is the same sentence:** "What does error TS<code> mean?", tagged `exact-token` and `error-code`. Its primary anchors are every chunk whose directive names the code, each pinned to its directive line, with `primaryMatch: any`, so they resolve on both indexes. Its expected answer is the compiler's message as the compiled examples show it, and what the examples show it on. A note says that the message's meaning is the main point and the examples are not required. All 8 are flagged.
 
 **What C1's result covers.** The owner asked for this to be said plainly here and in the README. The 8 questions were added to make C1 measurable. So C1's result applies to error-code questions chosen by this rule, and not to `exact-token` questions in general. Of the 10 earlier `exact-token` questions, compiling can move at most 4 directly, and those are reported apart.
@@ -156,6 +158,34 @@ This section reports the first compile and the index it built, before the set ch
 **The other integrity checks hold:** the same 10 named reports say byte for byte, both dashboards answer as before, and the four other indexes keep their sha256.
 
 **One fault, caught before any number.** The first try broke every route of ts-docs: the compile read its files when its module loaded, and the app's bundler had moved the module. The dashboard check found it. The compile now loads nothing until it is used.
+
+## The set's version 2, as frozen
+
+Claude drafted it on 2026-11-05 by the rules above, from the text of both indexes' chunks, with no search and no answer read. The owner reviewed all 9 questions it adds or changes, in [`questions.review.md`](../../packages/sources/typescript/eval/questions.review.md), and it was frozen the same day, before anything was searched on the compiled index. Its hash starts `5eca5d63e26a`, and both locks, plain and compiled, record it, with 106 anchors.
+
+**The codes,** read from the top of the list, by the rule past the named fallbacks:
+
+| Code | Chunks of the plain index | Compiled chunks that show its message | |
+|---|---|---|---|
+| TS2367 | 6 | 6 | kept |
+| TS2532 | 6 | 1 | kept |
+| TS2341 | 5 | 5 | kept |
+| TS2540 | 5 | 4 | kept |
+| TS2554 | 4 | 3 | kept |
+| TS2344 | 3 | 3 | kept |
+| TS2375 | 3 | 0 | skipped |
+| TS2571 | 3 | 0 | skipped |
+| TS7006 | 3 | 2 | kept, the 7th |
+| TS18046 | 3 | 0 | skipped |
+| TS1005 | 2 | 1 | kept, the 8th |
+
+So TS7006 and TS1005 take the places of TS2375 and TS2571. The three chunks that name TS18046 are the three that name TS2571 beside it, and their examples did not compile, because typescript 6.0.2 does not raise TS2571 there.
+
+**The anchors.** The 8 questions are ts-0046 to ts-0053, in that order, with 35 primary anchors: one for each chunk whose directive names the code, pinned to the directive line. Each resolves on both indexes, only to chunks whose directive names the code. The compiled index cuts the Utility Types page differently, and one more of its chunks names TS2344, so TS2344 has an anchor for it, which on the plain index resolves to the same chunk as another of its anchors.
+
+**ts-0040 had a case this ADR did not foresee:** one of its two handbook chunks states TS2345's message on the compiled index and the other does not. The literal inference chunk gives it. The excess property checks example did not compile, because typescript 6.0.2 raises TS2561 there, so its chunk does not. The owner decided it per chunk: the first is a primary anchor, and the second stays acceptable. The owner also had the expected answer drop the claim that the handbook shows TS2345 in excess property checks, since the compiler reports TS2561 there.
+
+**What an expected answer requires.** The owner's rule for the 8, at the review: everything an expected answer requires is visible in the compiled chunks its anchors resolve to, and anything from general knowledge goes in the note as optional. Each answer was checked against the literals that show it. Five answers changed for it: ts-0046, ts-0047, ts-0048, ts-0051 and ts-0053. On ts-0053 the answer keeps to the one message the docs show, `',' expected.`, and the general form of TS1005 is in the note. The owner kept every anchor by the rule, including the 5 of TS2532's 6 whose examples did not compile, and the extra anchor of TS2344.
 
 ## Alternatives considered
 
