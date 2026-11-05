@@ -196,6 +196,13 @@ export function judgeCases(
       read: correctness('answer'),
     },
     {
+      // Without this one, a judge that caps every answer with this note would pass the case above.
+      name: 'a status its grading note asks for, given',
+      request: correctnessRequest(settings, STATUS_RULE, STATUS_RULE.answer),
+      expected: 'score 2',
+      read: correctness('answer'),
+    },
+    {
       name: 'a claim its passage supports',
       request: supportRequest(settings, [SUPPORTED_CLAIM]),
       expected: 'supported',
