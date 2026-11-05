@@ -1,8 +1,13 @@
 // TypeScript-Website markdown to sections and blocks. Prose blocks are slices
 // of the original source, so inline code, links and tables stay exactly as
-// written; code blocks are the fenced content byte-for-byte (no twoslash
-// compile until M7).
-import { normalizeText, type Block, type Section } from '@docs-rag-lab/source-kit'
+// written; code blocks are the fenced content byte-for-byte. With a compiler, an example fenced
+// as twoslash also carries what the compiler said of it (ADR-0017).
+import {
+  normalizeText,
+  type Block,
+  type CompilerOutput,
+  type Section,
+} from '@docs-rag-lab/source-kit'
 import GithubSlugger from 'github-slugger'
 import type { Nodes, Root, RootContent } from 'mdast'
 import remarkFrontmatter from 'remark-frontmatter'
@@ -11,6 +16,7 @@ import remarkParse from 'remark-parse'
 import { unified } from 'unified'
 import { parse as parseYaml } from 'yaml'
 
+import { isTwoslash } from './compile.ts'
 import { htmlToText, isHtmlComment } from './html.ts'
 
 const processor = unified().use(remarkParse).use(remarkFrontmatter, ['yaml']).use(remarkGfm)
@@ -44,15 +50,31 @@ function frontmatterOf(root: Root): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+/** Compiles one example, and gives what the compiler said, or undefined when it did not compile. */
+export type ExampleCompiler = (code: string, lang: string) => CompilerOutput | undefined
+
 /** The block for a top-level node, or undefined for nodes that carry no content. */
-function blockOf(content: string, node: RootContent): Block | undefined {
+function blockOf(
+  content: string,
+  node: RootContent,
+  compile: ExampleCompiler | undefined,
+): Block | undefined {
   switch (node.type) {
     case 'yaml':
     case 'thematicBreak':
     case 'definition':
       return undefined
-    case 'code':
-      return { kind: 'code', lang: node.lang ?? '', code: node.value }
+    case 'code': {
+      const lang = node.lang ?? ''
+      const compiled =
+        compile !== undefined && isTwoslash(node.meta) ? compile(node.value, lang) : undefined
+      return {
+        kind: 'code',
+        lang,
+        code: node.value,
+        ...(compiled === undefined ? {} : { compiled }),
+      }
+    }
     case 'html': {
       if (isHtmlComment(node.value)) return undefined
       const text = htmlToText(node.value)
@@ -75,7 +97,10 @@ function collectCode(node: Nodes, into: string[]): void {
  * enclosing headings by level; anchors follow github-slugger, as on
  * typescriptlang.org (one slugger per page, so duplicates get -1, -2, ...).
  */
-export function parseMarkdown(source: string, options: { anchors: boolean }): MarkdownDoc {
+export function parseMarkdown(
+  source: string,
+  options: { anchors: boolean; compile?: ExampleCompiler | undefined },
+): MarkdownDoc {
   const content = normalizeText(source)
   const root = processor.parse(content)
   const slugger = new GithubSlugger()
@@ -95,7 +120,7 @@ export function parseMarkdown(source: string, options: { anchors: boolean }): Ma
       })
       continue
     }
-    const block = blockOf(content, node)
+    const block = blockOf(content, node, options.compile)
     if (block !== undefined) sections[sections.length - 1]?.blocks.push(block)
   }
 

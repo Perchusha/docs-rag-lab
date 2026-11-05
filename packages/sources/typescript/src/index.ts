@@ -1,8 +1,16 @@
 // Public entry of @docs-rag-lab/source-typescript: the TypeScript-Website
 // source (SPEC section 8). Docs content is CC BY 4.0, code is MIT.
-import type { Block, ParsedDoc, Source, SourceFile } from '@docs-rag-lab/source-kit'
+import type {
+  Block,
+  CompiledSource,
+  CompileOptions,
+  ParsedDoc,
+  Source,
+  SourceFile,
+} from '@docs-rag-lab/source-kit'
 
-import { parseMarkdown } from './markdown.ts'
+import { COMPILER, createDocsCompiler, type DocsCompiler } from './compile.ts'
+import { parseMarkdown, type ExampleCompiler } from './markdown.ts'
 import { docTypeOf, INCLUDES, isOption, matchPath, optionOf, permalinkUrl } from './paths.ts'
 
 export { INCLUDES, matchPath } from './paths.ts'
@@ -17,6 +25,14 @@ export interface TypescriptSourceOptions {
  * 1: the M1 parser, as indexed at the end of M1.
  */
 export const PARSER_VERSION = 1
+
+/**
+ * The parser of the compiled index (ADR-0017): the same, with each twoslash example's compiler
+ * output on its code block. It is never the plain index's, which keeps version 1.
+ */
+export const COMPILED_PARSER_VERSION = 2
+
+export { COMPILER } from './compile.ts'
 
 /**
  * Exact tokens for keyword search. The docs write compiler errors as bare
@@ -50,9 +66,29 @@ function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
 }
 
-async function parseFile(file: SourceFile): Promise<ParsedDoc> {
+/** One file's examples through the compiler, each reported with its place in the file. */
+function exampleCompiler(
+  path: string,
+  compiler: DocsCompiler,
+  onResult: CompileOptions['onResult'],
+): ExampleCompiler {
+  let index = 0
+  return (code, lang) => {
+    const outcome = compiler.compile(code, lang)
+    onResult?.({
+      path,
+      index: index++,
+      lang,
+      ok: outcome.ok,
+      ...(outcome.ok ? {} : { reason: outcome.reason }),
+    })
+    return outcome.ok ? outcome.output : undefined
+  }
+}
+
+async function parseFile(file: SourceFile, compile?: ExampleCompiler): Promise<ParsedDoc> {
   const option = isOption(file.path)
-  const markdown = parseMarkdown(file.content, { anchors: !option })
+  const markdown = parseMarkdown(file.content, { anchors: !option, compile })
   const { frontmatter } = markdown
   const oneline = stringOf(frontmatter.oneline)
   const metadata: Record<string, unknown> = {}
@@ -94,7 +130,7 @@ async function parseFile(file: SourceFile): Promise<ParsedDoc> {
 }
 
 export function typescriptSource(options: TypescriptSourceOptions = {}): Source {
-  return {
+  const base: Omit<Source, 'compiled'> = {
     id: 'typescript',
     repo: 'https://github.com/microsoft/TypeScript-Website',
     branch: options.branch ?? 'v2',
@@ -106,7 +142,21 @@ export function typescriptSource(options: TypescriptSourceOptions = {}): Source 
     },
     parserVersion: PARSER_VERSION,
     match: matchPath,
-    parse: parseFile,
+    parse: (file) => parseFile(file),
     exactTokens: exactTokensOf,
+  }
+  return {
+    ...base,
+    // The same docs with each twoslash example compiled, for the compiled index (ADR-0017).
+    compiled: (compileOptions: CompileOptions = {}): CompiledSource => {
+      const compiler = createDocsCompiler()
+      return {
+        ...base,
+        parserVersion: COMPILED_PARSER_VERSION,
+        compiler: COMPILER,
+        parse: (file) =>
+          parseFile(file, exampleCompiler(file.path, compiler, compileOptions.onResult)),
+      }
+    },
   }
 }
