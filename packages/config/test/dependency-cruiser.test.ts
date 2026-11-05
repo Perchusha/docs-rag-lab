@@ -39,6 +39,7 @@ describe('boundary rules (SPEC section 4)', () => {
   it('packages never import apps', () => {
     expect(edges('packages-not-to-apps')).toEqual([
       'packages/core/src/imports-app.ts -> apps/alpha/src/index.ts',
+      'packages/docs-server/src/imports-app.ts -> apps/alpha/src/index.ts',
     ])
   })
 
@@ -61,6 +62,15 @@ describe('boundary rules (SPEC section 4)', () => {
       'packages/core/src/imports-app.ts -> apps/alpha/src/index.ts',
       'packages/core/src/imports-source.ts -> packages/sources/typescript/src/index.ts',
       'packages/core/src/imports-ui.ts -> packages/ui/src/index.ts',
+    ])
+  })
+
+  it('docs-server imports only core, contracts and settings', () => {
+    expect(edges('docs-server-allowed-packages')).toEqual([
+      'packages/docs-server/src/imports-app.ts -> apps/alpha/src/index.ts',
+      'packages/docs-server/src/imports-db.ts -> packages/db/src/index.ts',
+      'packages/docs-server/src/imports-source.ts -> packages/sources/typescript/src/index.ts',
+      'packages/docs-server/src/imports-ui.ts -> packages/ui/src/index.ts',
     ])
   })
 
@@ -139,6 +149,7 @@ describe('boundary rules (SPEC section 4)', () => {
       'apps/alpha/src/imports-app.ts -> apps/beta/src/index.ts',
       'packages/cli/src/deep-import.ts -> packages/core/src/internal.ts',
       'packages/core/src/imports-app.ts -> apps/alpha/src/index.ts',
+      'packages/docs-server/src/imports-app.ts -> apps/alpha/src/index.ts',
     ])
   })
 
@@ -160,6 +171,9 @@ describe('boundary rules (SPEC section 4)', () => {
       'packages/core/src/index.ts -> packages/contracts/src/index.ts',
       'packages/core/src/imports-settings-type.ts -> packages/settings/src/index.ts',
       'packages/ui/src/imports-contracts.ts -> packages/contracts/src/index.ts',
+      'packages/docs-server/src/index.ts -> packages/core/src/index.ts',
+      'packages/docs-server/src/index.ts -> packages/contracts/src/index.ts',
+      'packages/docs-server/src/index.ts -> packages/settings/src/index.ts',
       'packages/core/src/same-package.ts -> packages/core/src/internal.ts',
       'packages/sources/typescript/src/same-package.ts -> packages/sources/typescript/src/internal.ts',
       'packages/sources/typescript/src/index.ts -> packages/source-kit/src/index.ts',

@@ -1,4 +1,4 @@
-// The app's routes as plain functions from a Request to a Response, so they are
+// An app's routes as plain functions from a Request to a Response, so they are
 // tested without Next.js. Each route file is one line that calls one of these
 // with the app's engine (apps/CLAUDE.md: routes stay thin).
 import {
@@ -30,7 +30,7 @@ function messageOf(error: unknown): string {
 
 function statusOf(error: unknown): number {
   if (error instanceof InvalidRequestError || error instanceof UnknownSourceError) return 400
-  // The index is built by `pnpm drl sync typescript`; until then the app cannot answer.
+  // The index is built by `pnpm drl sync <source>`; until then the app cannot answer.
   if (error instanceof IndexNotFoundError) return 503
   return 500
 }

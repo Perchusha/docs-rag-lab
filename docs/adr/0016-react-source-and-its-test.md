@@ -54,9 +54,10 @@ If the survey of the docs finds that pages state dates of their own, those dates
 
 ### A fresh question about an API that is not stable
 
-The newest pages of react.dev often describe unstable APIs. So the owner added this on 2026-11-05, before any walk on React. If a fresh question is about a canary or experimental API, its expected answer states that status, and an answer that omits it cannot be fully correct.
+The newest pages of react.dev often describe unstable APIs. So the owner added this on 2026-11-05, before any walk on React. If a fresh question is about an API on any non-stable release channel (canary, experimental, release candidate or beta), its expected answer states that status, and an answer that omits it cannot be fully correct. The owner worded it by channel so that none has to be decided case by case.
 
-- **What counts is what the docs say at the pinned commit:** a page's `version` frontmatter, a box such as `<Experimental>`, or a badge on the item. At the survey's commit that is 3 experimental pages (`experimental_taintObjectReference`, `experimental_taintUniqueValue`, `react-devtools-cdt-mcp`), `<ExperimentalBadge />` on `<Suspense defer>`, and `<CanaryBadge />` on `importMap`. A canary build pinned in an example's `package.json` says nothing to a reader by itself, so a question that lands on one goes to the owner.
+- **What counts is what the docs say at the pinned commit:** a page's `version` frontmatter, a box such as `<Experimental>`, or a badge on the item. At the pin that is 3 experimental pages (`experimental_taintObjectReference`, `experimental_taintUniqueValue`, `react-devtools-cdt-mcp`), 1 release candidate page (`eslint-plugin-react-hooks`), `<ExperimentalBadge />` on `<Suspense defer>`, and `<CanaryBadge />` on `importMap`. No page, box or badge says beta, and a `version` the parser does not know stops it.
+- **What goes to the owner instead of being decided here:** a question on one of the 17 pages under `eslint-plugin-react-hooks/lints/`, which state no version of their own; on a version pinned in an example's `package.json`, such as `"react": "beta"` in `useTransition`, which says nothing to a reader by itself; or on `TanStack Start (Beta)` in `creating-a-react-app`, which is another project's status.
 - **The `answer` alone would not do it.** The judge's prompt says that "details the question did not ask for do not count either way", and the prompts do not change. So such a question also has a `note`, which reaches the judge as its grading note and the owner on the label sheet. It says that the status is part of what a fully correct answer gives, and that an answer without it scores at most 1. Nothing in the prompts changes, so ADR-0015's reason for no new calibration still holds.
 - **Every such question is flagged** for the owner, with its note.
 - **A row that reads the docs can state the status.** The site shows a page's `version` beside its title, and the parser puts it in the title, which starts every chunk of that page. A badge stays as words in its item, and a box stays a callout.
@@ -67,6 +68,7 @@ The newest pages of react.dev often describe unstable APIs. So the owner added t
 - **Flags** are ADR-0015's. The copied wording is checked by a script as well as by reading: a run of 4 or more words shared with a heading or the anchored passage, or a whole heading, counts. A single identifier such as `useState` does not.
 - **Frozen before any row answers.** After the owner has reviewed the flagged questions, `drl eval check --accept` writes the lock, the set is version 1 in ADR-0009's changelog, and the rule for changing a frozen set applies.
 - **No `targets.json`.** Set-level criteria decide, and this set has no per-question targets (ADR-0014).
+- **The app's example questions stay out of the set,** and the app's smoke test asks one of them. They were picked before any walk, and a reader could copy them from the page.
 
 **What this weighting does.** Ten of the 16 answerable questions come from the newest parts of the docs. So the overall numbers describe a set weighted towards new pages, not the docs at large, and the README says so beside them.
 
@@ -137,7 +139,7 @@ These come first. If one fails, the numbers are not read as a result.
 
 **The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and "The source, as surveyed" below records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 
-**`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes.
+**`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes, and builds its own source, since the package imports none.
 
 **Not built in M6,** by the owner's decision: the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app`. M6's acceptance needs none of them, and the same commands run by hand.
 

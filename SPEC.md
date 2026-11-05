@@ -87,6 +87,7 @@ docs/journal.md     short notes per milestone with before/after metrics
 - `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`. It talks to app route handlers.
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package. It holds the shapes that core produces and ui renders (ADR-0006).
 - `settings` imports no internal package, and `core` imports only its types (ADR-0007).
+- `docs-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a concrete source. An app builds its source and passes it in (ADR-0016).
 - A package is imported only through its public `index.ts`, never through internals.
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
@@ -106,7 +107,7 @@ export default defineDocsApp({
 })
 ```
 
-The app itself is a page and three one-line routes over the engine: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order). It listens on 127.0.0.1 only (ADR-0008).
+An app itself is a page and one-line routes over the handlers in `docs-server`: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order), and the dashboard's under `/api/eval`. It listens on 127.0.0.1 only (ADR-0008): `ts-docs` on port 3000 and `react-docs` on 3001.
 
 **Storage layout:**
 - The index belongs to the source, not to the app: `data/sources/<source-id>.sqlite`. Apps open the source indexes they need, so `interview-prep` reads the TS and React indexes without duplicating them.

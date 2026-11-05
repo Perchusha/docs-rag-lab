@@ -1,8 +1,9 @@
-import { handleEvalRun } from '../../../../src/server/eval-handlers.ts'
-import { evalStore } from '../../../../src/server/eval-store.ts'
+import { handleEvalRun } from '@docs-rag-lab/docs-server'
+
+import { appEvalStore } from '../../../../src/server.ts'
 
 export const dynamic = 'force-dynamic'
 
 export function GET(request: Request): Response {
-  return handleEvalRun(evalStore(), request)
+  return handleEvalRun(appEvalStore(), request)
 }

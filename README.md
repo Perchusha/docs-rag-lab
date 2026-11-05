@@ -121,6 +121,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl eval walk [--top <n>]` | Every indexed page and heading, newest first by git history at the index's commit, to pick fresh questions from ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)). It clones the docs' history once, under the cache, and looks at no question or ranking |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
+| `pnpm dev:react` | The react-docs app on http://127.0.0.1:3001, after `drl sync react`. It has the same routes and costs as `pnpm dev` |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
 Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices. It also stops before its next paid call if HEAD or the branch changes under it, so that a report cannot name the wrong commit ([ADR-0010](docs/adr/0010-eval-reports-and-reproducibility.md)).
@@ -130,9 +131,12 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 | Path | Package | Purpose |
 |---|---|---|
 | `apps/ts-docs` | `@docs-rag-lab/ts-docs` | TypeScript docs assistant and eval dashboard: a Next.js app, its config and its routes |
+| `apps/react-docs` | `@docs-rag-lab/react-docs` | React docs assistant and eval dashboard: the same, for the React docs |
+| `packages/docs-server` | `@docs-rag-lab/docs-server` | What the docs apps share on the server: route handlers, the engine's one instance, where the eval reports are |
 | `packages/core` | `@docs-rag-lab/core` | Ingest, embeddings and the embedding cache, retrieval, generation, eval runner |
 | `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, chunker, conformance suite |
 | `packages/sources/typescript` | `@docs-rag-lab/source-typescript` | TypeScript-Website parser |
+| `packages/sources/react` | `@docs-rag-lab/source-react` | react.dev parser |
 | `packages/db` | `@docs-rag-lab/db` | SQLite schema, migrations, typed queries |
 | `packages/contracts` | `@docs-rag-lab/contracts` | Data shapes that cross boundaries: retrieval trace, citations, answer events |
 | `packages/settings` | `@docs-rag-lab/settings` | Engine settings shared by the CLI and apps: models, prices, limits |
@@ -145,7 +149,7 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 | `eval/` | | Committed reports, the contexts of the contextual index and the human labels that check the judge |
 | `docs/adr` | | Architecture decision records |
 
-React support (`packages/sources/react`, `apps/react-docs`) arrives in M6 and the interview-prep app in M8. The MCP server comes later, after v1.0.
+The interview-prep app arrives in M8. The MCP server comes later, after v1.0.
 
 ## Architecture boundaries
 
@@ -154,6 +158,7 @@ Enforced by dependency-cruiser on every `lint` run, locally, in CI and in the Cl
 - Apps import packages. Packages never import apps, and apps never import other apps.
 - `sources/*` import only `source-kit`.
 - `core` imports only `source-kit`, `db`, `contracts`, and types from `settings`.
+- `docs-server` imports only `core`, `contracts` and `settings`.
 - `source-kit`, `db`, `contracts` and `settings` import no internal package. `contracts` imports no npm package or Node.js built-in either.
 - `ui` is client-safe: of the internal packages it imports only `contracts`, and no Node.js built-ins.
 - A package is imported only through its public `src/index.ts`. The one exception is ui's `tokens.css`, which an app's global stylesheet imports.

@@ -12,9 +12,9 @@ Thin Next.js App Router apps. An app is config, theme and example questions; log
 
 - One config file per app: `rag.config.ts`, checked with `defineDocsApp` from ui (SPEC section 4). It holds only what belongs to the app: id, source, title, tagline, theme and example questions. Engine settings (model IDs, prices, limits, retrieval defaults) come from `@docs-rag-lab/settings` (ADR-0007), never from the app or its components.
 - The theme accent is a light and a dark shade, each at least 4.5:1 on its background.
-- Routes are one line each: they call the handlers in `src/server/handlers.ts`, which take a `Request` and return a `Response` and are unit tested with a fake engine. New route behavior goes in a handler, with a test.
-- One engine per server process (`src/server/engine.ts`), built on the first request: the rate limiter must see every request. It loads the root dotenv file; Next.js only reads the app folder's.
-- `dev` and `start` bind to `127.0.0.1`. The routes have no authentication and `/api/ask` spends Claude credits, so never listen on other interfaces (ADR-0008).
+- Routes are one line each: they call the handlers in `@docs-rag-lab/docs-server`, which take a `Request` and return a `Response` and are unit tested with a fake engine. New route behavior goes in a handler there, with a test.
+- One engine per server process, built on the first request: the rate limiter must see every request. `src/server.ts` builds the app's source, which docs-server does not import, and gets the engine from `onceEngine`. That loads the root dotenv file; Next.js only reads the app folder's.
+- `dev` and `start` bind to `127.0.0.1`, on a port of the app's own: 3000 for ts-docs, 3001 for react-docs. The routes have no authentication and `/api/ask` spends Claude credits, so never listen on other interfaces (ADR-0008).
 - `next.config.ts` keeps `sqlite-vec` in `serverExternalPackages` (it fails bundled) and `agentRules: false` (otherwise `next dev` writes an `AGENTS.md` with an em dash).
 - `typecheck` runs `next typegen` before tsc. `next-env.d.ts` is generated and gitignored.
 - `app/globals.css` imports `@docs-rag-lab/ui/tokens.css`, the one place the app loads the tokens, and gives the body the same colours and type as Storybook's `preview.css`, so a page cannot pass in one and fail in the other. A test holds both.
