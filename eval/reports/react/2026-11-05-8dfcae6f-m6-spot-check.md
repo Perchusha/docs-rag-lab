@@ -8,4 +8,8 @@ Report: `8dfcae6f`, m6, 2026-11-05T15:16:30.529Z. It allows 1 disagreement on ea
 | refusal | 10 | 10 | 1.00 | 72% to 100% | yes |
 | support | 5 | 6 | 0.00 | 44% to 97% | yes |
 
+Disagreements on citations:
+
+- react-0015, row 3: human supported, judge unsupported
+
 This spot check passed.

@@ -13,6 +13,14 @@
   },
   "judgeModel": "claude-opus-5-5",
   "correctnessDisagreements": [],
+  "supportDisagreements": [
+    {
+      "questionId": "react-0015",
+      "row": 3,
+      "human": true,
+      "judge": false
+    }
+  ],
   "labelled": 10,
   "agreement": [
     {
