@@ -10,7 +10,7 @@ The repository's check refuses em dashes in this file, so one from the docs woul
 
 ## The status rule, on 2 questions
 
-Both have the note ADR-0016 asks for, and it reaches the judge as a grading note. **One case of known grade has tried this path:** on react-0002's expert answer without its last sentence, the status, the judge gave 1, and its reasoning named the note. That is one call, on one answer, and it does not show that an answer with the status gets 2.
+Both have the note ADR-0016 asks for, and it reaches the judge as a grading note. **Two cases of known grade have tried this path:** on react-0002's expert answer without its last sentence, the status, the judge gave 1, and its reasoning named the note. On the expert answer itself it gave 2. That answer is the expert's word for word, so these cases do not show how the judge treats a status given in other words.
 
 ### react-0001, fresh
 
