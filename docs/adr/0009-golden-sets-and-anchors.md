@@ -95,6 +95,7 @@ The version and a hash of the file are in the lock, so the freeze is checked and
 |---|---|---|---|---|---|
 | typescript | 1 | `0d270eac9aef` | 2026-11-03 | The first reviewed set: 40 answerable questions and 5 unanswerable, at docs `205122bb` | The first version. Each expected answer and anchor was checked against the anchored text in two reviews |
 | react | 1 | `5ea47810f40e` | 2026-11-05 | The first reviewed set: 16 answerable questions and 4 unanswerable, at docs `2177e28d` | The first version. Claude drafted it from the docs' text, with no retrieval and no answer read. The owner reviewed the 10 flagged questions and decided the anchors of 4 others, by ADR-0015. The other 6 were frozen unread |
+| react | 2 | `099ca3b20cb0` | 2026-11-05 | Two grading notes and one acceptable anchor, on react-0011 and react-0015, before any row answered. Version 1 was never measured | `learn/state-a-components-memory.md` and `lints/rules-of-hooks.md` both state the call order, the mechanism react-0011 asks about, so the lint page answers in full and the array of state pairs is optional. `useReducer.md`, a primary anchor of react-0015, gives the cause as dispatching an action, so an answer in those terms is fully correct |
 
 ## Measured before and after
 

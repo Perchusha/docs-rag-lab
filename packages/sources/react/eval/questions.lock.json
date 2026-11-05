@@ -1,6 +1,6 @@
 {
-  "setVersion": 1,
-  "setHash": "5ea47810f40e3ed1e957872d51e5b75a7019a3e5163fd68ce085bf5c9dcb2372",
+  "setVersion": 2,
+  "setHash": "099ca3b20cb0fb8e7995b5fd7e362302d91b55ea50ad46baf44e55651313ab3a",
   "docsSha": "2177e28d3c3c16a8183346b9140f11ce0ee6af25",
   "anchors": {
     "src/content/learn/preserving-and-resetting-state.md#different-components-at-the-same-position-reset-state contains function is created for every render of": [
@@ -43,6 +43,12 @@
       {
         "chunkId": "4c75461c68669bf3c5dbf224",
         "textHash": "0672a35a4d652d5e223cb7dc2b41a8c9d0d924b78de89f35a83b3881c4151e55"
+      }
+    ],
+    "src/content/reference/eslint-plugin-react-hooks/lints/rules-of-hooks.md#rule-details contains React relies on the order in which hooks are called": [
+      {
+        "chunkId": "fb41b01ebf5fceb03d0fb5af",
+        "textHash": "c3486f2b3bf1f8337d37d155eaf580c21bb594d6d5f889acb9535a748dbda77a"
       }
     ],
     "src/content/reference/eslint-plugin-react-hooks/lints/static-components.md#rule-details contains Components defined inside other components are recreated on every render": [
