@@ -197,6 +197,33 @@ Written on 2026-11-06 from the named report [`2026-11-05-58ea72d2-m7-plain`](../
 
 **What is still measured, as written.** C1's other half, whether any verdict names the plain index on hit@1, hit@3, hit@5, hit@8 or recall@8 on these 8 questions. C2, on the 40 earlier questions. And C3, on the answers, which is where compiling can still show: the plain chunks name the code but not its message, and the compiled chunks give it.
 
+## What M7 found
+
+From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge has not been labelled yet, so every result on the answers waits for it.
+
+**C1 is not shown, as its ceiling said.** Hybrid on the compiled index ranks a primary anchor first on all 8 `error-code` questions, against 7 on the plain index: ts-0050 moved from 2 to 1. MRR goes from 0.938 to 1.000, better on 1 question, which is noise. No verdict names the plain index: hit@1 goes from 7 to 8, and hit@8 stays at 8, so no anchor of the 8 leaves the top 8.
+
+**C2 holds.** On the 40 earlier questions, hybrid on the compiled index against hybrid on the plain index: hit@1 19 to 21, hit@3 34 to 34, hit@5 and hit@8 35 and 36 unchanged, recall@8 0.881 unchanged, MRR 0.657 to 0.682. Every verdict is noise, and the plain index is ahead on none of them, net. No anchor leaves the top 8. The ranks that fell are ts-0028 from 2 to 3, ts-0035 from 1 to 2 and ts-0040 from 3 to 4, all inside the top 8, and ts-0024 from 40 to 42, outside it on both.
+
+**C3 is reached, on fully correct.** Row 3 against row 7:
+
+| Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
+|---|---|---|---|---|---|
+| All 48 | 35 | 41 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better: 6 clears twice 1 |
+| `error-code`, 8 | 1 | 7 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better |
+
+All citations hold and wrongly refused give no verdict: 39 to 42 of 48 citations hold, 3 to 6, and 3 to 2 wrongly refused, 0 to 1. All 6 questions that moved are `error-code` questions, so on the other 40 the two rows give the same number of fully correct answers. By this ADR the work stops here, and the owner is asked whether the ts-docs app reads the compiled index. C2 holds, which that needs.
+
+**Reported, and deciding nothing:**
+- **Claude without the docs already knows these codes.** Row 0 is fully correct on all 8 `error-code` questions, row 7 on 7, row 0 better on 1, ts-0051, which is noise. Compiling brings the answers from the docs up to what Claude knows, with citations: correct and grounded goes from 1 to 7 of the 8, and from 29 to 36 of 48 overall, 3 to 10, not significant.
+- **The `exact-token` tag of 18:** retrieval MRR 0.759 to 0.773, noise. Fully correct 11 to 17, all 6 from the `error-code` questions. The 10 earlier `exact-token` questions are fully correct 10 times under both rows.
+- **ts-0040's target from M2, in the top 8:** hybrid ranks a primary anchor 3rd on the plain index and 4th on the compiled one. Every answer on ts-0040, in rows 0, 2, 3 and 7, scores 2 under its new note.
+- **Vector search alone** finds a primary anchor in its top 8 on 1 of the 8 `error-code` questions on the plain index and 2 on the compiled one, and row 2 refuses all 8.
+
+**Integrity checks 2, 5, 6 and 7 hold.** The four other indexes keep their sha256. The commit that froze version 2, `fcb0876`, is an ancestor of every commit the three reports stamp. The three reports reproduce byte for byte, recorded next to them, and all 1,427 cited texts are in their chunk's text, ignoring whitespace, 71 of row 7's with compiler output. Check 1, the earlier named reports, and check 3, the dashboards, run at the end.
+
+**Spend:** $4.84 of Claude at list prices, against an estimate of about $5.30 and a limit of $10: $0.30 for the pilot and $4.54 for the named run. Voyage: 8 rerank calls, 69,075 tokens, and one embedding request, inside the free tokens, with no 429.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
