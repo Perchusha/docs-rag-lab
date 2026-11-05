@@ -68,6 +68,7 @@ The newest pages of react.dev often describe unstable APIs. So the owner added t
 - **Flags** are ADR-0015's. The copied wording is checked by a script as well as by reading: a run of 4 or more words shared with a heading or the anchored passage, or a whole heading, counts. A single identifier such as `useState` does not.
 - **Frozen before any row answers.** After the owner has reviewed the flagged questions, `drl eval check --accept` writes the lock, the set is version 1 in ADR-0009's changelog, and the rule for changing a frozen set applies.
 - **No `targets.json`.** Set-level criteria decide, and this set has no per-question targets (ADR-0014).
+- **The app's example questions stay out of the set,** and the app's smoke test asks one of them. They were picked before any walk, and a reader could copy them from the page.
 
 **What this weighting does.** Ten of the 16 answerable questions come from the newest parts of the docs. So the overall numbers describe a set weighted towards new pages, not the docs at large, and the README says so beside them.
 
@@ -138,7 +139,7 @@ These come first. If one fails, the numbers are not read as a result.
 
 **The source.** `packages/sources/react`, scaffolded with `turbo gen source`. `learn/` is doc type `handbook` and `reference/` is `reference`. It parses with the same pipeline as TypeScript's, plus `remark-mdx`. The components are surveyed first, as SPEC section 8 says, and "The source, as surveyed" below records what became of each, and what anchors the headings have. The TypeScript parser and the chunker are not changed for it.
 
-**`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes.
+**`packages/docs-server`.** About 280 lines of logic are in `apps/ts-docs/src/server`: the route handlers, the engine's one instance and the eval store. A second app cannot import them, since apps never import apps, and they are logic, which apps should not hold (ADR-0008). They move to a package that imports `core`, `contracts` and `settings`, with their tests and a boundary rule, and no behaviour changes. Each app keeps its config, theme, pages and one-line routes, and builds its own source, since the package imports none.
 
 **Not built in M6,** by the owner's decision: the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app`. M6's acceptance needs none of them, and the same commands run by hand.
 

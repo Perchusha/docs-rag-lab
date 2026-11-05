@@ -44,9 +44,10 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Rate limits of embeddings and rerank: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
 - The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
+- The react-docs app: `pnpm dev:react` (http://127.0.0.1:3001; the same routes and costs as ts-docs, and its inspector stays closed until React's set is frozen, ADR-0016)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
-`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. The app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev` and `pnpm storybook` keep running: start them in the background and stop them when done.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. An app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev`, `pnpm dev:react` and `pnpm storybook` keep running: start them in the background and stop them when done.
 
 ## Hooks
 
@@ -67,6 +68,7 @@ These are enforced by dependency-cruiser. Do not work around them.
 - `ui` is client-safe: of the internal packages it imports only `contracts`, never `core` or `db`.
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package (ADR-0006).
 - `settings` imports no internal package, and `core` imports only its types (ADR-0007).
+- `docs-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a source (ADR-0016).
 - Import a package only through its public `index.ts`. The one exception is `@docs-rag-lab/ui/tokens.css`, which an app's global stylesheet imports.
 
 ## Definition of done
