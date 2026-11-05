@@ -307,6 +307,10 @@ export {
   CHUNKER_VERSION,
   DOC_TYPES,
   estimateTokens,
+  type CompiledSource,
+  type CompileOptions,
+  type CompileResult,
+  type CompilerOutput,
   type DocType,
   type Source,
 } from '@docs-rag-lab/source-kit'

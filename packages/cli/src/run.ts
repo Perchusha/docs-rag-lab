@@ -55,6 +55,7 @@ import {
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { evalDraftCheckCommand, evalWalkCommand, WALK_TOP } from './eval-draft.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
+import { syncCompiledCommand } from './sync-compiled.ts'
 import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
 import { formatDuration } from './format.ts'
 
@@ -72,6 +73,10 @@ Commands:
                               them with the forecast for the rest
       [--control]             Build its control instead: the same, with the prefix "title >
                               section path" from code, and no call to Claude. Needs --yes
+      [--compiled]            Build the compiled index instead, at the plain index's commit
+                              (ADR-0017): compiles every twoslash example, records what did not
+                              compile under eval/compile/, stops below 90% compiled, and prints
+                              what it would embed. Needs --yes to build it
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -413,12 +418,6 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --${variants.join(' and --')} are different indexes\n\n${USAGE}`)
     return 2
   }
-  if (variant === 'compiled' && command === 'sync') {
-    err.write(
-      `drl: sync --compiled comes with the compile, in M7's next step (ADR-0017)\n\n${USAGE}`,
-    )
-    return 2
-  }
   if (variant !== undefined && command !== 'sync' && command !== 'eval') {
     err.write(`drl: --${variant} works only with sync and eval check\n\n${USAGE}`)
     return 2
@@ -434,7 +433,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     return 2
   }
   if (command === 'sync' && values.yes && variant === undefined) {
-    err.write(`drl: --yes works with sync only together with --contextual or --control\n\n${USAGE}`)
+    err.write(
+      `drl: --yes works with sync only together with --contextual, --control or --compiled\n\n${USAGE}`,
+    )
     return 2
   }
   if (values.accept && command !== 'eval') {
@@ -491,7 +492,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const source = rest[0]
       if (source === undefined)
         throw new CliError('sync needs a source id, for example: drl sync typescript')
-      if (values.control) {
+      if (values.compiled) {
+        await syncCompiledCommand(ctx, { source, yes: values.yes })
+      } else if (values.control) {
         await syncControlCommand(ctx, { source, yes: values.yes })
       } else if (values.contextual) {
         await syncContextualCommand(ctx, {

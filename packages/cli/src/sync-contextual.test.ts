@@ -360,7 +360,7 @@ describe('drl sync --contextual', () => {
     [['sync', 'demo', '--pilot', '2'], '--pilot works only with sync --contextual'],
     [
       ['sync', 'demo', '--yes'],
-      '--yes works with sync only together with --contextual or --control',
+      '--yes works with sync only together with --contextual, --control or --compiled',
     ],
     [['search', 'q', '--contextual'], '--contextual works only with sync and eval check'],
     [['search', 'q', '--control'], '--control works only with sync and eval check'],

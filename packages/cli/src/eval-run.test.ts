@@ -499,12 +499,6 @@ describe('drl eval', () => {
       expect(err).toContain('without the reranker (ADR-0017)')
     })
 
-    it('refuses to build the compiled index until the compile exists', async () => {
-      const { code, err } = await drl('sync', 'typescript', '--compiled')
-      expect(code).toBe(2)
-      expect(err).toContain('sync --compiled comes with the compile')
-    })
-
     it('says what to run when an index is not built yet', async () => {
       const { code, err } = await drl('eval', '--contextual')
       expect(code).toBe(1)
