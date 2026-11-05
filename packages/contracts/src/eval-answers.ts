@@ -225,6 +225,26 @@ export interface CalibrationDisagreement {
   judge: 0 | 1 | 2
 }
 
+/** An answer on which a spot check's human and judge differ about its citations (ADR-0016). */
+export interface SupportDisagreement {
+  questionId: string
+  row: AnswerRow
+  /** Whether each took every cited claim as supported. */
+  human: boolean
+  judge: boolean
+}
+
+/**
+ * What a source's `eval/about.json` says beside its numbers, for a source whose set or decisions
+ * differ from the first source's. A source with no such file says nothing more.
+ */
+export interface EvalSourceAbout {
+  /** Who drafted the set, who reviewed it and how it is weighted (ADR-0015). */
+  set?: string
+  /** Why this source's app stays on hybrid, when its retrieval gain did not reach the answers. */
+  staysOnHybrid?: string
+}
+
 /** What `drl eval verify --record` found (ADR-0013). */
 export interface EvalVerifyRecord {
   status: 'identical' | 'equivalent' | 'inconclusive' | 'different' | 'not-comparable'
@@ -264,6 +284,7 @@ export interface EvalSpotCheck {
   prompts: Record<string, string>
   judgeModel: string
   correctnessDisagreements: CalibrationDisagreement[]
+  supportDisagreements: SupportDisagreement[]
   labelled: number
   /** The dimensions it could compare. */
   agreement: AgreementResult[]

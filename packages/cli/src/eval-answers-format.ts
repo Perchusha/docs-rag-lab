@@ -313,6 +313,17 @@ export function formatSpotCheck(spot: EvalSpotCheck): string {
     ...(disagreements.length === 0
       ? []
       : ['Disagreements on correctness:', disagreements.join('\n')]),
+    ...(spot.supportDisagreements.length === 0
+      ? []
+      : [
+          'Disagreements on citations:',
+          spot.supportDisagreements
+            .map(
+              ({ questionId, row, human, judge }) =>
+                `- ${questionId}, row ${String(row)}: human ${human ? 'supported' : 'unsupported'}, judge ${judge ? 'supported' : 'unsupported'}`,
+            )
+            .join('\n'),
+        ]),
     spot.passed
       ? 'This spot check passed.'
       : 'This spot check missed, so the work stops and the owner is asked (ADR-0016).',

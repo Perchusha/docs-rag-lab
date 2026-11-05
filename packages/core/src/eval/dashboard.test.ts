@@ -429,6 +429,35 @@ describe('a report with the reranker', () => {
       )
     })
 
+    it('takes the reason from the source, when it gives one, and says who drafted the set', () => {
+      const run = buildDashboardRun({
+        id: 'run-id',
+        report: withRerank({ answers: ladderAnswers() }),
+        calibrations: [],
+        verify: null,
+        indexDocsSha: 'docs-sha',
+        contextual: contextualResult(),
+        about: { set: 'Claude drafted it.', staysOnHybrid: 'Because of R3.' },
+      })
+
+      expect(run.answers?.notes?.[1]).toBe('Because of R3.')
+      expect(run.trust.goldenSet.about).toBe('Claude drafted it.')
+    })
+
+    it('adds nothing to the set when the source says nothing', () => {
+      const run = buildDashboardRun({
+        id: 'run-id',
+        report: withRerank({ answers: ladderAnswers() }),
+        calibrations: [],
+        verify: null,
+        indexDocsSha: 'docs-sha',
+        contextual: contextualResult(),
+        about: {},
+      })
+
+      expect(Object.keys(run.trust.goldenSet)).toEqual(['version', 'hash'])
+    })
+
     it('does not say so when an answer row is named better', () => {
       const better = ladderAnswers(() => 2, {
         verdicts: ladderAnswers().verdicts.map((item) =>
@@ -496,6 +525,7 @@ describe('a report with the reranker', () => {
       prompts: {},
       judgeModel: 'j',
       correctnessDisagreements: [{ questionId: ID(1), row: 3, human: 1, judge: 2 }],
+      supportDisagreements: [],
       labelled: 10,
       agreement: [
         {

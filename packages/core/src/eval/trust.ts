@@ -145,16 +145,41 @@ export function judgeSentence(judge: DashboardJudge): string {
   return [status, ...unread, ...(judge.bias === null ? [] : [judge.bias])].join(' ')
 }
 
+/** Which way a spot check's disagreements on citations lean, which ADR-0016 asks it to say. */
+function supportLean(disagreements: EvalSpotCheck['supportDisagreements']): string | null {
+  const stricter = disagreements.filter(({ human, judge }) => human && !judge).length
+  const laxer = disagreements.filter(({ human, judge }) => !human && judge).length
+  if (stricter > 0 && laxer > 0) {
+    return `On citations, the judge is stricter than the human on ${String(stricter)} and more lenient on ${String(laxer)}.`
+  }
+  if (stricter === 1) {
+    return 'The 1 disagreement on citations is the judge finding a claim unsupported that the human took as supported.'
+  }
+  if (stricter > 1) {
+    return `All ${String(stricter)} disagreements on citations are the judge finding a claim unsupported that the human took as supported.`
+  }
+  if (laxer === 1) {
+    return 'The 1 disagreement on citations is the judge taking a claim as supported that the human did not.'
+  }
+  if (laxer > 1) {
+    return `All ${String(laxer)} disagreements on citations are the judge taking a claim as supported that the human did not.`
+  }
+  return null
+}
+
 /** A spot check as the dashboard shows it (ADR-0016). */
 export function spotCheckView(spot: EvalSpotCheck): DashboardSpotCheck {
   const higher = spot.correctnessDisagreements.filter(({ human, judge }) => judge > human).length
   const lower = spot.correctnessDisagreements.filter(({ human, judge }) => judge < human).length
+  const leans = [biasWords(higher, lower).bias, supportLean(spot.supportDisagreements)].filter(
+    (words) => words !== null,
+  )
   return {
     passed: spot.passed,
     labelled: spot.labelled,
     allowed: spot.allowed,
     agreement: spot.agreement.map(agreementOf),
-    bias: biasWords(higher, lower).bias,
+    bias: leans.length === 0 ? null : leans.join(' '),
   }
 }
 

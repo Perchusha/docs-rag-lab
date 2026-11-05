@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   EVAL_REPORT_VERSION,
   parseEvalCalibration,
+  parseEvalSourceAbout,
   parseEvalSpotCheck,
   parseEvalReport,
   parseEvalVerifyRecord,
@@ -69,16 +70,40 @@ describe('a report with answers', () => {
   })
 })
 
+describe('parseEvalSourceAbout', () => {
+  it('takes either field, or neither', () => {
+    expect(parseEvalSourceAbout({ set: 'Drafted.' })).toEqual({
+      ok: true,
+      value: { set: 'Drafted.' },
+    })
+    expect(parseEvalSourceAbout({})).toEqual({ ok: true, value: {} })
+  })
+
+  it('refuses what is not text', () => {
+    expect(parseEvalSourceAbout({ set: 1 }).ok).toBe(false)
+    expect(parseEvalSourceAbout({ staysOnHybrid: true }).ok).toBe(false)
+    expect(parseEvalSourceAbout([]).ok).toBe(false)
+  })
+})
+
 describe('parseEvalSpotCheck', () => {
   const spotCheck = {
     report: { repoSha: 'x', name: 'final', createdAt: '2026-11-05T00:00:00.000Z' },
     agreement: [{ dimension: 'correctness', agreed: 8, compared: 8, interval: [0.6, 1] }],
+    supportDisagreements: [],
     allowed: 1,
     passed: true,
   }
 
   it('takes one whole', () => {
     expect(parseEvalSpotCheck(spotCheck)).toEqual({ ok: true, value: spotCheck })
+  })
+
+  it('needs the disagreements on citations, so that it can say which way they lean', () => {
+    expect(parseEvalSpotCheck({ ...spotCheck, supportDisagreements: undefined })).toEqual({
+      ok: false,
+      error: 'a spot check needs supportDisagreements',
+    })
   })
 
   it.each([

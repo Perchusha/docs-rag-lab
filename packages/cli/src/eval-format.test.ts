@@ -192,6 +192,16 @@ describe('what the reranks took', () => {
 describe('formatEvalMarkdown', () => {
   const markdown = formatEvalMarkdown(report())
 
+  it('says what the source says of its set, above the numbers, and nothing when it says nothing', () => {
+    const text = formatEvalMarkdown(report(), 'Claude drafted this set.')
+
+    expect(text.indexOf('Claude drafted this set.')).toBeGreaterThan(-1)
+    expect(text.indexOf('Claude drafted this set.')).toBeLessThan(
+      text.indexOf('## Primary anchors'),
+    )
+    expect(text.replace('Claude drafted this set.\n\n', '')).toBe(markdown)
+  })
+
   it('puts each strategy on its own numbers, primary and recall and MRR in their columns', () => {
     expect(markdown).toContain(
       '| Strategy | Questions | hit@1 | hit@3 | hit@5 | hit@8 | recall@8 | MRR |',

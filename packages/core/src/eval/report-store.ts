@@ -8,12 +8,14 @@ import { join } from 'node:path'
 import {
   parseEvalCalibration,
   parseEvalReport,
+  parseEvalSourceAbout,
   parseEvalSpotCheck,
   parseEvalVerifyRecord,
   type DashboardRunEntry,
   type DashboardRunList,
   type EvalCalibration,
   type EvalReport,
+  type EvalSourceAbout,
   type EvalSpotCheck,
   type EvalVerifyRecord,
 } from '@docs-rag-lab/contracts'
@@ -24,6 +26,18 @@ export function reportsDir(root: string, sourceId: string): string {
 
 export function goldenSetPath(root: string, sourceId: string): string {
   return join(root, 'packages', 'sources', sourceId, 'eval', 'questions.jsonl')
+}
+
+/**
+ * What a source says beside its numbers (ADR-0015). A source with no file says nothing more, and a
+ * file that cannot be read is an error, since it would silently drop what an ADR asks to be said.
+ */
+export function readSourceAbout(root: string, sourceId: string): EvalSourceAbout {
+  const path = join(root, 'packages', 'sources', sourceId, 'eval', 'about.json')
+  if (!existsSync(path)) return {}
+  const parsed = parseEvalSourceAbout(readJson(path))
+  if (!parsed.ok) throw new Error(`${path}: ${parsed.error}`)
+  return parsed.value
 }
 
 /** Where a report's verify record goes, from the report's own path. */

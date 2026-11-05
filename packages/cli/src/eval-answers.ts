@@ -52,6 +52,7 @@ import {
   spotCheck,
   spotCheckPath,
   spotCheckSampleForLabels,
+  readSourceAbout,
   spotCheckSentence,
   readSpotCheck,
   SPOT_CHECK_ANSWERS,
@@ -687,14 +688,17 @@ function rewriteAnswerMarkdown(ctx: CommandContext): void {
       try {
         writeFileSync(
           join(reportsDir(ctx.root, sourceId), `${id}.md`),
-          reportMarkdown(readRun(ctx.root, sourceId, id), (answers) =>
-            answerSections(
-              answers,
-              [
-                judgeSentence(judgeTrust(answers, rounds, unreadable, sourceId)),
-                ...spotCheckWords(readSpotCheck(ctx.root, sourceId, id)),
-              ].join(' '),
-            ),
+          reportMarkdown(
+            readRun(ctx.root, sourceId, id),
+            (answers) =>
+              answerSections(
+                answers,
+                [
+                  judgeSentence(judgeTrust(answers, rounds, unreadable, sourceId)),
+                  ...spotCheckWords(readSpotCheck(ctx.root, sourceId, id)),
+                ].join(' '),
+              ),
+            readSourceAbout(ctx.root, sourceId).set,
           ),
         )
       } catch (error) {

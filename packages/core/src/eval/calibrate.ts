@@ -15,6 +15,7 @@ import type {
   EvalSupport,
   EvalVerdict,
   RefusalOutcome,
+  SupportDisagreement,
 } from '@docs-rag-lab/contracts'
 
 import { seeded } from './bootstrap.ts'
@@ -415,6 +416,20 @@ export interface SpotCheckOptions extends CalibrateOptions {
 export function spotCheck(options: SpotCheckOptions): EvalSpotCheck {
   const { report, correctnessDisagreements, labelled, agreement, unanswerableOnly } =
     calibrate(options)
+  const supportDisagreements = options.labels.flatMap((label): SupportDisagreement[] => {
+    const claims = options.support.find(
+      (item) =>
+        item.questionId === label.questionId &&
+        item.row === label.row &&
+        item.sample === 1 &&
+        item.status === 'ok',
+    )?.claims
+    if (label.supported === null || claims === undefined || claims.length === 0) return []
+    const judge = claims.every((claim) => claim.supported)
+    return judge === label.supported
+      ? []
+      : [{ questionId: label.questionId, row: label.row, human: label.supported, judge }]
+  })
   const compared = agreement
     .filter((result) => result.compared > 0)
     .map((result) => ({
@@ -426,6 +441,7 @@ export function spotCheck(options: SpotCheckOptions): EvalSpotCheck {
     prompts: options.prompts,
     judgeModel: options.judgeModel,
     correctnessDisagreements: correctnessDisagreements ?? [],
+    supportDisagreements,
     labelled,
     agreement: compared,
     unanswerableOnly,
