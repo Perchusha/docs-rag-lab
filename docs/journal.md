@@ -16,7 +16,7 @@ React's docs went through the six steps of `/add-source` with their own app, a s
 | Wrongly refused, fewer is better | 5 (14-56%) | 0 (0-19%) | 1 (1-28%) | 0 (0-19%) |
 
 **What it showed:**
-- **R1 is shown.** On the fresh tag hybrid is ahead of Claude without docs on 7, behind on 0, with 3 tied, p = 0.016, and it does not differ from itself on that tag between two runs. The judge's second opinion on row 3 moves one of those answers, and with that grade it is 6 to 0, p = 0.03. Over all 16 it is 7 to 1, p = 0.07, not significant.
+- **R1 is shown.** On the fresh tag hybrid is ahead of Claude without docs on 7, behind on 0, with 3 tied, p = 0.016, and it does not differ from itself on that tag between two runs. The judge's second opinion on row 3 moves one of those answers, and with that grade it is 6 to 0, p = 0.03. Over all 16 it is 7 to 1, p = 0.07, not significant. If anything R1 is conservative, by the owner's reading: the judge's own knowledge is older than the docs, as below, and on fresh pages that biases it against RAG. That gives a direction and no number.
 - **R2 is not repeated, by the rule written first.** Rerank is named on MRR, 6 to 0, p = 0.031. Right chunk first is 5 to 0, p = 0.06, and the rule asked for both. Hybrid is not first on 6 questions, so this metric could be significant only if rerank moved all 6, and it moved 5. Hybrid is ahead on nothing.
 - **R3 is not reached, so hybrid stays for this app too.** Every comparison of rows 3 and 4 on answers is noise.
 - **The spot check passed:** correctness 8 of 8 (68-100%), refusals 10 of 10 (72-100%), citations 5 of 6 (44-97%), with the judge the stricter one on that one.
@@ -27,7 +27,8 @@ React's docs went through the six steps of `/add-source` with their own app, a s
 - **The walk's dates overstate what is new.** 18 of the newest headings were only reworded, or lost a badge, which only the commits' diffs show. The owner ruled that a removed badge is no new fact, after the walk ran.
 - **The draft had no acceptable anchors where the docs repeat themselves.** Seven questions had a second passage that also supports the answer, found by a search for key words while preparing the review. Before the freeze that took one decision per question. After it, each would have needed a new set version.
 - **The frozen set moved once, before any row answered.** Settling two grading questions took version 2, since the check accepts a changed set only under the next number.
-- **On react-0011, in Russian, hybrid's answer refuses wrongly in both runs,** with the right chunk at rank 11, where vector and rerank have it first. Nothing is tuned for it.
+- **On react-0011, in Russian, hybrid's answer refuses wrongly in both runs,** with the right chunk at rank 11, where vector and rerank have it first. It repeats the pattern of ts-0004 and ts-0038. Nothing is tuned for it.
+- **The report said less than the ADRs ask.** The review before committing found that React's report and dashboard did not say which way the spot check's one disagreement leans, or who drafted the set, and that the dashboard gave ADR-0014 as the reason for staying on hybrid. All three are closed, with a source's `eval/about.json` and the disagreements on citations in the spot check's file.
 
 **Spend:** $4.08 of Claude at list prices, against an estimate of about $5 and a limit of $10. Voyage stayed inside the free tokens: 705,447 tokens for the index in 1h 25m, and 20 rerank calls in two runs of 4 and 14 minutes, with no 429.
 
@@ -35,13 +36,11 @@ React's docs went through the six steps of `/add-source` with their own app, a s
 
 ### Open items for M7
 
-None of these was fixed in M6, and none changes a result above. The first three are about what React's report and dashboard say, and the review before committing found them:
-- **A spot check's sentence reads only the disagreements on correctness,** so React's report does not say which way its one disagreement leans, on citations, as ADR-0016 asks. The ADR says it instead. It needs the disagreements on citations in the spot check's file, and in `contracts`, `core` and `cli`.
-- **React's report and dashboard do not say who drafted the set.** ADR-0015 asks for that wherever React's numbers appear. The README and this journal say it.
-- **React's dashboard gives ADR-0014 as the reason the app stays on hybrid.** There the reason is R3 of ADR-0016 (`packages/core/src/eval/dashboard.ts`).
-- **A case of known grade for a real API the judge may not know,** as on react-0018, would show how often this happens. It spends tokens, so it is for the owner to decide.
+None of these was fixed in M6, and none changes a result above. The first two are the owner's findings, written down and not acted on:
+- **The judge's own knowledge is older than the docs.** On react-0018 it called `use(browser())` a fabrication, although the answer cites the real passage. On fresh pages this biases the judge against RAG. Candidate: tell the judge to grade against the expected answer and the cited passages, never its own memory. That is a prompt change, so it would need a new calibration round. A case of known grade, for a real API the judge may not know, would show how often it happens, and it spends tokens.
+- **Keyword search pushes the right chunk down on some questions in Russian.** With vector ahead, hybrid has it at rank 11 on react-0011, rank 7 on ts-0004 and rank 17 on ts-0038, and the other 4 questions in Russian are not pushed down. Candidate hypothesis: skip or down-weight BM25 when the question's language differs from the docs'. It would be written down first, with its criteria, and tested on both sets.
 - **A status in other words has no known grade.** The two cases of `drl eval judge-check` score the expert's answer, and the same without its last sentence. Four answers on react-0001 give the status in their own words and scored 2, none of them labelled: the spot check's two status answers both leave it out.
-- **Why hybrid misses on react-0007 and react-0011** is not looked into. A question to test would be a new hypothesis, written down first.
+- **Why hybrid misses on react-0007,** which is in English, is not looked into. Its right chunk is at rank 2 under vector and rank 17 under hybrid.
 - **`drl eval answers` shows the estimate of its paid calls only after its rerank calls.** On a cold cache, `--max-usd 0.01 --yes` makes those free calls and stops at the estimate, which is what this run did. A flag would say so more plainly.
 
 ## M5 - Rerank and contexts: retrieval moved, the answers did not (2026-11-04)
