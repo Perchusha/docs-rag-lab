@@ -87,6 +87,14 @@ The golden set is frozen after the second review. This is the rule from now on:
 - **Every strategy in a report is then re-scored on that version.** Numbers from two versions are never compared.
 - **The judge proposes, a human decides.** When the judge says a cited chunk supports a correct answer but that chunk is not an anchor, the report lists it as a candidate for review. It is not added automatically, and adding it follows this same rule.
 
+**One exception, by the owner's decision on 2026-11-06 (ADR-0017).** A grading note may change without a reason from the docs text when it asks for more than the rubric, which scores only what the question asks. These conditions hold:
+- **only the owner decides it,** and only notes change, made to match the rubric;
+- **the changelog says the change came after the answers were seen,** and which way it moves the result;
+- **the judge grades the same answers again,** from the cache;
+- **a fresh blind spot check decides whether the new grades are read,** under a rule written down before they exist, on answers that no earlier label showed.
+
+Version 3 of TypeScript's set is the one case so far.
+
 The version and a hash of the file are in the lock, so the freeze is checked and not only stated. `drl eval check` fails when the file differs from its lock, `--accept` then needs `--set-version` with the next number, and a test in the CI run fails when the file does not match the lock or the version has no changelog entry. A docs sync that changes anchored text does not change the set, so accepting it keeps the version.
 
 ## Set changelog

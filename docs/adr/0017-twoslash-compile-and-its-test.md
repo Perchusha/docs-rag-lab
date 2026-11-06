@@ -1,6 +1,6 @@
 # ADR-0017: The twoslash compile, and what M7 tests on it
 
-- Status: accepted as the test, before any compile, compiled index, new question or answer exists.
+- Status: accepted as the test, before any compile, compiled index, new question or answer exists. The result is in "What M7 found" and the sections after it: C1 is not shown, C2 holds, and C3 is not reached on version 3's grades, which a fresh spot check let be read, where the test was set on version 2. The app stays on the plain index. The grading notes changed after the answers were seen, by the owner's decision, as "After the spot check missed" says. The rules of C1, C2 and C3 did not change.
 - Date: 2026-11-05
 - Milestone: M7
 
@@ -280,10 +280,17 @@ The owner labelled the 10 answers of sample `8ea13bccbe78` blind, and the labels
 
 - **Each dimension is inside the one disagreement allowed,** so version 3's grades are read.
 - **The one disagreement on correctness is the judge scoring row 7 higher.** It can only bring row 7 down, so it cannot make C3 reached.
-- **Of row 3's five answers, the owner and the judge scored four 2.** They give the meaning without the message text. The fifth is ts-0053's refusal, which both scored 0 as refused.
+- **Of row 3's five answers, the owner and the judge scored four 2.** Three give the meaning without the message text, and ts-0050's quotes TS2554's message from a release note's prose. The fifth is ts-0053's refusal, which both scored 0 as refused.
 - **Support's kappa is 0.00 and says nothing here:** the owner marked all 10 as supported, so the only number to read is the 9 of 10 agreed.
 
 **C3 is not reached, read as it falls:** fully correct 41 to 42 of 48 and 7 to 8 on the `error-code` questions, both noise by ADR-0013's rule. The ts-docs app stays on the plain index, the compiled index is kept for M8, and there is no PR for the switch. The README states the finding as these numbers give it, with the change to the notes and when it was made.
+
+### At the end
+
+**Integrity checks 1, 2 and 3 hold,** on 2026-11-06, at `002137b` and `ef519e9`:
+- **Check 1:** the same 10 named reports from before M7 say byte for byte, and the same 5 say not comparable. All 4 of M7's say byte for byte too. Three of M7's records had been written while the record before them, or the report, was not yet committed, so they said the re-run had uncommitted changes. They were recorded again one at a time on a clean tree, from the cache, with no call. `m7-plain`'s record, from `2984896` on a clean tree, stays.
+- **Check 2:** the plain index's sha256 starts `403465a8`, the contextual index `9ceab39b`, the control `77aa7643` and React's `019e2afd`.
+- **Check 3:** all 213 JSON responses of the dashboard for TypeScript's 14 reports from before M7 are identical to the snapshot, and all 7 of React's. The 15 pages differ only by what M7 adds: the run picker lists M7's 4 reports, and `/eval` opens on `m7-regraded`, the newest.
 
 ## Alternatives considered
 
