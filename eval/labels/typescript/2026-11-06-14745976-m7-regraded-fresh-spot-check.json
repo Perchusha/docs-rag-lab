@@ -1,0 +1,15 @@
+{
+  "sample": "8ea13bccbe78",
+  "labels": [
+    { "item": 1, "correctness": 2, "supported": true },
+    { "item": 2, "correctness": 2, "supported": true },
+    { "item": 3, "correctness": 2, "supported": true },
+    { "item": 4, "correctness": 1, "supported": true },
+    { "item": 5, "correctness": 2, "supported": true },
+    { "item": 6, "correctness": 2, "supported": true },
+    { "item": 7, "correctness": 2, "supported": true },
+    { "item": 8, "correctness": 2, "supported": true },
+    { "item": 9, "correctness": 0, "refused": true, "supported": true },
+    { "item": 10, "correctness": 2, "supported": true }
+  ]
+}

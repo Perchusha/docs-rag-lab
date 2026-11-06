@@ -295,8 +295,11 @@ export function formatLabelSheet(
   ].join('\n\n')
 }
 
-/** What a spot check found (ADR-0016). It decides nothing for any other report. */
-export function formatSpotCheck(spot: EvalSpotCheck): string {
+/**
+ * What a spot check found (ADR-0016). It decides nothing for any other report. A fresh one names
+ * the report whose spot check it shows nothing of (ADR-0017).
+ */
+export function formatSpotCheck(spot: EvalSpotCheck, after?: string): string {
   const disagreements = spot.correctnessDisagreements.map(
     ({ questionId, row, human, judge }) =>
       `- ${questionId}, row ${String(row)}: human ${String(human)}, judge ${String(judge)}`,
@@ -304,6 +307,11 @@ export function formatSpotCheck(spot: EvalSpotCheck): string {
   return `${[
     `# Judge spot check: ${String(spot.labelled)} answers labelled`,
     `Report: \`${spot.report.repoSha.slice(0, 8)}\`, ${spot.report.name ?? 'development run'}, ${spot.report.createdAt}. It allows ${String(spot.allowed)} disagreement on each dimension it compares (ADR-0016), and it is no calibration round: it decides nothing for any other report.`,
+    ...(after === undefined
+      ? []
+      : [
+          `A fresh spot check, on answers that the spot check of \`${after}\` did not show, chosen without reading any of this report's verdicts (ADR-0017).`,
+        ]),
     table(
       ['Dimension', 'Agreed', 'Compared', "Cohen's kappa", '95% interval', 'Passed'],
       spot.agreement.map((result) => [

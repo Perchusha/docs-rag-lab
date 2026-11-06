@@ -2,6 +2,53 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M7 - The twoslash compile: the error message, cited, and no more correct answers (2026-11-06)
+
+Before M7, the chunks held the docs' twoslash examples as written: a line such as `// @errors: 2554`, and no message. M7 compiles 654 of the 712 examples with the docs' own `typescript` 6.0.2 and builds a second index, where the compiler's output follows each example. On 8 questions about what an error code means, the answers from the compiled index quote the message and cite it. They are not more correct: Claude without docs already knows these codes, and hybrid search already finds them by the exact token. The test was fixed first in ADR-0017, and the ts-docs app stays on the plain index.
+
+| Set version 3, at docs `205122bb` | No docs | Before: hybrid, plain index | After: hybrid, compiled index |
+|---|---|---|---|
+| Right chunk first, of 48 | no retrieval | 26 (40-67%) | 29 (46-73%) |
+| Right chunk in top 8, of 48 | no retrieval | 44 (80-97%) | 44 (80-97%) |
+| MRR, of 48 | no retrieval | 0.704 (0.61-0.80) | 0.735 (0.63-0.83) |
+| Right chunk first, of the 8 on error codes | no retrieval | 7 (53-98%) | 8 (68-100%) |
+| Fully correct, of 48, may run high | 44 (80-97%) | 41 (73-93%) | 42 (75-94%) |
+| Fully correct, of the 8, may run high | 8 (68-100%) | 7 (53-98%) | 8 (68-100%) |
+| All citations hold, of 48 | cannot: no docs | 39 (68-90%) | 42 (75-94%) |
+| Correct and grounded, of the 8, exploratory | cannot: no docs | 5 (31-86%) | 8 (68-100%) |
+| Wrongly refused, of 48, fewer is better | 1 (0-11%) | 3 (2-17%) | 2 (1-14%) |
+| Cost per answer | $0.0042 | $0.0222 | $0.0225 |
+
+The retrieval rows are from the retrieval reports, which are on version 2. Versions 2 and 3 differ only in grading notes, which retrieval does not read.
+
+**What it showed:**
+- **C1, retrieval on the error-code questions, could not be shown, as its ceiling said before the compiled run.** Hybrid on the plain index is already first on 7 of the 8, so only one question could move, and the smallest significant split is 6 to 0. It moved: ts-0050 went from rank 2 to 1.
+- **C2 holds.** On the 40 earlier questions, the right chunk comes first on 21 instead of 19, MRR goes from 0.657 to 0.682, every verdict is noise, and no anchor leaves the top 8.
+- **C3 is not reached.** Fully correct is 42 against 41, at 1 to 0, and 8 against 7 on the error-code questions, at 1 to 0. Both are noise, and each row differs from itself by 1 between two runs.
+- **The fresh spot check passed:** correctness 9 of 10 (60-98%), refusals 10 of 10 (72-100%), citations 9 of 10 (60-98%). Its one disagreement on correctness is the judge scoring a row 7 answer higher.
+- **This applies to the error-code questions chosen by ADR-0017's rule,** not to exact-token questions in general.
+- **SPEC's acceptance for M7 is not met.** It asked that the `exact-token` questions improve. They were measured, and they did not: MRR on the tag goes from 0.759 to 0.773, and fully correct from 17 to 18 of 18, both noise. The criterion stays as written, by the owner's decision: rewriting it after the result would move the goalposts, as ts-0033's target did not move in M5.
+
+**What only real runs showed:**
+- **One sentence in the notes decided C3.** Under version 2 of the set, the judge's grades put the compiled index ahead, 41 against 35, at 6 to 0, all 6 on the error-code questions. The owner's blind spot check then missed on correctness, at 7 of 9. On two answers from the plain index the owner scored 2 and the judge 1: both explain the error right without quoting its message. The notes said an answer that gives the message and explains it is fully correct, and the judge read that as asking for the message, which the rubric does not, since the question asks what the error means. The owner had the notes match the rubric in version 3, the way M4 had the judge's prompt state it (ADR-0012, section 6). That change came after the answers and the grades were seen, it moves the result toward no effect, and the README says so. The judge graded the same answers again from the cache, and on version 3's grades they split 1 to 0. A fresh spot check, under a rule written down before the new grades, decided that they are read. Without the spot check, the app would have switched on a note's wording.
+- **The exact token already does the work.** A question on TS2367 also searches for `2367`, and keyword search finds the directive line. Vector search alone has a right chunk in its top 8 on 1 of the 8, and its answers refuse all 8. So on fully correct hybrid is ahead of vector at 7 to 0, p = 0.016, on these questions.
+- **A chunk with the directive and no message can still cost an answer.** On ts-0053, the plain index's answer says the docs do not define TS1005, row 3's only wrong refusal on these questions in its first answers, and the compiled chunk gives the message.
+- **58 examples do not compile:** 39 name an error the compiler does not raise, 18 raise one they do not name, and 1 asks for completions and gets none. An example counts as compiled only when both lists match.
+- **The dashboard check caught a fault before any number.** The first compile read its files when its module loaded, and that broke every route of ts-docs, whose bundler moves the module.
+
+**Spend:** $5.41 of Claude at list prices, against a limit of $10: $0.30 for the pilot, $4.54 for the named run and $0.57 for the second grading. Voyage stayed inside the free tokens with no 429: 97,046 tokens in 13 minutes for the compiled index, and 8 rerank calls.
+
+**Next:** M8, the interview-prep MVP. Each compiled chunk keeps the compiler's errors and `^?` types in its metadata, which its compiler-verified questions read. From M8 on, a milestone has one main hypothesis and aims for 3 to 4 PRs. M8 is judged mainly by the owner's hands-on review, and M9 is measured on the frozen sets with no new questions (ADR-0015, section 6).
+
+### Open items for M8
+
+None of these was fixed in M7, and none changes a result above:
+- **M6's open items are still open:** the judge's knowledge older than the docs, keyword search pushing the right chunk down in Russian, a status in other words, hybrid's miss on react-0007, and the answers estimate after the rerank calls.
+- **What compiling does for exact-token questions in general is not measured.** The 10 earlier ones are fully correct under both indexes, so the set has no room to show it.
+- **`drl eval verify --record` dirties the tree for the next record,** so three of M7's records first said the re-run had uncommitted changes, and were recorded again one at a time. A run over several reports could record them together.
+- **A spot check's file does not say what it sampled.** The fresh one's file is where a plain spot check of the same report would go, and the report's markdown calls it "A spot check of 10 of these answers", without saying they are rows 3 and 7 on the error-code questions. The file could record the plan, or the earlier report.
+- **The dashboard shows a run's own retrieval only,** so the first screen of the answers on version 3 says the compiled index's retrieval is in its own report.
+
 ## M6 - React through `/add-source`: RAG beats memory on the newest docs (2026-11-05)
 
 React's docs went through the six steps of `/add-source` with their own app, a smaller set and a test fixed first in ADR-0016. On the newest pages, the app's hybrid search is fully correct on 9 of 10 questions (60-98%), and Claude without docs on 2 (6-51%), and both may run high. There is no before: these numbers are new, and they are never compared with TypeScript's. Claude drafted the set from the docs' text and the owner reviewed the flagged questions, and 10 of the 16 answerable questions come from the newest pages, so the overall numbers do not describe the docs at large.

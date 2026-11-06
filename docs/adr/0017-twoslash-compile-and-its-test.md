@@ -1,6 +1,6 @@
 # ADR-0017: The twoslash compile, and what M7 tests on it
 
-- Status: accepted as the test, before any compile, compiled index, new question or answer exists.
+- Status: accepted as the test, before any compile, compiled index, new question or answer exists. The result is in "What M7 found" and the sections after it: C1 is not shown, C2 holds, and C3 is not reached on version 3's grades, which a fresh spot check let be read, where the test was set on version 2. The app stays on the plain index. The grading notes changed after the answers were seen, by the owner's decision, as "After the spot check missed" says. The rules of C1, C2 and C3 did not change.
 - Date: 2026-11-05
 - Milestone: M7
 
@@ -186,6 +186,113 @@ So TS7006 and TS1005 take the places of TS2375 and TS2571. The three chunks that
 **ts-0040 had a case this ADR did not foresee:** one of its two handbook chunks states TS2345's message on the compiled index and the other does not. The literal inference chunk gives it. The excess property checks example did not compile, because typescript 6.0.2 raises TS2561 there, so its chunk does not. The owner decided it per chunk: the first is a primary anchor, and the second stays acceptable. The owner also had the expected answer drop the claim that the handbook shows TS2345 in excess property checks, since the compiler reports TS2561 there.
 
 **What an expected answer requires.** The owner's rule for the 8, at the review: everything an expected answer requires is visible in the compiled chunks its anchors resolve to, and anything from general knowledge goes in the note as optional. Each answer was checked against the literals that show it. Five answers changed for it: ts-0046, ts-0047, ts-0048, ts-0051 and ts-0053. On ts-0053 the answer keeps to the one message the docs show, `',' expected.`, and the general form of TS1005 is in the note. The owner kept every anchor by the rule, including the 5 of TS2532's 6 whose examples did not compile, and the extra anchor of TS2344.
+
+## Before the compiled index is measured
+
+Written on 2026-11-06 from the named report [`2026-11-05-58ea72d2-m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), the plain index on version 2, with every strategy. Nothing had been measured on the compiled index yet.
+
+**Integrity check 6 holds.** On the 40 earlier answerable questions, the primary and acceptable ranks of vector, hybrid and rerank equal those of `2026-11-04-6b2d15f7-final`, question by question, and so does every context of 8 chunks. The earlier questions' vectors and rerank calls came from the caches. The 8 new questions took one embedding request and 8 rerank calls, 69,075 tokens, with no 429.
+
+**C1's ceiling: C1 cannot be shown.** Hybrid on the plain index already ranks a primary anchor first on 7 of the 8 `error-code` questions. Only ts-0050, on TS2554, at rank 2, can move. The smallest split that can be significant is 6 to 0, so no verdict can name the compiled index on MRR. The exact token is why: a question on TS2554 also searches for `2554`, and keyword search finds the directive line, `// @errors: 2554`, which the plain chunks already hold. Vector search alone has a primary anchor in its top 50 on only 2 of the 8.
+
+**What is still measured, as written.** C1's other half, whether any verdict names the plain index on hit@1, hit@3, hit@5, hit@8 or recall@8 on these 8 questions. C2, on the 40 earlier questions. And C3, on the answers, which is where compiling can still show: the plain chunks name the code but not its message, and the compiled chunks give it.
+
+## What M7 found
+
+From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge missed, below, so no result on the answers is read from these grades. What came after is in the next section.
+
+**C1 is not shown, as its ceiling said.** Hybrid on the compiled index ranks a primary anchor first on all 8 `error-code` questions, against 7 on the plain index: ts-0050 moved from 2 to 1. MRR goes from 0.938 to 1.000, better on 1 question, which is noise. No verdict names the plain index: hit@1 goes from 7 to 8, and hit@8 stays at 8, so no anchor of the 8 leaves the top 8.
+
+**C2 holds.** On the 40 earlier questions, hybrid on the compiled index against hybrid on the plain index: hit@1 19 to 21, hit@3 34 to 34, hit@5 and hit@8 35 and 36 unchanged, recall@8 0.881 unchanged, MRR 0.657 to 0.682. Every verdict is noise, and the plain index is ahead on none of them, net. No anchor leaves the top 8. The ranks that fell are ts-0028 from 2 to 3, ts-0035 from 1 to 2 and ts-0040 from 3 to 4, all inside the top 8, and ts-0024 from 40 to 42, outside it on both.
+
+**Under version 2's notes, C3 is reached by the judge's grades, on fully correct.** Row 3 against row 7:
+
+| Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
+|---|---|---|---|---|---|
+| All 48 | 35 | 41 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better: 6 clears twice 1 |
+| `error-code`, 8 | 1 | 7 | 0 to 6, p = 0.031 | 1 and 1 | row 7 better |
+
+All citations hold and wrongly refused give no verdict: 39 to 42 of 48 citations hold, 3 to 6, and 3 to 2 wrongly refused, 0 to 1. All 6 questions that moved are `error-code` questions, so on the other 40 the two rows give the same number of fully correct answers. By this ADR the work stops here, and the owner is asked whether the ts-docs app reads the compiled index. C2 holds, which that needs. The owner said yes, if the spot check passes, in a PR of its own.
+
+**The spot check missed, on correctness.** The owner labelled 10 answers blind, sample `ba73ef7a4d6f`, in [`eval/labels/typescript/`](../../eval/labels/typescript/2026-11-05-cd07c310-m7-answers-spot-check.json). Correctness agreed on 7 of 9, with 2 disagreements against the 1 allowed. Refusal agreed on 10 of 10, and support on 6 of 7. Both disagreements are row 3 answers on `error-code` questions, ts-0046 and ts-0047, which the owner scored 2 and the judge 1. Each answer gives the meaning right, from the examples, and not the message text, which the plain chunks do not hold. The judge read the notes' "an answer that gives the message and explains it is fully correct" as asking for the message text, and said both times that the case is borderline. The same reason gives all 6 of row 3's scores of 1 on these 8 questions, in its first run. So C3 rests on what fully correct means here: with the message text optional, row 3 would be close to row 7 on these questions. The prompt and the notes do not change without the owner, and the app stays on the plain index for now.
+
+**Reported, and deciding nothing:**
+- **Claude without the docs already knows these codes.** Row 0 is fully correct on all 8 `error-code` questions, row 7 on 7, row 0 better on 1, ts-0051, which is noise. Compiling brings the answers from the docs up to what Claude knows, with citations: correct and grounded goes from 1 to 7 of the 8, and from 29 to 36 of 48 overall, 3 to 10, not significant.
+- **The `exact-token` tag of 18:** retrieval MRR 0.759 to 0.773, noise. Fully correct 11 to 17, all 6 from the `error-code` questions. The 10 earlier `exact-token` questions are fully correct 10 times under both rows.
+- **ts-0040's target from M2, in the top 8:** hybrid ranks a primary anchor 3rd on the plain index and 4th on the compiled one. Every answer on ts-0040, in rows 0, 2, 3 and 7, scores 2 under its new note.
+- **Vector search alone** finds a primary anchor in its top 8 on 1 of the 8 `error-code` questions on the plain index and 2 on the compiled one, and row 2 refuses all 8.
+
+**Integrity checks 2, 5, 6 and 7 hold.** The four other indexes keep their sha256. The commit that froze version 2, `fcb0876`, is an ancestor of every commit the three reports stamp. The three reports reproduce byte for byte, recorded next to them, and all 1,427 cited texts are in their chunk's text, ignoring whitespace, 71 of row 7's with compiler output. Check 1, the earlier named reports, and check 3, the dashboards, run at the end.
+
+**Spend:** $4.84 of Claude at list prices, against an estimate of about $5.30 and a limit of $10: $0.30 for the pilot and $4.54 for the named run. Voyage: 8 rerank calls, 69,075 tokens, and one embedding request, inside the free tokens, with no 429.
+
+## After the spot check missed
+
+Written on 2026-11-06, after the owner's decision and before the judge graded anything again.
+
+**The owner chose to make the notes match the rubric, as in M4** (ADR-0012, section 6). The rubric scores what the question asks, and details the question does not ask for count neither way. These 8 questions ask what an error means. The notes' common sentence, "an answer that gives the message and explains it is fully correct", asked for the message text as well, and the judge read it so.
+
+- **The notes change, and nothing else.** The common sentence now says that the question asks what the error means, that an answer that explains this correctly is fully correct, and that quoting the message text is optional, as the examples are. The questions, expected answers, anchors and tags stay. This is version 3 of the set, with its changelog entry in ADR-0009. Version 2 stays beside it, for the reports measured on it.
+- **The change was made after the answers and the judge's grades were seen,** because of a disagreement in the spot check. The README says so too. It moves the result toward no effect, not toward one: it only relaxes what a fully correct answer needs, and the answers it was made for are row 3's, which lack the message text because the plain chunks do not hold it.
+- **The judge grades again, from the cache.** A named report on version 3, with the same rows and `--noise`, has the same answers, prompts and models. Only the correctness verdicts on the 8 questions are new, since only that call reads the note. Retrieval does not read the notes, so C1 and C2 stand on version 2's reports.
+
+**A fresh spot check decides whether the new grades are read.** The owner's first 10 labels are no longer blind for this change, so they validate nothing. The owner set the rule, and it is recorded here before the judge grades again:
+- **10 answers on the 8 `error-code` questions:** 5 from row 3 and 5 from row 7, the two rows C3 compares;
+- **only first answers, and none the first spot check showed,** by question and row, which leaves 6 in row 3 and 7 in row 7, so a question can come once from each row;
+- **from a seed of its own,** chosen without reading any verdict, so the sample is fixed before the new grades exist, and in shuffled order;
+- **labelled on all three dimensions,** and passed with at most one disagreement on each dimension it compares, as the first.
+
+A miss stops the work, and the notes and the prompt do not change again without the owner. The first spot check's labels are not read against the new grades.
+
+**C3 is read as it falls,** by its rule above, on the new grades, once the fresh spot check passes. The owner withdrew the README sentence on the error-code questions drafted before the spot check: it rested on the judge's reading, which the owner's labels contradicted.
+
+### What the judge gives on version 3
+
+From the named report [`m7-regraded`](../../eval/reports/typescript/2026-11-06-14745976-m7-regraded.md), with rows 0, 2, 3 and 7 and `--noise`. Nothing in it is read as a result until the fresh spot check passes. Its 318 answers are those of `m7-answers`, all from the cache, and it paid $0.57 for 56 correctness calls on the 8 questions. Of those 56 verdicts, 19 moved: 16 from 1 to 2, of them 15 in row 3, and 3 others, including a second answer of row 3 on ts-0051 that says the docs do not explain TS2344, which now scores 0 as a refusal.
+
+**C3 is not reached on version 3's grades.** Row 3 against row 7:
+
+| Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
+|---|---|---|---|---|---|
+| All 48 | 41 | 42 | 0 to 1 | 1 and 1 | noise |
+| `error-code`, 8 | 7 | 8 | 0 to 1 | 1 and 1 | noise |
+
+All citations hold goes from 39 to 42 of 48, 3 to 6, not significant, and from 6 to 8 on the `error-code` questions, 0 to 2. Wrongly refused goes from 3 to 2, 0 to 1: on ts-0053, row 3 says the docs do not define TS1005, and its chunk holds only the directive. If the fresh spot check passes, the app stays on the plain index and the compiled index is kept for M8, by C3's rule. The owner's yes to the app was for C3 reached, so there is no PR for the switch.
+
+**Reported, and deciding nothing:**
+- **Claude without the docs** is fully correct on all 8 `error-code` questions, as before, and row 7 on all 8 too.
+- **What compiling still adds is the message with a citation.** Correct and grounded goes from 5 to 8 of the 8 `error-code` questions, 0 to 3, and from 33 to 37 of 48 overall, 3 to 7, neither significant. Row 3 gives the meaning from the examples, and row 7 quotes the message from the compiled chunk and cites it.
+- **The judge, asked twice about row 3's first answers,** gave the same grade on 52 of 53. It differs on ts-0047, which it scores 1 the second time.
+
+**Integrity checks 5 and 7 hold for it.** Version 3's commit, `1474597`, is the commit the report stamps. The report reproduces byte for byte, recorded next to it, and all 1,427 cited texts are in their chunk's text. The three reports on version 2 still reproduce byte for byte, read against `questions.v2.jsonl`.
+
+**Spend:** $0.57 more, so $5.41 of Claude for M7, against the limit of $10.
+
+### The fresh spot check passed
+
+The owner labelled the 10 answers of sample `8ea13bccbe78` blind, and the labels were committed at once, in [`eval/labels/typescript/`](../../eval/labels/typescript/2026-11-06-14745976-m7-regraded-fresh-spot-check.json), before the judge was compared with them. The result is in [its own file](../../eval/reports/typescript/2026-11-06-14745976-m7-regraded-spot-check.md), which decides nothing for any other report.
+
+| Dimension | Agreed | Disagreement |
+|---|---|---|
+| Correctness | 9 of 10 | ts-0046, row 7: the owner 1, the judge 2 |
+| Refusal | 10 of 10 | none |
+| Support | 9 of 10 | ts-0052, row 3: the owner supported, the judge unsupported |
+
+- **Each dimension is inside the one disagreement allowed,** so version 3's grades are read.
+- **The one disagreement on correctness is the judge scoring row 7 higher.** It can only bring row 7 down, so it cannot make C3 reached.
+- **Of row 3's five answers, the owner and the judge scored four 2.** Three give the meaning without the message text, and ts-0050's quotes TS2554's message from a release note's prose. The fifth is ts-0053's refusal, which both scored 0 as refused.
+- **Support's kappa is 0.00 and says nothing here:** the owner marked all 10 as supported, so the only number to read is the 9 of 10 agreed.
+
+**C3 is not reached, read as it falls:** fully correct 41 to 42 of 48 and 7 to 8 on the `error-code` questions, both noise by ADR-0013's rule. The ts-docs app stays on the plain index, the compiled index is kept for M8, and there is no PR for the switch. The README states the finding as these numbers give it, with the change to the notes and when it was made.
+
+### At the end
+
+**Integrity checks 1, 2 and 3 hold,** on 2026-11-06, at `002137b` and `ef519e9`:
+- **Check 1:** the same 10 named reports from before M7 say byte for byte, and the same 5 say not comparable. All 4 of M7's say byte for byte too. Three of M7's records had been written while the record before them, or the report, was not yet committed, so they said the re-run had uncommitted changes. They were recorded again one at a time on a clean tree, from the cache, with no call. `m7-plain`'s record, from `2984896` on a clean tree, stays.
+- **Check 2:** the plain index's sha256 starts `403465a8`, the contextual index `9ceab39b`, the control `77aa7643` and React's `019e2afd`.
+- **Check 3:** all 213 JSON responses of the dashboard for TypeScript's 14 reports from before M7 are identical to the snapshot, and all 7 of React's. The 15 pages differ only by what M7 adds: the run picker lists M7's 4 reports, and `/eval` opens on `m7-regraded`, the newest.
+
+**SPEC's acceptance for M7 is not met,** and it stays as written, by the owner's decision: the `exact-token` questions were measured and did not improve. Rewriting it after the result would move the goalposts.
 
 ## Alternatives considered
 

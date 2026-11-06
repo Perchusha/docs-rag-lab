@@ -87,6 +87,14 @@ The golden set is frozen after the second review. This is the rule from now on:
 - **Every strategy in a report is then re-scored on that version.** Numbers from two versions are never compared.
 - **The judge proposes, a human decides.** When the judge says a cited chunk supports a correct answer but that chunk is not an anchor, the report lists it as a candidate for review. It is not added automatically, and adding it follows this same rule.
 
+**One exception, by the owner's decision on 2026-11-06 (ADR-0017).** A grading note may change without a reason from the docs text when it asks for more than the rubric, which scores only what the question asks. These conditions hold:
+- **only the owner decides it,** and only notes change, made to match the rubric;
+- **the changelog says the change came after the answers were seen,** and which way it moves the result;
+- **the judge grades the same answers again,** from the cache;
+- **a fresh blind spot check decides whether the new grades are read,** under a rule written down before they exist, on answers that no earlier label showed.
+
+Version 3 of TypeScript's set is the one case so far.
+
 The version and a hash of the file are in the lock, so the freeze is checked and not only stated. `drl eval check` fails when the file differs from its lock, `--accept` then needs `--set-version` with the next number, and a test in the CI run fails when the file does not match the lock or the version has no changelog entry. A docs sync that changes anchored text does not change the set, so accepting it keeps the version.
 
 ## Set changelog
@@ -97,6 +105,7 @@ The version and a hash of the file are in the lock, so the freeze is checked and
 | react | 1 | `5ea47810f40e` | 2026-11-05 | The first reviewed set: 16 answerable questions and 4 unanswerable, at docs `2177e28d` | The first version. Claude drafted it from the docs' text, with no retrieval and no answer read. The owner reviewed the 10 flagged questions and decided the anchors of 4 others, by ADR-0015. The other 6 were frozen unread |
 | react | 2 | `099ca3b20cb0` | 2026-11-05 | Two grading notes and one acceptable anchor, on react-0011 and react-0015, before any row answered. Version 1 was never measured | `learn/state-a-components-memory.md` and `lints/rules-of-hooks.md` both state the call order, the mechanism react-0011 asks about, so the lint page answers in full and the array of state pairs is optional. `useReducer.md`, a primary anchor of react-0015, gives the cause as dispatching an action, so an answer in those terms is fully correct |
 | typescript | 2 | `5eca5d63e26a` | 2026-11-05 | 8 questions on error codes, ts-0046 to ts-0053, by ADR-0017's rule: 48 answerable and 5 unanswerable. On ts-0040, the literal inference chunk becomes a primary anchor and the expected answer drops excess property checks. Before anything was searched on the compiled index. Version 1 stays as `questions.v1.jsonl`, with its lock | Compiled with typescript 6.0.2, `Everyday Types.md#literal-inference` gives TS2345's message, and the excess property checks example raises TS2561 instead, so it shows no TS2345. Each new expected answer requires only what its compiled chunks show. Claude drafted the 9 questions from the chunks' text, and the owner reviewed all 9 |
+| typescript | 3 | `8d6262de99f5` | 2026-11-06 | The grading notes of the 8 error-code questions, ts-0046 to ts-0053: the question asks what the error means, and quoting the message text is optional, as the examples are. Nothing else changes: questions, expected answers, anchors and tags stay. Version 2 stays as `questions.v2.jsonl`, with both its locks | Not a change in what the docs say, and no ranking was read for it. The owner decided it after ADR-0017's spot check missed: the notes asked for the message text, which these questions do not ask for and the plain chunks do not hold, so they did not match the rubric. It was made after the answers and the judge's grades were seen, and it moves the result toward no effect, not toward one. A fresh spot check, fixed before the judge graded again, decides whether its grades are read |
 
 ## Measured before and after
 

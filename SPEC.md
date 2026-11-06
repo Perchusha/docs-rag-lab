@@ -241,7 +241,7 @@ Attribution goes in a NOTICE file and in the UI footer, with links to sources.
   Release notes are 48% of the bytes. Not indexed: `handbook-v1/`, `tutorials/`, `get-started/` and `Nightly Builds.md`.
 - **URLs:** documentation frontmatter has `title`, `permalink` and `oneline`; URLs are `https://www.typescriptlang.org` + `permalink` (file names do not match URLs). Option files have only `display` and `oneline`. Each option has its own case-sensitive page, `https://www.typescriptlang.org/tsconfig/<name>.html`, except the `typeAcquisition/` options, which live at `https://www.typescriptlang.org/tsconfig/#type-<name>`. Heading anchors follow github-slugger. All verified on the live site.
 - **Markup:** about 10 upstream files use CRLF line endings. Raw HTML appears (background-reading boxes, `<details>`, the 282-row tsc options table); HTML comments hide whole sections in `TypeScript 5.0.md`, which the site does not render.
-- **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. M7 compiles them with twoslash 0.3.9 and `typescript` 6.0.2, the docs' own pin, for a compiled index beside the plain one (ADR-0017). The real errors and the types of `^?` queries follow each example in the chunk text, the code stays byte for byte, and each chunk keeps the structured output in its metadata for interview questions. 654 of the 712 examples compile at `205122bb`.
+- **Code examples:** fences look like ```` ```ts twoslash ```` with directives such as `// @errors: 2345` and `// ^?`. M7 compiles them with twoslash 0.3.9 and `typescript` 6.0.2, the docs' own pin, for a compiled index beside the plain one (ADR-0017). The real errors and the types of `^?` queries follow each example in the chunk text, the code stays byte for byte, and each chunk keeps the structured output in its metadata for interview questions. 654 of the 712 examples compile at `205122bb`. The ts-docs app reads the plain index: on the answers, the compiled one made no difference that holds up (ADR-0017).
 - **Metadata:**
   - the release-notes version becomes `version_introduced`;
   - error codes from `@errors` are stored per document as `error_codes`. Keyword search finds them in the chunk text instead, which is per chunk, and `exactTokens` turns `TS2345` into `2345` (ADR-0005). The compiled index keeps each chunk's own error codes, from the compiler (ADR-0017).
@@ -324,7 +324,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 
 ## 10. Evaluation
 
-M4 built this, M5 added ladder rows 4 and 5, M6 ran rows 0, 2, 3 and 4 on React with a spot check of the judge (ADR-0016), and the README has the measured rows. M4's part: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
+M4 built this, M5 added ladder rows 4 and 5, M6 ran rows 0, 2, 3 and 4 on React with a spot check of the judge (ADR-0016), M7 added row 7 on the compiled index (ADR-0017), and the README has the measured rows. M4's part: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -334,10 +334,10 @@ M4 built this, M5 added ladder rows 4 and 5, M6 ran rows 0, 2, 3 and 4 on React 
 - `primary` anchors are the passages the answer was written from. The answer needs all of them, unless `"primaryMatch": "any"` says each one is enough on its own. `acceptable` anchors are other passages that also support the answer, and are never required. An unanswerable question has neither. An optional `note` says why a question is graded as it is.
 - An anchor is a repo-relative document path, optionally with `#` and a section anchor. It matches a chunk of that document that starts in the section or holds its heading, which the chunker records in `metadata.anchors`. Subsections packed into other chunks do not count for their parent, and a heading with no text of its own, whose subsections are all in other chunks, matches nothing. Sections are packed into chunks (ADR-0004), so a section such as `TypeScript 5.9.md#libdts-changes` may sit inside a chunk anchored at `notable-behavioral-changes`. Without a fragment, any chunk of the document matches. Option pages have no section anchors.
 - A long section spans several chunks, and a match in the wrong one is not a hit. `{"at": "...", "contains": "literal passage"}` matches only the chunks that contain the passage.
-- TypeScript has 40 questions and 5 unanswerable ones, each written or reviewed by a human. React gets 20: 16 answerable, of which 10 are fresh, picked strictly by the docs' own dates, and 4 unanswerable. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015, ADR-0016).
+- TypeScript has 48 questions and 5 unanswerable ones, each written or reviewed by a human: 40 from M4 and 8 on error codes from M7 (ADR-0017). React gets 20: 16 answerable, of which 10 are fresh, picked strictly by the docs' own dates, and 4 unanswerable. Claude drafts them with the `write-eval-questions` skill, and a human reviews the flagged ones (ADR-0015, ADR-0016).
 - `eval/questions.lock.json` records what each anchor resolved to at the set's last review, which for React covers its flagged questions. `drl eval check` compares the index with it. A question that lost an anchor it needs is stale, and metrics leave it out; one whose anchored text changed needs a review, and is still scored. `--accept` rewrites the lock (ADR-0009).
 - A draft is checked with `drl eval check --draft`: which anchors of `eval/questions.draft.jsonl` do not resolve and what each question copies from the pages it is anchored to, and it fails above 2 `fresh` questions on a page, by the pages of their anchors. `drl eval walk` lists every indexed page and heading, newest first by git history at the index's commit, to pick `fresh` questions from. It keeps a clone of the docs' history under the cache, since a sync's checkout is shallow (ADR-0016).
-- The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared.
+- The set is frozen. A later change must be justified by the docs text, not by a ranking, and goes into the changelog in ADR-0009 with a new set version (`--accept --set-version <n>`). Every strategy in a report is then re-scored on that version, and numbers from two versions are never compared. The one exception is a grading note that asks for more than the rubric: by the owner's decision, it may change to match the rubric, the changelog says the change came after the answers were seen and which way it moves the result, and a fresh blind spot check decides whether the new grades are read (ADR-0009 section 9, ADR-0017).
 
 **Retrieval metrics,** on every run, with no Claude call. They count the questions with anchors, since an unanswerable one has nothing to find.
 - hit@k, for k = 1, 3, 5 and 8: a primary anchor is in the top k. With `primaryMatch: all`, the best-ranked one counts;
@@ -373,7 +373,7 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 
 **Reports:** `eval/reports/<source>/<date>-<sha>-<name>.md` plus JSON. Only named runs are committed (the baseline, the hypotheses, the answers, final); development runs go to `dev/`, which git ignores. The dashboard reads the JSON. Every report records the repository and docs commit SHAs, the golden set version, the settings and hashes of the vectors. `drl eval verify <report>` runs a report again: with the same vectors the result must match byte for byte, and with other vectors every context, count, verdict and target must match, since provider vectors are not reproducible across batches (ADR-0010).
 
-**Judge calibration:** a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. A new round is needed only when its prompt or model changes, and React gets a spot check on 10 answers instead (ADR-0015). A report takes the rounds for its prompts and model from every source's folder, and says whose answers they were. A spot check has a file of its own, which decides no calibration (ADR-0016). Its known bias is stated wherever correctness is reported: all 4 disagreements on correctness so far are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012, ADR-0014).
+**Judge calibration:** a human labels a sample of about 15 answers without seeing the judge's verdicts, and the report records how often they agree, with kappa and an interval. Below 13 of 15 on any dimension, the answer metrics are marked uncalibrated. Refusal agreement covers every answer, not only the unanswerable ones. The judge is a different model from the one that answers. A new round is needed only when its prompt or model changes, and React gets a spot check on 10 answers instead (ADR-0015). A report takes the rounds for its prompts and model from every source's folder, and says whose answers they were. A spot check has a file of its own, which decides no calibration (ADR-0016). When a note changes after a spot check, the labels already given are no longer blind for it, so a fresh spot check on answers that the first did not show decides whether the new grades are read (ADR-0017). Its known bias is stated wherever correctness is reported: all 4 disagreements on correctness in the calibration rounds are the judge scoring higher than the human, so correctness may be slightly inflated (ADR-0012, ADR-0014).
 
 ## 11. Interview-prep app
 
@@ -456,6 +456,8 @@ Every milestone ends with:
 
 **v1.0 is M5 through M9,** on top of M0 to M4, which are done (ADR-0015).
 
+**M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
+
 **Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD).
 
 ### The process from M6 on
@@ -466,6 +468,14 @@ Lighter than M4 and M5, by the owner's decision (ADR-0015):
 - **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
 - **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016, and M7's in ADR-0017.
 - **Not built in M6:** the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app` (ADR-0016).
+
+### From M8 on
+
+By the owner's decision when M7 closed (ADR-0015, section 6):
+- **One main hypothesis per milestone,** with set-level criteria written down before any paid run. No chains of sub-hypotheses.
+- **M8 is a product milestone,** judged mainly by the owner's hands-on review, plus tests, stories, axe and the keyboard. An eval runs only for a part that depends on retrieval or generation quality, and it stays small.
+- **M9 is measured on the frozen sets only,** TypeScript's version 3 and React's version 2, with no new questions. The calibrated judge is reused, and a spot check of 10 answers runs only if the answer format changes in a way the judge has not seen.
+- **Each milestone aims for 3 to 4 PRs.**
 
 ### M4 retrieval targets from M2
 

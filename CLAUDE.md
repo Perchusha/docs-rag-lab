@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M7 - Twoslash compile (see SPEC.md section 13). M0 to M6 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
+M8 - Interview-prep MVP (see SPEC.md section 13). M0 to M7 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
 
 ## Commands
 
@@ -37,8 +37,8 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - How a rerank score depends on the rest of its call: `pnpm drl eval rerank-check` prints its plan, and reranks with `--yes` (on a cold cache any plan first embeds the queries, in one free request)
 - Answer metrics, spends real tokens: `pnpm drl eval answers` prints the estimate and stops, add `--yes` to run it (`--only <ids>` for a pilot, `--noise` to measure noise, `--name answers` for a run to commit, `--rows 0,2,3,4,5` for rows 4 and 5, which rerank, and row 5 reads the contextual index). On a cold rerank cache it shows no estimate of the paid calls before those free calls, so `--max-usd 0.01 --yes` makes them and stops at the estimate. Reruns pay only for what is not cached.
 - The judge on answers whose grade is known, spends real tokens: `pnpm drl eval judge-check --yes`
-- The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions, `--rows 4,5` for 15 answers from those rows, or `--spot` for the 10 of a spot check)
-- The judge spot-checked on a source's own answers, from that sheet: `pnpm drl eval spot-check <report> <labels>` (ADR-0016; it decides no calibration)
+- The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions, `--rows 4,5` for 15 answers from those rows, or `--spot` for the 10 of a spot check, with `--after <earlier report>` for a fresh one that shows none of that report's spot check (ADR-0017))
+- The judge spot-checked on a source's own answers, from that sheet: `pnpm drl eval spot-check <report> <labels>` (ADR-0016; it decides no calibration; add `--after <earlier report>` for the labels of a fresh one, ADR-0017)
 - How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind, or `--rows 4,5` for that round)
 - Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
@@ -99,3 +99,4 @@ A task is done when all of these hold:
 - Hardcode model IDs or prices outside `packages/settings`, or put a secret in it.
 - Use em dashes in any text: docs, comments, commit messages, UI copy. Use plain hyphens.
 - Change a frozen golden set without a reason from the docs text, a new set version and a changelog entry (ADR-0009, section 9). A ranking is never the reason.
+- Allow an exception to that rule other than the one in ADR-0009 section 9, with all of its conditions.

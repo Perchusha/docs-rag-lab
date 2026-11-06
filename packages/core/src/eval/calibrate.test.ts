@@ -10,9 +10,12 @@ import { describe, expect, it } from 'vitest'
 import {
   calibrate,
   cohensKappa,
+  COMPILED_FRESH_SPOT_CHECK,
   COMPILED_SPOT_CHECK,
   FRESH_SEED,
+  FRESH_SPOT_CHECK_SEED,
   freshSampleForLabels,
+  freshSpotCheckSampleForLabels,
   LABEL_SEED,
   newRowsSampleForLabels,
   sampleForLabels,
@@ -443,6 +446,72 @@ describe('the spot check of the compiled index (ADR-0017)', () => {
 
     expect(spotCheckSampleForLabels(options)).toEqual(
       spotCheckSampleForLabels(options, SOURCE_SPOT_CHECK),
+    )
+  })
+})
+
+describe('the fresh spot check of the compiled index (ADR-0017)', () => {
+  const ids = Array.from({ length: 12 }, (_, i) => ID(i + 1))
+  const questions = parseGoldenSet(
+    ids
+      .map((id, i) =>
+        JSON.stringify({
+          id,
+          question: `Q${String(i)}?`,
+          answer: 'A.',
+          ...(i === 11 ? {} : { primary: ['a.md'] }),
+          tags: i === 11 ? ['unanswerable'] : i < 8 ? ['exact-token', 'error-code'] : ['basic'],
+        }),
+      )
+      .join('\n'),
+  )
+  const tagged = new Set(ids.slice(0, 8))
+  const answers = [
+    ...([0, 2, 3, 7] as const).flatMap((row) => ids.map((_, i) => answer(i + 1, row))),
+    ...([3, 7] as const).flatMap((row) => ids.map((_, i) => answer(i + 1, row, { sample: 2 }))),
+  ]
+  const exclude = [answer(1, 3), answer(2, 3), answer(3, 7), answer(4, 0)]
+  const key = ({ questionId, row }: Pick<EvalAnswer, 'questionId' | 'row'>) =>
+    `${questionId}/${String(row)}`
+  const sample = freshSpotCheckSampleForLabels({ answers, questions, exclude })
+
+  it('takes 5 first answers from row 3 and 5 from row 7, on the error codes alone', () => {
+    expect(sample).toHaveLength(10)
+    expect([3, 7].map((row) => sample.filter((item) => item.row === row).length)).toEqual([5, 5])
+    expect(sample.every(({ questionId }) => tagged.has(questionId))).toBe(true)
+    expect(sample.every((item) => item.sample === 1)).toBe(true)
+  })
+
+  it('shows none of what the first spot check showed, by question and row', () => {
+    const shown = new Set(exclude.map(key))
+
+    expect(sample.filter((item) => shown.has(key(item)))).toEqual([])
+    // 5 and 5 from 8 questions: some question comes from both rows.
+    expect(new Set(sample.map(({ questionId }) => questionId)).size).toBeLessThan(10)
+  })
+
+  it('leaves a question in the other row when only one row showed it', () => {
+    const all = freshSpotCheckSampleForLabels(
+      { answers, questions, exclude },
+      { ...COMPILED_FRESH_SPOT_CHECK, perRow: 8 },
+    )
+
+    expect(all.filter((item) => item.row === 3)).toHaveLength(6)
+    expect(all.filter((item) => item.row === 7)).toHaveLength(7)
+    expect(all.map(key)).toContain(`${ID(1)}/7`)
+    expect(all.map(key)).not.toContain(`${ID(1)}/3`)
+  })
+
+  it('is the same every time, from a seed of its own, with no verdict to read', () => {
+    expect(freshSpotCheckSampleForLabels({ answers, questions, exclude })).toEqual(sample)
+    expect(FRESH_SPOT_CHECK_SEED).not.toBe(SPOT_CHECK_SEED)
+    expect(sample).not.toEqual(
+      freshSpotCheckSampleForLabels({
+        answers,
+        questions,
+        exclude,
+        seed: FRESH_SPOT_CHECK_SEED + 1,
+      }),
     )
   })
 })
