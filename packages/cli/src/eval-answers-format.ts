@@ -310,7 +310,7 @@ export function formatSpotCheck(spot: EvalSpotCheck, after?: string): string {
     ...(after === undefined
       ? []
       : [
-          `A fresh spot check, on answers that the spot check of \`${after}\` did not show, chosen without reading any verdict (ADR-0017).`,
+          `A fresh spot check, on answers that the spot check of \`${after}\` did not show, chosen without reading any of this report's verdicts (ADR-0017).`,
         ]),
     table(
       ['Dimension', 'Agreed', 'Compared', "Cohen's kappa", '95% interval', 'Passed'],

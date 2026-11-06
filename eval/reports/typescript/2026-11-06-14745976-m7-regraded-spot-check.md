@@ -2,7 +2,7 @@
 
 Report: `14745976`, m7-regraded, 2026-11-06T01:13:27.122Z. It allows 1 disagreement on each dimension it compares (ADR-0016), and it is no calibration round: it decides nothing for any other report.
 
-A fresh spot check, on answers that the spot check of `2026-11-05-cd07c310-m7-answers` did not show, chosen without reading any verdict (ADR-0017).
+A fresh spot check, on answers that the spot check of `2026-11-05-cd07c310-m7-answers` did not show, chosen without reading any of this report's verdicts (ADR-0017).
 
 | Dimension | Agreed | Compared | Cohen's kappa | 95% interval | Passed |
 | --- | --- | --- | --- | --- | --- |

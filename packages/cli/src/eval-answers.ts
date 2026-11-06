@@ -20,6 +20,7 @@ import {
   calibrate,
   checkVariantIndex,
   compareRows,
+  COMPILED_FRESH_SPOT_CHECK,
   createClaudeClient,
   CORRECTNESS_SYSTEM_PROMPT,
   estimateCost,
@@ -519,7 +520,8 @@ function spotCheckSampleOf(answers: EvalAnswers, golden: Golden) {
 
 /**
  * A fresh spot check's sample (ADR-0017): answers that the spot check of an earlier report did not
- * show, read with the set that report was measured on. It reads no verdict.
+ * show, read with the set that report was measured on. It reads none of this report's verdicts:
+ * only the earlier spot check, which it leaves out, was chosen with that report's.
  */
 function freshSpotCheckSampleOf(
   ctx: CommandContext,
@@ -528,17 +530,32 @@ function freshSpotCheckSampleOf(
   golden: Golden,
   earlier: string,
 ) {
+  const plan = COMPILED_FRESH_SPOT_CHECK
+  const missing = plan.rows.filter((row) => !answers.answers.some((answer) => answer.row === row))
+  if (missing.length > 0) {
+    throw new CliError(
+      `a fresh spot check takes answers from rows ${plan.rows.join(', ')}, and this report has no row ${missing.join(', ')}`,
+    )
+  }
+  if (!golden.questions.some(({ tags }) => tags.includes(plan.tag))) {
+    throw new CliError(
+      `a fresh spot check takes answers on the ${plan.tag} tag, and this set has none`,
+    )
+  }
   const first = reportWithAnswers(ctx, earlier)
   if (first.report.identity.sourceId !== report.identity.sourceId) {
     throw new CliError(`${earlier} is of another source`)
   }
   const source = findSource(ctx.sources, first.report.identity.sourceId)
   const firstGolden = goldenOf(ctx, source, first.report.identity.goldenSet.hash)
-  return freshSpotCheckSampleForLabels({
-    answers: answers.answers,
-    questions: golden.questions,
-    exclude: spotCheckSampleOf(first.answers, firstGolden),
-  })
+  return freshSpotCheckSampleForLabels(
+    {
+      answers: answers.answers,
+      questions: golden.questions,
+      exclude: spotCheckSampleOf(first.answers, firstGolden),
+    },
+    plan,
+  )
 }
 
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */

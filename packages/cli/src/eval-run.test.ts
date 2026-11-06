@@ -1518,6 +1518,18 @@ describe('drl eval answers', () => {
         expect(code).toBe(0)
         expect(out).toContain('This spot check passed.')
         expect(out).toContain('A fresh spot check, on answers that the spot check of')
+        expect(out).toContain("chosen without reading any of this report's verdicts")
+      })
+
+      it('refuses a report without the rows it compares', async () => {
+        const { first } = await twoVersions()
+        clock += 1000
+        const other = reportPathIn((await drl('eval', 'answers', '--rows', '0,3', '--yes')).out)
+
+        const { code, err } = await drl('eval', 'label', other, '--spot', '--after', first)
+
+        expect(code).toBe(1)
+        expect(err).toContain('this report has no row 7')
       })
     })
 
