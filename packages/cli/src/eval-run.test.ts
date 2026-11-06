@@ -21,6 +21,7 @@ import {
   createEmbeddingProvider,
   embeddingCacheKey,
   freshSampleForLabels,
+  freshSpotCheckSampleForLabels,
   parseGoldenSet,
   newRowsSampleForLabels,
   readCalibrations,
@@ -1406,7 +1407,117 @@ describe('drl eval answers', () => {
         const { code, err } = await drl('eval', 'label', path, '--spot', '--rows', '4')
 
         expect(code).toBe(1)
-        expect(err).toContain('--spot goes with neither --after nor --rows')
+        expect(err).toContain('--spot and --rows cannot go together')
+      })
+    })
+
+    describe('a fresh spot check, after the notes changed (ADR-0017)', () => {
+      const errorCodeSet = (note: string): void => {
+        const tags = ['exact-token', 'error-code']
+        const rows = [
+          {
+            id: 'ts-0001',
+            question: 'First?',
+            answer: 'A.',
+            note,
+            primary: ['docs/a.md#one'],
+            tags,
+          },
+          {
+            id: 'ts-0002',
+            question: 'Second?',
+            answer: 'A.',
+            note,
+            primary: ['docs/a.md#two'],
+            tags,
+          },
+          { id: 'ts-0003', question: 'Not covered?', answer: 'No.', tags: ['unanswerable'] },
+        ]
+        writeFileSync(
+          goldenSetPath(root, 'typescript'),
+          `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        )
+      }
+      const answersIn = (path: string) => readReport(path).answers
+
+      /** A report with rows 0, 3 and 7 on version 2, and one on version 3, whose notes alone changed. */
+      async function twoVersions() {
+        seedIndex('compiled')
+        errorCodeSet('Quoting the message is required.')
+        await drl('eval', 'check', '--accept', '--set-version', '2')
+        await drl('eval', 'check', '--compiled', '--accept')
+        const first = reportPathIn((await drl('eval', 'answers', '--rows', '0,3,7', '--yes')).out)
+        for (const name of [
+          'questions.jsonl',
+          'questions.lock.json',
+          'questions.compiled.lock.json',
+        ]) {
+          const path = join(goldenSetPath(root, 'typescript'), '..', name)
+          writeFileSync(path.replace('questions.', 'questions.v2.'), readFileSync(path))
+        }
+        errorCodeSet('Quoting the message is optional.')
+        await drl('eval', 'check', '--accept', '--set-version', '3')
+        await drl('eval', 'check', '--compiled', '--accept')
+        clock += 1000
+        const second = reportPathIn((await drl('eval', 'answers', '--rows', '0,3,7', '--yes')).out)
+        const firstGolden = parseGoldenSet(
+          readFileSync(archivedSetPath(root, 'typescript', 2), 'utf8'),
+        )
+        const shown = spotCheckSampleForLabels(
+          {
+            answers: answersIn(first)?.answers ?? [],
+            verdicts: answersIn(first)?.verdicts ?? [],
+            questions: firstGolden,
+          },
+          { rows: [0, 3, 7], unanswerable: 1, required: { tag: 'error-code', count: 5 } },
+        )
+        const sample = freshSpotCheckSampleForLabels({
+          answers: answersIn(second)?.answers ?? [],
+          questions: parseGoldenSet(readFileSync(goldenSetPath(root, 'typescript'), 'utf8')),
+          exclude: shown,
+        })
+        return { first, second, shown, sample }
+      }
+
+      it('shows rows 3 and 7 on the error codes, none of what the first showed', async () => {
+        const { first, second, shown, sample } = await twoVersions()
+
+        const { code, out } = await drl('eval', 'label', second, '--spot', '--after', first)
+
+        expect(code).toBe(0)
+        expect(sheetOf(out)).toMatch(/-fresh-spot-check\.md$/)
+        const sheet = readFileSync(sheetOf(out), 'utf8')
+        expect(sheet).toContain(sampleHash(sample))
+        expect(sheet).toContain('Quoting the message is optional.')
+        expect(sample.length).toBeGreaterThan(0)
+        const key = ({ questionId, row }: { questionId: string; row: number }) =>
+          `${questionId}/${String(row)}`
+        expect(sample.every(({ row }) => row === 3 || row === 7)).toBe(true)
+        expect(sample.every(({ questionId }) => questionId !== 'ts-0003')).toBe(true)
+        expect(sample.filter((item) => shown.map(key).includes(key(item)))).toEqual([])
+      })
+
+      it('reads its labels against that sample, and says so', async () => {
+        const { first, second, sample } = await twoVersions()
+        const verdicts = answersIn(second)?.verdicts ?? []
+        const labels = sample.map((answer, i) => ({
+          item: i + 1,
+          correctness: verdicts.find(
+            (item) => item.questionId === answer.questionId && item.row === answer.row,
+          )?.correctness,
+          supported: true,
+        }))
+        const labelsPath = join(root, 'labels.json')
+        writeFileSync(labelsPath, JSON.stringify({ sample: sampleHash(sample), labels }))
+
+        const plain = await drl('eval', 'spot-check', second, labelsPath)
+        expect(plain.code).toBe(1)
+        expect(plain.err).toContain('these labels are of sample')
+
+        const { code, out } = await drl('eval', 'spot-check', second, labelsPath, '--after', first)
+        expect(code).toBe(0)
+        expect(out).toContain('This spot check passed.')
+        expect(out).toContain('A fresh spot check, on answers that the spot check of')
       })
     })
 

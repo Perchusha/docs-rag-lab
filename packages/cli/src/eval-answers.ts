@@ -24,6 +24,7 @@ import {
   CORRECTNESS_SYSTEM_PROMPT,
   estimateCost,
   freshSampleForLabels,
+  freshSpotCheckSampleForLabels,
   isUnanswerable,
   judgeSentence,
   judgeTrust,
@@ -516,6 +517,30 @@ function spotCheckSampleOf(answers: EvalAnswers, golden: Golden) {
   )
 }
 
+/**
+ * A fresh spot check's sample (ADR-0017): answers that the spot check of an earlier report did not
+ * show, read with the set that report was measured on. It reads no verdict.
+ */
+function freshSpotCheckSampleOf(
+  ctx: CommandContext,
+  report: EvalReport,
+  answers: EvalAnswers,
+  golden: Golden,
+  earlier: string,
+) {
+  const first = reportWithAnswers(ctx, earlier)
+  if (first.report.identity.sourceId !== report.identity.sourceId) {
+    throw new CliError(`${earlier} is of another source`)
+  }
+  const source = findSource(ctx.sources, first.report.identity.sourceId)
+  const firstGolden = goldenOf(ctx, source, first.report.identity.goldenSet.hash)
+  return freshSpotCheckSampleForLabels({
+    answers: answers.answers,
+    questions: golden.questions,
+    exclude: spotCheckSampleOf(first.answers, firstGolden),
+  })
+}
+
 /** `drl eval label <report>`: writes the sheet a human labels from. It shows no verdicts. */
 export function evalLabelCommand(
   ctx: CommandContext,
@@ -532,16 +557,17 @@ export function evalLabelCommand(
   const fresh = args.after !== undefined
   const spot = args.spot === true
   if (fresh && args.rows !== undefined) throw new CliError('--after and --rows cannot go together')
-  if (spot && (fresh || args.rows !== undefined)) {
-    throw new CliError('--spot goes with neither --after nor --rows')
-  }
-  const sample = spot
-    ? spotCheckSampleOf(answers, golden)
-    : args.rows !== undefined
-      ? newRowsSampleOf(answers, golden, args.rows)
-      : args.after !== undefined
-        ? freshSampleOf(ctx, answers, golden, args.after)
-        : sampleOf(report, answers, golden)
+  if (spot && args.rows !== undefined) throw new CliError('--spot and --rows cannot go together')
+  const sample =
+    spot && args.after !== undefined
+      ? freshSpotCheckSampleOf(ctx, report, answers, golden, args.after)
+      : spot
+        ? spotCheckSampleOf(answers, golden)
+        : args.rows !== undefined
+          ? newRowsSampleOf(answers, golden, args.rows)
+          : args.after !== undefined
+            ? freshSampleOf(ctx, answers, golden, args.after)
+            : sampleOf(report, answers, golden)
   if (spot && sample.length < SPOT_CHECK_ANSWERS) {
     ctx.out.write(
       `this report has too few questions for ${String(SPOT_CHECK_ANSWERS)} answers, so the sheet has ${String(sample.length)}\n`,
@@ -549,12 +575,21 @@ export function evalLabelCommand(
   }
   const dir = join(reportsDir(ctx.root, source.id), 'dev')
   mkdirSync(dir, { recursive: true })
-  const round = spot ? '-spot-check' : fresh ? '-fresh' : args.rows !== undefined ? '-new-rows' : ''
+  const round =
+    spot && fresh
+      ? '-fresh-spot-check'
+      : spot
+        ? '-spot-check'
+        : fresh
+          ? '-fresh'
+          : args.rows !== undefined
+            ? '-new-rows'
+            : ''
   const sheet = join(dir, `labels-${basename(args.path, '.json')}${round}.md`)
   const questions = new Map(golden.questions.map((question) => [question.id, question]))
   writeFileSync(
     sheet,
-    `${formatLabelSheet(sample, questions, sampleHash(sample), { correctnessOnly: fresh })}\n`,
+    `${formatLabelSheet(sample, questions, sampleHash(sample), { correctnessOnly: fresh && !spot })}\n`,
   )
   ctx.out.write(`${String(sample.length)} answers to label, with no verdicts in sight: ${sheet}\n`)
 }
@@ -635,12 +670,15 @@ const spotCheckWords = (spot: EvalSpotCheck | null): string[] =>
  */
 export function evalSpotCheckCommand(
   ctx: CommandContext,
-  args: { path: string; labels: string },
+  args: { path: string; labels: string; after?: string | undefined },
 ): void {
   const { report, answers } = reportWithAnswers(ctx, args.path)
   const source = findSource(ctx.sources, report.identity.sourceId)
   const golden = goldenOf(ctx, source, report.identity.goldenSet.hash)
-  const sample = spotCheckSampleOf(answers, golden)
+  const sample =
+    args.after === undefined
+      ? spotCheckSampleOf(answers, golden)
+      : freshSpotCheckSampleOf(ctx, report, answers, golden, args.after)
   const found = spotCheck({
     report: {
       repoSha: report.run.repoSha,
@@ -655,7 +693,10 @@ export function evalSpotCheckCommand(
   })
   const path = spotCheckPath(resolve(ctx.root, args.path))
   writeFileSync(path, `${JSON.stringify(found, null, 2)}\n`)
-  const text = formatSpotCheck(found)
+  const text = formatSpotCheck(
+    found,
+    args.after === undefined ? undefined : basename(args.after, '.json'),
+  )
   writeFileSync(path.replace(/\.json$/, '.md'), text)
   ctx.out.write(text)
   rewriteAnswerMarkdown(ctx)

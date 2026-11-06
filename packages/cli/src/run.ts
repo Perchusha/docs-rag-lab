@@ -112,13 +112,16 @@ Commands:
       [--after <report>]      A fresh round: 10 answers, on no question of that report's sheet
       [--rows <list>]         A round on those rows: 15 answers, for rows new in a milestone
       [--spot]                A spot check: 10 answers from rows 0, 3 and 4 (ADR-0016), or 0,
-                              3 and 7 for a report with row 7 (ADR-0017)
+                              3 and 7 for a report with row 7 (ADR-0017). With --after, a fresh
+                              one: 5 from row 3 and 5 from row 7 on the error codes, none that
+                              report's spot check showed (ADR-0017)
   eval calibrate <r> <labels> How often the human and the judge agree
       [--after <report>]      Those labels are of a fresh round after that report
       [--sample-of <report>]  Those labels are of that report's sheet, graded again: not blind
       [--rows <list>]         Those labels are of a round on those rows
   eval spot-check <r> <labels> How often the human and the judge agree on a spot check, which
                               decides nothing for any other report
+      [--after <report>]      Those labels are of a fresh spot check after that report
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
       [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
       [--without-tag <tag>]   Leave out the questions with that tag (ADR-0017)
@@ -298,7 +301,10 @@ function refuseStrayEvalFlags(
       : []),
     ...(values.strategies !== undefined && subcommand !== 'compare' ? ['--strategies'] : []),
     ...(values['without-tag'] !== undefined && subcommand !== 'compare' ? ['--without-tag'] : []),
-    ...(values.after !== undefined && subcommand !== 'label' && subcommand !== 'calibrate'
+    ...(values.after !== undefined &&
+    subcommand !== 'label' &&
+    subcommand !== 'calibrate' &&
+    subcommand !== 'spot-check'
       ? ['--after']
       : []),
     ...(values['sample-of'] !== undefined && subcommand !== 'calibrate' ? ['--sample-of'] : []),
@@ -568,7 +574,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         if (first === undefined || second === undefined) {
           throw new CliError('eval spot-check needs a report file and a labels file')
         }
-        evalSpotCheckCommand(ctx, { path: first, labels: second })
+        evalSpotCheckCommand(ctx, { path: first, labels: second, after: values.after })
       } else if (subcommand === 'calibrate') {
         if (first === undefined || second === undefined) {
           throw new CliError('eval calibrate needs a report file and a labels file')

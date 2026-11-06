@@ -294,6 +294,69 @@ export function spotCheckSampleForLabels(
   })
 }
 
+/** A fresh spot check, after a change left the first one's labels no longer blind (ADR-0017). */
+export const FRESH_SPOT_CHECK_SEED = LABEL_SEED + 4
+
+/** Which answers a fresh spot check takes. */
+export interface FreshSpotCheckPlan {
+  rows: readonly AnswerRow[]
+  /** Answers from each row. */
+  perRow: number
+  /** Only questions with this tag. */
+  tag: GoldenTag
+}
+
+/** ADR-0017's, after version 3 of the set: 5 from row 3 and 5 from row 7, on the error codes. */
+export const COMPILED_FRESH_SPOT_CHECK: FreshSpotCheckPlan = {
+  rows: [3, 7],
+  perRow: 5,
+  tag: 'error-code',
+}
+
+export interface FreshSpotCheckOptions {
+  answers: readonly EvalAnswer[]
+  questions: readonly GoldenQuestion[]
+  /** What the first spot check showed. No answer with its question and row is shown again. */
+  exclude: readonly Pick<EvalAnswer, 'questionId' | 'row'>[]
+  seed?: number
+}
+
+const answerKey = (answer: Pick<EvalAnswer, 'questionId' | 'row'>): string =>
+  `${answer.questionId}/${String(answer.row)}`
+
+/**
+ * A fresh spot check (ADR-0017): first answers on the plan's tag, as many from each row, none the
+ * first spot check showed, so a question can come once from each row. It reads no verdict, so it is
+ * fixed before the judge grades again. A row with too few answers left gives what it has.
+ */
+export function freshSpotCheckSampleForLabels(
+  options: FreshSpotCheckOptions,
+  plan: FreshSpotCheckPlan = COMPILED_FRESH_SPOT_CHECK,
+): EvalAnswer[] {
+  const seed = options.seed ?? FRESH_SPOT_CHECK_SEED
+  const random = seeded(seed)
+  const tagged = new Set(
+    options.questions.filter(({ tags }) => tags.includes(plan.tag)).map(({ id }) => id),
+  )
+  const shown = new Set(options.exclude.map(answerKey))
+  const sample = plan.rows.flatMap((row) =>
+    shuffled(
+      options.answers
+        .filter(
+          (answer) =>
+            answer.row === row &&
+            answer.sample === 1 &&
+            answer.status === 'ok' &&
+            tagged.has(answer.questionId) &&
+            !shown.has(answerKey(answer)),
+        )
+        .sort((a, b) => a.questionId.localeCompare(b.questionId)),
+      random,
+    ).slice(0, plan.perRow),
+  )
+  return shuffled(sample, seeded(seed ^ parseInt(sampleHash(sample).slice(0, 8), 16)))
+}
+
 /** Names a sample, so that labels cannot be read against a different one. */
 export function sampleHash(sample: readonly Pick<EvalAnswer, 'questionId' | 'row'>[]): string {
   return createHash('sha256')
