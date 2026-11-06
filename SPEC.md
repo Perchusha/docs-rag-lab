@@ -456,6 +456,8 @@ Every milestone ends with:
 
 **v1.0 is M5 through M9,** on top of M0 to M4, which are done (ADR-0015).
 
+**M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
+
 **Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD).
 
 ### The process from M6 on
@@ -466,6 +468,14 @@ Lighter than M4 and M5, by the owner's decision (ADR-0015):
 - **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
 - **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016, and M7's in ADR-0017.
 - **Not built in M6:** the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app` (ADR-0016).
+
+### From M8 on
+
+By the owner's decision when M7 closed (ADR-0015, section 6):
+- **One main hypothesis per milestone,** with set-level criteria written down before any paid run. No chains of sub-hypotheses.
+- **M8 is a product milestone,** judged mainly by the owner's hands-on review, plus tests, stories, axe and the keyboard. An eval runs only for a part that depends on retrieval or generation quality, and it stays small.
+- **M9 is measured on the frozen sets only,** TypeScript's version 3 and React's version 2, with no new questions. The calibrated judge is reused, and a spot check of 10 answers runs only if the answer format changes in a way the judge has not seen.
+- **Each milestone aims for 3 to 4 PRs.**
 
 ### M4 retrieval targets from M2
 

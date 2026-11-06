@@ -1,6 +1,6 @@
 # ADR-0015: The scope of v1.0, and a lighter process from M6
 
-- Status: accepted
+- Status: accepted. Section 6 was added on 2026-11-06, when M7 closed.
 - Date: 2026-11-04
 - Milestone: M5, for what comes after it
 
@@ -41,6 +41,17 @@ A new round of blind labels is needed only when the judge's prompt or model chan
 - **Set-level criteria decide, and per-question targets are diagnostics** (ADR-0014).
 - **A command that spends prints its estimate first** and waits for `--yes`.
 - **Every number keeps its interval and its verdict,** reports stay reproducible (ADR-0010), and a frozen set stays frozen.
+
+### 6. From M8 on, one main hypothesis and 3 to 4 PRs
+
+The owner decided this on 2026-11-06, when M7 closed. M7 tested a chain of three hypotheses, C1 to C3, with two spot checks of the judge, over five PRs.
+
+- **One main hypothesis per milestone,** with set-level criteria written down before any paid run. No chains of sub-hypotheses.
+- **M8, the interview-prep app, is a product milestone.** It is judged mainly by the owner's hands-on review, plus the usual checks: tests, stories, axe and the keyboard. An eval runs only for a part that depends on retrieval or generation quality, and it stays small.
+- **M9, agentic mode, is measured on the frozen sets only,** TypeScript's version 3 and React's version 2, with no new questions. The calibrated judge is reused. A spot check of 10 answers runs only if the answer format changes in a way the judge has not seen.
+- **Each milestone aims for 3 to 4 PRs.**
+
+Section 5 still holds.
 
 ## Consequences
 

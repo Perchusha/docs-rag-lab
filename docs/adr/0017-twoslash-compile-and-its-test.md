@@ -292,6 +292,8 @@ The owner labelled the 10 answers of sample `8ea13bccbe78` blind, and the labels
 - **Check 2:** the plain index's sha256 starts `403465a8`, the contextual index `9ceab39b`, the control `77aa7643` and React's `019e2afd`.
 - **Check 3:** all 213 JSON responses of the dashboard for TypeScript's 14 reports from before M7 are identical to the snapshot, and all 7 of React's. The 15 pages differ only by what M7 adds: the run picker lists M7's 4 reports, and `/eval` opens on `m7-regraded`, the newest.
 
+**SPEC's acceptance for M7 is not met,** and it stays as written, by the owner's decision: the `exact-token` questions were measured and did not improve. Rewriting it after the result would move the goalposts.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.

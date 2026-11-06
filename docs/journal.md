@@ -27,7 +27,7 @@ The retrieval rows are from the retrieval reports, which are on version 2. Versi
 - **C3 is not reached.** Fully correct is 42 against 41, at 1 to 0, and 8 against 7 on the error-code questions, at 1 to 0. Both are noise, and each row differs from itself by 1 between two runs.
 - **The fresh spot check passed:** correctness 9 of 10 (60-98%), refusals 10 of 10 (72-100%), citations 9 of 10 (60-98%). Its one disagreement on correctness is the judge scoring a row 7 answer higher.
 - **This applies to the error-code questions chosen by ADR-0017's rule,** not to exact-token questions in general.
-- **SPEC's acceptance for M7 is not met.** It asked that the `exact-token` questions improve. They were measured, and they did not: MRR on the tag goes from 0.759 to 0.773, and fully correct from 17 to 18 of 18, both noise.
+- **SPEC's acceptance for M7 is not met.** It asked that the `exact-token` questions improve. They were measured, and they did not: MRR on the tag goes from 0.759 to 0.773, and fully correct from 17 to 18 of 18, both noise. The criterion stays as written, by the owner's decision: rewriting it after the result would move the goalposts, as ts-0033's target did not move in M5.
 
 **What only real runs showed:**
 - **One sentence in the notes decided C3.** Under version 2 of the set, the judge's grades put the compiled index ahead, 41 against 35, at 6 to 0, all 6 on the error-code questions. The owner's blind spot check then missed on correctness, at 7 of 9. On two answers from the plain index the owner scored 2 and the judge 1: both explain the error right without quoting its message. The notes said an answer that gives the message and explains it is fully correct, and the judge read that as asking for the message, which the rubric does not, since the question asks what the error means. The owner had the notes match the rubric in version 3, the way M4 had the judge's prompt state it (ADR-0012, section 6). That change came after the answers and the grades were seen, it moves the result toward no effect, and the README says so. The judge graded the same answers again from the cache, and on version 3's grades they split 1 to 0. A fresh spot check, under a rule written down before the new grades, decided that they are read. Without the spot check, the app would have switched on a note's wording.
@@ -38,7 +38,7 @@ The retrieval rows are from the retrieval reports, which are on version 2. Versi
 
 **Spend:** $5.41 of Claude at list prices, against a limit of $10: $0.30 for the pilot, $4.54 for the named run and $0.57 for the second grading. Voyage stayed inside the free tokens with no 429: 97,046 tokens in 13 minutes for the compiled index, and 8 rerank calls.
 
-**Next:** M8, the interview-prep MVP. Each compiled chunk keeps the compiler's errors and `^?` types in its metadata, which its compiler-verified questions read.
+**Next:** M8, the interview-prep MVP. Each compiled chunk keeps the compiler's errors and `^?` types in its metadata, which its compiler-verified questions read. From M8 on, a milestone has one main hypothesis and aims for 3 to 4 PRs. M8 is judged mainly by the owner's hands-on review, and M9 is measured on the frozen sets with no new questions (ADR-0015, section 6).
 
 ### Open items for M8
 

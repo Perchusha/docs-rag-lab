@@ -99,3 +99,4 @@ A task is done when all of these hold:
 - Hardcode model IDs or prices outside `packages/settings`, or put a secret in it.
 - Use em dashes in any text: docs, comments, commit messages, UI copy. Use plain hyphens.
 - Change a frozen golden set without a reason from the docs text, a new set version and a changelog entry (ADR-0009, section 9). A ranking is never the reason.
+- Allow an exception to that rule other than the one in ADR-0009 section 9, with all of its conditions.
