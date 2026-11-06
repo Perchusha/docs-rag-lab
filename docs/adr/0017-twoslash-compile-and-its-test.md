@@ -199,13 +199,13 @@ Written on 2026-11-06 from the named report [`2026-11-05-58ea72d2-m7-plain`](../
 
 ## What M7 found
 
-From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge missed, below, so no result on the answers is read until the owner decides.
+From three named reports: [`m7-plain`](../../eval/reports/typescript/2026-11-05-58ea72d2-m7-plain.md), [`m7-compiled`](../../eval/reports/typescript/2026-11-05-7d8fe914-m7-compiled.md) and [`m7-answers`](../../eval/reports/typescript/2026-11-05-cd07c310-m7-answers.md), all on version 2. The spot check of the judge missed, below, so no result on the answers is read from these grades. What came after is in the next section.
 
 **C1 is not shown, as its ceiling said.** Hybrid on the compiled index ranks a primary anchor first on all 8 `error-code` questions, against 7 on the plain index: ts-0050 moved from 2 to 1. MRR goes from 0.938 to 1.000, better on 1 question, which is noise. No verdict names the plain index: hit@1 goes from 7 to 8, and hit@8 stays at 8, so no anchor of the 8 leaves the top 8.
 
 **C2 holds.** On the 40 earlier questions, hybrid on the compiled index against hybrid on the plain index: hit@1 19 to 21, hit@3 34 to 34, hit@5 and hit@8 35 and 36 unchanged, recall@8 0.881 unchanged, MRR 0.657 to 0.682. Every verdict is noise, and the plain index is ahead on none of them, net. No anchor leaves the top 8. The ranks that fell are ts-0028 from 2 to 3, ts-0035 from 1 to 2 and ts-0040 from 3 to 4, all inside the top 8, and ts-0024 from 40 to 42, outside it on both.
 
-**C3 is reached by the judge's grades, on fully correct.** Row 3 against row 7:
+**Under version 2's notes, C3 is reached by the judge's grades, on fully correct.** Row 3 against row 7:
 
 | Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
 |---|---|---|---|---|---|
@@ -225,6 +225,26 @@ All citations hold and wrongly refused give no verdict: 39 to 42 of 48 citations
 **Integrity checks 2, 5, 6 and 7 hold.** The four other indexes keep their sha256. The commit that froze version 2, `fcb0876`, is an ancestor of every commit the three reports stamp. The three reports reproduce byte for byte, recorded next to them, and all 1,427 cited texts are in their chunk's text, ignoring whitespace, 71 of row 7's with compiler output. Check 1, the earlier named reports, and check 3, the dashboards, run at the end.
 
 **Spend:** $4.84 of Claude at list prices, against an estimate of about $5.30 and a limit of $10: $0.30 for the pilot and $4.54 for the named run. Voyage: 8 rerank calls, 69,075 tokens, and one embedding request, inside the free tokens, with no 429.
+
+## After the spot check missed
+
+Written on 2026-11-06, after the owner's decision and before the judge graded anything again.
+
+**The owner chose to make the notes match the rubric, as in M4** (ADR-0012, section 6). The rubric scores what the question asks, and details the question does not ask for count neither way. These 8 questions ask what an error means. The notes' common sentence, "an answer that gives the message and explains it is fully correct", asked for the message text as well, and the judge read it so.
+
+- **The notes change, and nothing else.** The common sentence now says that the question asks what the error means, that an answer that explains this correctly is fully correct, and that quoting the message text is optional, as the examples are. The questions, expected answers, anchors and tags stay. This is version 3 of the set, with its changelog entry in ADR-0009. Version 2 stays beside it, for the reports measured on it.
+- **The change was made after the answers and the judge's grades were seen,** because of a disagreement in the spot check. The README says so too. It moves the result toward no effect, not toward one: it only relaxes what a fully correct answer needs, and the answers it was made for are row 3's, which lack the message text because the plain chunks do not hold it.
+- **The judge grades again, from the cache.** A named report on version 3, with the same rows and `--noise`, has the same answers, prompts and models. Only the correctness verdicts on the 8 questions are new, since only that call reads the note. Retrieval does not read the notes, so C1 and C2 stand on version 2's reports.
+
+**A fresh spot check decides whether the new grades are read.** The owner's first 10 labels are no longer blind for this change, so they validate nothing. The owner set the rule, and it is recorded here before the judge grades again:
+- **10 answers on the 8 `error-code` questions:** 5 from row 3 and 5 from row 7, the two rows C3 compares;
+- **only first answers, and none the first spot check showed,** by question and row, which leaves 6 in row 3 and 7 in row 7, so a question can come once from each row;
+- **from a seed of its own,** chosen without reading any verdict, so the sample is fixed before the new grades exist, and in shuffled order;
+- **labelled on all three dimensions,** and passed with at most one disagreement on each dimension it compares, as the first.
+
+A miss stops the work, and the notes and the prompt do not change again without the owner. The first spot check's labels are not read against the new grades.
+
+**C3 is read as it falls,** by its rule above, on the new grades, once the fresh spot check passes. The owner withdrew the README sentence on the error-code questions drafted before the spot check: it rested on the judge's reading, which the owner's labels contradicted.
 
 ## Alternatives considered
 
