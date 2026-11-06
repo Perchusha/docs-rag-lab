@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M7 - Twoslash compile (see SPEC.md section 13). M0 to M6 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
+M8 - Interview-prep MVP (see SPEC.md section 13). M0 to M7 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
 
 ## Commands
 
