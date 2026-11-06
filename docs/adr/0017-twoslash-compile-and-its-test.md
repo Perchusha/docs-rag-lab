@@ -246,6 +246,28 @@ A miss stops the work, and the notes and the prompt do not change again without 
 
 **C3 is read as it falls,** by its rule above, on the new grades, once the fresh spot check passes. The owner withdrew the README sentence on the error-code questions drafted before the spot check: it rested on the judge's reading, which the owner's labels contradicted.
 
+### What the judge gives on version 3
+
+From the named report [`m7-regraded`](../../eval/reports/typescript/2026-11-06-14745976-m7-regraded.md), with rows 0, 2, 3 and 7 and `--noise`. Nothing in it is read as a result until the fresh spot check passes. Its 318 answers are those of `m7-answers`, all from the cache, and it paid $0.57 for 56 correctness calls on the 8 questions. Of those 56 verdicts, 19 moved: 16 from 1 to 2, of them 15 in row 3, and 3 others, including a second answer of row 3 on ts-0051 that says the docs do not explain TS2344, which now scores 0 as a refusal.
+
+**C3 is not reached on version 3's grades.** Row 3 against row 7:
+
+| Scope | Fully correct, row 3 | Row 7 | Split | Run to run, rows 3 and 7 | Verdict |
+|---|---|---|---|---|---|
+| All 48 | 41 | 42 | 0 to 1 | 1 and 1 | noise |
+| `error-code`, 8 | 7 | 8 | 0 to 1 | 1 and 1 | noise |
+
+All citations hold goes from 39 to 42 of 48, 3 to 6, not significant, and from 6 to 8 on the `error-code` questions, 0 to 2. Wrongly refused goes from 3 to 2, 0 to 1: on ts-0053, row 3 says the docs do not define TS1005, and its chunk holds only the directive. If the fresh spot check passes, the app stays on the plain index and the compiled index is kept for M8, by C3's rule. The owner's yes to the app was for C3 reached, so there is no PR for the switch.
+
+**Reported, and deciding nothing:**
+- **Claude without the docs** is fully correct on all 8 `error-code` questions, as before, and row 7 on all 8 too.
+- **What compiling still adds is the message with a citation.** Correct and grounded goes from 5 to 8 of the 8 `error-code` questions, 0 to 3, and from 33 to 37 of 48 overall, 3 to 7, neither significant. Row 3 gives the meaning from the examples, and row 7 quotes the message from the compiled chunk and cites it.
+- **The judge, asked twice about row 3's first answers,** gave the same grade on 52 of 53. It differs on ts-0047, which it scores 1 the second time.
+
+**Integrity checks 5 and 7 hold for it.** Version 3's commit, `1474597`, is the commit the report stamps. The report reproduces byte for byte, recorded next to it, and all 1,427 cited texts are in their chunk's text. The three reports on version 2 still reproduce byte for byte, read against `questions.v2.jsonl`.
+
+**Spend:** $0.57 more, so $5.41 of Claude for M7, against the limit of $10.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
