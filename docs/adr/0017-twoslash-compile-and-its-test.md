@@ -268,6 +268,23 @@ All citations hold goes from 39 to 42 of 48, 3 to 6, not significant, and from 6
 
 **Spend:** $0.57 more, so $5.41 of Claude for M7, against the limit of $10.
 
+### The fresh spot check passed
+
+The owner labelled the 10 answers of sample `8ea13bccbe78` blind, and the labels were committed at once, in [`eval/labels/typescript/`](../../eval/labels/typescript/2026-11-06-14745976-m7-regraded-fresh-spot-check.json), before the judge was compared with them. The result is in [its own file](../../eval/reports/typescript/2026-11-06-14745976-m7-regraded-spot-check.md), which decides nothing for any other report.
+
+| Dimension | Agreed | Disagreement |
+|---|---|---|
+| Correctness | 9 of 10 | ts-0046, row 7: the owner 1, the judge 2 |
+| Refusal | 10 of 10 | none |
+| Support | 9 of 10 | ts-0052, row 3: the owner supported, the judge unsupported |
+
+- **Each dimension is inside the one disagreement allowed,** so version 3's grades are read.
+- **The one disagreement on correctness is the judge scoring row 7 higher.** It can only bring row 7 down, so it cannot make C3 reached.
+- **Of row 3's five answers, the owner and the judge scored four 2.** They give the meaning without the message text. The fifth is ts-0053's refusal, which both scored 0 as refused.
+- **Support's kappa is 0.00 and says nothing here:** the owner marked all 10 as supported, so the only number to read is the 9 of 10 agreed.
+
+**C3 is not reached, read as it falls:** fully correct 41 to 42 of 48 and 7 to 8 on the `error-code` questions, both noise by ADR-0013's rule. The ts-docs app stays on the plain index, the compiled index is kept for M8, and there is no PR for the switch. The README states the finding as these numbers give it, with the change to the notes and when it was made.
+
 ## Alternatives considered
 
 - **Compiling into the plain index.** It would change the chunks every report before M7 was measured on, so none of them could be reproduced.
