@@ -8,6 +8,9 @@ node_modules/
 # Eval runs without a name. Named runs are committed (ADR-0010).
 /eval/reports/*/dev/
 
+# The interview bank's sheets before they are labelled (ADR-0018). The bank itself is committed.
+/interview/dev/
+
 # Tool and build output
 .turbo/
 .next/
