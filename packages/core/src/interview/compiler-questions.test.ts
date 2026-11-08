@@ -1,7 +1,7 @@
 import { renderBlock, type CompilerOutput, type Source } from '@docs-rag-lab/source-kit'
 import { describe, expect, it } from 'vitest'
 
-import { compilerQuestions, ERROR_PROMPT, typePrompt } from './compiler-questions.ts'
+import { codeSpan, compilerQuestions, ERROR_PROMPT, typePrompt } from './compiler-questions.ts'
 import { testChunk, testDocument } from './test-chunks.ts'
 
 const COMPILER = 'twoslash 0.3.9, typescript 6.0.2'
@@ -114,6 +114,14 @@ describe('compilerQuestions (ADR-0018)', () => {
       COMPILER,
     )
     expect(changed[0]?.question.id).not.toBe(made[0]?.question.id)
+  })
+
+  it('writes code that holds a backtick in a longer code span, so its end can be found', () => {
+    expect(codeSpan('x')).toBe('`x`')
+    expect(codeSpan('type Id = `${Lang}_id`;')).toBe('`` type Id = `${Lang}_id`; ``')
+    expect(typePrompt('Id', '  type Id = `${Lang}_id`;')).toBe(
+      'What type does TypeScript show for `Id` on the line `` type Id = `${Lang}_id`; ``?',
+    )
   })
 
   it('keeps what the site hides as the setup, so the question can show it on demand', () => {

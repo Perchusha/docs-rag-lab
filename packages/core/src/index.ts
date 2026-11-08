@@ -91,6 +91,7 @@ export {
   type BankIndex,
 } from './interview/documents.ts'
 export {
+  codeSpan,
   compilerQuestions,
   ERROR_PROMPT,
   typePrompt,

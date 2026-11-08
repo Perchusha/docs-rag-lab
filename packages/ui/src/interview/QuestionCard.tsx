@@ -1,7 +1,8 @@
 import { RATINGS, type BankQuestion, type PracticeCard, type Rating } from '@docs-rag-lab/contracts'
 import { ChevronRight } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 
+import { codeSpans } from '../lib/code-spans.ts'
 import common from '../lib/common.module.css'
 import { cardAction, focusOf, KIND_LABELS, RATING_LABELS } from '../lib/interview.ts'
 import { ScrollRegion } from '../lib/ScrollRegion.tsx'
@@ -17,6 +18,17 @@ export interface QuestionCardProps {
   onRate: (rating: Rating) => void
   /** A rating is on its way: the buttons wait. */
   busy?: boolean | undefined
+}
+
+/** Text with its code spans as code: the bank writes them as markdown does. */
+function InlineText({ text }: { text: string }) {
+  return (
+    <>
+      {codeSpans(text).map((part, i) =>
+        part.code ? <code key={i}>{part.text}</code> : <Fragment key={i}>{part.text}</Fragment>,
+      )}
+    </>
+  )
 }
 
 function Code({ question }: { question: BankQuestion }) {
@@ -84,10 +96,14 @@ function Answer({ question }: { question: BankQuestion }) {
         </p>
       ) : (
         <>
-          <p>{question.answer}</p>
+          <p>
+            <InlineText text={question.answer} />
+          </p>
           {question.quote !== undefined && (
             <blockquote className={styles.quote}>
-              <p>{question.quote}</p>
+              <p>
+                <InlineText text={question.quote} />
+              </p>
             </blockquote>
           )}
         </>
@@ -158,7 +174,7 @@ export function QuestionCard({ card, index, total, sourceTitle, onRate, busy }: 
         {card.state === 'due' && <span className={common.badge}>Due again</span>}
       </div>
       <h2 id={`${id}-prompt`} ref={prompt} tabIndex={-1} className={styles.prompt}>
-        {question.prompt}
+        <InlineText text={question.prompt} />
       </h2>
       <Code question={question} />
       {!revealed && (

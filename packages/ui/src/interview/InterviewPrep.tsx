@@ -175,7 +175,11 @@ export function InterviewPrep(props: InterviewPrepProps) {
             />
             <PracticeStart
               summary={overview?.summary}
-              sourceTitles={chosen.map((id) => titles[id] ?? id)}
+              sourceTitles={chosen
+                .filter(
+                  (id) => overview?.sources.find((source) => source.id === id)?.questions !== 0,
+                )
+                .map((id) => titles[id] ?? id)}
               busy={busy}
               onQuick={() => {
                 void start('Quick 10')

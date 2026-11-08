@@ -15,8 +15,19 @@ export interface MadeQuestion {
 export const ERROR_PROMPT =
   'Does this code compile? If not, which errors does TypeScript report, and on which lines?'
 
+/**
+ * A markdown code span: code that holds a backtick, such as a template literal type, gets a longer
+ * run of them, padded with a space, so that a reader of the markdown finds where it ends.
+ */
+export function codeSpan(code: string): string {
+  const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
+  if (longest === 0) return `\`${code}\``
+  const fence = '`'.repeat(longest + 1)
+  return `${fence} ${code} ${fence}`
+}
+
 export const typePrompt = (target: string, line: string): string =>
-  `What type does TypeScript show for \`${target}\` on the line \`${line.trim()}\`?`
+  `What type does TypeScript show for ${codeSpan(target)} on the line ${codeSpan(line.trim())}?`
 
 const visibleIn = (code: string, line: string): boolean =>
   code.split('\n').some((shown) => shown.trim() === line.trim())
@@ -27,7 +38,7 @@ const errorAnswer = (errors: CompilerAnswer['errors']): string =>
     ...errors.map(
       ({ code, line, text }) =>
         // The compiler's own lines, indented under the error, as the site shows them.
-        `- TS${String(code)} on \`${line.trim()}\`: ${text.replaceAll('\n', '\n  ')}`,
+        `- TS${String(code)} on ${codeSpan(line.trim())}: ${text.replaceAll('\n', '\n  ')}`,
     ),
   ].join('\n')
 
