@@ -8,6 +8,8 @@ export {
   type CompileResult,
   type CompilerOutput,
   type DocType,
+  type InterviewDocument,
+  type InterviewTopic,
   type License,
   type ParseContext,
   type ParsedDoc,
@@ -16,6 +18,7 @@ export {
   type SourceFile,
 } from './types.ts'
 export { sha256Hex } from './hash.ts'
+export { codeBlocks, compiledExamples, type CodeBlock, type CompiledExample } from './examples.ts'
 export { estimateTokens } from './tokens.ts'
 export {
   CHUNKER_VERSION,
