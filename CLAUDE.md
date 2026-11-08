@@ -47,9 +47,10 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Network smoke test, spends real tokens: `pnpm test:network`
 - The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - The react-docs app: `pnpm dev:react` (http://127.0.0.1:3001; the same routes and costs as ts-docs)
+- The interview-prep app: `pnpm dev:interview` (http://127.0.0.1:3002; no route calls a model, and its progress is in `data/apps/interview-prep.sqlite`)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
-`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. An app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev`, `pnpm dev:react` and `pnpm storybook` keep running: start them in the background and stop them when done.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. An app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev`, `pnpm dev:react`, `pnpm dev:interview` and `pnpm storybook` keep running: start them in the background and stop them when done.
 
 ## Hooks
 

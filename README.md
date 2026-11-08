@@ -183,6 +183,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
 | `pnpm dev:react` | The react-docs app on http://127.0.0.1:3001, after `drl sync react`. It has the same routes and costs as `pnpm dev` |
+| `pnpm dev:interview` | The interview-prep app on http://127.0.0.1:3002, after `drl questions <source>` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)). No route calls a model. Progress is spaced repetition by FSRS, in `data/apps/interview-prep.sqlite` |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
 Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices. It also stops before its next paid call if HEAD or the branch changes under it, so that a report cannot name the wrong commit ([ADR-0010](docs/adr/0010-eval-reports-and-reproducibility.md)).
@@ -193,7 +194,9 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 |---|---|---|
 | `apps/ts-docs` | `@docs-rag-lab/ts-docs` | TypeScript docs assistant and eval dashboard: a Next.js app, its config and its routes |
 | `apps/react-docs` | `@docs-rag-lab/react-docs` | React docs assistant and eval dashboard: the same, for the React docs |
+| `apps/interview-prep` | `@docs-rag-lab/interview-prep` | The interview-prep app: Quick 10, the topic map and the cards, over the bank |
 | `packages/docs-server` | `@docs-rag-lab/docs-server` | What the docs apps share on the server: route handlers, the engine's one instance, where the eval reports are |
+| `packages/interview-server` | `@docs-rag-lab/interview-server` | The interview-prep app's route handlers and its backend: the bank and the progress store |
 | `packages/core` | `@docs-rag-lab/core` | Ingest, embeddings and the embedding cache, retrieval, generation, eval runner |
 | `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, chunker, conformance suite |
 | `packages/sources/typescript` | `@docs-rag-lab/source-typescript` | TypeScript-Website parser |
@@ -208,9 +211,10 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 | `tooling/repo-checks` | `@docs-rag-lab/repo-checks` | Repository checks (no em dashes) |
 | `tooling/generators` | `@docs-rag-lab/generators` | `turbo gen source`, which scaffolds a source |
 | `eval/` | | Committed reports, the contexts of the contextual index and the human labels that check the judge |
+| `interview/bank/` | | The interview bank, one file per source ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)) |
 | `docs/adr` | | Architecture decision records |
 
-The interview-prep app arrives in M8. The MCP server comes later, after v1.0.
+The MCP server comes later, after v1.0.
 
 ## Architecture boundaries
 

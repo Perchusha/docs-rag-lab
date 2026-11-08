@@ -109,7 +109,7 @@ export default defineDocsApp({
 })
 ```
 
-An app itself is a page and one-line routes over the handlers in `docs-server`: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order), and the dashboard's under `/api/eval`. It listens on 127.0.0.1 only (ADR-0008): `ts-docs` on port 3000 and `react-docs` on 3001.
+An app itself is a page and one-line routes over the handlers in `docs-server`: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order), and the dashboard's under `/api/eval`. It listens on 127.0.0.1 only (ADR-0008): `ts-docs` on port 3000 and `react-docs` on 3001. The interview-prep app is a page and one-line routes over the handlers in `interview-server`, `GET /api/interview/overview`, `GET /api/interview/deck` and `POST /api/interview/review`, none of which calls a model, on port 3002 (ADR-0018).
 
 **Storage layout:**
 - The index belongs to the source, not to the app: `data/sources/<source-id>.sqlite`. Apps open the source indexes they need, so `interview-prep` reads the TS and React indexes without duplicating them.

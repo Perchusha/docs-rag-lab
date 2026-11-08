@@ -11,6 +11,7 @@
     "depcruise": "depcruise apps packages tooling --config .dependency-cruiser.cjs --output-type err-long",
     "dev": "pnpm --filter @docs-rag-lab/ts-docs dev",
     "dev:react": "pnpm --filter @docs-rag-lab/react-docs dev",
+    "dev:interview": "pnpm --filter @docs-rag-lab/interview-prep dev",
     "drl": "node packages/cli/src/bin.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check . && node tooling/repo-checks/src/no-em-dash.ts",
