@@ -19,3 +19,9 @@ export {
 export { EmbeddingCache, openEmbeddingCache, type CachedEmbedding } from './embedding-cache.ts'
 export { openRerankCache, RerankCache, type CachedRerankCall } from './rerank-cache.ts'
 export { EvalCache, openEvalCache, type EvalCacheEntry, type EvalCacheStats } from './eval-cache.ts'
+export {
+  InterviewState,
+  openInterviewState,
+  type CardReview,
+  type StoredCard,
+} from './interview-state.ts'
