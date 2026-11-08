@@ -83,7 +83,8 @@ export function spotCheckPlanFor(rows: ReadonlySet<AnswerRow>): SpotCheckPlan {
 /** What ADR-0012's bar allows at 8 and at 12 compared. */
 const SPOT_CHECK_ALLOWED = 1
 
-function shuffled<T>(items: readonly T[], random: () => number): T[] {
+/** A seeded Fisher-Yates shuffle: the same seed gives the same order. */
+export function shuffled<T>(items: readonly T[], random: () => number): T[] {
   const result = [...items]
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1))
