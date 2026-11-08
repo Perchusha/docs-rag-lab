@@ -44,7 +44,13 @@ const settings: EngineSettings = {
     depth: 3,
     rateLimit: { rpm: 1000, tpm: 1_000_000 },
   },
-  models: { answer: 'claude-test', contextualize: 'claude-small', judge: 'claude-judge' },
+  models: {
+    answer: 'claude-test',
+    contextualize: 'claude-small',
+    judge: 'claude-judge',
+    questions: 'claude-small',
+    questionCheck: 'claude-test',
+  },
   answer: { effort: 'low', maxTokens: 100 },
   retrieval: { strategy: 'hybrid', topK: 2, candidates: 10, rrfK: 60 },
   pricing: {

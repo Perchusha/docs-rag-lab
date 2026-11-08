@@ -61,6 +61,20 @@ export interface ContextualizeSettings {
   maxUsd: number
 }
 
+/** The interview-prep app's question bank (ADR-0018). The models are in `models`. */
+export interface InterviewBankSettings {
+  /** One call per chunk, which writes its questions. */
+  generate: { effort: Effort; maxTokens: number }
+  /** One call per chunk, which checks the questions left after the quote check. */
+  check: { effort: Effort; maxTokens: number }
+  /** Calls at once for one document's chunks, after the first has written the cache. */
+  concurrency: number
+  /** The smallest prompt the models cache. Only the estimate reads it. */
+  minCacheableTokens: number
+  /** A run stops before the next call past this, and refuses a forecast above it. */
+  maxUsd: number
+}
+
 export interface RetrievalSettings {
   /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
   strategy: 'vector' | 'hybrid' | 'rerank'
@@ -91,6 +105,10 @@ export interface Settings {
     contextualize: string
     /** Grades answers in eval. Not the model that answers, so it does not grade itself. */
     judge: string
+    /** Writes the interview bank's questions (ADR-0018). */
+    questions: string
+    /** Checks each written question against its chunk. Not the model that wrote it. */
+    questionCheck: string
   }
   answer: { effort: Effort; maxTokens: number }
   contextualize: ContextualizeSettings
@@ -103,6 +121,7 @@ export interface Settings {
     maxUsd: number
   }
   retrieval: RetrievalSettings
+  interviewBank: InterviewBankSettings
   pricing: PricingSettings
 }
 
