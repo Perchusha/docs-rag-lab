@@ -147,9 +147,7 @@ An app itself is a page and one-line routes over the handlers in `docs-server`: 
 | `chunks` | pk, id, doc_id, ordinal, heading_path, anchor, block_types (json), text, context, metadata (json), token_count, text_hash |
 | `chunks_fts` | FTS5 table over heading_path, context, text with the trigram tokenizer; external content on `chunks`, kept in sync by triggers (ADR-0005) |
 | `chunks_vec` | sqlite-vec `vec0` virtual table with cosine distance: rowid = chunks.pk, doc_type (metadata column, for filters inside the KNN query), embedding |
-| `questions` | The question bank (M8): id, chunk_id, type, prompt, answer, verified_by (compiler, judge or human), commit_sha, status (active or stale) |
-
-The index is generated and can be rebuilt, so eval results are not in it: golden sets and named reports are committed files (section 10, ADR-0009).
+The index is generated and can be rebuilt, so eval results are not in it: golden sets and named reports are committed files (section 10, ADR-0009). Nor is the interview bank: a `questions` table would change the index schema, which every report's identity names, so the bank is a committed file per source, `interview/bank/<source>.jsonl` (section 11, ADR-0018).
 
 Notes on the chunk columns:
 - `pk` is an explicit integer key, so VACUUM never renumbers it; it is the chunk's rowid in `chunks_vec`. `id` is the stable chunk ID.
@@ -394,11 +392,14 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
    - asks follow-up questions.
 5. **Later:** "30-second answer vs deep dive" coaching, voice mode.
 
-**Question bank:**
-- Generated offline per chunk (Haiku) and versioned with the docs SHA.
-- On sync, regenerated only for chunks that changed.
-- A judge checks every generated question: can it be answered from its anchor chunk? Rejected questions are dropped.
-- After human approval, a question can be promoted to the eval golden set.
+**Question bank** (ADR-0018), built by `drl questions <source>`:
+- Committed as `interview/bank/<source>.jsonl`, with the docs commit and the models and prompt hashes that wrote and checked it. TypeScript's comes from the compiled index, React's from the plain one.
+- Compiler questions ask which errors an example gives, or which type a `^?` query shows. They cost nothing, so every run writes them again. The code is shown as the docs site shows it, through the source's `displayCode`.
+- Generated questions are written offline per chunk (Haiku), with the whole document under a cache entry: up to two theory questions, and one for each Pitfall callout. Each carries a quote that code finds in its chunk, and any code it shows is a block of the docs, never written by the model.
+- A checker (Sonnet) reads every generated question against its chunk alone, and drops it when the chunk does not answer it or the stored answer is wrong. Dropped questions stay in the file with their reason.
+- A rerun sends only chunks whose text changed, and a question whose chunk changed is stale and not shown.
+- The topic map comes from the source's `interviewTopic`: TypeScript's Handbook and Reference pages, and its compiler options as one topic, and React's Learn pages, with its Reference pages aggregated by folder.
+- After human approval, a question can be promoted to the eval golden set (later).
 
 **Progress:**
 - FSRS spaced repetition in local SQLite.

@@ -36,6 +36,8 @@ export const settings = defineSettings({
     answer: 'claude-sonnet-5-5',
     contextualize: 'claude-haiku-5-5',
     judge: 'claude-opus-5-5',
+    questions: 'claude-haiku-5-5',
+    questionCheck: 'claude-sonnet-5-5',
   },
   answer: { effort: 'low', maxTokens: 16_000 },
   contextualize: {
@@ -54,6 +56,14 @@ export const settings = defineSettings({
   // Hybrid = vector + BM25 + exact tokens, fused by RRF (ADR-0005). k=60 and 50 candidates
   // per list are the usual defaults, not tuned: a sweep over 40 questions would fit noise (ADR-0009).
   retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
+  // ADR-0018 estimates about $7 for the bank, against a limit of $10 for M8.
+  interviewBank: {
+    generate: { effort: 'low', maxTokens: 2_000 },
+    check: { effort: 'low', maxTokens: 2_000 },
+    concurrency: 4,
+    minCacheableTokens: 512,
+    maxUsd: 10,
+  },
   pricing: {
     checked: '2026-11-03',
     sources: [

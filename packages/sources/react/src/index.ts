@@ -1,10 +1,12 @@
 // Public entry of @docs-rag-lab/source-react: its plugin (SPEC section 7).
 import type { ParsedDoc, Source, SourceFile } from '@docs-rag-lab/source-kit'
 
+import { interviewTopicOf } from './interview.ts'
 import { parseMdx } from './markdown.ts'
 import { docTypeOf, INCLUDES, matchPath, pageUrl } from './paths.ts'
 
 export { INCLUDES, matchPath } from './paths.ts'
+export { interviewTopicOf } from './interview.ts'
 
 export interface ReactSourceOptions {
   branch?: string
@@ -77,5 +79,7 @@ export function reactSource(options: ReactSourceOptions = {}): Source {
     parserVersion: PARSER_VERSION,
     match: matchPath,
     parse: parseFile,
+    // The interview-prep app's topics (ADR-0018). React's code is shown as the docs have it.
+    interviewTopic: interviewTopicOf,
   }
 }

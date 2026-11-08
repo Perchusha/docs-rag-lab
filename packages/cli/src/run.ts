@@ -23,6 +23,7 @@ import {
   UnknownSourceError,
   UsageMeter,
   type DocType,
+  BankStoppedError,
   ContextsStoppedError,
   type EmbeddingProvider,
   type EvalClient,
@@ -55,6 +56,7 @@ import {
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { evalDraftCheckCommand, evalWalkCommand, WALK_TOP } from './eval-draft.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
+import { questionsCommand, questionsSampleCommand, questionsScoreCommand } from './questions.ts'
 import { syncCompiledCommand } from './sync-compiled.ts'
 import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
 import { formatDuration } from './format.ts'
@@ -77,6 +79,12 @@ Commands:
                               (ADR-0017): compiles every twoslash example, records what did not
                               compile under eval/compile/, stops below 90% compiled, and prints
                               what it would embed. Needs --yes to build it
+  questions <source>          The interview bank of a source (ADR-0018): writes its compiler
+                              questions, which cost nothing, to interview/bank/, then prints
+                              the estimate of the generated ones. Needs --yes to write them
+      [--pilot <n>]           Only n chunks, and print their questions with the forecast
+  questions sample            The sheet of M8's test: 20 generated questions, with no verdict
+  questions score <labels>    How many of those questions pass the owner's labels
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -346,7 +354,8 @@ function isUsageError(error: unknown): boolean {
     error instanceof RerankRejectedError ||
     error instanceof RunMovedError ||
     error instanceof EvalStoppedError ||
-    error instanceof ContextsStoppedError
+    error instanceof ContextsStoppedError ||
+    error instanceof BankStoppedError
   )
 }
 
@@ -406,7 +415,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     out.write(USAGE)
     return command === undefined && !values.help ? 2 : 0
   }
-  if (!['sync', 'ask', 'search', 'limits', 'eval'].includes(command)) {
+  if (!['sync', 'ask', 'search', 'limits', 'eval', 'questions'].includes(command)) {
     err.write(`drl: unknown command "${command}"\n\n${USAGE}`)
     return 2
   }
@@ -428,8 +437,12 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
     err.write(`drl: --${variant} works only with sync and eval check\n\n${USAGE}`)
     return 2
   }
-  if (values.pilot !== undefined && !(command === 'sync' && values.contextual)) {
-    err.write(`drl: --pilot works only with sync --contextual\n\n${USAGE}`)
+  if (
+    values.pilot !== undefined &&
+    !(command === 'sync' && values.contextual) &&
+    command !== 'questions'
+  ) {
+    err.write(`drl: --pilot works only with sync --contextual and questions\n\n${USAGE}`)
     return 2
   }
   if (command === 'sync' && variant !== undefined && (values.full || values.at !== undefined)) {
@@ -630,6 +643,28 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         throw new CliError(
           `unknown eval command "${subcommand}" (known: answers, calibrate, check, compare, judge-check, label, spot-check, rerank-check, verify, walk)`,
         )
+      }
+    } else if (command === 'questions') {
+      const [first, second] = rest
+      if (first === undefined) {
+        throw new CliError(
+          'questions needs a source id, sample or score, for example: drl questions typescript',
+        )
+      }
+      if (first === 'sample') {
+        questionsSampleCommand(ctx)
+      } else if (first === 'score') {
+        if (second === undefined) throw new CliError('questions score needs a labels file')
+        questionsScoreCommand(ctx, { labels: second })
+      } else {
+        await questionsCommand(ctx, {
+          source: first,
+          yes: values.yes,
+          pilot:
+            values.pilot === undefined
+              ? undefined
+              : positiveInteger(values.pilot, 10, '--pilot', MAX_PILOT),
+        })
       }
     } else {
       await limitsCommand(ctx)

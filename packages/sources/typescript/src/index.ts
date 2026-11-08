@@ -10,10 +10,12 @@ import type {
 } from '@docs-rag-lab/source-kit'
 
 import { compilerName, createDocsCompiler, type DocsCompiler } from './compile.ts'
+import { displayCode, interviewTopicOf } from './interview.ts'
 import { parseMarkdown, type ExampleCompiler } from './markdown.ts'
 import { docTypeOf, INCLUDES, isOption, matchPath, optionOf, permalinkUrl } from './paths.ts'
 
 export { INCLUDES, matchPath } from './paths.ts'
+export { displayCode, interviewTopicOf } from './interview.ts'
 
 export interface TypescriptSourceOptions {
   branch?: string
@@ -144,6 +146,9 @@ export function typescriptSource(options: TypescriptSourceOptions = {}): Source 
     match: matchPath,
     parse: (file) => parseFile(file),
     exactTokens: exactTokensOf,
+    // The interview-prep app's topics and code as the site shows it (ADR-0018).
+    interviewTopic: interviewTopicOf,
+    displayCode,
   }
   return {
     ...base,

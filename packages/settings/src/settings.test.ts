@@ -33,8 +33,15 @@ describe('settings', () => {
       settings.rerank.model,
       settings.models.answer,
       settings.models.contextualize,
+      settings.models.judge,
+      settings.models.questions,
+      settings.models.questionCheck,
     ]
     for (const model of used) expect(Object.keys(settings.pricing.models)).toContain(model)
+  })
+
+  it('checks the bank with a model other than the one that writes it (ADR-0018)', () => {
+    expect(settings.models.questionCheck).not.toBe(settings.models.questions)
   })
 
   it('keeps retrieval within the limits the CLI accepts', () => {

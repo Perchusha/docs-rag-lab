@@ -7,6 +7,7 @@ export {
   type ContextualizeSettings,
   type Effort,
   type EmbeddingsSettings,
+  type InterviewBankSettings,
   type ModelPrice,
   type PricingSettings,
   type RerankSettings,

@@ -32,6 +32,16 @@ export {
 } from './answer.ts'
 export type { DocumentChunk, DocumentChunks } from './document.ts'
 export {
+  QUESTION_KINDS,
+  type BankQuestion,
+  type BankTopic,
+  type CompilerAnswer,
+  type QuestionCitation,
+  type QuestionCode,
+  type QuestionKind,
+  type VerifiedBy,
+} from './interview.ts'
+export {
   ANSWER_COMPARED_METRICS,
   ANSWER_ROWS,
   type AgreementResult,

@@ -84,6 +84,65 @@ export {
 } from './contexts/control.ts'
 export { contextualText } from './contexts/text.ts'
 export {
+  bankDocuments,
+  citationUrl,
+  type BankChunk,
+  type BankDocument,
+  type BankIndex,
+} from './interview/documents.ts'
+export {
+  compilerQuestions,
+  ERROR_PROMPT,
+  typePrompt,
+  type MadeQuestion,
+} from './interview/compiler-questions.ts'
+export {
+  bankIdentity,
+  bankPilotChunks,
+  BankStoppedError,
+  CHECK_SYSTEM_PROMPT,
+  checkRequest,
+  chunkKey,
+  draftOf,
+  forecastBank,
+  generateBank,
+  generatedChunks,
+  GENERATE_SYSTEM_PROMPT,
+  generateRequest,
+  planBank,
+  type BankModels,
+  type BankPlan,
+  type DraftQuestion,
+  type GenerateBankOptions,
+  type PlanBankOptions,
+  type RawQuestion,
+  type TokenPlan,
+} from './interview/generate.ts'
+export {
+  appendBankRows,
+  bankPath,
+  keptGeneratedRows,
+  readBank,
+  writeBank,
+  type Bank,
+  type BankHeader,
+  type BankRow,
+  type ChunkRow,
+  type QuestionRow,
+  type QuestionStatus,
+} from './interview/store.ts'
+export {
+  BANK_SAMPLE_PLAN,
+  BANK_SAMPLE_SEED,
+  bankSample,
+  bankSampleHash,
+  checkBank,
+  type BankCheck,
+  type BankLabel,
+  type BankSamplePlan,
+} from './interview/sample.ts'
+export { calloutsOf, quoteFound, withoutEmDash } from './interview/text.ts'
+export {
   hasPrefixedChunks,
   variantIndexPath,
   embeddingCachePath,

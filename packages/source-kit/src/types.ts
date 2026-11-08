@@ -56,6 +56,32 @@ export interface Source {
    * whose docs have examples a compiler checks has one.
    */
   compiled?(options?: CompileOptions): CompiledSource
+  /**
+   * Where a document sits in the interview-prep app's topic map (ADR-0018), or undefined when the
+   * question bank leaves it out. Only a source with a bank has this.
+   */
+  interviewTopic?(document: InterviewDocument): InterviewTopic | undefined
+  /**
+   * A code block as the docs site shows it, without the markup that would give an interview
+   * question's answer away. TypeScript: the twoslash directives and what `---cut---` hides.
+   */
+  displayCode?(code: string): string
+}
+
+/** What a source reads to place a document in the topic map. */
+export interface InterviewDocument {
+  path: string
+  docType: DocType
+  title: string
+}
+
+/** A topic of the topic map, within a group such as a section of the docs. */
+export interface InterviewTopic {
+  /** Unique within the source, stable across syncs. */
+  id: string
+  title: string
+  /** The section the topic is listed under, such as `Handbook`. */
+  group: string
 }
 
 /** A source whose code blocks carry what a compiler said of them. */
