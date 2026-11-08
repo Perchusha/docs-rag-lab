@@ -523,9 +523,11 @@ export function draftOf(
   if (raw.code_block !== 0) {
     const block = blocks[raw.code_block - 1]
     if (block === undefined || raw.code_block < 0) return { draft, status: 'dropped-code' }
+    const displayed = source.displayCode?.(block.code) ?? { code: block.code, setup: '' }
     draft.code = {
       lang: block.info.split(/\s+/)[0] ?? '',
-      code: source.displayCode?.(block.code) ?? block.code,
+      code: displayed.code,
+      ...(displayed.setup === '' ? {} : { setup: displayed.setup }),
       compiled: COMPILER_AFTER.some((after) => chunk.text.startsWith(after, block.end)),
     }
   }

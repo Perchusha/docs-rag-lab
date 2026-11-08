@@ -23,7 +23,13 @@ export interface QuestionCitation {
 /** Code shown with a question, always from the docs and never written by a model. */
 export interface QuestionCode {
   lang: string
+  /** As the docs site shows it. */
   code: string
+  /**
+   * What the site hides of the example, such as the declarations the code uses, shown on demand:
+   * without it, "does this compile?" would be unfair (ADR-0018). Absent when nothing is hidden.
+   */
+  setup?: string
   /** The compiler ran on this example (ADR-0017). */
   compiled: boolean
 }

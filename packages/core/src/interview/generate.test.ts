@@ -54,7 +54,13 @@ const source: Source = {
   parserVersion: 1,
   match: () => true,
   parse: () => Promise.reject(new Error('not parsed in this test')),
-  displayCode: (code) => code.replace('// @noErrors\n', ''),
+  displayCode: (code) => {
+    const clean = code.replace('// @noErrors\n', '')
+    const [setup, shown] = clean.split('// ---cut---\n')
+    return shown === undefined
+      ? { code: clean, setup: '' }
+      : { code: shown, setup: (setup ?? '').trim() }
+  },
 }
 
 const prose = (id: string) =>
@@ -299,6 +305,25 @@ describe('draftOf', () => {
     })
 
     expect(draft.code?.compiled).toBe(true)
+  })
+
+  it('keeps what the site hides of the block as its setup', () => {
+    const withSetup = testChunk('c', [
+      prose('c'),
+      '```ts\ndeclare const x: string\n// ---cut---\nx.length\n```',
+    ])
+    const { draft } = draftOf(source, withSetup, {
+      ...raw({}),
+      quote: prose('c').slice(0, 60),
+      code_block: 1,
+    })
+
+    expect(draft.code).toEqual({
+      lang: 'ts',
+      code: 'x.length',
+      setup: 'declare const x: string',
+      compiled: false,
+    })
   })
 })
 

@@ -63,9 +63,17 @@ export interface Source {
   interviewTopic?(document: InterviewDocument): InterviewTopic | undefined
   /**
    * A code block as the docs site shows it, without the markup that would give an interview
-   * question's answer away. TypeScript: the twoslash directives and what `---cut---` hides.
+   * question's answer away, and what the site hides of it. TypeScript: the twoslash directives
+   * come out, and what `---cut---` hides is the setup.
    */
-  displayCode?(code: string): string
+  displayCode?(code: string): DisplayedCode
+}
+
+/** A code block as the site shows it, and the setup the site hides, such as declarations. */
+export interface DisplayedCode {
+  code: string
+  /** '' when the site hides nothing. */
+  setup: string
 }
 
 /** What a source reads to place a document in the topic map. */

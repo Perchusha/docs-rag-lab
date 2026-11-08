@@ -1,7 +1,7 @@
 // What the interview-prep app needs from this source (ADR-0018): where each document sits in the
 // topic map, and an example's code as the docs site shows it. The bank covers the Handbook, the
 // Reference and the compiler options, and leaves out the release notes and the other docs.
-import type { InterviewDocument, InterviewTopic } from '@docs-rag-lab/source-kit'
+import type { DisplayedCode, InterviewDocument, InterviewTopic } from '@docs-rag-lab/source-kit'
 
 const DOCS = 'packages/documentation/copy/en/'
 
@@ -39,26 +39,33 @@ const trimBlankLines = (lines: readonly string[]): string[] => {
   return lines.slice(start, end)
 }
 
+/** A line a reader of the example sees: no directive but a file name, and no type query. */
+function isCode(line: string): boolean {
+  if (QUERY.test(line)) return false
+  const directive = DIRECTIVE.exec(line)
+  return directive === null || directive[1] === 'filename'
+}
+
 /**
  * A twoslash example as the site shows it: without the directives that would give an answer
- * away, without its type query lines, and with only what the cut markers leave visible.
+ * away, without its type query lines, and with only what the cut markers leave visible. What
+ * they hide, such as the declarations the visible code uses, is the setup, in order and with the
+ * same lines taken out, so that a question can show it on demand.
  */
-export function displayCode(code: string): string {
-  let lines = code.split('\n')
+export function displayCode(code: string): DisplayedCode {
+  const lines = code.split('\n')
   const lastCut = lines.findLastIndex((line) => CUT.test(line))
-  if (lastCut !== -1) lines = lines.slice(lastCut + 1)
-  const cutAfter = lines.findIndex((line) => CUT_AFTER.test(line))
-  if (cutAfter !== -1) lines = lines.slice(0, cutAfter)
+  const cutAfter = lines.findIndex((line, i) => i > lastCut && CUT_AFTER.test(line))
   const shown: string[] = []
+  const setup: string[] = []
   let hidden = false
-  for (const line of lines) {
+  lines.forEach((line, i) => {
+    if (i === lastCut || i === cutAfter) return
     if (CUT_START.test(line)) hidden = true
     else if (CUT_END.test(line)) hidden = false
-    else if (hidden || QUERY.test(line)) continue
-    else {
-      const directive = DIRECTIVE.exec(line)
-      if (directive === null || directive[1] === 'filename') shown.push(line)
-    }
-  }
-  return trimBlankLines(shown).join('\n')
+    else if (!isCode(line)) return
+    else if (hidden || i < lastCut || (cutAfter !== -1 && i > cutAfter)) setup.push(line)
+    else shown.push(line)
+  })
+  return { code: trimBlankLines(shown).join('\n'), setup: trimBlankLines(setup).join('\n') }
 }

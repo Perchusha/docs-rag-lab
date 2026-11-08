@@ -26,7 +26,8 @@ const errorAnswer = (errors: CompilerAnswer['errors']): string =>
     'It does not compile. TypeScript reports:',
     ...errors.map(
       ({ code, line, text }) =>
-        `- TS${String(code)} on \`${line.trim()}\`: ${text.replaceAll('\n', ' ')}`,
+        // The compiler's own lines, indented under the error, as the site shows them.
+        `- TS${String(code)} on \`${line.trim()}\`: ${text.replaceAll('\n', '\n  ')}`,
     ),
   ].join('\n')
 
@@ -60,8 +61,14 @@ function chunkQuestions(
     )
 
   return compiledExamples(chunk.text, chunk.compiler).flatMap((example, e) => {
-    const shown = source.displayCode?.(example.code) ?? example.code
-    const code = { lang: example.lang, code: shown, compiled: true }
+    const displayed = source.displayCode?.(example.code) ?? { code: example.code, setup: '' }
+    const shown = displayed.code
+    const code = {
+      lang: example.lang,
+      code: shown,
+      ...(displayed.setup === '' ? {} : { setup: displayed.setup }),
+      compiled: true,
+    }
     const made: MadeQuestion[] = []
     const { errors, queries } = example.output
     // An error on a line the docs do not show cannot be asked about.
