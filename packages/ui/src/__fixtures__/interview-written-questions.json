@@ -1,0 +1,41 @@
+[
+  {
+    "id": "fixture-theory-1",
+    "source": "typescript",
+    "kind": "theory",
+    "topicId": "handbook-v2/Narrowing",
+    "prompt": "In TypeScript, which expressions can you use as the condition of an if statement, and what happens to a number used there?",
+    "answer": "Any expression can be a condition: if, &&, || and ! do not expect a boolean. JavaScript coerces the condition to a boolean first, and TypeScript narrows the value's type by that check.",
+    "quote": "In JavaScript, we can use any expression in conditionals, `&&`s, `||`s, `if` statements, Boolean negations (`!`), and more.",
+    "citation": {
+      "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html#truthiness-narrowing",
+      "title": "Narrowing",
+      "sectionPath": ["Truthiness narrowing"],
+      "docPath": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "chunkId": "0977dc9429c2ad5a77bcba51"
+    },
+    "verifiedBy": "checker"
+  },
+  {
+    "id": "fixture-pitfall-1",
+    "source": "react",
+    "kind": "pitfall",
+    "topicId": "reference/hooks",
+    "prompt": "What is the risk of an Effect like this one?",
+    "code": {
+      "lang": "js",
+      "code": "useEffect(() => {\n  // ...\n  // 🔴 Avoid suppressing the linter like this:\n  // eslint-ignore-next-line react-hooks/exhaustive-deps\n}, []);",
+      "compiled": false
+    },
+    "answer": "Suppressing the dependency lint lets the dependencies stop matching the code, which risks bugs: it lies to React about what the Effect depends on. Prove the dependencies are unnecessary instead.",
+    "quote": "When dependencies don't match the code, there is a high risk of introducing bugs.",
+    "citation": {
+      "url": "https://react.dev/reference/react/useEffect#specifying-reactive-dependencies",
+      "title": "useEffect",
+      "sectionPath": ["Usage", "Specifying reactive dependencies"],
+      "docPath": "src/content/reference/react/useEffect.md",
+      "chunkId": "41e977bae863fe4f8ae54cbf"
+    },
+    "verifiedBy": "checker"
+  }
+]
