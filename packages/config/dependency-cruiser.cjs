@@ -72,6 +72,17 @@ module.exports = {
       },
     },
     {
+      name: 'interview-server-allowed-packages',
+      comment:
+        'interview-server imports only core, contracts and settings: never ui, db, a concrete source or an app. The interview app builds its sources and passes them in (ADR-0018).',
+      severity: 'error',
+      from: { path: '^packages/interview-server/' },
+      to: {
+        path: INTERNAL,
+        pathNot: ['^packages/(interview-server|core|contracts|settings)/', CONFIG],
+      },
+    },
+    {
       name: 'settings-is-leaf',
       comment:
         'settings imports no other internal package: it is plain data and its schema, shared by the CLI and apps (ADR-0007).',

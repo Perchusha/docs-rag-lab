@@ -71,6 +71,7 @@ These are enforced by dependency-cruiser. Do not work around them.
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package (ADR-0006).
 - `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - `docs-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a source (ADR-0016).
+- `interview-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a source (ADR-0018).
 - Import a package only through its public `index.ts`. The one exception is `@docs-rag-lab/ui/tokens.css`, which an app's global stylesheet imports.
 
 ## Definition of done

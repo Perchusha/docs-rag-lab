@@ -67,6 +67,7 @@ packages/
   settings/         engine settings shared by the CLI and apps: models, prices, limits, retrieval defaults (ADR-0007)
   ui/               chat, citations, inspector, eval dashboard, topic map (with Storybook)
   docs-server/      route handlers and the engine's one instance, shared by the docs apps (created in M6, ADR-0016)
+  interview-server/ route handlers and the backend of the interview-prep app (created in M8, ADR-0018)
   cli/              drl sync | ask | eval | questions
   mcp/              MCP server over core (later, after v1.0)
   config/           shared tsconfig, eslint, vitest presets, dependency-cruiser rules
@@ -88,6 +89,7 @@ docs/journal.md     short notes per milestone with before/after metrics
 - `contracts` imports nothing: no internal package, no Node.js built-in, no npm package. It holds the shapes that core produces and ui renders (ADR-0006).
 - `settings` imports no internal package, and `core` imports only its types (ADR-0007).
 - `docs-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a concrete source. An app builds its source and passes it in (ADR-0016).
+- `interview-server` imports `core`, `contracts` and `settings`, never `ui`, `db` or a concrete source. The interview-prep app builds its sources and passes them in (ADR-0018).
 - A package is imported only through its public `index.ts`, never through internals.
 
 The full rule set, including the rules added on top of these (for example `db` is a leaf and apps never import other apps), is in `packages/config/dependency-cruiser.cjs` and explained in ADR-0002.
