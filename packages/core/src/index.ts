@@ -188,12 +188,25 @@ export {
   type SyncSourceOptions,
 } from './ingest.ts'
 export { retrieve, type RerankStep, type Retrieval, type RetrieveOptions } from './retrieve.ts'
-export { ask, usageSummary, type AskOptions } from './ask.ts'
+export { ask, askAgentic, usageSummary, type AgenticAskOptions, type AskOptions } from './ask.ts'
+export {
+  AGENT_SYSTEM_PROMPT,
+  buildAgentRequest,
+  runAgentLoop,
+  SEARCH_DOCS,
+  searchDocsTool,
+  type AgentCall,
+  type AgentLoopOptions,
+  type AgentLoopResult,
+  type AgentRequestOptions,
+  type AgentSearchFn,
+} from './agent.ts'
 export {
   createEngine,
   InvalidRequestError,
   MAX_TOP_K,
   UnknownSourceError,
+  type AgenticAskRun,
   type AskRun,
   type Engine,
   type EngineOptions,

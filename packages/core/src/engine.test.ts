@@ -2,9 +2,11 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type Anthropic from '@anthropic-ai/sdk'
 import {
   NO_CONTEXT,
   type AnswerEvent,
+  type EvalAgentSearch,
   type RetrievalRequest,
   type Strategy,
 } from '@docs-rag-lab/contracts'
@@ -20,7 +22,7 @@ import {
 } from './engine.ts'
 import { IndexNotFoundError, openIndexes, rerankCachePath, sourceIndexPath } from './indexes.ts'
 import type { RerankProvider } from './rerank/provider.ts'
-import { fakeAnswerClient, fakeVector, RecordingProvider } from './test-helpers.ts'
+import { ANSWER_MESSAGE, fakeAnswerClient, fakeVector, RecordingProvider } from './test-helpers.ts'
 import { UsageMeter } from './usage.ts'
 
 const QUESTION = 'What does error TS2345 mean?'
@@ -54,6 +56,7 @@ const settings: EngineSettings = {
   },
   answer: { effort: 'low', maxTokens: 100 },
   retrieval: { strategy: 'hybrid', topK: 2, candidates: 10, rrfK: 60 },
+  agentic: { maxSearches: 2 },
   pricing: {
     checked: '2026-11-01',
     sources: [],
@@ -317,6 +320,70 @@ describe('createEngine', () => {
       ['claude-test', 'messages'],
     ])
     expect(done.usage.costUsd).toBeGreaterThan(0)
+  })
+
+  it('answers agentically: its own search by the same strategy, citations over every chunk', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const base = { ...ANSWER_MESSAGE, usage: { input_tokens: 10, output_tokens: 5 } }
+    const searching = {
+      ...base,
+      stop_reason: 'tool_use',
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'classes' } },
+      ],
+    } as Anthropic.Message
+    const citing = (index: number): Anthropic.Message =>
+      ({
+        ...base,
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'text',
+            text: 'Classes.',
+            citations: [
+              {
+                type: 'search_result_location',
+                cited_text: 'Interfaces and classes.',
+                source: 'https://x.dev/a',
+                title: 'A',
+                search_result_index: index,
+                start_block_index: 0,
+                end_block_index: 1,
+              },
+            ],
+          },
+        ],
+      }) as Anthropic.Message
+    // The first search takes 2 of the 3 chunks, so the search of its own adds the third, at index 2.
+    const client = fakeAnswerClient({ messages: [searching, citing(2)] })
+    const events: AnswerEvent[] = []
+    const searches: [EvalAgentSearch, string][] = []
+    const host = engine(provider, client)
+
+    const { hits } = await host.askAgentic(
+      { question: QUESTION },
+      {
+        meter: new UsageMeter(),
+        onEvent: (event) => events.push(event),
+        onSearch: (search, trace) => searches.push([search, trace.question]),
+      },
+    )
+
+    expect(host.docTypes('demo')).toEqual(['handbook'])
+    expect(hits).toHaveLength(2)
+    const added = ['near', 'code', 'other'].filter((id) => !hits.some((h) => h.chunkId === id))
+    expect(searches).toEqual([
+      [{ query: 'classes', docTypes: [], chunkIds: added, alreadyShown: 1 }, 'classes'],
+    ])
+    expect(client.requests).toHaveLength(2)
+    expect(client.requests[0]?.cache_control).toEqual({ type: 'ephemeral' })
+    expect(events[0]?.type).toBe('trace')
+    const citations = events.flatMap((event) => (event.type === 'citations' ? [event] : []))
+    expect(citations.flatMap((event) => event.citations.map((c) => [c.number, c.chunkId]))).toEqual(
+      [[1, added[0]]],
+    )
+    expect(events.at(-1)).toMatchObject({ type: 'done', stopReason: 'end_turn' })
   })
 
   it('creates the Claude client before retrieving, so a missing key costs no embedding', async () => {

@@ -309,6 +309,14 @@ describe('run', () => {
     ).toBe(2)
     expect(err.text()).toContain('--json works only with search')
   })
+
+  it('accepts --agentic only with ask', async () => {
+    const err = capture()
+    expect(
+      await run(['search', 'q', '--agentic'], { out: capture().writer, err: err.writer, root }),
+    ).toBe(2)
+    expect(err.text()).toContain('--agentic works only with ask')
+  })
 })
 
 // It loads every workspace package: past 5s on a CI runner every package shares.

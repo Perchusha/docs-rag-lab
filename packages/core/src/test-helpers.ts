@@ -24,20 +24,19 @@ export interface FakeAnswerClient extends AnswerClient {
 /**
  * A Claude client whose stream replays the text blocks of `message`. It can
  * fail after the first block, and it stops with an abort error when its
- * signal is aborted between blocks, like the SDK.
+ * signal is aborted between blocks, like the SDK. With `messages`, each
+ * request gets the next one, and the last one repeats.
  */
 export function fakeAnswerClient(
   options: {
     message?: Anthropic.Message
+    messages?: readonly Anthropic.Message[]
     failAfterFirstBlock?: boolean
     /** Called after each block, for example to abort part-way. */
     afterBlock?: (index: number) => void
   } = {},
 ): FakeAnswerClient {
-  const message = options.message ?? ANSWER_MESSAGE
-  const textBlocks = message.content.filter(
-    (block): block is Anthropic.TextBlock => block.type === 'text',
-  )
+  const replies = options.messages ?? [options.message ?? ANSWER_MESSAGE]
   const requests: Anthropic.MessageCreateParamsNonStreaming[] = []
   const signals: (AbortSignal | undefined)[] = []
   return {
@@ -47,6 +46,10 @@ export function fakeAnswerClient(
       stream(request, streamOptions) {
         requests.push(request)
         signals.push(streamOptions?.signal)
+        const message = replies[Math.min(requests.length, replies.length) - 1] ?? ANSWER_MESSAGE
+        const textBlocks = message.content.filter(
+          (block): block is Anthropic.TextBlock => block.type === 'text',
+        )
         const listeners: {
           text: ((d: string) => void)[]
           block: ((b: Anthropic.ContentBlock) => void)[]

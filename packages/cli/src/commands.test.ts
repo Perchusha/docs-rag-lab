@@ -46,6 +46,16 @@ function fakeEngine(events: AnswerEvent[]) {
       for (const event of events) run.onEvent(event)
       return Promise.resolve({ hits: [], trace })
     },
+    askAgentic: (request, run) => {
+      requests.push(request)
+      run.onSearch?.(
+        { query: 'string primitives', docTypes: ['reference'], chunkIds: ['c2'], alreadyShown: 1 },
+        trace,
+      )
+      for (const event of events) run.onEvent(event)
+      return Promise.resolve({ hits: [], trace })
+    },
+    docTypes: () => ['handbook'],
     documentChunks: () => undefined,
     embedQueries: () => Promise.resolve([]),
   }
@@ -129,6 +139,23 @@ describe('askCommand', () => {
     await askCommand(ctx, { ...args, verbose: false })
 
     expect(text()).toBe('No indexed chunks to answer from.\n')
+  })
+
+  it('answers agentically on request, and prints each search of its own', async () => {
+    const { engine, requests } = fakeEngine([
+      { type: 'trace', trace },
+      { type: 'text', text: 'Use string.' },
+      { type: 'done', stopReason: 'end_turn', usage },
+    ])
+    const { ctx, text } = context(engine)
+
+    await askCommand(ctx, { ...args, verbose: false, agentic: true })
+
+    expect(text()).toBe(
+      '[searched in reference: "string primitives", 1 new, 1 already shown]\n' +
+        'Use string.\n\nSources: none cited.\n',
+    )
+    expect(requests).toHaveLength(1)
   })
 })
 

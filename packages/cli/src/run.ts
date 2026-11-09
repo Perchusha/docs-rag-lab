@@ -101,6 +101,8 @@ Commands:
                               reason, the one given when it was flagged in the app
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
+      [--agentic]             Agentic mode (ADR-0019): after the first search, Claude may search
+                              again, up to agentic.maxSearches times, each printed as it happens
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the rate-limit headers of embeddings and of rerank
@@ -416,6 +418,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         'doc-type': { type: 'string', multiple: true },
         json: { type: 'boolean', default: false },
         verbose: { type: 'boolean', short: 'v', default: false },
+        agentic: { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
     })
@@ -435,6 +438,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   if (values.json && command !== 'search') {
     err.write(`drl: --json works only with search\n\n${USAGE}`)
+    return 2
+  }
+  if (values.agentic && command !== 'ask') {
+    err.write(`drl: --agentic works only with ask\n\n${USAGE}`)
     return 2
   }
   if (values.at !== undefined && command !== 'sync') {
@@ -555,8 +562,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         strategy: strategyOf(values.strategy, settings.retrieval.strategy),
         docTypes: docTypesOf(values['doc-type']),
       }
-      if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
-      else await searchCommand(ctx, { ...retrieval, json: values.json })
+      if (command === 'ask') {
+        await askCommand(ctx, { ...retrieval, verbose: values.verbose, agentic: values.agentic })
+      } else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else if (command === 'eval') {
       const [subcommand, first, second] = rest
       refuseStrayEvalFlags(subcommand, values)
