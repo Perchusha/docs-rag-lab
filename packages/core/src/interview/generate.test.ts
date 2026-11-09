@@ -105,6 +105,8 @@ function fakeClient(
     answerable: true,
     correct: true,
   }),
+  /** How the checker numbers and lists its verdicts, as a real reply may differ. */
+  shape: (verdicts: { question: number }[]) => { question: number }[] = (verdicts) => verdicts,
 ) {
   const requests: Anthropic.MessageCreateParamsNonStreaming[] = []
   const finishedAtStart: number[] = []
@@ -136,11 +138,13 @@ function fakeClient(
                 (m) => m[1] ?? '',
               )
               text = JSON.stringify({
-                verdicts: asked.map((question, i) => ({
-                  question: i + 1,
-                  reason: `Reason ${String(i + 1)}.`,
-                  ...verdict(question),
-                })),
+                verdicts: shape(
+                  asked.map((question, i) => ({
+                    question: i + 1,
+                    reason: `Reason ${String(i + 1)}.`,
+                    ...verdict(question),
+                  })),
+                ),
               })
             }
             return {
@@ -460,6 +464,37 @@ describe('generateBank (ADR-0018)', () => {
 
     await expect(done).rejects.toThrow('past the $0.0005 this run may spend')
     expect(rows.some((row) => row.row === 'chunk')).toBe(true)
+  })
+
+  it('reads verdicts numbered from 0 in their order', async () => {
+    const two = (text: string) => [
+      goodQuestion(text),
+      { ...goodQuestion(text), question: 'Second?' },
+    ]
+    const fake = fakeClient(
+      two,
+      (question) => ({ answerable: question !== 'Second?', correct: true }),
+      (verdicts) => verdicts.map((item) => ({ ...item, question: item.question - 1 })),
+    )
+    const { rows, done } = run([single], fake)
+    await done
+
+    expect(questionRows(rows).map((row) => row.status)).toEqual(['shown', 'dropped-check'])
+  })
+
+  it('does not keep a question the checker gave no verdict on, and goes on', async () => {
+    const two = (text: string) => [
+      goodQuestion(text),
+      { ...goodQuestion(text), question: 'Second?' },
+    ]
+    const fake = fakeClient(two, undefined, (verdicts) => verdicts.slice(0, 1))
+    const { rows, done } = run([single], fake)
+    await done
+
+    expect(questionRows(rows).map((row) => [row.status, row.reason])).toEqual([
+      ['shown', 'Reason 1.'],
+      ['dropped-check', 'The checker gave no verdict on this question, so it is not kept.'],
+    ])
   })
 
   it('asks the guard before every paid call', async () => {

@@ -483,8 +483,8 @@ function parseVerdicts(text: string, where: string, count: number): Map<number, 
   const parsed = JSON.parse(text) as { verdicts?: unknown }
   if (!Array.isArray(parsed.verdicts))
     throw new BankStoppedError(`the verdicts of ${where} are not a list`)
-  const verdicts = new Map<number, Verdict>()
-  for (const item of parsed.verdicts as Partial<Verdict>[]) {
+  const items = parsed.verdicts as Partial<Verdict>[]
+  for (const item of items) {
     if (
       typeof item.question !== 'number' ||
       typeof item.reason !== 'string' ||
@@ -493,13 +493,26 @@ function parseVerdicts(text: string, where: string, count: number): Map<number, 
     ) {
       throw new BankStoppedError(`a verdict of ${where} is missing a field`)
     }
-    verdicts.set(item.question, item as Verdict)
   }
+  const listed = items as Verdict[]
+  const byNumber = new Map(listed.map((item) => [item.question, item]))
+  const numbered = Array.from({ length: count }, (_, i) => i + 1).every((n) => byNumber.has(n))
+  // One verdict per question, in order, but numbered otherwise, say from 0: read them in order.
+  if (!numbered && listed.length === count) {
+    return new Map(listed.map((item, i) => [i + 1, item]))
+  }
+  // A question with no verdict is not kept, and its reason says why: one reply does not stop the run.
   for (let n = 1; n <= count; n++) {
-    if (!verdicts.has(n))
-      throw new BankStoppedError(`the check of ${where} gave no verdict on question ${String(n)}`)
+    if (!byNumber.has(n)) {
+      byNumber.set(n, {
+        question: n,
+        reason: 'The checker gave no verdict on this question, so it is not kept.',
+        answerable: false,
+        correct: false,
+      })
+    }
   }
-  return verdicts
+  return byNumber
 }
 
 /** What follows a code block in a compiled chunk when the compiler said something of it. */
