@@ -235,14 +235,20 @@ describe('runAgentLoop', () => {
     expect(second?.tool_choice).toEqual(first.tool_choice)
     expect(second?.cache_control).toEqual(first.cache_control)
     expect(second?.messages[1]).toEqual({ role: 'assistant', content: asked.content })
-    const results = second?.messages[2]?.content as Anthropic.ToolResultBlockParam[]
-    expect(results).toHaveLength(1)
-    const content = results[0]?.content as { type: string; source?: string; text?: string }[]
-    expect(results[0]?.tool_use_id).toBe('toolu_1')
-    expect(content.map((block) => block.type)).toEqual(['search_result', 'search_result', 'text'])
-    expect(content.at(-1)?.text).toBe(
-      '1 of its results was already in this conversation, and is left out. You can search 1 more time.',
-    )
+    // A tool result with search results may hold nothing else (the API refuses it, as the pilot
+    // found), so the note follows it in a text block of the same message.
+    const [toolResult, note, ...more] = second?.messages[2]?.content as [
+      Anthropic.ToolResultBlockParam,
+      Anthropic.TextBlockParam,
+    ]
+    expect(more).toEqual([])
+    expect(toolResult.tool_use_id).toBe('toolu_1')
+    const content = toolResult.content as { type: string }[]
+    expect(content.map((block) => block.type)).toEqual(['search_result', 'search_result'])
+    expect(note).toEqual({
+      type: 'text',
+      text: '1 of its results was already in this conversation, and is left out. You can search 1 more time.',
+    })
   })
 
   it('says when the last search is spent, and gives up on a call after that', async () => {

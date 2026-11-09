@@ -66,9 +66,10 @@ export const AGENT_ROW: AnswerRow = 6
 
 /**
  * Bumped when the loop changes what a step sends or records, so that a stored run of the loop is
- * not read as one of this code (ADR-0019).
+ * not read as one of this code (ADR-0019). 2: the pilot found that a tool result with search
+ * results may hold nothing else, so a search's note moved after the tool results.
  */
-export const AGENT_LOOP_VERSION = 1
+export const AGENT_LOOP_VERSION = 2
 
 /**
  * A second answer's first request is its first answer's, so the second answers start after every
