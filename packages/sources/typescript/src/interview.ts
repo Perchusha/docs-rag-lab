@@ -4,8 +4,69 @@
 import type { DisplayedCode, InterviewDocument, InterviewTopic } from '@docs-rag-lab/source-kit'
 
 const DOCS = 'packages/documentation/copy/en/'
+const OPTIONS = 'packages/tsconfig-reference/copy/en/options/'
 
-/** Each Handbook and Reference page is a topic, and the compiler options are one together. */
+/**
+ * The compiler options that configure a tool rather than the language, by ADR-0018's rule: a page
+ * about installing, setting up or configuring a tool stays out of the bank and the topic map. An
+ * option is about the language when it changes what TypeScript checks, how it resolves modules or
+ * what it emits. These change only how tsc, its build mode, its watcher or an editor runs.
+ */
+export const TOOL_OPTIONS: ReadonlySet<string> = new Set([
+  // Watch mode.
+  'watchFile',
+  'watchDirectory',
+  'fallbackPolling',
+  'synchronousWatchDirectory',
+  'excludeDirectories',
+  'excludeFiles',
+  'preserveWatchOutput',
+  'assumeChangesOnlyAffectDirectDependencies',
+  // Build mode.
+  'clean',
+  'force',
+  'verbose',
+  'stopBuildOnErrors',
+  // Project references and incremental builds.
+  'composite',
+  'references',
+  'incremental',
+  'tsBuildInfoFile',
+  'disableReferencedProjectLoad',
+  'disableSolutionSearching',
+  'disableSourceOfProjectReferenceRedirect',
+  // Which files a project holds, and the config it extends.
+  'files',
+  'include',
+  'exclude',
+  'extends',
+  // Editors and type acquisition.
+  'plugins',
+  'disableSizeLimit',
+  'typeAcquisition',
+  'typeAcquisition/include',
+  'typeAcquisition/exclude',
+  'enable',
+  'disableFilenameBasedTypeAcquisition',
+  // The compiler's own diagnostics and console output.
+  'diagnostics',
+  'extendedDiagnostics',
+  'explainFiles',
+  'listFiles',
+  'listEmittedFiles',
+  'traceResolution',
+  'generateCpuProfile',
+  'generateTrace',
+  'pretty',
+  'noErrorTruncation',
+  'locale',
+])
+
+/**
+ * Each Handbook and Reference page is a topic, and the compiler options are one together. The
+ * release notes and the other docs, which hold the project setup pages, stay out, and so do the
+ * options that configure a tool.
+ */
 export function interviewTopicOf(document: InterviewDocument): InterviewTopic | undefined {
   switch (document.docType) {
     case 'handbook':
@@ -14,8 +75,11 @@ export function interviewTopicOf(document: InterviewDocument): InterviewTopic | 
       const group = document.docType === 'handbook' ? 'Handbook' : 'Reference'
       return { id, title: document.title, group }
     }
-    case 'option':
+    case 'option': {
+      const option = document.path.replace(OPTIONS, '').replace(/\.md$/, '')
+      if (TOOL_OPTIONS.has(option)) return undefined
       return { id: 'compiler-options', title: 'Compiler options', group: 'Compiler options' }
+    }
     default:
       return undefined
   }
