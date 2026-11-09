@@ -25,7 +25,7 @@
     "@docs-rag-lab/db": "workspace:*",
     "@docs-rag-lab/settings": "workspace:*",
     "@docs-rag-lab/source-kit": "workspace:*",
-    "ts-fsrs": "5.4.2",
+    "ts-fsrs": "6.0.0",
     "voyageai": "^0.4.0"
   }
 }

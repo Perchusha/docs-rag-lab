@@ -66,7 +66,7 @@ The code is shown as the docs site shows it: a source's optional `displayCode` t
 
 ### 6. Progress
 
-FSRS through `ts-fsrs` 5.4.2: MIT, with no dependencies. Progress, ratings and sessions live in `data/apps/interview-prep.sqlite`, generated and never committed, through a module in `db`. A card is due by FSRS. A new card is one never rated.
+FSRS through `ts-fsrs` 6.0.0, with no fuzz, so that the same ratings always give the same days. PR 2 shipped 5.4.2, and the owner had it changed on 2026-11-09, before the bank's paid run: 5.4.2 patches `Date.prototype` on import, which changes `Date` for the whole server process. 6.0.0 patches nothing, schedules with FSRS-7, and adds one dependency, `@open-spaced-repetition/srs-kit`, by the same authors (BSD-3-Clause). A card 5.4.2 stored starts over, and keeps its count of ratings. Progress, ratings and sessions live in `data/apps/interview-prep.sqlite`, generated and never committed, through a module in `db`. A card is due by FSRS. A new card is one never rated.
 
 ### 7. The mock interview is a fixed loop
 
@@ -131,4 +131,4 @@ About $7 for the bank, against a limit of $10 for M8. A pilot replaces these gue
 - **Opus as the checker.** About three times Sonnet's price on every question, for a check that reads one chunk.
 - **No checker,** with only the quote check. It would save about $6, and H would then test generation alone. The owner chose to keep it, as SPEC section 11 has it.
 - **The document as a cached prefix for the check too.** A document of n chunks would be written once and read n - 1 times, which costs more than sending each chunk alone, and the check does not need the rest of the document.
-- **`ts-fsrs` 6.0.0.** Nine days old when chosen, with a dependency 5.4.2 does not have.
+- **`ts-fsrs` 5.4.2,** chosen first, since it has no dependency. It patches `Date.prototype` on import, which was found after the choice, so 6.0.0 replaced it (section 6).

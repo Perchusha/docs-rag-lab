@@ -13,11 +13,9 @@ import type {
 import type { StoredCard } from '@docs-rag-lab/db'
 import { sha256Hex } from '@docs-rag-lab/source-kit'
 import {
-  createEmptyCard,
-  fsrs,
-  generatorParameters,
+  DefaultScheduler,
   Rating as FsrsRating,
-  type CardInput,
+  type DefaultSchedulerCard,
   type Grade,
 } from 'ts-fsrs'
 
@@ -27,8 +25,13 @@ export interface LoadedBank {
   questions: BankQuestion[]
 }
 
-/** No fuzz, so that the same ratings always give the same days. */
-const scheduler = fsrs(generatorParameters({ enable_fuzz: false }))
+/**
+ * ts-fsrs 6, which patches no prototype on import (ADR-0018). Built on first use, since it is
+ * built asynchronously, and with no fuzz, so that the same ratings always give the same days.
+ */
+let scheduler: Promise<DefaultScheduler> | undefined
+const schedulerOnce = (): Promise<DefaultScheduler> =>
+  (scheduler ??= DefaultScheduler({ enableFuzz: false }))
 
 const GRADES: Readonly<Record<Rating, Grade>> = {
   again: FsrsRating.Again,
@@ -40,22 +43,34 @@ const GRADES: Readonly<Record<Rating, Grade>> = {
 /** Good and easy: the card was known. */
 const KNOWN = new Set<number>([FsrsRating.Good, FsrsRating.Easy])
 
+/**
+ * A stored card as ts-fsrs takes it, with its dates as dates again. A card written by ts-fsrs 5,
+ * which PR 2 shipped, has none of ts-fsrs 6's fields, so FSRS starts it over.
+ */
+function reviveCard(state: string): DefaultSchedulerCard | undefined {
+  const card = JSON.parse(state) as Record<string, unknown>
+  if (typeof card.dueAt !== 'string') return undefined
+  const lastReviewAt = typeof card.lastReviewAt === 'string' ? new Date(card.lastReviewAt) : null
+  return { ...card, dueAt: new Date(card.dueAt), lastReviewAt } as DefaultSchedulerCard
+}
+
 /** A card after one more rating, as the store keeps it. */
-export function scheduleReview(
+export async function scheduleReview(
   previous: StoredCard | undefined,
   questionId: string,
   rating: Rating,
   now: Date,
-): StoredCard {
-  // The stored state is a ts-fsrs card as JSON: its dates come back as strings, which it takes.
-  const card: CardInput =
-    previous === undefined ? createEmptyCard(now) : (JSON.parse(previous.state) as CardInput)
+): Promise<StoredCard> {
+  const fsrs = await schedulerOnce()
+  const card =
+    (previous === undefined ? undefined : reviveCard(previous.state)) ??
+    fsrs.newCard({ now, cardId: questionId })
   const grade = GRADES[rating]
-  const { card: next } = scheduler.next(card, now, grade)
+  const { card: next } = fsrs.review({ card, grade, now })
   return {
     questionId,
     state: JSON.stringify(next),
-    due: next.due.toISOString(),
+    due: next.dueAt.toISOString(),
     lastRating: grade,
     reviews: (previous?.reviews ?? 0) + 1,
   }
