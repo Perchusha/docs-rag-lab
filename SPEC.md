@@ -317,14 +317,16 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 - The system prompt says: answer only from the provided results, and say so when they are not enough.
 
 ### Agentic mode
-- Claude gets a `search_docs` tool (query + filters). The tool returns `search_result` blocks in its tool results.
-- Claude may search several times, up to a configurable maximum number of steps.
-- Agentic mode is compared against single-shot retrieval in eval.
+- Claude gets hybrid's results for the question, as in a single-shot answer, and a `search_docs` tool: a query, and optionally doc types. The tool returns hybrid's top 8 as `search_result` blocks in its tool results, leaving out chunks already in the conversation (ADR-0019).
+- Claude may search again up to a configurable maximum, 2 searches of its own, one per step. The last search's result says that no search is left.
+- Every request of the loop uses prompt caching: each step reads the prefix the step before wrote. Cache writes and reads are counted separately, with what the same tokens would cost without caching.
+- Agentic mode is ladder row 6, compared against single-shot hybrid on the frozen sets (ADR-0019).
+- The docs apps offer it as an opt-in in the chat. One search stays the default unless ADR-0019's hypothesis holds.
 - A candidate from M4: on ts-0024, retrieval misses, so the grounded answer refuses while Claude without RAG answers correctly. A second, agentic search is the natural fix (ADR-0012).
 
 ## 10. Evaluation
 
-M4 built this, M5 added ladder rows 4 and 5, M6 ran rows 0, 2, 3 and 4 on React with a spot check of the judge (ADR-0016), M7 added row 7 on the compiled index (ADR-0017), and the README has the measured rows. M4's part: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
+M4 built this, M5 added ladder rows 4 and 5, M6 ran rows 0, 2, 3 and 4 on React with a spot check of the judge (ADR-0016), M7 added row 7 on the compiled index (ADR-0017), M9 adds row 6 (ADR-0019), and the README has the measured rows. M4's part: the golden set format, anchors, the lock, `drl eval check`, retrieval metrics and reports (`drl eval`, `verify`, `compare`), answer metrics, the judge and its calibration (`drl eval answers`, `judge-check`, `label`, `calibrate`, ADR-0012), and the dashboard at `/eval` in the ts-docs app (ADR-0013).
 
 **Golden sets.** One file per source: `packages/sources/<id>/eval/questions.jsonl`, for example:
 ```json
@@ -366,7 +368,7 @@ Answers are not deterministic, because the API has no temperature for these mode
 3. Hybrid (vector + BM25, RRF)
 4. Hybrid + rerank
 5. Hybrid + rerank + contextual retrieval
-6. Agentic
+6. Agentic: row 3's search, then up to 2 searches of Claude's own (M9, ADR-0019)
 7. Hybrid on the compiled index, with the twoslash output in the chunks (M7, ADR-0017)
 
 Hybrid + contextual retrieval without the reranker is measured too, for retrieval only, to tell what each adds. It is no ladder row (ADR-0014).
@@ -387,7 +389,7 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 1. **Compiler-verified questions (TS).** Generated from twoslash examples: "what type is inferred here?", "which error does this produce?". The correct answer comes from compiler output stored at ingest, not from the LLM.
 2. **"What is wrong with this code?" (React).** Generated from `<Pitfall>` blocks.
 3. **Flashcards.** Short question and answer, with the citation on the back: a link to the section the quote or the example is in, and for a generated question that section of the docs, with the quote marked. Once the answer is shown, Check my answer grades what was written with the mock interview's grader, where a compiler question's answer from the compiler decides what its code does, with no follow-up and nothing stored; the owner's own rating still schedules the card.
-4. **Mock interview.** In M8, a fixed loop (ADR-0018): a few generated questions, one per topic. Hybrid search retrieves passages for each answer, and Sonnet grades it against them, with citations, a score of 0 to 2 and one follow-up. Where the bank's answer and the passages disagree, the passages decide. An answer can be in any language, and the feedback comes in that language. The summary names the weak topics and three sections to read. In M9, an agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
+4. **Mock interview.** In M8, a fixed loop (ADR-0018): a few generated questions, one per topic. Hybrid search retrieves passages for each answer, and Sonnet grades it against them, with citations, a score of 0 to 2 and one follow-up. Where the bank's answer and the passages disagree, the passages decide. An answer can be in any language, and the feedback comes in that language. The summary names the weak topics and three sections to read. Later, after v1.0 (ADR-0019), an agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
    - asks open questions by topic and level;
    - grades answers against the retrieved docs;
    - gives feedback with citations;
@@ -456,13 +458,13 @@ Every milestone ends with:
 | M6 | React via `/add-source` | `react-docs` app, 20 questions (ADR-0016) | Done through the skill; the PR links the session |
 | M7 | Twoslash compile | Compiler output inlined, exact-token metadata. Revisit the grading of ts-0040: the handbook chunks will state the error text. The test is in ADR-0017 | `exact-token` questions improve and are measured |
 | M8 | Interview-prep MVP | Scope from section 11 | You use it yourself for a real interview |
-| M9 | Agentic mode | Ladder row 6 | Compared against single-shot |
+| M9 | Agentic mode | Ladder row 6, and an opt-in agentic chat in the docs apps. The test is in ADR-0019 | Compared against single-shot |
 
 **v1.0 is M5 through M9,** on top of M0 to M4, which are done (ADR-0015).
 
 **M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
 
-**Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD).
+**Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD). Also the mock interview's agent with `search_docs`, `get_progress` and `record_score` (section 11), which the owner moved out of M9: it would be judged by use, not on the frozen sets, and M8's fixed loop had just shipped (ADR-0019).
 
 ### The process from M6 on
 
@@ -470,7 +472,7 @@ Lighter than M4 and M5, by the owner's decision (ADR-0015):
 - **Reuse** the eval harness, the calibrated judge and the dashboard.
 - **React's golden set is smaller,** 20 questions: 16 answerable and 4 not. 10 of the answerable are fresh, by the docs' own dates, and 3 are in Russian. Claude drafts them, and the owner reviews only the flagged ones.
 - **No new judge calibration** unless its prompt or model changes. For React, a spot check on 10 answers is enough.
-- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016, and M7's in ADR-0017.
+- **Hypotheses and criteria are still written down before any paid run.** Set-level criteria decide, and per-question targets are diagnostics (ADR-0014). M6's are in ADR-0016, M7's in ADR-0017, M8's in ADR-0018 and M9's in ADR-0019.
 - **Not built in M6:** the `run-eval` skill, the `eval-analyst` subagent and `turbo gen app` (ADR-0016).
 
 ### From M8 on
