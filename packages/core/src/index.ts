@@ -324,6 +324,7 @@ export {
   type CostLine,
   type EstimateOptions,
 } from './eval/cost.ts'
+export { PoolError, poolReports } from './eval/pool.ts'
 export { bootstrapMean, seeded } from './eval/bootstrap.ts'
 export {
   buildDashboardDetails,
