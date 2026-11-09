@@ -2,6 +2,45 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
+## M8 - The interview-prep app: a bank that passed a blind test, and a mock interview (2026-11-09)
+
+Before M8, the engine answered questions about the docs. After it, `pnpm dev:interview` asks them: Quick 10 across TypeScript and React, a topic map, cards scheduled by FSRS, and a mock interview graded against the docs. M8 was a product milestone, judged mainly by the owner's hands-on review, with one hypothesis on the bank, fixed first in ADR-0018. It took four PRs, #38 to #40 and this one, whose merge waits on the owner's hands-on review: that review is M8's acceptance, and its first graded answers are the mock interview's first real calls.
+
+| The bank, at docs `205122bb` and `2177e28d` | TypeScript | React |
+|---|---|---|
+| Chunks in scope, without the pages about setting up tools | 442 | 1,527 |
+| Compiler questions, whose answer is the compiler's output | 327 | 0 |
+| Generated questions written, by Haiku | 925 | 2,877 |
+| Dropped by the quote check, which is code | 43 | 413 |
+| Dropped by Sonnet's check against the chunk | 80 | 601 |
+| Rejected by the owner after H | 2 | 0 |
+| Shown, compiler questions included | 1,127 | 1,863, of which 63 on Pitfall callouts |
+
+**What it showed:**
+- **H holds: 18 of 20 generated questions passed the owner's blind labels,** 70% to 97%, with at most 2 allowed to fail. All 20 could be answered from their passage. React's 10 all passed.
+- **2 of 20 answers were not right and complete, 10% (3% to 30%).** Both are TypeScript theory answers that generalize past their quote, and the code under the question contradicts each. Sonnet passed them, reading the answer against the quote and the prose around it. In one, the docs' own sentence says as much as the answer, and only its example shows otherwise.
+- **So a card can be flagged as wrong,** which hides it at once and keeps the reason for `drl questions flagged`, and the two are rejected in the bank. The bank was not checked again, since a second check would cost about as much as the first.
+- **The written rule on setup pages did the work a list would not.** The pilot showed Haiku writing install trivia from React's setup pages. The owner's rule, that pages about setting up a tool stay out, caught 23 React pages and, for TypeScript, compiler options rather than pages: the project setup pages were already outside the bank. Its first cut also caught the options on how a project is laid out, which the owner put back before labelling.
+- **The forecast ran about 17% low:** $7.30, against $8.80 for the run and its two stopped starts, which paid for chunks the rerun kept. Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than in the pilot.
+
+**What only real runs showed:**
+- **One checker reply skipped a verdict,** and stopped the first full run. A question with no verdict is now dropped with a reason, and the rerun paid only for the rest.
+- **React's quote check drops 14%, TypeScript's 5%.** React's chunks are often code, challenges and solutions, and Haiku quoted other parts of the document it reads whole. Those questions are not grounded in the chunk they cite, so that is the check working.
+- **ts-fsrs 5.4.2 patched `Date.prototype` on import,** for the whole server process. It was found after the choice, and 6.0.0 replaced it before the paid run.
+- **About one compiler question in five shows code whose declarations the site hides above `---cut---`.** "Does it compile?" is unfair without them, so the card shows them one click away.
+
+**Spend:** $8.91 of Claude at list prices for the bank, against a limit of $10: $0.09 for the pilot, $0.46 for two starts that stopped, $8.34 for the run and $0.02 for the returned options. The mock interview made no paid call in M8's PRs: about a cent per graded answer, from the estimate, as the owner uses it.
+
+**Next:** M9, agentic mode, measured on the frozen sets only (ADR-0015, section 6). The mock interview's fixed loop is what an agent with `search_docs`, `get_progress` and `record_score` can take over.
+
+### Open items for M9
+
+None of these changes a result above:
+- **About one theory card in ten may say more than the docs,** by H's interval. A check of each answer against the code shown with it, not only its quote, would find more, at about the cost of the first check.
+- **The mock interview's grading is not measured.** Its first real calls are the owner's review. A small labelled set of answers would say how far its scores can be trusted.
+- **The mock interview picks questions by topic and chance,** not by progress. `get_progress` in M9 could aim it at weak topics.
+- **M7's open items are still open,** apart from the compiled index, which the bank now reads.
+
 ## M7 - The twoslash compile: the error message, cited, and no more correct answers (2026-11-06)
 
 Before M7, the chunks held the docs' twoslash examples as written: a line such as `// @errors: 2554`, and no message. M7 compiles 654 of the 712 examples with the docs' own `typescript` 6.0.2 and builds a second index, where the compiler's output follows each example. On 8 questions about what an error code means, the answers from the compiled index quote the message and cite it. They are not more correct: Claude without docs already knows these codes, and hybrid search already finds them by the exact token. The test was fixed first in ADR-0017, and the ts-docs app stays on the plain index.

@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M8 - Interview-prep MVP (see SPEC.md section 13). M0 to M7 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
+M9 - Agentic mode (see SPEC.md section 13). M0 to M8 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
 
 ## Commands
 
@@ -32,6 +32,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - The interview bank: `pnpm drl questions typescript` writes its compiler questions to `interview/bank/`, which costs nothing, and prints the estimate of the generated ones; add `--pilot 10 --yes` for a pilot, which prints its questions and the forecast, or `--yes` for the rest, which spends real tokens (React's took 54 minutes). Reruns pay only for chunks whose text changed (ADR-0018).
 - The sheet of M8's test, no API calls: `pnpm drl questions sample` writes 20 generated questions to `interview/dev/labels-bank.md`, with nothing of the checker.
 - M8's test against the owner's labels, no API calls: `pnpm drl questions score <labels>` (for example `interview/labels/bank-2823ff0b5089.json`) writes `interview/bank-check.json` and `.md`, and fails if the labels are not of the current sample.
+- The cards flagged as wrong in the interview-prep app, no API calls: `pnpm drl questions flagged` lists each with its reason and the bank's status, and `pnpm drl questions unflag <id>` takes one back. `pnpm drl questions reject <id> [reason]` marks a shown question `rejected-owner` in its bank, with the reason or its flag's (ADR-0018).
 - Golden set against the index, no API calls: `pnpm drl eval check` (add `--accept` to rewrite the lock, after a human has reviewed the set, or for React its flagged questions (ADR-0015), or `--contextual` or `--control` for those indexes, also against the plain one's chunks, or `--draft` for `eval/questions.draft.jsonl`: which anchors do not resolve and what each question copies from the docs, and it fails above 2 fresh questions on a page)
 - The walk that picks fresh golden questions, no API calls: `pnpm drl eval walk --source typescript` prints the newest 50 indexed pages and headings by git history, at the index's commit (ADR-0016). The first run clones the docs' history under the cache: about a minute and 94 MB for TypeScript.
 - Retrieval metrics over the golden set, no Claude call: `pnpm drl eval` (writes a report under `eval/reports/typescript/dev/`, which git ignores; add `--name baseline` for a run to commit, which needs a clean tree, measures rerank too, one paced call per question, and prints its estimate until `--yes`; `--contextual` or `--control` for those indexes, the control under `vector` and `hybrid` only; `--strategy rerank` for that strategy alone)
@@ -49,10 +50,10 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Network smoke test, spends real tokens: `pnpm test:network`
 - The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - The react-docs app: `pnpm dev:react` (http://127.0.0.1:3001; the same routes and costs as ts-docs)
-- The interview-prep app: `pnpm dev:interview` (http://127.0.0.1:3002; no route calls a model, and its progress is in `data/apps/interview-prep.sqlite`)
+- The interview-prep app: `pnpm dev:interview` (http://127.0.0.1:3002; practice calls no model, and each graded answer of the mock interview makes one hybrid search and one call to Claude, about a cent; its progress, flags and mock interviews are in `data/apps/interview-prep.sqlite`)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)
 
-`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. An app's Ask calls them too. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev`, `pnpm dev:react`, `pnpm dev:interview` and `pnpm storybook` keep running: start them in the background and stop them when done.
+`drl` and `test:network` call paid APIs; the CLI loads keys itself, so never pass a dotenv file on the command line. An app's Ask calls them too, and so does a graded answer in the mock interview. A `drl` run stops before its next paid call if HEAD or the branch changes under it, by a commit or by GitHub Desktop (ADR-0010). Voyage is on the Atlas free trial (3 requests and 10K tokens per minute): a full index takes about an hour, so run it in the background. `pnpm dev`, `pnpm dev:react`, `pnpm dev:interview` and `pnpm storybook` keep running: start them in the background and stop them when done.
 
 ## Hooks
 

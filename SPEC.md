@@ -387,7 +387,7 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 1. **Compiler-verified questions (TS).** Generated from twoslash examples: "what type is inferred here?", "which error does this produce?". The correct answer comes from compiler output stored at ingest, not from the LLM.
 2. **"What is wrong with this code?" (React).** Generated from `<Pitfall>` blocks.
 3. **Flashcards.** Short question and answer, with the citation on the back.
-4. **Mock interview.** An agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
+4. **Mock interview.** In M8, a fixed loop (ADR-0018): a few generated questions, one per topic. Hybrid search retrieves passages for each answer, and Sonnet grades it against them, with citations, a score of 0 to 2 and one follow-up. Where the bank's answer and the passages disagree, the passages decide. The summary names the weak topics and three sections to read. In M9, an agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
    - asks open questions by topic and level;
    - grades answers against the retrieved docs;
    - gives feedback with citations;
@@ -401,10 +401,11 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 - A checker (Sonnet) reads every generated question against its chunk alone, and drops it when the chunk does not answer it or the stored answer is wrong. Dropped questions stay in the file with their reason.
 - A rerun sends only chunks whose text changed, and a question whose chunk changed is stale and not shown.
 - The topic map comes from the source's `interviewTopic`: TypeScript's Handbook and Reference pages, and its compiler options as one topic, and React's Learn pages, with its Reference pages aggregated by folder. A page about installing, setting up or configuring a tool, rather than about the language or the library itself, stays out of the bank and the topic map.
+- The owner can reject a shown question that turns out wrong: `drl questions reject` keeps it in the file with the status `rejected-owner` and the reason, and it is no longer shown. A card's "This answer is wrong" hides it for the owner at once and keeps the reason locally, and `drl questions flagged` lists those flags for a rejection.
 - After human approval, a question can be promoted to the eval golden set (later).
 
 **Progress:**
-- FSRS spaced repetition in local SQLite.
+- FSRS spaced repetition in local SQLite, with the cards flagged as wrong and the mock interviews.
 - After a mock interview: weak topics plus 3 sections to read.
 
 **MVP scope:** technology selection, compiler-verified TS questions, React Pitfall questions, a text mock interview, basic progress.

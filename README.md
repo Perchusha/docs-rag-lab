@@ -7,13 +7,13 @@ Docs RAG Lab is a local RAG engine over the TypeScript and React documentation. 
 - docs assistants that answer with native citations to exact doc sections;
 - an inspector that shows how every answer was retrieved;
 - an evaluation harness that measures each retrieval technique against honest baselines;
-- an interview-prep app with compiler-verified questions.
+- an interview-prep app with compiler-verified questions and a mock interview graded against the docs.
 
 Everything runs locally. There is no deployment. The full design is in [SPEC.md](SPEC.md).
 
 ## Status
 
-**M7 (the compiler's output in the chunks) is done.** Its acceptance in SPEC asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9, so next come the interview-prep app and agentic mode. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). TypeScript's results come first and React's follow. They are different questions on different docs, and their numbers are never compared.
+**M8 (the interview-prep app) is done once the owner's hands-on review passes,** which decides the merge of its last PR. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9, so agentic mode comes next. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). TypeScript's results come first and React's follow. They are different questions on different docs, and their numbers are never compared.
 
 The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
@@ -123,6 +123,25 @@ Row 0's 7 of 16 is 2 of 10 on fresh (6-51%) and 5 of 6 on the rest (44-97%). Hyb
 
 The numbers come from [React's report](eval/reports/react/2026-11-05-8dfcae6f-m6.md). `drl eval verify` reproduced its retrieval byte for byte on the same vectors, and answers do not repeat, so they are stored in the report. `pnpm dev:react` serves it at `/eval`. It cost $4.08 of Claude at list prices.
 
+### Interview prep
+
+**M8 added the interview-prep app.** `pnpm dev:interview` starts it on http://127.0.0.1:3002. Pick TypeScript, React or both, then press Quick 10: ten cards that are due or new, each with its answer, the docs section it rests on and four ratings, scheduled by FSRS. The topic map practises one topic at a time, and the mock interview grades open answers against the docs. It is judged mainly by the owner's hands-on review, with one hypothesis on the bank, fixed first in [ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md).
+
+**The bank** holds 2,990 questions at docs `205122bb` and `2177e28d`, from TypeScript's Handbook, Reference and compiler options and React's Learn and Reference, without the pages about setting up tools:
+- **327 compiler questions** ask which errors an example gives or which type TypeScript shows. Their answer is the compiler's output, so they need no check.
+- **2,663 generated questions** were written by Haiku from one chunk each, with a quote that code finds in that chunk, then checked by Sonnet against the chunk alone: 800 for TypeScript and 1,863 for React, 63 of them on Pitfall callouts. The checks dropped 1,137 of the 3,802 written, and the owner rejected 2, below.
+- **It cost $8.91 of Claude at list prices,** against a limit of $10 for M8.
+
+**H, the generated questions are grounded, holds.** The owner labelled a blind sample of 20 shown generated questions, 10 per source and 3 of React's on Pitfall callouts, and H held with at most 2 failing:
+- **All 20 could be answered** from the passage they cite.
+- **2 of 20 answers were not right and complete, 10% (3% to 30%).** So about one theory card in ten may say more than the docs do, and the interval is wide. Both are TypeScript theory questions: one says a `readonly` field can be set once during construction, and the other that anything marked `type` is dropped entirely.
+- **The failure mode:** each answer generalizes past its quote, and the check passed it by comparing the answer with the quote and the prose around it, not with the code shown under the question. That code contradicts both answers. In the second, the docs' own sentence says as much as the answer, and only its example shows otherwise.
+- **What follows:** both are rejected in the bank, with the reason, and every card has "This answer is wrong", which hides it and keeps the reason on this computer. `drl questions flagged` lists those flags so they can be rejected in the bank too. The whole bank was not checked again: that would not fit M8's budget.
+
+**The mock interview** asks a few generated questions, one per topic. Each answer is graded by Claude against passages that hybrid search finds for it, with a score of 0 to 2, feedback citing the passages and one follow-up; where the bank's answer and the passages disagree, the passages decide. The summary names the weak topics and three sections to read. Its grading is not measured, and it made no paid call before the owner's review, which makes its first real calls. The agent with tools is M9's.
+
+The app is keyboard-first: no shortcut fires while typing, Ctrl+Enter submits a field, and keyboard play tests in the ui stories hold this. Each screen is a story that runs with axe in light and dark.
+
 ## Requirements
 
 - Node 26.13.0, the current LTS. It is pinned in `.nvmrc`, and `pnpm install` refuses anything outside `^26.13.0`.
@@ -165,6 +184,8 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl sync typescript --control [--yes]` | The same with the prefix `title > section path` from code, and no call to Claude, in `data/sources/typescript.control.sqlite`. It is the control for the contexts |
 | `pnpm drl sync typescript --compiled [--yes]` | Compiles every twoslash example with the docs' own `typescript` 6.0.2, records what did not compile under `eval/compile/`, and stops below 90% compiled. With `--yes` it builds `data/sources/typescript.compiled.sqlite`, where the compiler's output follows each example ([ADR-0017](docs/adr/0017-twoslash-compile-and-its-test.md)). No call to Claude |
 | `pnpm drl questions <source>` | The interview bank of a source, under `interview/bank/` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)): writes its compiler questions, which cost nothing, and prints the estimate of the generated ones. No call to Claude without `--yes` |
+| `pnpm drl questions flagged` | The cards flagged as wrong in the interview-prep app, each with the reason and what the bank says of it. `drl questions unflag <id>` takes a flag back. No API call |
+| `pnpm drl questions reject <id> [reason]` | Mark a shown question rejected in its bank, with the reason, or the reason of its flag in the app. The app no longer shows it, and reruns keep the rejection. No API call |
 | `pnpm drl ask "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
 | `pnpm drl search "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request per model) |
@@ -183,7 +204,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
 | `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
 | `pnpm dev:react` | The react-docs app on http://127.0.0.1:3001, after `drl sync react`. It has the same routes and costs as `pnpm dev` |
-| `pnpm dev:interview` | The interview-prep app on http://127.0.0.1:3002, after `drl questions <source>` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)). No route calls a model. Progress is spaced repetition by FSRS, in `data/apps/interview-prep.sqlite` |
+| `pnpm dev:interview` | The interview-prep app on http://127.0.0.1:3002, after `drl questions <source>` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)). Practice calls no model. In the mock interview, each graded answer makes one hybrid search and one call to Claude, about a cent; a skipped one calls nothing. Progress is spaced repetition by FSRS, in `data/apps/interview-prep.sqlite`, with the flags and the mock interviews |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |
 
 Every `drl` command that calls an API ends with a line of tokens used and estimated cost at list prices. It also stops before its next paid call if HEAD or the branch changes under it, so that a report cannot name the wrong commit ([ADR-0010](docs/adr/0010-eval-reports-and-reproducibility.md)).
@@ -194,9 +215,9 @@ Every `drl` command that calls an API ends with a line of tokens used and estima
 |---|---|---|
 | `apps/ts-docs` | `@docs-rag-lab/ts-docs` | TypeScript docs assistant and eval dashboard: a Next.js app, its config and its routes |
 | `apps/react-docs` | `@docs-rag-lab/react-docs` | React docs assistant and eval dashboard: the same, for the React docs |
-| `apps/interview-prep` | `@docs-rag-lab/interview-prep` | The interview-prep app: Quick 10, the topic map and the cards, over the bank |
+| `apps/interview-prep` | `@docs-rag-lab/interview-prep` | The interview-prep app: Quick 10, the topic map, the cards and the mock interview, over the bank |
 | `packages/docs-server` | `@docs-rag-lab/docs-server` | What the docs apps share on the server: route handlers, the engine's one instance, where the eval reports are |
-| `packages/interview-server` | `@docs-rag-lab/interview-server` | The interview-prep app's route handlers and its backend: the bank and the progress store |
+| `packages/interview-server` | `@docs-rag-lab/interview-server` | The interview-prep app's route handlers and its backend: the bank, the progress store and the mock interview's grading |
 | `packages/core` | `@docs-rag-lab/core` | Ingest, embeddings and the embedding cache, retrieval, generation, eval runner |
 | `packages/source-kit` | `@docs-rag-lab/source-kit` | Source interface, git sync, hashing, chunker, conformance suite |
 | `packages/sources/typescript` | `@docs-rag-lab/source-typescript` | TypeScript-Website parser |
