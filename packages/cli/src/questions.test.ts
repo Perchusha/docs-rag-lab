@@ -291,6 +291,50 @@ describe('drl questions (ADR-0018)', () => {
     expect(wrong.err).toContain('these labels are of sample aaaaaaaaaaaa')
   })
 
+  it('rejects a shown question by the owner, and a rerun keeps the rejection', async () => {
+    await drl('questions', 'typescript', '--yes')
+    const [compiler, theory] = questionsIn()
+    if (compiler === undefined || theory === undefined) throw new Error('no questions')
+
+    const rejected = await drl(
+      'questions',
+      'reject',
+      theory.question.id,
+      'Says more than its quote.',
+    )
+    expect(rejected.code).toBe(0)
+    expect(rejected.out).toContain(`rejected ${theory.question.id} of typescript`)
+    expect(await drl('questions', 'reject', compiler.question.id, 'Wrong line.')).toMatchObject({
+      code: 0,
+    })
+    const statuses = () =>
+      questionsIn().map((row) => [row.question.kind, row.status, row.ownerReason])
+    const expected = [
+      ['compiler-error', 'rejected-owner', 'Wrong line.'],
+      ['theory', 'rejected-owner', 'Says more than its quote.'],
+      ['theory', 'shown', undefined],
+    ]
+    expect(statuses()).toEqual(expected)
+
+    // Compiler questions are made again on every run, and keep their rejection.
+    claudeRequests = []
+    await drl('questions', 'typescript', '--yes')
+    expect(claudeRequests).toEqual([])
+    expect(statuses()).toEqual(expected)
+  })
+
+  it('refuses a rejection with no reason, or of a question no bank has', async () => {
+    await drl('questions', 'typescript')
+    const [compiler] = questionsIn()
+
+    const noReason = await drl('questions', 'reject', compiler?.question.id ?? '')
+    expect(noReason.code).toBe(1)
+    expect(noReason.err).toContain('questions reject needs a question id and a reason')
+    const unknown = await drl('questions', 'reject', 'nope', 'Wrong.')
+    expect(unknown.code).toBe(1)
+    expect(unknown.err).toContain('no bank has a question nope')
+  })
+
   it('refuses --pilot with commands other than sync --contextual and questions', async () => {
     const { code, err } = await drl('eval', '--pilot', '3')
 

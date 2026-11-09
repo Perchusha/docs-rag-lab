@@ -21,8 +21,12 @@ import {
   generatedChunks,
   keptGeneratedRows,
   openIndexes,
+  ownerRejections,
   planBank,
   readBank,
+  rejectQuestion,
+  RejectError,
+  withRejection,
   writeBank,
   type BankDocument,
   type BankHeader,
@@ -101,16 +105,16 @@ export async function questionsCommand(
   const path = bankPath(ctx.root, source.id)
 
   const current = currentKeys(documents)
+  const earlier = readBank(path)
+  // Made again on every run, with the owner's rejections put back where the text is the same.
+  const rejections = ownerRejections(earlier)
   const fromCompiler: QuestionRow[] = documents.flatMap((document) =>
-    compilerQuestions(source, document, compiler).map(({ question, textHash }) => ({
-      row: 'question' as const,
-      status: 'shown' as const,
-      textHash,
-      question,
-    })),
+    compilerQuestions(source, document, compiler).map(({ question, textHash }) =>
+      withRejection({ row: 'question', status: 'shown', textHash, question }, rejections),
+    ),
   )
   // What earlier runs paid for, for chunks whose text is still the same.
-  const kept = keptGeneratedRows(readBank(path), header).filter(
+  const kept = keptGeneratedRows(earlier, header).filter(
     (row) => current.get(chunkIdOf(row)) === row.textHash,
   )
   const known = generatedChunks(kept)
@@ -251,4 +255,39 @@ export function questionsScoreCommand(ctx: CommandContext, args: { labels: strin
   const text = formatBankCheck(check)
   writeFileSync(path.replace(/\.json$/, '.md'), text)
   ctx.out.write(text)
+}
+
+/**
+ * `drl questions reject <question id> <reason>`: the owner found a shown question wrong
+ * (ADR-0018). It stays in its bank with the reason, and the app no longer shows it.
+ */
+export function questionsRejectCommand(
+  ctx: CommandContext,
+  args: { questionId: string; reason: string | undefined },
+): void {
+  if (args.reason === undefined || args.reason.trim() === '') {
+    throw new CliError('questions reject needs a question id and a reason')
+  }
+  for (const source of ctx.sources) {
+    if (source.interviewTopic === undefined) continue
+    const path = bankPath(ctx.root, source.id)
+    const bank = readBank(path)
+    const found = bank?.rows.find(
+      (row): row is QuestionRow => row.row === 'question' && row.question.id === args.questionId,
+    )
+    if (bank === undefined || found === undefined) continue
+    let rejected
+    try {
+      rejected = rejectQuestion(bank, args.questionId, args.reason)
+    } catch (error) {
+      if (error instanceof RejectError) throw new CliError(error.message)
+      throw error
+    }
+    writeBank(path, rejected.header, rejected.rows)
+    ctx.out.write(
+      `rejected ${args.questionId} of ${source.id}, "${found.question.prompt}": the app no longer shows it (${path})\n`,
+    )
+    return
+  }
+  throw new CliError(`no bank has a question ${args.questionId}`)
 }

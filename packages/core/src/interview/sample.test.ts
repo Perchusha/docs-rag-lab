@@ -72,6 +72,21 @@ describe('bankSample (ADR-0018)', () => {
     )
   })
 
+  it('stays the same when the owner rejects one of its questions after the draw', () => {
+    const picked = sample[0]
+    if (picked === undefined) throw new Error('no sample')
+    const rejected = new Map(
+      [...bySource].map(([source, rows]) => [
+        source,
+        rows.map((item): QuestionRow =>
+          item === picked ? { ...item, status: 'rejected-owner', ownerReason: 'Wrong.' } : item,
+        ),
+      ]),
+    )
+
+    expect(bankSampleHash(bankSample(rejected))).toBe(bankSampleHash(sample))
+  })
+
   it('gives what a source has when it has too few', () => {
     const few = bankSample(new Map([['react', many('react', 'pitfall', 2)]]))
 
