@@ -50,7 +50,7 @@ const ROW_NAMES: Record<AnswerRow, string> = {
   6: 'Agentic',
   7: 'Hybrid, compiled',
 }
-const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5, 7]
+const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5, 6, 7]
 const HYBRID = ROW_NAMES[3]
 const RERANK = ROW_NAMES[4]
 const WITH_CONTEXTS = ROW_NAMES[5]
@@ -1003,6 +1003,54 @@ function compiledAnswers(
   }
 }
 
+/** One search stays the chat's default unless ADR-0019's test, over both sources together, holds. */
+const ONE_SEARCH_STAYS =
+  "One search stays the chat's default unless ADR-0019's test holds, which reads both sources together."
+
+/**
+ * The first screen's answers for a report with row 6: row 3 against row 6, with each column's own
+ * run to run. ADR-0019 decides over both sources together, so this says what one source shows.
+ */
+function agenticAnswers(
+  report: EvalReport,
+  answers: EvalAnswers,
+  judge: DashboardJudge,
+): DashboardSection {
+  const present = rowsIn(answers)
+  const rows = ([3, 6] as const).filter((row) => present.includes(row))
+  const pairs: RowPair[] = [[3, 6]]
+  const columns = rows.map((row) => ROW_NAMES[row])
+  const view: AnswerView = { rows, fullyPairs: pairs, pairs, perColumn: true }
+  const measures = answerMeasures(report, answers, judge, view)
+  const shown = [
+    measures.fullyCorrect,
+    measures.citationsHold,
+    measures.falseRefusals,
+    measures.grounded,
+    { ...measures.cost, note: 'search not included' },
+  ].map((row) => clearNoise(row, columns))
+  const claims = claimsAgainstFirst(shown, columns, '')
+  const withoutDocs = present.includes(0)
+    ? withoutDocsLine(measures.fully(0), correctnessNote(judge))
+    : undefined
+  return {
+    question: 'Does searching again reach the answers?',
+    summary: [
+      ...(judge.calibrated
+        ? []
+        : ['The judge is not calibrated for these prompts, so these are provisional.']),
+      claims === '' ? 'No difference from one search holds up.' : claims,
+    ].join(' '),
+    notes: [...(withoutDocs === undefined ? [] : [withoutDocs]), ONE_SEARCH_STAYS],
+    against: HYBRID,
+    columns,
+    scale: '0 to 100%',
+    rows: shown,
+    showRunToRun: rows.some((row) => answeredTwice(answers, row)),
+    runToRunHeader: RUN_TO_RUN_EACH,
+  }
+}
+
 /** Which other index a report read, in words: the trust section says so, when it did. */
 function otherIndexWords(report: EvalReport): string | undefined {
   const index = report.answers?.contextualIndex
@@ -1094,15 +1142,17 @@ export function buildDashboardRun(options: BuildRunOptions): DashboardRun {
         ? null
         : report.answers?.compiledIndex !== undefined
           ? compiledAnswers(report, report.answers, judge)
-          : report.answers !== undefined && hasRerankRows(report.answers)
-            ? rerankAnswers(
-                report,
-                report.answers,
-                judge,
-                retrieval,
-                about?.staysOnHybrid ?? APP_STAYS_ON_HYBRID,
-              )
-            : answersSection(report, judge),
+          : report.answers?.rows.some(({ row }) => row === 6) === true
+            ? agenticAnswers(report, report.answers, judge)
+            : report.answers !== undefined && hasRerankRows(report.answers)
+              ? rerankAnswers(
+                  report,
+                  report.answers,
+                  judge,
+                  retrieval,
+                  about?.staysOnHybrid ?? APP_STAYS_ON_HYBRID,
+                )
+              : answersSection(report, judge),
     trust: {
       judge,
       goldenSet: {
@@ -1218,9 +1268,11 @@ function tagSections(
       [0, 3],
       [3, 4],
       [3, 5],
+      [3, 6],
     ] as RowPair[]
   ).filter(([a, b]) => rows.includes(a) && rows.includes(b))
-  const perColumn = hasRerankRows(answers)
+  // Rows 4, 5 and 6 each answer twice, so each column clears its own run to run.
+  const perColumn = hasRerankRows(answers) || rows.includes(6)
   const answerColumns = rows.map((row) => ROW_NAMES[row])
   // The same rule as the first screen, on the same data (ADR-0013).
   const measured = (values: (row: AnswerRow, sample: number) => Values): MeasuredRow =>

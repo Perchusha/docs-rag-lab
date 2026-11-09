@@ -352,6 +352,56 @@ describe('a report with row 7, hybrid on the compiled index (ADR-0017)', () => {
   })
 })
 
+describe('a report with row 6, agentic (ADR-0019)', () => {
+  /** Rows 3 and 6 answer twice; row 3 scores what it is told, and the others 2. */
+  const agenticAnswers = (score3: (i: number) => 0 | 1 | 2 = () => 2): EvalAnswers => {
+    const ids = [1, 2, 3, 4, 5, 6, 7, 8]
+    const rows: AnswerRow[] = [0, 2, 3, 6]
+    const sampled = (row: AnswerRow): number[] => (row === 3 || row === 6 ? [1, 2] : [1])
+    return answersFixture({
+      rows: rows.flatMap((row) => sampled(row).map((sample) => rowResult(row, sample))),
+      answers: ids.flatMap((i) =>
+        rows.flatMap((row) => sampled(row).map((sample) => answer(i, row, { sample }))),
+      ),
+      verdicts: ids.flatMap((i) =>
+        rows.flatMap((row) =>
+          sampled(row).map((sample) => verdict(i, row, row === 3 ? score3(i) : 2, { sample })),
+        ),
+      ),
+      support: ids.flatMap((i) =>
+        rows
+          .filter((row) => row !== 0)
+          .flatMap((row) => sampled(row).map((sample) => ({ ...support(i, row, true), sample }))),
+      ),
+    })
+  }
+  const run = (answers: EvalAnswers) =>
+    buildDashboardRun({
+      id: 'run-id',
+      report: report({ answers }),
+      calibrations: [],
+      verify: null,
+      indexDocsSha: 'docs-sha',
+    })
+
+  it('compares row 3 with row 6, and says one search stays unless the test over both holds', () => {
+    const { answers } = run(agenticAnswers())
+
+    expect(answers?.question).toBe('Does searching again reach the answers?')
+    expect(answers?.columns).toEqual(['Hybrid', 'Agentic'])
+    expect(answers?.summary).toContain('No difference from one search holds up.')
+    expect(answers?.notes).toContain(
+      "One search stays the chat's default unless ADR-0019's test holds, which reads both sources together.",
+    )
+  })
+
+  it('names row 6 when a verdict does', () => {
+    const { answers } = run(agenticAnswers(() => 1))
+
+    expect(answers?.rows[0]?.comparisons).toMatchObject([{ verdict: 'b' }])
+  })
+})
+
 describe('a report with the reranker', () => {
   const buildWith = (value: EvalReport, contextual?: ReturnType<typeof contextualResult>) =>
     buildDashboardRun({
