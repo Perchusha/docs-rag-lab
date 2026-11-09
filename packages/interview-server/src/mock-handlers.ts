@@ -1,10 +1,13 @@
-// The mock interview's routes (ADR-0018), as plain functions from a Request to a Response. Starting
-// one and its summary call no model. Each answer that is not skipped costs one hybrid search and
-// one call to Claude, about a cent at list prices.
+// The mock interview's routes (ADR-0018), as plain functions from a Request to a Response, and
+// "Check my answer" on a practice card, which grades as the mock interview does. Starting one and
+// its summary call no model. Each answer that is not skipped, and each check, costs one hybrid
+// search and one call to Claude, about a cent at list prices.
 import {
   MAX_MOCK_ANSWER,
+  parseAnswerCheckRequest,
   parseMockAnswerRequest,
   parseMockStartRequest,
+  type AnswerCheck,
   type MockGrade,
   type MockSession,
   type MockSummary,
@@ -179,6 +182,51 @@ export function handleMockSummary(factory: BackendFactory, request: Request): Re
     const summary: MockSummary = mockSummary(session, state.mockTurns(id), backend.bank())
     return Response.json(summary, { headers: NO_STORE })
   } catch (error) {
+    return failure(error)
+  }
+}
+
+/**
+ * POST /api/interview/check: "Check my answer" on a practice card. The answer is graded as a mock
+ * interview grades it, with no follow-up, and nothing is stored: the owner's own rating still
+ * schedules the card. One hybrid search and one call to Claude, about a cent at list prices.
+ */
+export async function handleCheck(factory: BackendFactory, request: Request): Promise<Response> {
+  const read = await bodyOf(request)
+  if (!read.ok) return fail(400, 'the body must be JSON')
+  const check = parseAnswerCheckRequest(read.body)
+  if (check === undefined) {
+    return fail(
+      400,
+      `a check is { questionId, answer }, with an answer of 1 to ${String(MAX_MOCK_ANSWER)} characters`,
+    )
+  }
+  try {
+    const backend = factory()
+    const question = visibleBank(backend).questions.find(({ id }) => id === check.questionId)
+    if (question === undefined)
+      return fail(404, `there is no question ${check.questionId} to check`)
+    const graded = await gradeAnswer(
+      { question, step: 'question', asked: question.prompt, answer: check.answer, check: true },
+      {
+        interviewer: backend.interviewer(),
+        model: settings.models.interviewer,
+        settings: settings.interviewer,
+        pricing: settings.pricing,
+        signal: request.signal,
+      },
+    )
+    const result: AnswerCheck = {
+      questionId: question.id,
+      score: graded.score,
+      feedback: graded.feedback,
+      citations: graded.citations,
+      costUsd: graded.costUsd,
+    }
+    return Response.json(result, { headers: NO_STORE })
+  } catch (error) {
+    // The model's reply could not be used: the answer can be checked again.
+    if (error instanceof GradeError) return fail(502, error.message)
     return failure(error)
   }
 }

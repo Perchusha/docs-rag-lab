@@ -2,6 +2,8 @@
 // sources, decks of the fixture questions, and a transport that answers from them with no network.
 // Not part of the public entry.
 import type {
+  AnswerCheck,
+  AnswerCheckRequest,
   BankQuestion,
   FlagRequest,
   MockAnswerRequest,
@@ -274,7 +276,24 @@ export const MOCK_SUMMARY: MockSummary = {
   costUsd: 0.0214,
 }
 
-/** Answers from the data above at once, and records each review, flag and answer it was sent. */
+const BASICS = 'https://www.typescriptlang.org/docs/handbook/2/basic-types.html'
+
+/**
+ * A check of an answer written in Russian, on the strictNullChecks card, with the feedback in the
+ * answer's language, as the grader is asked to write it. Written by hand: no check has been run.
+ */
+export const CHECKED: AnswerCheck = {
+  questionId: CARDS.strictNullChecks.question.id,
+  score: 1,
+  feedback:
+    'Верно: по умолчанию `null` и `undefined` можно присвоить любому другому типу [1]. Не хватает того, что делает флаг: со `strictNullChecks` их приходится обрабатывать явно [1].',
+  citations: [
+    { number: 1, url: `${BASICS}#strictnullchecks`, title: 'The Basics > strictNullChecks' },
+  ],
+  costUsd: 0.0094,
+}
+
+/** Answers from the data above at once, and records each review, flag, answer and check it was sent. */
 export function storyTransport(
   options: {
     summary?: PracticeSummary
@@ -282,6 +301,9 @@ export function storyTransport(
     reviews?: ReviewRequest[]
     flags?: FlagRequest[]
     answers?: MockAnswerRequest[]
+    checks?: AnswerCheckRequest[]
+    /** What a check gives: CHECKED by default. */
+    check?: (request: AnswerCheckRequest) => Promise<AnswerCheck>
   } = {},
 ): InterviewTransport {
   const deck = options.deck ?? Object.values(CARDS)
@@ -293,6 +315,12 @@ export function storyTransport(
       return Promise.resolve(request.step === 'question' ? PARTLY_RIGHT : FOLLOW_UP_RIGHT)
     },
     mockSummary: () => Promise.resolve(MOCK_SUMMARY),
+    check: (request) => {
+      options.checks?.push(request)
+      return (
+        options.check?.(request) ?? Promise.resolve({ ...CHECKED, questionId: request.questionId })
+      )
+    },
     overview: (sources) => Promise.resolve(overviewOf(options.summary ?? FIRST_RUN, sources)),
     deck: (sources, topicOf) =>
       Promise.resolve({

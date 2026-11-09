@@ -63,8 +63,11 @@ export {
 export {
   MAX_MOCK_ANSWER,
   MOCK_STEPS,
+  parseAnswerCheckRequest,
   parseMockAnswerRequest,
   parseMockStartRequest,
+  type AnswerCheck,
+  type AnswerCheckRequest,
   type MockAnswerRequest,
   type MockCitation,
   type MockGrade,

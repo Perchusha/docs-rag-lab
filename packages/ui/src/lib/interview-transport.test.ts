@@ -10,6 +10,7 @@ const endpoints = {
   mock: '/api/interview/mock',
   mockAnswer: '/api/interview/mock/answer',
   mockSummary: '/api/interview/mock/summary',
+  check: '/api/interview/check',
 }
 
 afterEach(() => {
@@ -37,6 +38,8 @@ describe('fetchInterviewTransport (ADR-0018)', () => {
       answer: 'A.',
     })
     await transport.mockSummary('s1')
+    const controller = new AbortController()
+    await transport.check({ questionId: 'q3', answer: 'An answer.' }, controller.signal)
 
     expect(calls.map(([url]) => url)).toEqual([
       '/api/interview/overview?sources=typescript%2Creact',
@@ -46,6 +49,7 @@ describe('fetchInterviewTransport (ADR-0018)', () => {
       '/api/interview/mock',
       '/api/interview/mock/answer',
       '/api/interview/mock/summary?session=s1',
+      '/api/interview/check',
     ])
     expect(calls[4]?.[1]).toMatchObject({ method: 'POST', body: '{"sources":["react"]}' })
     expect(calls[2]?.[1]).toMatchObject({
@@ -55,6 +59,12 @@ describe('fetchInterviewTransport (ADR-0018)', () => {
     expect(calls[3]?.[1]).toMatchObject({
       method: 'POST',
       body: '{"questionId":"q2","reason":"Wrong."}',
+    })
+    // A check is given up when its card moves on.
+    expect(calls[7]?.[1]).toMatchObject({
+      method: 'POST',
+      body: '{"questionId":"q3","answer":"An answer."}',
+      signal: controller.signal,
     })
   })
 

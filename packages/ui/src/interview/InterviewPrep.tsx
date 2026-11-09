@@ -303,6 +303,9 @@ export function InterviewPrep(props: InterviewPrepProps) {
               onFlag={(reason) => {
                 void flag(reason)
               }}
+              onCheck={(answer, signal) =>
+                transport.check({ questionId: card.question.id, answer }, signal)
+              }
             />
           </>
         )}

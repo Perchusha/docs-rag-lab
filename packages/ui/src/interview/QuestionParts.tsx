@@ -1,10 +1,12 @@
 // What a practice card and the mock interview show alike (ADR-0018): text with its code spans, and
-// a question's code from the docs with the setup the site hides one click away.
-import type { QuestionCode } from '@docs-rag-lab/contracts'
+// a question's code from the docs with the setup the site hides one click away, and the sources a
+// grade cites.
+import type { MockCitation, QuestionCode } from '@docs-rag-lab/contracts'
 import { ChevronRight } from 'lucide-react'
 import { Fragment, useId, useState, type KeyboardEvent } from 'react'
 
 import { codeSpans } from '../lib/code-spans.ts'
+import common from '../lib/common.module.css'
 import { ScrollRegion } from '../lib/ScrollRegion.tsx'
 import styles from './Interview.module.css'
 
@@ -56,6 +58,30 @@ export function QuestionCodeBlock({ code }: { code: QuestionCode | undefined }) 
           <code>{code.code}</code>
         </pre>
       </ScrollRegion>
+    </>
+  )
+}
+
+/** The passages a grade's feedback cites, numbered as its [n] markers are. */
+export function GradeSources({ citations }: { citations: readonly MockCitation[] }) {
+  if (citations.length === 0) return null
+  return (
+    <>
+      <h4 className={styles.subheading}>Sources</h4>
+      <ol className={styles.sources}>
+        {citations.map((citation) => (
+          <li key={citation.number} value={citation.number}>
+            <a
+              className={common.link}
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {citation.title}
+            </a>
+          </li>
+        ))}
+      </ol>
     </>
   )
 }

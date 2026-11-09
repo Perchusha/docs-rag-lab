@@ -388,6 +388,24 @@
   font-size: var(--text-sm);
 }
 
+/* Check my answer: the button, its status, then the grade. */
+.check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-2);
+}
+
+.check h3:focus-visible {
+  outline-offset: var(--space-1);
+}
+
+.check p {
+  margin: 0;
+}
+
 .ratings {
   display: flex;
   flex-direction: column;

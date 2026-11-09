@@ -1,4 +1,10 @@
-import type { BankQuestion, MockGrade, MockSession, MockSummary } from '@docs-rag-lab/contracts'
+import type {
+  AnswerCheck,
+  BankQuestion,
+  MockGrade,
+  MockSession,
+  MockSummary,
+} from '@docs-rag-lab/contracts'
 import {
   openInterviewState,
   type AnswerClient,
@@ -10,7 +16,12 @@ import { settings } from '@docs-rag-lab/settings'
 import { describe, expect, it } from 'vitest'
 
 import type { InterviewBackend } from './handlers.ts'
-import { handleMockAnswer, handleMockStart, handleMockSummary } from './mock-handlers.ts'
+import {
+  handleCheck,
+  handleMockAnswer,
+  handleMockStart,
+  handleMockSummary,
+} from './mock-handlers.ts'
 
 const NOW = new Date('2026-11-09T12:00:00.000Z')
 
@@ -311,5 +322,49 @@ describe('the mock interview routes (ADR-0018)', () => {
 
     expect(long.status).toBe(400)
     expect(((await long.json()) as { error: string }).error).toContain('at most 4000 characters')
+  })
+})
+
+describe('handleCheck (ADR-0018)', () => {
+  const check = (one: InterviewBackend, body: Record<string, string>) =>
+    handleCheck(() => one, post({ questionId: 't1', answer: 'Проверки typeof.', ...body }))
+
+  it('grades an answer on a card as the mock interview does, with no follow-up, and keeps nothing', async () => {
+    const fake = fakeInterviewer([
+      { score: 1, feedback: 'Верно [1], но не всё.', citations: [1], follow_up: 'More?' },
+      { score: 2, feedback: 'Right.', citations: [], follow_up: '' },
+    ])
+    const one = backend(fake.interviewer)
+    const checked = await check(one, {})
+
+    expect(checked.status).toBe(200)
+    const result = (await checked.json()) as AnswerCheck
+    expect(result).toMatchObject({
+      questionId: 't1',
+      score: 1,
+      feedback: 'Верно [1], но не всё.',
+      citations: [{ number: 1, url: 'https://docs.dev/narrowing#a', title: 'Narrowing' }],
+    })
+    expect(result).not.toHaveProperty('followUp')
+    expect(result.costUsd).toBeGreaterThan(0)
+    // A compiler question is checked too, and the same answer can be checked again.
+    expect((await check(one, { questionId: 'c1', answer: 'number' })).status).toBe(200)
+    expect(fake.calls()).toBe(2)
+    expect(one.state().cards()).toEqual([])
+  })
+
+  it('refuses an empty answer, a hidden or unknown card, and a grade it cannot use', async () => {
+    const one = backend(
+      fakeInterviewer([{ score: 7, feedback: 'Off the scale.', citations: [], follow_up: '' }])
+        .interviewer,
+    )
+    one.state().saveFlag({ questionId: 'r1', reason: 'Wrong.', flaggedAt: NOW.toISOString() })
+
+    const empty = await check(one, { answer: '  ' })
+    expect(empty.status).toBe(400)
+    expect(((await empty.json()) as { error: string }).error).toContain('1 to 4000 characters')
+    expect((await check(one, { questionId: 'r1' })).status).toBe(404)
+    expect((await check(one, { questionId: 'nope' })).status).toBe(404)
+    expect((await check(one, {})).status).toBe(502)
   })
 })

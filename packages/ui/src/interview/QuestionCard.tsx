@@ -1,6 +1,7 @@
 import {
   MAX_FLAG_REASON,
   RATINGS,
+  type AnswerCheck,
   type BankQuestion,
   type PracticeCard,
   type QuestionPassage,
@@ -10,9 +11,17 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 
 import { AnswerMarkdown } from '../chat/AnswerMarkdown.tsx'
 import common from '../lib/common.module.css'
-import { cardAction, focusOf, KIND_LABELS, RATING_LABELS } from '../lib/interview.ts'
+import { messageOf } from '../lib/format.ts'
+import {
+  cardAction,
+  costText,
+  focusOf,
+  KIND_LABELS,
+  RATING_LABELS,
+  scoreText,
+} from '../lib/interview.ts'
 import styles from './Interview.module.css'
-import { InlineText, isSubmitKey, QuestionCodeBlock } from './QuestionParts.tsx'
+import { GradeSources, InlineText, isSubmitKey, QuestionCodeBlock } from './QuestionParts.tsx'
 
 export interface QuestionCardProps {
   card: PracticeCard
@@ -27,6 +36,11 @@ export interface QuestionCardProps {
    * none, the card offers no flag.
    */
   onFlag?: ((reason: string) => void) | undefined
+  /**
+   * "Check my answer" (ADR-0018): grades what the owner wrote, a paid call. It rejects with the
+   * route's error. With none, or with nothing written, the card offers no check.
+   */
+  onCheck?: ((answer: string, signal: AbortSignal) => Promise<AnswerCheck>) | undefined
   /** A rating or a flag is on its way: the buttons wait. */
   busy?: boolean | undefined
 }
@@ -112,6 +126,116 @@ function Answer({
         </a>
       </p>
     </>
+  )
+}
+
+type CheckState =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  | { kind: 'done'; result: AnswerCheck }
+  | { kind: 'failed'; message: string }
+
+/**
+ * "Check my answer", once the answer is shown (ADR-0018): what the owner wrote, graded as the mock
+ * interview grades it, with its sources and no follow-up. It is a paid call of about a cent, so it
+ * runs only on a click, once per card unless it fails, and is given up when the card moves on.
+ * Focus stays where it is: the status line says when the grade is in, and rating goes on as before.
+ */
+function CheckMyAnswer({
+  id,
+  answer,
+  onCheck,
+}: {
+  id: string
+  answer: string
+  onCheck: (answer: string, signal: AbortSignal) => Promise<AnswerCheck>
+}) {
+  const [state, setState] = useState<CheckState>({ kind: 'idle' })
+  const running = useRef<AbortController | undefined>(undefined)
+  const button = useRef<HTMLButtonElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  /** The button had focus when the grade came in: it goes, so its heading takes focus. */
+  const focusGrade = useRef(false)
+  useEffect(
+    () => () => {
+      running.current?.abort()
+    },
+    [],
+  )
+  useEffect(() => {
+    if (state.kind === 'done' && focusGrade.current) heading.current?.focus()
+  }, [state.kind])
+
+  const check = () => {
+    if (state.kind === 'checking' || state.kind === 'done') return
+    const controller = new AbortController()
+    running.current = controller
+    setState({ kind: 'checking' })
+    // A throw before the request is a failure too, never a check that runs for good.
+    new Promise<AnswerCheck>((resolve) => {
+      resolve(onCheck(answer, controller.signal))
+    }).then(
+      (result) => {
+        if (controller.signal.aborted) return
+        focusGrade.current = document.activeElement === button.current
+        setState({ kind: 'done', result })
+      },
+      (failure: unknown) => {
+        if (!controller.signal.aborted) setState({ kind: 'failed', message: messageOf(failure) })
+      },
+    )
+  }
+
+  return (
+    <section className={styles.check} aria-labelledby={`${id}-check`}>
+      <h3 id={`${id}-check`} ref={heading} tabIndex={-1} className={styles.answerHeading}>
+        Your answer, checked
+      </h3>
+      {state.kind !== 'done' && (
+        <div className={styles.actions}>
+          {/* aria-disabled, not disabled, while it runs: a disabled button would drop focus. */}
+          <button
+            ref={button}
+            type="button"
+            className={common.button}
+            aria-describedby={`${id}-check-hint`}
+            aria-disabled={state.kind === 'checking'}
+            onClick={check}
+          >
+            {state.kind === 'failed' ? 'Check it again' : 'Check my answer'}
+          </button>
+          <span id={`${id}-check-hint`} className={styles.muted}>
+            Grades what you wrote against the docs, in any language, for about a cent.
+          </span>
+        </div>
+      )}
+      <p role="status" className={styles.muted}>
+        {state.kind === 'checking'
+          ? 'Checking your answer against the docs.'
+          : state.kind === 'done'
+            ? `Checked: ${scoreText(state.result.score, 2)}.`
+            : ''}
+      </p>
+      {state.kind === 'failed' && (
+        <p className={styles.error} role="alert">
+          {`The check failed: ${state.message}`}
+        </p>
+      )}
+      {state.kind === 'done' && (
+        <>
+          <p>
+            <strong>{`Score: ${scoreText(state.result.score, 2)}`}</strong>
+          </p>
+          <p>
+            <InlineText text={state.result.feedback} />
+          </p>
+          <GradeSources citations={state.result.citations} />
+          <p className={styles.muted}>
+            {`This check cost ${costText(state.result.costUsd)} at list prices. Your own rating still decides when the card comes back.`}
+          </p>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -210,6 +334,7 @@ export function QuestionCard({
   sourceTitle,
   onRate,
   onFlag,
+  onCheck,
   busy,
 }: QuestionCardProps) {
   const { question } = card
@@ -280,6 +405,8 @@ export function QuestionCard({
           <p id={`${id}-field-hint`} className={styles.muted}>
             <kbd className={styles.kbd}>Ctrl</kbd>+<kbd className={styles.kbd}>Enter</kbd> in the
             field shows the answer.
+            {onCheck !== undefined &&
+              ' Once it is shown, Check my answer grades what you wrote, for about a cent.'}
           </p>
           <div className={styles.actions}>
             <button
@@ -316,6 +443,9 @@ export function QuestionCard({
             )}
             <Answer question={question} passage={card.passage} />
           </section>
+          {onCheck !== undefined && draft.trim() !== '' && (
+            <CheckMyAnswer id={id} answer={draft.trim()} onCheck={onCheck} />
+          )}
           <fieldset className={styles.ratings} disabled={busy === true}>
             <legend>How well did you know it?</legend>
             <div className={styles.ratingButtons}>

@@ -12,4 +12,9 @@ export {
   type BackendFactory,
   type InterviewBackend,
 } from './handlers.ts'
-export { handleMockAnswer, handleMockStart, handleMockSummary } from './mock-handlers.ts'
+export {
+  handleCheck,
+  handleMockAnswer,
+  handleMockStart,
+  handleMockSummary,
+} from './mock-handlers.ts'

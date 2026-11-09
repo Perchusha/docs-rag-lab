@@ -2,7 +2,8 @@
 // bank, hybrid search on the plain index retrieves passages for the answer, and Claude grades it
 // against them, with citations, a score of 0 to 2 and one follow-up. After the last question, the
 // summary names the weak topics and three sections to read, from the grades alone and with no call.
-// An agent with tools is M9's.
+// "Check my answer" on a practice card is the same grade, with no follow-up. An agent with tools
+// is M9's.
 import type Anthropic from '@anthropic-ai/sdk'
 import {
   chunkLabel,
@@ -94,12 +95,12 @@ const DATA_NOTE =
 export const INTERVIEWER_SYSTEM_PROMPT = [
   "You are a technical interviewer for a frontend or full-stack role. You grade a candidate's answer to one interview question against passages from the official documentation.",
   'You get the question, any code shown with it, a reference answer from a question bank, numbered passages, and the answer. For a follow-up you also get the first answer and the follow-up question.',
-  'Grade from the passages and the code. The reference answer was written from the docs and checked, but it can be wrong or say more than the docs do: where it disagrees with the passages or the code, they decide.',
+  'Grade from the passages and the code. The reference answer was written from the docs and checked, but it can be wrong or say more than the docs do: where it disagrees with the passages or the code, they decide. A reference from the compiler is what the compiler reported for the code, and it decides what the code does.',
   '- score: 2 when the answer is right and gives what the question asks; 1 when it is partly right, or right but missing part of what the question asks; 0 when it is wrong, or says nothing of substance. Do not take off for wording, for brevity, or for leaving out what the question did not ask.',
   '- feedback: two to four sentences to the candidate, as "you": what was right, then what was wrong or missing. Back each statement about the docs with the number of the passage it rests on, as [n], and cite only passages that say it.',
   '- citations: the numbers of the passages the feedback cites.',
-  '- follow_up: after a first answer, one question an interviewer would ask next on the same topic, answerable from the passages: on what was missing, or one step deeper when nothing was. After an answer to a follow-up, an empty string.',
-  'Write in English.',
+  '- follow_up: after a first answer, one question an interviewer would ask next on the same topic, answerable from the passages: on what was missing, or one step deeper when nothing was. After an answer to a follow-up, or when told there is none, an empty string.',
+  'The answer can be in any language: grade what it says, never its language. Write feedback and follow_up in the language of the answer.',
   DATA_NOTE,
 ].join('\n')
 
@@ -128,6 +129,8 @@ export interface GradeInput {
   answer: string
   /** For a follow-up: the answer to the question. */
   firstAnswer?: string | undefined
+  /** "Check my answer" on a practice card: the same grade, with no follow-up. */
+  check?: boolean | undefined
 }
 
 export function gradeRequest(
@@ -146,7 +149,9 @@ export function gradeRequest(
           ...(code.setup === undefined ? [] : [`<setup_code>\n${code.setup}\n</setup_code>`]),
           `<code lang="${code.lang}">\n${code.code}\n</code>`,
         ]),
-    `<reference>${question.answer}${question.quote === undefined ? '' : `\nIt rests on: ${question.quote}`}</reference>`,
+    question.verifiedBy === 'compiler'
+      ? `<reference from="compiler">${question.answer}</reference>`
+      : `<reference>${question.answer}${question.quote === undefined ? '' : `\nIt rests on: ${question.quote}`}</reference>`,
     ...(step === 'follow-up'
       ? [
           `<first_answer>${input.firstAnswer ?? ''}</first_answer>`,
@@ -160,9 +165,11 @@ export function gradeRequest(
     ),
     '</passages>',
     `<answer>${input.answer}</answer>`,
-    step === 'question'
-      ? 'Grade the answer to the question.'
-      : 'Grade the answer to the follow-up.',
+    step === 'follow-up'
+      ? 'Grade the answer to the follow-up.'
+      : input.check === true
+        ? 'Grade the answer to the question. There is no follow-up.'
+        : 'Grade the answer to the question.',
   ]
   return {
     model,
@@ -274,7 +281,9 @@ export async function gradeAnswer(input: GradeInput, options: GradeOptions): Pro
       .filter((passage) => cited.has(passage.number))
       .map(({ number, url, title }) => ({ number, url, title })),
     followUp:
-      input.step === 'question' && raw.follow_up.trim() !== '' ? raw.follow_up.trim() : undefined,
+      input.step === 'question' && input.check !== true && raw.follow_up.trim() !== ''
+        ? raw.follow_up.trim()
+        : undefined,
     costUsd: meter.estimateCost(options.pricing).total,
   }
 }

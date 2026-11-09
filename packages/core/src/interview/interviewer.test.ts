@@ -227,6 +227,36 @@ describe('gradeAnswer', () => {
     expect(fake.searches[0]?.question).toBe('What does in narrow?\n\nUnions by property.')
   })
 
+  it('checks an answer on a card with the same grade, and asks no follow-up', async () => {
+    const fake = fakeInterviewer({
+      score: 1,
+      feedback: 'Верно про typeof [1].',
+      citations: [1],
+      follow_up: 'What does `in` narrow?',
+    })
+    const grade = await gradeAnswer(
+      {
+        question: asked,
+        step: 'question',
+        asked: asked.prompt,
+        answer: 'Проверки typeof.',
+        check: true,
+      },
+      options(fake.interviewer),
+    )
+    const request = fake.requests[0] as ReturnType<typeof gradeRequest>
+    const content = request.messages[0]?.content
+    const text = Array.isArray(content) && content[0]?.type === 'text' ? content[0].text : ''
+
+    expect(grade).toMatchObject({
+      score: 1,
+      feedback: 'Верно про typeof [1].',
+      followUp: undefined,
+    })
+    expect(text).toMatch(/Grade the answer to the question\. There is no follow-up\.$/)
+    expect(fake.searches[0]?.question).toBe('Question t1?\n\nПроверки typeof.')
+  })
+
   it('refuses a reply cut off, or a score that is not 0, 1 or 2', async () => {
     const input = { question: asked, step: 'question' as const, asked: 'Q?', answer: 'A.' }
     const ok = { score: 2, feedback: 'Right.', citations: [], follow_up: '' }
@@ -273,6 +303,30 @@ describe('gradeRequest', () => {
     )
     expect(text).toContain('<answer>A string.</answer>\nGrade the answer to the follow-up.')
     expect(INTERVIEWER_SYSTEM_PROMPT).toContain('they decide')
+    expect(INTERVIEWER_SYSTEM_PROMPT).toContain('in the language of the answer')
+  })
+
+  it("marks a compiler question's reference as the compiler's, which decides", () => {
+    const request = gradeRequest(
+      'claude-test',
+      interviewerSettings,
+      {
+        question: {
+          ...question('typescript', 'c1', 'classes', 'compiler-error'),
+          quote: undefined,
+        },
+        step: 'question',
+        asked: 'Question c1?',
+        answer: 'It errors.',
+        check: true,
+      },
+      [],
+    )
+    const content = request.messages[0]?.content
+    const text = Array.isArray(content) && content[0]?.type === 'text' ? content[0].text : ''
+
+    expect(text).toContain('<reference from="compiler">The bank\'s answer to c1.</reference>')
+    expect(INTERVIEWER_SYSTEM_PROMPT).toContain('it decides what the code does')
   })
 })
 

@@ -1,4 +1,9 @@
-import type { FlagRequest, MockAnswerRequest, ReviewRequest } from '@docs-rag-lab/contracts'
+import type {
+  AnswerCheckRequest,
+  FlagRequest,
+  MockAnswerRequest,
+  ReviewRequest,
+} from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
@@ -21,6 +26,7 @@ const meta = {
       mock: '/m',
       mockAnswer: '/ma',
       mockSummary: '/ms',
+      check: '/c',
     },
     transport: storyTransport(),
   },
@@ -126,6 +132,41 @@ export const FlagHidesTheCard: Story = {
   },
 }
 
+const checks: AnswerCheckRequest[] = []
+
+/**
+ * Check my answer through the app: the card's question and what was written go to the check
+ * route, the grade shows on the card, and the rating that follows is the owner's own.
+ */
+export const CheckMyAnswerOnACard: Story = {
+  args: {
+    transport: storyTransport({ deck: [CARDS.strictNullChecks], checks }),
+  },
+  play: async ({ canvasElement }) => {
+    checks.length = 0
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Quick 10' }))
+    await userEvent.type(
+      await canvas.findByRole('textbox', { name: /Your answer/ }),
+      'Null is assignable everywhere by default.',
+    )
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+
+    await expect(await canvas.findByText('Score: 1 of 2')).toBeVisible()
+    await expect(checks).toEqual([
+      {
+        questionId: CARDS.strictNullChecks.question.id,
+        answer: 'Null is assignable everywhere by default.',
+      },
+    ])
+    await userEvent.keyboard('3')
+    await expect(
+      await canvas.findByText('1 card, 1 known. Each comes back when it is due.'),
+    ).toBeVisible()
+  },
+}
+
 const answers: MockAnswerRequest[] = []
 
 /**
@@ -187,6 +228,25 @@ export const Reflow320: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Quick 10' }))
     await userEvent.click(await canvas.findByRole('button', { name: 'Setup (hidden on the site)' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await expect(reflowProblems(canvasElement)).toEqual([])
+  },
+}
+
+/** A card's section of the docs, with its code and links, and a checked answer reflow too. */
+export const PassageReflow320: Story = {
+  ...Reflow320,
+  args: { transport: storyTransport({ summary: UNDER_WAY, deck: [CARDS.pureComponent] }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(window.innerWidth).toBe(320)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Quick 10' }))
+    await userEvent.type(
+      await canvas.findByRole('textbox', { name: /Your answer/ }),
+      'It skips re-renders for the same props and state.',
+    )
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+    await canvas.findByText('Score: 1 of 2')
     await expect(reflowProblems(canvasElement)).toEqual([])
   },
 }

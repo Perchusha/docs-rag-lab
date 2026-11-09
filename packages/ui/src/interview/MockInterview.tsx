@@ -10,7 +10,7 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 import common from '../lib/common.module.css'
 import { KIND_LABELS, scoreText } from '../lib/interview.ts'
 import styles from './Interview.module.css'
-import { InlineText, isSubmitKey, QuestionCodeBlock } from './QuestionParts.tsx'
+import { GradeSources, InlineText, isSubmitKey, QuestionCodeBlock } from './QuestionParts.tsx'
 
 export interface MockInterviewProps {
   session: MockSession
@@ -120,25 +120,7 @@ function GradeView({ grade, heading }: { grade: MockGrade; heading: string }) {
           <InlineText text={grade.feedback} />
         </p>
       )}
-      {grade.citations.length > 0 && (
-        <>
-          <h4 className={styles.subheading}>Sources</h4>
-          <ol className={styles.sources}>
-            {grade.citations.map((citation) => (
-              <li key={citation.number} value={citation.number}>
-                <a
-                  className={common.link}
-                  href={citation.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {citation.title}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </>
-      )}
+      <GradeSources citations={grade.citations} />
       {reference !== undefined && (
         <>
           <h4 className={styles.subheading}>The answer from the docs</h4>

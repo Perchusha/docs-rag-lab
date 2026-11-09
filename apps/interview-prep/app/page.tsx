@@ -18,6 +18,7 @@ export default function Page() {
         mock: '/api/interview/mock',
         mockAnswer: '/api/interview/mock/answer',
         mockSummary: '/api/interview/mock/summary',
+        check: '/api/interview/check',
       }}
     />
   )

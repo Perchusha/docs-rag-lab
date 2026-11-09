@@ -1,6 +1,8 @@
 // How the interview-prep app's ui talks to its routes (ADR-0018). The app passes its route URLs as
 // endpoints, and fetchInterviewTransport calls them. Stories pass their own transport instead.
 import type {
+  AnswerCheck,
+  AnswerCheckRequest,
   FlagRequest,
   FlagResult,
   MockAnswerRequest,
@@ -28,6 +30,8 @@ export interface InterviewEndpoints {
   mockAnswer: string
   /** GET with ?session=: the MockSummary. */
   mockSummary: string
+  /** POST an AnswerCheckRequest: the AnswerCheck. */
+  check: string
 }
 
 export interface InterviewTransport {
@@ -38,6 +42,8 @@ export interface InterviewTransport {
   mockStart(sources: readonly string[]): Promise<MockSession>
   mockAnswer(request: MockAnswerRequest): Promise<MockGrade>
   mockSummary(sessionId: string): Promise<MockSummary>
+  /** "Check my answer" on a card: a paid call, given up when the card moves on. */
+  check(request: AnswerCheckRequest, signal?: AbortSignal): Promise<AnswerCheck>
 }
 
 /** The error a route sent as `{ "error": "..." }`, or the HTTP status. */
@@ -62,11 +68,12 @@ async function json<T>(response: Response): Promise<T> {
 const withQuery = (url: string, query: Record<string, string>): string =>
   `${url}${url.includes('?') ? '&' : '?'}${new URLSearchParams(query).toString()}`
 
-const post = (url: string, body: unknown): Promise<Response> =>
+const post = (url: string, body: unknown, signal?: AbortSignal): Promise<Response> =>
   fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
+    ...(signal === undefined ? {} : { signal }),
   })
 
 export function fetchInterviewTransport(endpoints: InterviewEndpoints): InterviewTransport {
@@ -90,5 +97,7 @@ export function fetchInterviewTransport(endpoints: InterviewEndpoints): Intervie
     mockAnswer: async (request) => json<MockGrade>(await post(endpoints.mockAnswer, request)),
     mockSummary: async (sessionId) =>
       json<MockSummary>(await fetch(withQuery(endpoints.mockSummary, { session: sessionId }))),
+    check: async (request, signal) =>
+      json<AnswerCheck>(await post(endpoints.check, request, signal)),
   }
 }

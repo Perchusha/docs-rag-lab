@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { QuestionCard } from './QuestionCard.tsx'
-import { CARDS } from './story-data.ts'
+import { CARDS, CHECKED } from './story-data.ts'
 
 const meta = {
   title: 'Interview/QuestionCard',
@@ -272,5 +272,91 @@ export const FlagEscaped: Story = {
       expect(canvas.getByRole('button', { name: 'This answer is wrong' })).toHaveFocus(),
     )
     await expect(args.onFlag).not.toHaveBeenCalled()
+  },
+}
+
+const ANSWER = 'По умолчанию null и undefined можно присвоить любому типу.'
+
+/**
+ * "Check my answer", once the answer is shown: what was written goes to the grader, in any
+ * language, and the grade comes back with its sources and its cost. Focus stays where it was, the
+ * status line says the grade is in, and 3 still rates the card.
+ */
+export const CheckMyAnswer: Story = {
+  args: {
+    card: CARDS.strictNullChecks,
+    onCheck: fn(() => Promise.resolve(CHECKED)),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText(/Check my answer grades what you wrote/)).toBeVisible()
+    await userEvent.click(canvas.getByRole('textbox', { name: /Your answer/ }))
+    await userEvent.keyboard(`  ${ANSWER}  `)
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+    await expect(args.onCheck).toHaveBeenCalledTimes(1)
+    await expect(args.onCheck).toHaveBeenCalledWith(ANSWER, expect.any(AbortSignal))
+    await expect(await canvas.findByText('Checked: 1 of 2.')).toBeVisible()
+    // The button that had focus is gone, so the grade's heading takes it.
+    await expect(canvas.getByRole('heading', { name: 'Your answer, checked' })).toHaveFocus()
+    const grade = within(canvas.getByRole('region', { name: 'Your answer, checked' }))
+    await expect(grade.getByText('Score: 1 of 2')).toBeVisible()
+    await expect(grade.getByText(/Не хватает того, что делает флаг/)).toBeVisible()
+    await expect(grade.getByRole('link', { name: 'The Basics > strictNullChecks' })).toBeVisible()
+    await expect(grade.getByText(/This check cost about \$0\.01/)).toBeVisible()
+    // Once is enough: the grade does not change by asking again.
+    await expect(canvas.queryByRole('button', { name: 'Check my answer' })).toBeNull()
+
+    await userEvent.keyboard('3')
+    await expect(args.onRate).toHaveBeenCalledWith('good')
+  },
+}
+
+// Storybook resets a mock's chained answers before each story, so the count lives here.
+let failedChecks = 0
+
+/** A failed check says why, and can be tried again; while one runs, its button waits. */
+export const CheckFailed: Story = {
+  args: {
+    card: CARDS.theory,
+    // The first check fails, and the second never answers.
+    onCheck: fn(() =>
+      failedChecks++ === 0
+        ? Promise.reject(new Error('the grade stopped with max_tokens, so it was not kept'))
+        : new Promise<typeof CHECKED>(() => undefined),
+    ),
+  },
+  play: async ({ args, canvasElement }) => {
+    failedChecks = 0
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('textbox', { name: /Your answer/ }))
+    await userEvent.keyboard('Any expression.')
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+      'The check failed: the grade stopped with max_tokens, so it was not kept',
+    )
+    const again = canvas.getByRole('button', { name: 'Check it again' })
+    await userEvent.click(again)
+    await expect(canvas.getByText('Checking your answer against the docs.')).toBeVisible()
+    // It waits, and keeps focus, so a second click sends nothing.
+    await expect(again).toHaveAttribute('aria-disabled', 'true')
+    await expect(again).toHaveFocus()
+    await userEvent.click(again)
+    await expect(args.onCheck).toHaveBeenCalledTimes(2)
+  },
+}
+
+/** With nothing written there is nothing to check, so the card offers no check. */
+export const NoCheckWithoutAnAnswer: Story = {
+  args: { card: CARDS.theory, onCheck: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await expect(canvas.getByRole('heading', { name: 'Answer' })).toHaveFocus()
+    await expect(canvas.queryByRole('button', { name: 'Check my answer' })).toBeNull()
+    await expect(args.onCheck).not.toHaveBeenCalled()
   },
 }

@@ -126,3 +126,37 @@ export function parseMockAnswerRequest(value: unknown): MockAnswerRequest | unde
   if (trimmed.length > MAX_MOCK_ANSWER) return undefined
   return { sessionId, questionId, step: known, answer: trimmed }
 }
+
+/** "Check my answer" on a practice card (ADR-0018): the card's question, and what was written. */
+export interface AnswerCheckRequest {
+  questionId: string
+  answer: string
+}
+
+/**
+ * The mock interview's grade of an answer written on a card: the same search and the same grader,
+ * with no follow-up. Nothing of it is stored: self-rating stays what schedules the card.
+ */
+export interface AnswerCheck {
+  questionId: string
+  score: MockScore
+  /** What was right and what was missing, with [n] markers for its citations. */
+  feedback: string
+  citations: MockCitation[]
+  /** What the check cost, estimated at list prices. */
+  costUsd: number
+}
+
+/**
+ * A check request as JSON, checked, with the answer trimmed: an empty answer has nothing to
+ * check. Anything else gives undefined.
+ */
+export function parseAnswerCheckRequest(value: unknown): AnswerCheckRequest | undefined {
+  if (!isRecord(value)) return undefined
+  const { questionId, answer } = value
+  if (typeof questionId !== 'string' || questionId === '') return undefined
+  if (typeof answer !== 'string') return undefined
+  const trimmed = answer.trim()
+  if (trimmed === '' || trimmed.length > MAX_MOCK_ANSWER) return undefined
+  return { questionId, answer: trimmed }
+}
