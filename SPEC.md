@@ -400,7 +400,7 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 - Generated questions are written offline per chunk (Haiku), with the whole document under a cache entry: up to two theory questions, and one for each Pitfall callout. Each carries a quote that code finds in its chunk, and any code it shows is a block of the docs, never written by the model.
 - A checker (Sonnet) reads every generated question against its chunk alone, and drops it when the chunk does not answer it or the stored answer is wrong. Dropped questions stay in the file with their reason.
 - A rerun sends only chunks whose text changed, and a question whose chunk changed is stale and not shown.
-- The topic map comes from the source's `interviewTopic`: TypeScript's Handbook and Reference pages, and its compiler options as one topic, and React's Learn pages, with its Reference pages aggregated by folder.
+- The topic map comes from the source's `interviewTopic`: TypeScript's Handbook and Reference pages, and its compiler options as one topic, and React's Learn pages, with its Reference pages aggregated by folder. A page about installing, setting up or configuring a tool, rather than about the language or the library itself, stays out of the bank and the topic map.
 - After human approval, a question can be promoted to the eval golden set (later).
 
 **Progress:**

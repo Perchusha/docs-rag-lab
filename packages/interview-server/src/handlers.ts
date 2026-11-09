@@ -137,7 +137,7 @@ export async function handleReview(factory: BackendFactory, request: Request): P
     }
     const state = backend.state()
     const now = backend.now()
-    const card = scheduleReview(
+    const card = await scheduleReview(
       state.card(review.questionId),
       review.questionId,
       review.rating,

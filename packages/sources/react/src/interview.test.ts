@@ -15,9 +15,9 @@ describe('interviewTopicOf (ADR-0018)', () => {
       title: 'Synchronizing with Effects',
       group: 'Learn',
     })
-    expect(topicOf('src/content/learn/react-compiler/installation.md', 'Installation')).toEqual({
-      id: 'learn/react-compiler/installation',
-      title: 'Installation',
+    expect(topicOf('src/content/learn/react-compiler/introduction.md', 'Introduction')).toEqual({
+      id: 'learn/react-compiler/introduction',
+      title: 'Introduction',
       group: 'Learn',
     })
   })
@@ -43,6 +43,37 @@ describe('interviewTopicOf (ADR-0018)', () => {
       title: 'new-folder',
       group: 'Reference',
     })
+  })
+
+  it('leaves out the pages about setting up tools, by the rule (ADR-0018)', () => {
+    for (const page of [
+      'learn/installation',
+      'learn/creating-a-react-app',
+      'learn/build-a-react-app-from-scratch',
+      'learn/add-react-to-an-existing-project',
+      'learn/setup',
+      'learn/editor-setup',
+      'learn/react-developer-tools',
+      'learn/react-compiler/installation',
+      'learn/react-compiler/incremental-adoption',
+      'learn/react-compiler/debugging',
+      'reference/react-compiler/gating',
+      'reference/react-compiler/directives/use-memo',
+      'reference/dev-tools/react-performance-tracks',
+      'reference/eslint-plugin-react-hooks/index',
+    ]) {
+      expect(topicOf(`src/content/${page}.md`), page).toBeUndefined()
+    }
+  })
+
+  it('keeps what explains React, even through a tool', () => {
+    expect(topicOf('src/content/learn/typescript.md')?.id).toBe('learn/typescript')
+    expect(topicOf('src/content/learn/react-compiler/introduction.md')?.id).toBe(
+      'learn/react-compiler/introduction',
+    )
+    expect(topicOf('src/content/reference/eslint-plugin-react-hooks/lints/purity.md')?.id).toBe(
+      'reference/eslint-plugin-react-hooks',
+    )
   })
 
   it('is what the source gives', () => {

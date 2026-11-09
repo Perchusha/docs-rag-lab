@@ -1,0 +1,105 @@
+{
+  "sample": "2823ff0b5089",
+  "labels": [
+    {
+      "item": 1,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 2,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 3,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 4,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 5,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 6,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 7,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 8,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 9,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 10,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 11,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 12,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 13,
+      "answerable": true,
+      "correct": false
+    },
+    {
+      "item": 14,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 15,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 16,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 17,
+      "answerable": true,
+      "correct": false
+    },
+    {
+      "item": 18,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 19,
+      "answerable": true,
+      "correct": true
+    },
+    {
+      "item": 20,
+      "answerable": true,
+      "correct": true
+    }
+  ]
+}

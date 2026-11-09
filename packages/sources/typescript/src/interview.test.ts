@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { typescriptSource } from './index.ts'
-import { displayCode, interviewTopicOf } from './interview.ts'
+import { displayCode, interviewTopicOf, TOOL_OPTIONS } from './interview.ts'
 
 const DOCS = 'packages/documentation/copy/en'
 
@@ -41,6 +41,47 @@ describe('interviewTopicOf (ADR-0018)', () => {
       group: 'Compiler options',
     })
     expect(topic('noImplicitAny')).toEqual(topic('strict'))
+  })
+
+  it('leaves out the options that configure a tool rather than the language (ADR-0018)', () => {
+    const topic = (name: string) =>
+      interviewTopicOf({
+        path: `packages/tsconfig-reference/copy/en/options/${name}.md`,
+        docType: 'option',
+        title: `TSConfig Option: ${name}`,
+      })
+
+    for (const name of [
+      'watchFile',
+      'clean',
+      'incremental',
+      'disableSolutionSearching',
+      'listFiles',
+      'traceResolution',
+      'typeAcquisition/include',
+    ]) {
+      expect(TOOL_OPTIONS.has(name), name).toBe(true)
+      expect(topic(name), name).toBeUndefined()
+    }
+    for (const name of [
+      'strict',
+      'module',
+      'target',
+      'outDir',
+      'declaration',
+      'esModuleInterop',
+      'paths',
+      // How a project is laid out, which the owner put back in.
+      'files',
+      'include',
+      'exclude',
+      'extends',
+      'composite',
+      'references',
+    ]) {
+      expect(topic(name)?.id, name).toBe('compiler-options')
+    }
+    expect(TOOL_OPTIONS.size).toBe(35)
   })
 
   it('leaves out the release notes and the other docs', () => {

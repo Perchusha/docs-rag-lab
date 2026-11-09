@@ -30,10 +30,29 @@ A new app, `apps/interview-prep`, on http://127.0.0.1:3002:
 
 A source says where each of its documents sits, through an optional `interviewTopic` on `Source` (source-kit), and leaves out what the bank does not cover:
 
-- **TypeScript:** each Handbook and Reference page is a topic, and the 137 compiler options are one topic, "Compiler options". Release notes and the other docs are left out.
-- **React:** each Learn page is a topic. Reference pages are aggregated by their folder: Hooks (the `use*` pages of `reference/react`), the rest of `reference/react`, `react-dom`, Server Components (`rsc`), Rules of React, React Compiler, the hooks lint rules and the dev tools.
+- **TypeScript:** each Handbook and Reference page is a topic, and the compiler options are one topic, "Compiler options": 102 of the 137, by the rule below. Release notes and the other docs are left out.
+- **React:** each Learn page is a topic. Reference pages are aggregated by their folder: Hooks (the `use*` pages of `reference/react`), the rest of `reference/react`, `react-dom`, Server Components (`rsc`), Rules of React and the hooks lint rules. React Compiler and the dev tools had topics of their own until the rule below left their reference pages out.
 
 Core reads no source's paths: it asks the source.
+
+**Pages about setting up tools stay out,** by the owner's rule of 2026-11-09, written after the pilot and before the full run. The pilot showed Haiku writing setup trivia from React's installation pages, such as what to install before local development, although its prompt asks it to skip setup steps. The rule:
+
+> A page about installing, setting up or configuring a tool, rather than about the language or the library itself, stays out of the bank and the topic map.
+
+Each source applies it, and the lists below follow from it. A page that explains the language or the library through a tool stays in, such as a lint rule that states a Rule of React.
+
+- **TypeScript, 35 option pages,** those that change only how tsc, its build mode, its watcher or an editor runs, and not what TypeScript checks, how it resolves modules, what it emits or how a project is laid out:
+  - watch mode: `watchFile`, `watchDirectory`, `fallbackPolling`, `synchronousWatchDirectory`, `excludeDirectories`, `excludeFiles`, `preserveWatchOutput`, `assumeChangesOnlyAffectDirectDependencies`;
+  - build mode, and the cache of incremental builds: `clean`, `force`, `verbose`, `stopBuildOnErrors`, `incremental`, `tsBuildInfoFile`;
+  - editors and type acquisition, project references in an editor among them: `disableReferencedProjectLoad`, `disableSolutionSearching`, `disableSourceOfProjectReferenceRedirect`, `plugins`, `disableSizeLimit`, `typeAcquisition` with its `include` and `exclude`, `enable`, `disableFilenameBasedTypeAcquisition`;
+  - the compiler's own diagnostics and console output: `diagnostics`, `extendedDiagnostics`, `explainFiles`, `listFiles`, `listEmittedFiles`, `traceResolution`, `generateCpuProfile`, `generateTrace`, `pretty`, `noErrorTruncation`, `locale`.
+
+  No Handbook or Reference page is about a tool. The project setup pages the owner named, such as Integrating with Build Tools, Compiler Options in MSBuild and Configuring Watch, are among the other docs, which the bank never covered, and Nightly Builds is not indexed at all.
+- **React, 23 pages:** the 7 Learn pages on starting a project and on editors and developer tools (`installation`, `creating-a-react-app`, `build-a-react-app-from-scratch`, `add-react-to-an-existing-project`, `setup`, `editor-setup`, `react-developer-tools`), React Compiler's installation, incremental adoption and debugging pages and its 10 reference pages on configuration and directives, the 2 developer tools reference pages, and the lint plugin's page on installing it. React Compiler's introduction, on what it does, and the lint rules stay.
+
+**The refinement of 2026-11-09, by the owner, after the full run and before any label:** the options on how a project is laid out are about TypeScript as it is used in a project, and come up in interviews, senior ones above all. So `files`, `include`, `exclude`, `extends`, `composite` and `references` are back in the bank and the topic map, which first left them out with 41 option pages. The three options on project references in an editor stay out with the editor's, and `incremental` and `tsBuildInfoFile`, the cache of incremental builds, with build mode. Their questions were written then, and H's sample was drawn again by the same procedure from the final bank, since nothing had been labelled.
+
+H's sample is drawn only from the pages that remain: questions already written for a page the rule leaves out are dropped from the bank by the next run, so they are neither shown nor sampled.
 
 ### 3. The bank is a committed file, not a table in the index
 
@@ -66,7 +85,7 @@ The code is shown as the docs site shows it: a source's optional `displayCode` t
 
 ### 6. Progress
 
-FSRS through `ts-fsrs` 5.4.2: MIT, with no dependencies. Progress, ratings and sessions live in `data/apps/interview-prep.sqlite`, generated and never committed, through a module in `db`. A card is due by FSRS. A new card is one never rated.
+FSRS through `ts-fsrs` 6.0.0, with no fuzz, so that the same ratings always give the same days. PR 2 shipped 5.4.2, and the owner had it changed on 2026-11-09, before the bank's paid run: 5.4.2 patches `Date.prototype` on import, which changes `Date` for the whole server process. 6.0.0 patches nothing, schedules with FSRS-7, and adds one dependency, `@open-spaced-repetition/srs-kit`, by the same authors (BSD-3-Clause). A card 5.4.2 stored starts over, and keeps its count of ratings. Progress, ratings and sessions live in `data/apps/interview-prep.sqlite`, generated and never committed, through a module in `db`. A card is due by FSRS. A new card is one never rated.
 
 ### 7. The mock interview is a fixed loop
 
@@ -117,6 +136,35 @@ At the list prices in `packages/settings`, from about 2,060 chunks in scope and 
 
 About $7 for the bank, against a limit of $10 for M8. A pilot replaces these guesses with measured tokens before the full run, as in M5.
 
+## What the bank's run gave
+
+Written on 2026-11-09, after the run and before the owner labels H's sample.
+
+**The pilot,** 10 chunks of each source, shown to the owner before the full run: 35 questions, 29 shown, $0.09, and a forecast of about $7.30 for the rest. It led to the rule on tool setup pages above.
+
+**The full run** wrote the bank's questions for every chunk in scope:
+
+| Source | Chunks | Compiler questions | Generated | Shown | Dropped by the quote check | Dropped by Sonnet |
+|---|---|---|---|---|---|---|
+| TypeScript | 442 | 327 | 925 | 802 | 43 | 80 |
+| React | 1,527 | 0 | 2,877 | 1,863, of which 63 on Pitfall callouts | 413 | 601 |
+
+- **React's quote check drops more,** 14% against 5%: its chunks are often code, challenges and their solutions, and Haiku quoted another part of the document, which it reads whole. Those questions are not grounded in the chunk they cite, so dropping them is the check working.
+- **A checker reply that skipped a verdict stopped the first start,** on one TypeScript chunk. Verdicts are now read in order when they are numbered otherwise, and a question with no verdict is not kept, with a reason saying so. Committing that fix stopped the React start by the run guard (ADR-0010), and the rerun paid only for what was missing.
+
+**Spend: $8.91 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, the run $8.34, and $0.02 for the 6 options the refinement put back, which gave 12 questions, all shown. The forecast of $7.30 was low by about a fifth: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
+
+**H's sample is drawn from the final bank,** sample `2823ff0b5089`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet. A first draw, `892b4a468224`, came before the refinement and was never labelled. React's 10 are the same in both, since its questions did not change and the draw is seeded.
+
+## H's result
+
+The owner labelled the sheet blind on 2026-11-09. The labels were committed as `interview/labels/bank-2823ff0b5089.json` before they were scored, and `drl questions score` wrote `interview/bank-check.json` and `interview/bank-check.md` from them.
+
+**H holds: 18 of the 20 passed both counts,** 70% to 97% by the Wilson interval, and 2 failed, the most the rule allows.
+- **All 20 were answerable** from the passage they cite.
+- **The 2 failures are TypeScript theory questions** whose stored answer is not right and complete: item 13, `449e74e193d36549`, on `readonly` in Classes, and item 17, `c82b1dc894cd989d`, on `verbatimModuleSyntax`. React's 10 all passed, the 3 on Pitfall callouts among them.
+- **What each failed answer says beyond its quote,** read after the scoring, since the labels give no reasons. Item 13's answer adds that a readonly field "can be set once during construction", which the docs do not say, and the example under it initializes the field and then assigns it again in the constructor. Item 17's answer says that anything marked with `type` is dropped entirely, and the example under it shows `import { type xyz } from "xyz"` rewritten to `import {} from "xyz"`, not dropped. Sonnet passed both, reading the answer against the quote rather than against the code shown with it. An answer that generalizes past its quote is the failure to watch.
+
 ## The PRs
 
 1. This ADR, the bank's code and `drl questions`, with no paid call. The compiler questions are written then, since they cost nothing.
@@ -131,4 +179,4 @@ About $7 for the bank, against a limit of $10 for M8. A pilot replaces these gue
 - **Opus as the checker.** About three times Sonnet's price on every question, for a check that reads one chunk.
 - **No checker,** with only the quote check. It would save about $6, and H would then test generation alone. The owner chose to keep it, as SPEC section 11 has it.
 - **The document as a cached prefix for the check too.** A document of n chunks would be written once and read n - 1 times, which costs more than sending each chunk alone, and the check does not need the rest of the document.
-- **`ts-fsrs` 6.0.0.** Nine days old when chosen, with a dependency 5.4.2 does not have.
+- **`ts-fsrs` 5.4.2,** chosen first, since it has no dependency. It patches `Date.prototype` on import, which was found after the choice, so 6.0.0 replaced it (section 6).

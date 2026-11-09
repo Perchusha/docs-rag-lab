@@ -46,10 +46,10 @@ const stored = (questionId: string, due: string, lastRating: number): StoredCard
 })
 
 describe('scheduleReview (ADR-0018)', () => {
-  it('schedules a new card by its rating, later for a better one', () => {
-    const again = scheduleReview(undefined, 'q1', 'again', NOW)
-    const good = scheduleReview(undefined, 'q1', 'good', NOW)
-    const easy = scheduleReview(undefined, 'q1', 'easy', NOW)
+  it('schedules a new card by its rating, later for a better one', async () => {
+    const again = await scheduleReview(undefined, 'q1', 'again', NOW)
+    const good = await scheduleReview(undefined, 'q1', 'good', NOW)
+    const easy = await scheduleReview(undefined, 'q1', 'easy', NOW)
 
     expect(again).toMatchObject({ questionId: 'q1', lastRating: 1, reviews: 1 })
     expect(good.lastRating).toBe(3)
@@ -58,16 +58,46 @@ describe('scheduleReview (ADR-0018)', () => {
     expect(good.due < easy.due).toBe(true)
   })
 
-  it('goes on from the stored state, and gives the same days every time', () => {
-    const first = scheduleReview(undefined, 'q1', 'good', NOW)
+  it('goes on from the stored state, and gives the same days every time', async () => {
+    const first = await scheduleReview(undefined, 'q1', 'good', NOW)
     const later = new Date(first.due)
-    const second = scheduleReview(first, 'q1', 'good', later)
+    const second = await scheduleReview(first, 'q1', 'good', later)
 
     expect(second.reviews).toBe(2)
     expect(new Date(second.due).getTime() - later.getTime()).toBeGreaterThan(
       new Date(first.due).getTime() - NOW.getTime(),
     )
-    expect(scheduleReview(first, 'q1', 'good', later)).toEqual(second)
+    expect(await scheduleReview(first, 'q1', 'good', later)).toEqual(second)
+    expect(await scheduleReview(undefined, 'q1', 'good', NOW)).toEqual(first)
+  })
+
+  it('starts over a card that ts-fsrs 5 wrote, and keeps its count', async () => {
+    const old: StoredCard = {
+      questionId: 'q1',
+      state: JSON.stringify({
+        due: '2026-11-08T12:00:00.000Z',
+        stability: 2,
+        elapsed_days: 0,
+        reps: 1,
+      }),
+      due: '2026-11-08T12:00:00.000Z',
+      lastRating: 3,
+      reviews: 1,
+    }
+
+    const next = await scheduleReview(old, 'q1', 'good', NOW)
+    expect(next.reviews).toBe(2)
+    expect(next).toMatchObject({
+      due: (await scheduleReview(undefined, 'q1', 'good', NOW)).due,
+    })
+  })
+
+  it('leaves Date as it is: the scheduler patches no prototype', async () => {
+    await scheduleReview(undefined, 'q1', 'good', NOW)
+
+    for (const name of ['scheduler', 'diff', 'format', 'dueFormat']) {
+      expect(Object.hasOwn(Date.prototype, name)).toBe(false)
+    }
   })
 })
 
