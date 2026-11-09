@@ -302,8 +302,8 @@ export function storyTransport(
     flags?: FlagRequest[]
     answers?: MockAnswerRequest[]
     checks?: AnswerCheckRequest[]
-    /** What a check gives: CHECKED by default. */
-    check?: (request: AnswerCheckRequest) => Promise<AnswerCheck>
+    /** What a check gives, with the signal that gives it up: CHECKED by default. */
+    check?: (request: AnswerCheckRequest, signal?: AbortSignal) => Promise<AnswerCheck>
   } = {},
 ): InterviewTransport {
   const deck = options.deck ?? Object.values(CARDS)
@@ -315,10 +315,11 @@ export function storyTransport(
       return Promise.resolve(request.step === 'question' ? PARTLY_RIGHT : FOLLOW_UP_RIGHT)
     },
     mockSummary: () => Promise.resolve(MOCK_SUMMARY),
-    check: (request) => {
+    check: (request, signal) => {
       options.checks?.push(request)
       return (
-        options.check?.(request) ?? Promise.resolve({ ...CHECKED, questionId: request.questionId })
+        options.check?.(request, signal) ??
+        Promise.resolve({ ...CHECKED, questionId: request.questionId })
       )
     },
     overview: (sources) => Promise.resolve(overviewOf(options.summary ?? FIRST_RUN, sources)),

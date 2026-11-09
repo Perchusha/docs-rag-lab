@@ -1,5 +1,6 @@
 import {
   MAX_FLAG_REASON,
+  MAX_MOCK_ANSWER,
   RATINGS,
   type AnswerCheck,
   type BankQuestion,
@@ -189,7 +190,7 @@ function CheckMyAnswer({
   return (
     <section className={styles.check} aria-labelledby={`${id}-check`}>
       <h3 id={`${id}-check`} ref={heading} tabIndex={-1} className={styles.answerHeading}>
-        Your answer, checked
+        {state.kind === 'done' ? 'Your answer, checked' : 'Check your answer'}
       </h3>
       {state.kind !== 'done' && (
         <div className={styles.actions}>
@@ -396,6 +397,8 @@ export function QuestionCard({
             Your answer, if you want to write it
             <textarea
               value={draft}
+              // The longest answer the check route takes.
+              maxLength={MAX_MOCK_ANSWER}
               aria-describedby={`${id}-field-hint`}
               onChange={(event) => {
                 setDraft(event.target.value)

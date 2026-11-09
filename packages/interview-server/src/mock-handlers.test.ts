@@ -77,12 +77,24 @@ const hit: SearchHit = {
 
 type Message = Awaited<ReturnType<ReturnType<AnswerClient['messages']['stream']>['finalMessage']>>
 
+/** The last line of what a grade was asked: which step, and whether a follow-up is wanted. */
+const lastLine = (request: unknown): string => {
+  const content = (request as { messages: { content: { text: string }[] }[] }).messages[0]?.content
+  return content?.[0]?.text.split('\n').at(-1) ?? ''
+}
+
 /** Retrieval with one passage, and a Claude that gives the next of `replies` to each grade. */
-function fakeInterviewer(replies: unknown[]): { interviewer: Interviewer; calls: () => number } {
+function fakeInterviewer(replies: unknown[]): {
+  interviewer: Interviewer
+  calls: () => number
+  requests: unknown[]
+} {
   let calls = 0
+  const requests: unknown[] = []
   const client: AnswerClient = {
     messages: {
-      stream() {
+      stream(request) {
+        requests.push(request)
         const reply = replies[calls++]
         const message = {
           stop_reason: 'end_turn',
@@ -99,6 +111,7 @@ function fakeInterviewer(replies: unknown[]): { interviewer: Interviewer; calls:
   }
   return {
     calls: () => calls,
+    requests,
     interviewer: {
       search: () =>
         Promise.resolve({
@@ -346,6 +359,10 @@ describe('handleCheck (ADR-0018)', () => {
       citations: [{ number: 1, url: 'https://docs.dev/narrowing#a', title: 'Narrowing' }],
     })
     expect(result).not.toHaveProperty('followUp')
+    // The grader is told there is none, so it writes none to pay for.
+    expect(lastLine(fake.requests[0])).toBe(
+      'Grade the answer to the question. There is no follow-up.',
+    )
     expect(result.costUsd).toBeGreaterThan(0)
     // A compiler question is checked too, and the same answer can be checked again.
     expect((await check(one, { questionId: 'c1', answer: 'number' })).status).toBe(200)

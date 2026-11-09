@@ -167,6 +167,40 @@ export const CheckMyAnswerOnACard: Story = {
   },
 }
 
+const signals: AbortSignal[] = []
+
+/** A check still running when the card is rated is given up: the next card waits for nothing. */
+export const CheckGivenUpOnTheNextCard: Story = {
+  args: {
+    transport: storyTransport({
+      deck: [CARDS.strictNullChecks, CARDS.theory],
+      check: (_request, signal) => {
+        if (signal !== undefined) signals.push(signal)
+        return new Promise(() => undefined)
+      },
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    signals.length = 0
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Quick 10' }))
+    await userEvent.type(
+      await canvas.findByRole('textbox', { name: /Your answer/ }),
+      'Null is assignable everywhere by default.',
+    )
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+    await expect(canvas.getByText('Checking your answer against the docs.')).toBeVisible()
+    await expect(signals.map(({ aborted }) => aborted)).toEqual([false])
+
+    await userEvent.keyboard('3')
+    await waitFor(() =>
+      expect(canvas.getByRole('status')).toHaveTextContent('Quick 10: card 2 of 2'),
+    )
+    await expect(signals.map(({ aborted }) => aborted)).toEqual([true])
+  },
+}
+
 const answers: MockAnswerRequest[] = []
 
 /**
