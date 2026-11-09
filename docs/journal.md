@@ -40,6 +40,7 @@ Before M8, the engine answered questions about the docs. After it, `pnpm dev:int
 None of these changes a result above:
 - **About one theory card in ten may say more than the docs,** by H's interval. A check of each answer against the code shown with it, not only its quote, would find more, at about the cost of the first check.
 - **The mock interview's grading is not measured,** nor is Check my answer, which uses the same grader. Their first real calls are the owner's. A small labelled set of answers would say how far its scores can be trusted.
+- **Retrieval for an answer in another language is not measured.** The search reads the English question and the answer together, and the keyword half of hybrid search finds only the question's words and the identifiers in a Russian answer.
 - **The mock interview picks questions by topic and chance,** not by progress. `get_progress` in M9 could aim it at weak topics.
 - **M7's open items are still open,** apart from the compiled index, which the bank now reads.
 
