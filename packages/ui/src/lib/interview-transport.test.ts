@@ -6,6 +6,7 @@ const endpoints = {
   overview: '/api/interview/overview',
   deck: '/api/interview/deck',
   review: '/api/interview/review',
+  flag: '/api/interview/flag',
 }
 
 afterEach(() => {
@@ -24,15 +25,21 @@ describe('fetchInterviewTransport (ADR-0018)', () => {
     await transport.overview(['typescript', 'react'])
     await transport.deck(['react'], { source: 'react', id: 'reference/hooks' })
     await transport.review({ questionId: 'q1', rating: 'good' })
+    await transport.flag({ questionId: 'q2', reason: 'Wrong.' })
 
     expect(calls.map(([url]) => url)).toEqual([
       '/api/interview/overview?sources=typescript%2Creact',
       '/api/interview/deck?sources=react&topic=react%3Areference%2Fhooks',
       '/api/interview/review',
+      '/api/interview/flag',
     ])
     expect(calls[2]?.[1]).toMatchObject({
       method: 'POST',
       body: '{"questionId":"q1","rating":"good"}',
+    })
+    expect(calls[3]?.[1]).toMatchObject({
+      method: 'POST',
+      body: '{"questionId":"q2","reason":"Wrong."}',
     })
   })
 

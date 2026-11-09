@@ -32,8 +32,16 @@ export interface InterviewPrepProps {
 
 type View =
   | { kind: 'home' }
-  | { kind: 'practice'; label: string; cards: PracticeCard[]; index: number; ratings: Rating[] }
-  | { kind: 'done'; label: string; ratings: Rating[] }
+  | {
+      kind: 'practice'
+      label: string
+      cards: PracticeCard[]
+      index: number
+      ratings: Rating[]
+      /** Cards flagged as wrong in this sitting, which are hidden from now on. */
+      flagged: number
+    }
+  | { kind: 'done'; label: string; ratings: Rating[]; flagged: number }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
@@ -95,7 +103,7 @@ export function InterviewPrep(props: InterviewPrepProps) {
       if (deck.cards.length === 0) {
         setError('Nothing to practise there right now: every card is waiting for its day.')
       } else {
-        setView({ kind: 'practice', label, cards: deck.cards, index: 0, ratings: [] })
+        setView({ kind: 'practice', label, cards: deck.cards, index: 0, ratings: [], flagged: 0 })
       }
     } catch (failure) {
       setError(messageOf(failure))
@@ -104,26 +112,42 @@ export function InterviewPrep(props: InterviewPrepProps) {
     }
   }
 
-  const rate = async (rating: Rating) => {
+  /** Saves what the owner did with the current card, then goes on to the next one. */
+  const act = async (
+    save: (card: PracticeCard) => Promise<unknown>,
+    after: { rating?: Rating; flagged?: boolean },
+    what: string,
+  ) => {
     if (view.kind !== 'practice' || busy) return
     const card = view.cards[view.index]
     if (card === undefined) return
     setBusy(true)
     try {
-      await transport.review({ questionId: card.question.id, rating })
+      await save(card)
       setError(undefined)
-      const ratings = [...view.ratings, rating]
+      const ratings = after.rating === undefined ? view.ratings : [...view.ratings, after.rating]
+      const flagged = view.flagged + (after.flagged === true ? 1 : 0)
       setView(
         view.index + 1 < view.cards.length
-          ? { ...view, index: view.index + 1, ratings }
-          : { kind: 'done', label: view.label, ratings },
+          ? { ...view, index: view.index + 1, ratings, flagged }
+          : { kind: 'done', label: view.label, ratings, flagged },
       )
     } catch (failure) {
-      setError(`The rating was not saved: ${messageOf(failure)}`)
+      setError(`The ${what} was not saved: ${messageOf(failure)}`)
     } finally {
       setBusy(false)
     }
   }
+
+  const rate = (rating: Rating) =>
+    act((card) => transport.review({ questionId: card.question.id, rating }), { rating }, 'rating')
+
+  const flag = (reason: string) =>
+    act(
+      (card) => transport.flag({ questionId: card.question.id, reason }),
+      { flagged: true },
+      'flag',
+    )
 
   const home = () => {
     setView({ kind: 'home' })
@@ -214,6 +238,9 @@ export function InterviewPrep(props: InterviewPrepProps) {
               onRate={(rating) => {
                 void rate(rating)
               }}
+              onFlag={(reason) => {
+                void flag(reason)
+              }}
             />
           </>
         )}
@@ -226,6 +253,8 @@ export function InterviewPrep(props: InterviewPrepProps) {
               {`${plural(view.ratings.length, 'card')}, ${String(
                 view.ratings.filter((rating) => rating === 'good' || rating === 'easy').length,
               )} known. Each comes back when it is due.`}
+              {view.flagged > 0 &&
+                ` ${plural(view.flagged, 'card')} flagged as wrong, hidden from now on.`}
             </p>
             <div className={styles.actions}>
               <button

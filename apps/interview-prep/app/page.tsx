@@ -14,6 +14,7 @@ export default function Page() {
         overview: '/api/interview/overview',
         deck: '/api/interview/deck',
         review: '/api/interview/review',
+        flag: '/api/interview/flag',
       }}
     />
   )

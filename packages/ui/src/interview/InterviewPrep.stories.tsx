@@ -1,4 +1,4 @@
-import type { ReviewRequest } from '@docs-rag-lab/contracts'
+import type { FlagRequest, ReviewRequest } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
@@ -13,7 +13,7 @@ const meta = {
     tagline: 'Questions from the TypeScript and React docs, with compiler-verified answers',
     sources: SOURCES,
     theme: { accent: { light: '#6f42c1', dark: '#b392f0' } },
-    endpoints: { overview: '/o', deck: '/d', review: '/r' },
+    endpoints: { overview: '/o', deck: '/d', review: '/r', flag: '/f' },
     transport: storyTransport(),
   },
 } satisfies Meta<typeof InterviewPrep>
@@ -80,6 +80,41 @@ export const QuickTenToTheEnd: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Back to topics' }))
     await expect(await canvas.findByRole('heading', { name: 'Topics' })).toBeVisible()
+  },
+}
+
+const flags: FlagRequest[] = []
+
+/** A card flagged as wrong is saved with the reason, the next card comes, and the summary counts it. */
+export const FlagHidesTheCard: Story = {
+  args: {
+    transport: storyTransport({ deck: [CARDS.theory, CARDS.pitfall], flags }),
+  },
+  play: async ({ canvasElement }) => {
+    flags.length = 0
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Quick 10' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    await userEvent.type(
+      canvas.getByRole('textbox', { name: 'What is wrong with it?' }),
+      'The code says otherwise.',
+    )
+    await userEvent.click(canvas.getByRole('button', { name: 'Hide this card' }))
+
+    await waitFor(() =>
+      expect(canvas.getByRole('status')).toHaveTextContent('Quick 10: card 2 of 2'),
+    )
+    await expect(flags).toEqual([
+      { questionId: CARDS.theory.question.id, reason: 'The code says otherwise.' },
+    ])
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.keyboard('3')
+    await expect(
+      await canvas.findByText(
+        '1 card, 1 known. Each comes back when it is due. 1 card flagged as wrong, hidden from now on.',
+      ),
+    ).toBeVisible()
   },
 }
 

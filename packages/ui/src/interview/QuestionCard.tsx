@@ -1,6 +1,14 @@
 import { RATINGS, type BankQuestion, type PracticeCard, type Rating } from '@docs-rag-lab/contracts'
 import { ChevronRight } from 'lucide-react'
-import { Fragment, useEffect, useId, useRef, useState } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type SyntheticEvent,
+  type KeyboardEvent,
+} from 'react'
 
 import { codeSpans } from '../lib/code-spans.ts'
 import common from '../lib/common.module.css'
@@ -16,7 +24,12 @@ export interface QuestionCardProps {
   sourceTitle: string
   /** Called once per card, with the rating the owner gave. */
   onRate: (rating: Rating) => void
-  /** A rating is on its way: the buttons wait. */
+  /**
+   * The owner found the answer wrong, and says why (ADR-0018): the card is hidden for them. With
+   * none, the card offers no flag.
+   */
+  onFlag?: ((reason: string) => void) | undefined
+  /** A rating or a flag is on its way: the buttons wait. */
   busy?: boolean | undefined
 }
 
@@ -120,17 +133,107 @@ function Answer({ question }: { question: BankQuestion }) {
   )
 }
 
+const isSubmitKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean =>
+  event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey
+
+/**
+ * "This answer is wrong", once the answer is shown (ADR-0018): the owner says why, and the card
+ * is hidden for them. The reason stays on this computer, where `drl questions flagged` lists it.
+ * In the field Ctrl+Enter hides the card, and no other shortcut fires while it is open.
+ */
+function FlagForm({
+  id,
+  busy,
+  onFlag,
+  onCancel,
+}: {
+  id: string
+  busy: boolean
+  onFlag: (reason: string) => void
+  onCancel: () => void
+}) {
+  const [reason, setReason] = useState('')
+  const [missing, setMissing] = useState(false)
+  const field = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    field.current?.focus()
+  }, [])
+
+  const submit = (event?: SyntheticEvent) => {
+    event?.preventDefault()
+    if (busy) return
+    if (reason.trim() === '') {
+      setMissing(true)
+      field.current?.focus()
+      return
+    }
+    onFlag(reason.trim())
+  }
+
+  return (
+    <form className={styles.flag} aria-labelledby={`${id}-flag`} noValidate onSubmit={submit}>
+      <h3 id={`${id}-flag`} className={styles.answerHeading}>
+        This answer is wrong
+      </h3>
+      <label className={styles.field}>
+        What is wrong with it?
+        <textarea
+          ref={field}
+          value={reason}
+          aria-invalid={missing}
+          aria-describedby={missing ? `${id}-flag-missing ${id}-flag-hint` : `${id}-flag-hint`}
+          onChange={(event) => {
+            setReason(event.target.value)
+            if (event.target.value.trim() !== '') setMissing(false)
+          }}
+          onKeyDown={(event) => {
+            if (isSubmitKey(event)) submit(event)
+          }}
+        />
+      </label>
+      {missing && (
+        <p id={`${id}-flag-missing`} className={styles.fieldError}>
+          Say what is wrong, so that it can be checked against the docs.
+        </p>
+      )}
+      <p id={`${id}-flag-hint`} className={styles.muted}>
+        The card is hidden for you, and the reason stays on this computer, where{' '}
+        <code>drl questions flagged</code> lists it. <kbd className={styles.kbd}>Ctrl</kbd>+
+        <kbd className={styles.kbd}>Enter</kbd> in the field hides it.
+      </p>
+      <div className={styles.actions}>
+        <button type="submit" className={styles.primary} disabled={busy}>
+          Hide this card
+        </button>
+        <button type="button" className={common.button} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
 /**
  * One card (ADR-0018): the question and its code, an optional answer field, then the answer and
  * four ratings. The keyboard never fires while typing: in the field, Ctrl+Enter shows the
  * answer; outside it, Space shows it and 1 to 4 rate, the ratings only once it is shown.
  */
-export function QuestionCard({ card, index, total, sourceTitle, onRate, busy }: QuestionCardProps) {
+export function QuestionCard({
+  card,
+  index,
+  total,
+  sourceTitle,
+  onRate,
+  onFlag,
+  busy,
+}: QuestionCardProps) {
   const { question } = card
   const [revealed, setRevealed] = useState(false)
   const [draft, setDraft] = useState('')
+  const [flagging, setFlagging] = useState(false)
   const prompt = useRef<HTMLHeadingElement>(null)
   const answerHeading = useRef<HTMLHeadingElement>(null)
+  const flagButton = useRef<HTMLButtonElement>(null)
   const id = useId()
   // A new card takes focus, so that it is read out and Space works at once.
   useEffect(() => {
@@ -142,8 +245,8 @@ export function QuestionCard({ card, index, total, sourceTitle, onRate, busy }: 
   }, [revealed])
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.repeat) return
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || flagging) return
       const action = cardAction(
         {
           key: event.key,
@@ -163,7 +266,7 @@ export function QuestionCard({ card, index, total, sourceTitle, onRate, busy }: 
     return () => {
       document.removeEventListener('keydown', onKey)
     }
-  }, [revealed, busy, onRate])
+  }, [revealed, busy, onRate, flagging])
 
   return (
     <article className={styles.card} aria-labelledby={`${id}-prompt`}>
@@ -249,6 +352,30 @@ export function QuestionCard({ card, index, total, sourceTitle, onRate, busy }: 
               ))}
             </div>
           </fieldset>
+          {onFlag !== undefined &&
+            (flagging ? (
+              <FlagForm
+                id={id}
+                busy={busy === true}
+                onFlag={onFlag}
+                onCancel={() => {
+                  setFlagging(false)
+                  // The button comes back on the next render, and takes focus there.
+                  requestAnimationFrame(() => flagButton.current?.focus())
+                }}
+              />
+            ) : (
+              <button
+                ref={flagButton}
+                type="button"
+                className={styles.disclosure}
+                onClick={() => {
+                  setFlagging(true)
+                }}
+              >
+                This answer is wrong
+              </button>
+            ))}
         </>
       )}
     </article>

@@ -1,6 +1,8 @@
 // How the interview-prep app's ui talks to its routes (ADR-0018). The app passes its route URLs as
 // endpoints, and fetchInterviewTransport calls them. Stories pass their own transport instead.
 import type {
+  FlagRequest,
+  FlagResult,
   PracticeDeck,
   PracticeOverview,
   ReviewRequest,
@@ -14,12 +16,15 @@ export interface InterviewEndpoints {
   deck: string
   /** POST a ReviewRequest: the ReviewResult. */
   review: string
+  /** POST a FlagRequest: the FlagResult. */
+  flag: string
 }
 
 export interface InterviewTransport {
   overview(sources: readonly string[]): Promise<PracticeOverview>
   deck(sources: readonly string[], topic?: { source: string; id: string }): Promise<PracticeDeck>
   review(request: ReviewRequest): Promise<ReviewResult>
+  flag(request: FlagRequest): Promise<FlagResult>
 }
 
 /** The error a route sent as `{ "error": "..." }`, or the HTTP status. */
@@ -44,6 +49,13 @@ async function json<T>(response: Response): Promise<T> {
 const withQuery = (url: string, query: Record<string, string>): string =>
   `${url}${url.includes('?') ? '&' : '?'}${new URLSearchParams(query).toString()}`
 
+const post = (url: string, body: unknown): Promise<Response> =>
+  fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
 export function fetchInterviewTransport(endpoints: InterviewEndpoints): InterviewTransport {
   return {
     overview: async (sources) =>
@@ -59,13 +71,7 @@ export function fetchInterviewTransport(endpoints: InterviewEndpoints): Intervie
           }),
         ),
       ),
-    review: async (request) =>
-      json<ReviewResult>(
-        await fetch(endpoints.review, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(request),
-        }),
-      ),
+    review: async (request) => json<ReviewResult>(await post(endpoints.review, request)),
+    flag: async (request) => json<FlagResult>(await post(endpoints.flag, request)),
   }
 }

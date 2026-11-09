@@ -2,6 +2,7 @@
 // sources, decks of the fixture questions, and a transport that answers from them with no network.
 // Not part of the public entry.
 import type {
+  FlagRequest,
   PracticeCard,
   PracticeOverview,
   PracticeSummary,
@@ -145,7 +146,12 @@ export const CARDS = {
 
 /** Answers from the data above at once, and records each review it was sent. */
 export function storyTransport(
-  options: { summary?: PracticeSummary; deck?: PracticeCard[]; reviews?: ReviewRequest[] } = {},
+  options: {
+    summary?: PracticeSummary
+    deck?: PracticeCard[]
+    reviews?: ReviewRequest[]
+    flags?: FlagRequest[]
+  } = {},
 ): InterviewTransport {
   const deck = options.deck ?? Object.values(CARDS)
   return {
@@ -161,6 +167,13 @@ export function storyTransport(
     review: (request) => {
       options.reviews?.push(request)
       return Promise.resolve({ questionId: request.questionId, due: '2026-11-11T12:00:00.000Z' })
+    },
+    flag: (request) => {
+      options.flags?.push(request)
+      return Promise.resolve({
+        questionId: request.questionId,
+        flaggedAt: '2026-11-09T12:00:00.000Z',
+      })
     },
   }
 }

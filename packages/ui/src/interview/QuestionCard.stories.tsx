@@ -165,3 +165,49 @@ export const RatingOnItsWay: Story = {
     await expect(args.onRate).not.toHaveBeenCalled()
   },
 }
+
+/**
+ * "This answer is wrong", by the keyboard: the reason field takes focus, no shortcut fires while
+ * typing in it, a blank reason is refused with a message, and Ctrl+Enter hides the card.
+ */
+export const FlagThisAnswer: Story = {
+  args: { card: CARDS.theory, onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByRole('button', { name: 'This answer is wrong' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+
+    const field = canvas.getByRole('textbox', { name: 'What is wrong with it?' })
+    await expect(field).toHaveFocus()
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await expect(field).toHaveAttribute('aria-invalid', 'true')
+    await expect(canvas.getByText(/Say what is wrong/)).toBeVisible()
+    await expect(args.onFlag).not.toHaveBeenCalled()
+
+    await userEvent.keyboard('Says 1 thing 3 times, and 4 is wrong')
+    await expect(args.onRate).not.toHaveBeenCalled()
+    await expect(field).toHaveAttribute('aria-invalid', 'false')
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await expect(args.onFlag).toHaveBeenCalledWith('Says 1 thing 3 times, and 4 is wrong')
+  },
+}
+
+/** Cancel closes the form and gives focus back to the button that opened it; no digit rates meanwhile. */
+export const FlagCancelled: Story = {
+  args: { card: CARDS.pitfall, sourceTitle: 'React', onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'This answer is wrong' })).toHaveFocus(),
+    )
+    await expect(canvas.queryByRole('textbox', { name: 'What is wrong with it?' })).toBeNull()
+    await expect(args.onFlag).not.toHaveBeenCalled()
+    await userEvent.keyboard('2')
+    await expect(args.onRate).toHaveBeenCalledWith('hard')
+  },
+}
