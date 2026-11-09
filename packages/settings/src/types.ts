@@ -86,6 +86,12 @@ export interface InterviewerSettings {
   passages: number
 }
 
+/** Agentic mode (ADR-0019): row 6, and the docs apps' opt-in agentic chat. */
+export interface AgenticSettings {
+  /** Searches of Claude's own after the first search it is given, one per step. */
+  maxSearches: number
+}
+
 export interface RetrievalSettings {
   /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
   strategy: 'vector' | 'hybrid' | 'rerank'
@@ -134,6 +140,7 @@ export interface Settings {
     maxUsd: number
   }
   retrieval: RetrievalSettings
+  agentic: AgenticSettings
   interviewBank: InterviewBankSettings
   interviewer: InterviewerSettings
   pricing: PricingSettings

@@ -1,14 +1,23 @@
 // One question, one cited answer (SPEC section 9): retrieve, then stream the
 // answer with citations, reporting every step as an AnswerEvent (ADR-0006).
 // The CLI prints the events; an app route sends them to the browser.
-import { NO_CONTEXT, type AnswerEvent, type UsageSummary } from '@docs-rag-lab/contracts'
+import type Anthropic from '@anthropic-ai/sdk'
+import {
+  NO_CONTEXT,
+  type AnswerEvent,
+  type EvalAgentSearch,
+  type UsageSummary,
+} from '@docs-rag-lab/contracts'
+import type { SearchHit } from '@docs-rag-lab/db'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
+import { buildAgentRequest, checkCitations, runAgentLoop, type AgentSearchFn } from './agent.ts'
 import {
   buildAnswerRequest,
   CitationNumbering,
   streamAnswer,
   type AnswerClient,
+  type StreamHandlers,
 } from './generate.ts'
 import { retrieve, type Retrieval, type RetrieveOptions } from './retrieve.ts'
 import type { UsageMeter } from './usage.ts'
@@ -66,29 +75,104 @@ export async function ask(options: AskOptions): Promise<Retrieval> {
     effort: options.effort,
     maxTokens: options.maxTokens,
   })
-  const numbering = new CitationNumbering(retrieval.hits)
   const message = await streamAnswer(
     options.client,
     request,
-    {
-      onText: (text) => {
-        onEvent({ type: 'text', text })
-      },
-      onTextBlock: (block) => {
-        const known = numbering.list().length
-        const numbers = numbering.add(block)
-        if (numbers.length === 0) return
-        onEvent({ type: 'citations', numbers, citations: numbering.list().slice(known) })
-      },
-      onUsage: (usage) => {
-        meter.recordMessage(model, usage)
-      },
-    },
+    streamHandlers(options, new CitationNumbering(retrieval.hits)),
     options.signal,
   )
   onEvent({
     type: 'done',
     stopReason: message.stop_reason,
+    usage: usageSummary(meter, options.pricing),
+  })
+  return retrieval
+}
+
+/** Text and citations as events, and usage on the meter, as an answer streams. */
+function streamHandlers(options: AskOptions, numbering: CitationNumbering): StreamHandlers {
+  const { onEvent, meter, model } = options
+  return {
+    onText: (text) => {
+      onEvent({ type: 'text', text })
+    },
+    onTextBlock: (block) => {
+      const known = numbering.list().length
+      const numbers = numbering.add(block)
+      if (numbers.length === 0) return
+      onEvent({ type: 'citations', numbers, citations: numbering.list().slice(known) })
+    },
+    onUsage: (usage) => {
+      meter.recordMessage(model, usage)
+    },
+  }
+}
+
+export interface AgenticAskOptions extends AskOptions {
+  /** The doc types the source's index holds, which search_docs can filter by. */
+  toolDocTypes: readonly string[]
+  maxSearches: number
+  /** A search of Claude's own. */
+  search: AgentSearchFn
+  onSearch?: ((search: EvalAgentSearch, hits: readonly SearchHit[]) => void) | undefined
+}
+
+/**
+ * Agentic mode (ADR-0019): the same first search as ask(), then Claude may search again. Events
+ * are ask()'s, and each search of Claude's own goes to `onSearch`. Citations are numbered over
+ * every chunk of the conversation, as the API numbers its search results, and checked against it.
+ * Only the answer's own step reaches the events, as only it is scored in eval: a step that asks
+ * for a search keeps whatever text it had to itself. So the answer arrives when its step ends. A
+ * loop that fails is thrown, as any failure is.
+ */
+export async function askAgentic(options: AgenticAskOptions): Promise<Retrieval> {
+  const { onEvent, meter, model } = options
+  const retrieval = await retrieve(options)
+  onEvent({ type: 'trace', trace: retrieval.trace })
+  if (retrieval.hits.length === 0) {
+    onEvent({ type: 'done', stopReason: NO_CONTEXT, usage: usageSummary(meter, options.pricing) })
+    return retrieval
+  }
+  const first = buildAgentRequest({
+    question: options.question,
+    hits: retrieval.hits,
+    model,
+    effort: options.effort,
+    maxTokens: options.maxTokens,
+    docTypes: options.toolDocTypes,
+  })
+  let numbering: CitationNumbering | undefined
+  const loop = await runAgentLoop({
+    first,
+    hits: retrieval.hits,
+    docTypes: options.toolDocTypes,
+    maxSearches: options.maxSearches,
+    search: options.search,
+    ...(options.onSearch === undefined ? {} : { onSearch: options.onSearch }),
+    call: async (request: Anthropic.MessageCreateParamsNonStreaming, _step, context) => {
+      // The loop's own list, which grows with each search, so later citations find their chunk.
+      numbering ??= new CitationNumbering(context)
+      const held: (() => void)[] = []
+      const handlers = streamHandlers(options, numbering)
+      const message = await streamAnswer(
+        options.client,
+        request,
+        {
+          onText: (text) => held.push(() => handlers.onText?.(text)),
+          onTextBlock: (block) => held.push(() => handlers.onTextBlock?.(block)),
+          onUsage: handlers.onUsage,
+        },
+        options.signal,
+      )
+      checkCitations(message, context)
+      if (message.stop_reason !== 'tool_use') for (const send of held) send()
+      return message
+    },
+  })
+  if (loop.failure !== undefined) throw new Error(`the agentic answer failed: ${loop.failure}`)
+  onEvent({
+    type: 'done',
+    stopReason: loop.message.stop_reason,
     usage: usageSummary(meter, options.pricing),
   })
   return retrieval

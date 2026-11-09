@@ -7,6 +7,8 @@
 // changes its meaning. A new section is optional and needs no bump, so the reports
 // already committed stay readable.
 import type {
+  AnswerRow,
+  AnswerStatus,
   EvalAnswers,
   EvalCalibration,
   EvalSourceAbout,
@@ -186,6 +188,56 @@ export interface EvalReport {
   run: EvalRunInfo
   /** Answers and verdicts, when the run was asked for them. Never compared by verify. */
   answers?: EvalAnswers
+}
+
+/** The metrics a pooled test reads (ADR-0019). */
+export const POOLED_METRICS = ['fully-correct', 'citations-hold', 'not-wrongly-refused'] as const
+
+export type PooledMetric = (typeof POOLED_METRICS)[number]
+
+/** One metric over the questions of several reports together. */
+export interface EvalPooledMetric {
+  metric: PooledMetric
+  questions: number
+  aBetter: number
+  bBetter: number
+  tied: number
+  p: number
+  /** Questions on which each row's two answers differ, or null for a row answered once. */
+  runToRun: { a: number | null; b: number | null }
+  /** The sign test's verdict, read against twice the larger run-to-run count (ADR-0013). */
+  verdict: DifferenceVerdict
+}
+
+/**
+ * Two rows compared over several reports' questions together, as ADR-0019's test reads them:
+ * `drl eval pool`. It reads committed reports and calls nothing.
+ */
+export interface EvalPooled {
+  /** The reports pooled, in the order given. */
+  reports: {
+    sourceId: string
+    name: string | null
+    repoSha: string
+    createdAt: string
+    goldenSet: { version: number; hash: string }
+  }[]
+  a: AnswerRow
+  b: AnswerRow
+  metrics: EvalPooledMetric[]
+  /** First answers of either row that did not finish. On fully correct, each counts as not. */
+  notOk: { sourceId: string; questionId: string; row: AnswerRow; status: AnswerStatus }[]
+  /** First answers that finished with no usable verdict. On fully correct, each counts as not. */
+  unjudged: { sourceId: string; questionId: string; row: AnswerRow }[]
+  /** Row b's hallucinations on the questions the docs do not answer, in its first answers. */
+  hallucinations: { sourceId: string; questionId: string }[]
+  /** Rows answered twice by design whose second answers some report lacks: the bar is unknown. */
+  runToRunMissing: AnswerRow[]
+  /**
+   * Whether the verdict names b on fully correct and a on no other metric, with every run to run
+   * known and every first answer judged.
+   */
+  holds: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

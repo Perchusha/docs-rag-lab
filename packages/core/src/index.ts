@@ -188,12 +188,28 @@ export {
   type SyncSourceOptions,
 } from './ingest.ts'
 export { retrieve, type RerankStep, type Retrieval, type RetrieveOptions } from './retrieve.ts'
-export { ask, usageSummary, type AskOptions } from './ask.ts'
+export { ask, askAgentic, usageSummary, type AgenticAskOptions, type AskOptions } from './ask.ts'
+export {
+  AGENT_SYSTEM_PROMPT,
+  buildAgentRequest,
+  checkCitations,
+  CitationMismatchError,
+  loopTextsHash,
+  runAgentLoop,
+  SEARCH_DOCS,
+  searchDocsTool,
+  type AgentCall,
+  type AgentLoopOptions,
+  type AgentLoopResult,
+  type AgentRequestOptions,
+  type AgentSearchFn,
+} from './agent.ts'
 export {
   createEngine,
   InvalidRequestError,
   MAX_TOP_K,
   UnknownSourceError,
+  type AgenticAskRun,
   type AskRun,
   type Engine,
   type EngineOptions,
@@ -242,6 +258,9 @@ export {
   type RunGuard,
 } from './run-guard.ts'
 export {
+  AGENT_LOOP_VERSION,
+  AGENT_ROW,
+  agentRunKey,
   cachedAnswer,
   claimsOf,
   judgeCallsOf,
@@ -256,7 +275,11 @@ export {
   rowRequest,
   runAnswers,
   runJudge,
+  SECOND_ANSWERS_WAIT_MS,
+  type AgentEvalOptions,
+  type AgentRunScope,
   type AnswerJob,
+  type AnswerRunOptions,
   type AnswerSettings,
   type EvalClient,
   type JudgeOptions,
@@ -298,11 +321,14 @@ export {
   type SpotCheckOptions,
 } from './eval/calibrate.ts'
 export {
+  agentAnswerUsd,
   estimateCost,
+  type AgentCostLine,
   type EvalCostEstimate,
   type CostLine,
   type EstimateOptions,
 } from './eval/cost.ts'
+export { PoolError, poolReports } from './eval/pool.ts'
 export { bootstrapMean, seeded } from './eval/bootstrap.ts'
 export {
   buildDashboardDetails,

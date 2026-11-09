@@ -10,13 +10,15 @@ import {
   STRATEGIES,
   type AnswerEvent,
   type DocumentChunks,
+  type EvalAgentSearch,
   type RetrievalRequest,
+  type RetrievalTrace,
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import type { Settings } from '@docs-rag-lab/settings'
 import { DOC_TYPES, type DocType, type Source } from '@docs-rag-lab/source-kit'
 
-import { ask } from './ask.ts'
+import { ask, askAgentic } from './ask.ts'
 import { embedWithCache } from './embeddings/cached.ts'
 import { createEmbeddingProvider } from './embeddings/factory.ts'
 import type { EmbeddingProvider } from './embeddings/provider.ts'
@@ -37,7 +39,7 @@ import type { UsageMeter } from './usage.ts'
 /** The settings the engine reads; a host passes its whole Settings object. */
 export type EngineSettings = Pick<
   Settings,
-  'dataDir' | 'embeddings' | 'rerank' | 'models' | 'answer' | 'retrieval' | 'pricing'
+  'dataDir' | 'embeddings' | 'rerank' | 'models' | 'answer' | 'retrieval' | 'agentic' | 'pricing'
 >
 
 export interface EngineOptions {
@@ -60,6 +62,11 @@ export interface AskRun {
   signal?: AbortSignal | undefined
 }
 
+export interface AgenticAskRun extends AskRun {
+  /** After each search of Claude's own, with what it returned and its trace (ADR-0019). */
+  onSearch?: ((search: EvalAgentSearch, trace: RetrievalTrace) => void) | undefined
+}
+
 export interface Engine {
   readonly sources: readonly Source[]
   /** Retrieval only, no Claude call. */
@@ -74,6 +81,13 @@ export interface Engine {
   ): Promise<Float32Array[]>
   /** Retrieval, then a streamed answer with citations. Throws on failure. */
   ask(request: RetrievalRequest, run: AskRun): Promise<Retrieval>
+  /**
+   * Agentic mode (ADR-0019): ask's search, then Claude may search again with the same strategy,
+   * up to settings.agentic.maxSearches times. Returns the first retrieval. Throws on failure.
+   */
+  askAgentic(request: RetrievalRequest, run: AgenticAskRun): Promise<Retrieval>
+  /** The doc types a source's index holds, sorted, which search_docs can filter by. */
+  docTypes(sourceId?: string): string[]
   /** A document and its chunks in order, or undefined when the path is not indexed. */
   documentChunks(sourceId: string, path: string): DocumentChunks | undefined
 }
@@ -110,6 +124,10 @@ interface CheckedRequest {
   topK: number | undefined
   docTypes: DocType[]
 }
+
+/** Doc types the index's own list let through, so each is a known one. */
+const docTypesOf = (values: readonly string[]): DocType[] =>
+  DOC_TYPES.filter((known) => values.includes(known))
 
 function checkRequest(request: RetrievalRequest): CheckedRequest {
   const question = request.question.trim()
@@ -246,6 +264,55 @@ export function createEngine(options: EngineOptions): Engine {
           signal: run.signal,
         }),
       )
+    },
+
+    async askAgentic(request, run) {
+      const checked = checkRequest(request)
+      const source = sourceOf(request.source)
+      const answerClient = clientOf()
+      return await withIndexes(source, (indexes) => {
+        const toolDocTypes = indexes.index.stats().byDocType.map(({ docType }) => docType)
+        let lastTrace: RetrievalTrace | undefined
+        return askAgentic({
+          ...retrieveOptions(source, checked, run.meter, indexes),
+          client: answerClient,
+          model: settings.models.answer,
+          effort: settings.answer.effort,
+          maxTokens: settings.answer.maxTokens,
+          pricing: settings.pricing,
+          onEvent: run.onEvent,
+          signal: run.signal,
+          toolDocTypes,
+          maxSearches: settings.agentic.maxSearches,
+          // A search of Claude's own takes the request's strategy and top K, and its own doc
+          // types: the request's filter is for the first search, and the tool says which to use.
+          search: async (query, docTypes) => {
+            const retrieval = await retrieve(
+              retrieveOptions(
+                source,
+                { ...checked, question: query, docTypes: docTypesOf(docTypes) },
+                run.meter,
+                indexes,
+              ),
+            )
+            lastTrace = retrieval.trace
+            return retrieval.hits
+          },
+          onSearch: (search) => {
+            if (lastTrace !== undefined) run.onSearch?.(search, lastTrace)
+          },
+        })
+      })
+    },
+
+    docTypes(sourceId) {
+      const source = sourceOf(sourceId)
+      const indexes = openIndexes(dataDir, source.id, { create: false, variant })
+      try {
+        return indexes.index.stats().byDocType.map(({ docType }) => docType)
+      } finally {
+        indexes.close()
+      }
     },
 
     documentChunks(sourceId, path) {

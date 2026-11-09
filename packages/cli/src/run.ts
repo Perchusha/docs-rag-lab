@@ -54,6 +54,7 @@ import {
   parseRows,
 } from './eval-answers.ts'
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
+import { evalPoolCommand } from './eval-pool.ts'
 import { evalDraftCheckCommand, evalWalkCommand, WALK_TOP } from './eval-draft.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
 import {
@@ -101,6 +102,8 @@ Commands:
                               reason, the one given when it was flagged in the app
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
+      [--agentic]             Agentic mode (ADR-0019): after the first search, Claude may search
+                              again, up to agentic.maxSearches times, each printed as it happens
   search "<question>"         Retrieval only, no answer: print the retrieval trace
       [--json]                Print the whole trace as JSON (the usage line goes to stderr)
   limits                      Show the rate-limit headers of embeddings and of rerank
@@ -120,11 +123,12 @@ Commands:
   eval answers                Answer the set under each row and judge the answers. Spends
                               money: prints the estimate, and needs --yes to go on
       [--rows <list>]         Rows of the ladder: 0, 2 and 3 by default, and 4, rerank, 5,
-                              rerank on the contextual index, or 7, hybrid on the compiled
-                              index, when asked for
+                              rerank on the contextual index, 6, agentic, which searches
+                              again (ADR-0019), or 7, hybrid on the compiled index, when
+                              asked for
       [--only <ids>]          Only these questions, for a pilot
-      [--noise]               Answer rows 3, 4, 5 and 7 twice, and ask the judge twice about row
-                              3, to measure noise
+      [--noise]               Answer rows 3, 4, 5, 6 and 7 twice, and ask the judge twice
+                              about row 3, to measure noise
       [--max-usd <n>]         Stop before the next paid call past this
       [--name <name>]         A run to keep: the whole set, every row, a clean tree
   eval judge-check            Grade answers whose grade is known. Needs --yes
@@ -144,6 +148,10 @@ Commands:
   eval spot-check <r> <labels> How often the human and the judge agree on a spot check, which
                               decides nothing for any other report
       [--after <report>]      Those labels are of a fresh spot check after that report
+  eval pool <a> <b>...        ADR-0019's test: row 3 against row 6 over the reports' questions
+                              together, with no API call
+      [--rows <x>,<y>]        Two other rows instead
+      [--name <name>]         Write it to eval/pooled/<name>.json and .md
   eval compare <a> <b>        Compare two reports question by question, and mark what is noise
       [--strategies <x>,<y>]  a's strategy x against b's strategy y, instead of like with like
       [--without-tag <tag>]   Leave out the questions with that tag (ADR-0017)
@@ -213,6 +221,8 @@ export interface RunOptions {
   createReranker?: () => RerankProvider
   /** For tests: the embedding provider. */
   createProvider?: () => EmbeddingProvider
+  /** For tests: the wait before row 6's second answers. */
+  sleep?: (ms: number) => Promise<void>
 }
 
 function positiveInteger(
@@ -308,7 +318,10 @@ function refuseStrayEvalFlags(
     ...(values['top-k'] === undefined ? [] : ['--top-k']),
     ...(values['doc-type'] === undefined ? [] : ['--doc-type']),
     ...(values.accept && subcommand !== 'check' ? ['--accept'] : []),
-    ...(values.name !== undefined && subcommand !== undefined && subcommand !== 'answers'
+    ...(values.name !== undefined &&
+    subcommand !== undefined &&
+    subcommand !== 'answers' &&
+    subcommand !== 'pool'
       ? ['--name']
       : []),
     ...(values.record === true && subcommand !== 'verify' ? ['--record'] : []),
@@ -336,7 +349,8 @@ function refuseStrayEvalFlags(
     ...(values.rows !== undefined &&
     subcommand !== 'answers' &&
     subcommand !== 'label' &&
-    subcommand !== 'calibrate'
+    subcommand !== 'calibrate' &&
+    subcommand !== 'pool'
       ? ['--rows']
       : []),
     ...(values.only !== undefined && subcommand !== 'answers' ? ['--only'] : []),
@@ -416,6 +430,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         'doc-type': { type: 'string', multiple: true },
         json: { type: 'boolean', default: false },
         verbose: { type: 'boolean', short: 'v', default: false },
+        agentic: { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
     })
@@ -435,6 +450,10 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
   }
   if (values.json && command !== 'search') {
     err.write(`drl: --json works only with search\n\n${USAGE}`)
+    return 2
+  }
+  if (values.agentic && command !== 'ask') {
+    err.write(`drl: --agentic works only with ask\n\n${USAGE}`)
     return 2
   }
   if (values.at !== undefined && command !== 'sync') {
@@ -520,6 +539,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       createEvalClient: options.createEvalClient,
       createReranker,
       createProvider,
+      sleep: options.sleep,
     }
     if (command === 'sync') {
       const source = rest[0]
@@ -555,8 +575,9 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         strategy: strategyOf(values.strategy, settings.retrieval.strategy),
         docTypes: docTypesOf(values['doc-type']),
       }
-      if (command === 'ask') await askCommand(ctx, { ...retrieval, verbose: values.verbose })
-      else await searchCommand(ctx, { ...retrieval, json: values.json })
+      if (command === 'ask') {
+        await askCommand(ctx, { ...retrieval, verbose: values.verbose, agentic: values.agentic })
+      } else await searchCommand(ctx, { ...retrieval, json: values.json })
     } else if (command === 'eval') {
       const [subcommand, first, second] = rest
       refuseStrayEvalFlags(subcommand, values)
@@ -612,6 +633,12 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
           after: values.after,
           sampleOf: values['sample-of'],
           rows: values.rows === undefined ? undefined : parseRows(values.rows),
+        })
+      } else if (subcommand === 'pool') {
+        evalPoolCommand(ctx, {
+          paths: rest.slice(1),
+          rows: values.rows === undefined ? [3, 6] : parseRows(values.rows),
+          name: values.name,
         })
       } else if (subcommand === 'verify') {
         if (first === undefined) throw new CliError('eval verify needs a report file')

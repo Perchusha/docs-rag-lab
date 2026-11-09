@@ -7,6 +7,8 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type {
   AnswerRow,
   AnswerStatus,
+  EvalAgentSearch,
+  EvalAgentStep,
   EvalAnswer,
   EvalClaim,
   EvalSupport,
@@ -16,6 +18,13 @@ import type {
 import type { EvalCache, SearchHit } from '@docs-rag-lab/db'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
+import {
+  buildAgentRequest,
+  checkCitations,
+  loopTextsHash,
+  runAgentLoop,
+  type AgentSearchFn,
+} from '../agent.ts'
 import type { Engine } from '../engine.ts'
 import type { IndexVariant } from '../indexes.ts'
 import { buildAnswerRequest, streamAnswer, type AnswerClient } from '../generate.ts'
@@ -39,6 +48,7 @@ export const ROW_STRATEGY: Partial<Record<AnswerRow, Strategy>> = {
   3: 'hybrid',
   4: 'rerank',
   5: 'rerank',
+  6: 'hybrid',
   7: 'hybrid',
 }
 
@@ -49,7 +59,22 @@ export const ROW_VARIANT: Partial<Record<AnswerRow, IndexVariant>> = {
 }
 
 /** The rows a noise run answers twice: row 3, and the rows measured against it. */
-export const NOISE_ROWS: readonly AnswerRow[] = [3, 4, 5, 7]
+export const NOISE_ROWS: readonly AnswerRow[] = [3, 4, 5, 6, 7]
+
+/** Agentic mode (ADR-0019): row 3's search, then Claude may search again. */
+export const AGENT_ROW: AnswerRow = 6
+
+/**
+ * Bumped when the loop changes what a step sends or records, so that a stored run of the loop is
+ * not read as one of this code (ADR-0019).
+ */
+export const AGENT_LOOP_VERSION = 1
+
+/**
+ * A second answer's first request is its first answer's, so the second answers start after every
+ * cache entry of the first answers has expired: 6 minutes, past the 5 of the cache (ADR-0019).
+ */
+export const SECOND_ANSWERS_WAIT_MS = 6 * 60_000
 
 /** Row 0: Claude without RAG. It is told it has no docs, and to say so rather than guess. */
 export function noRagSystemPrompt(sourceId: string): string {
@@ -72,7 +97,13 @@ export function rowRequest(
   question: string,
   hits: readonly SearchHit[],
   settings: AnswerSettings,
+  /** Row 6's tool offers the doc types the source's index holds. */
+  docTypes?: readonly string[],
 ): Anthropic.MessageCreateParamsNonStreaming {
+  if (row === AGENT_ROW) {
+    if (docTypes === undefined) throw new Error('row 6 needs the doc types of the index')
+    return buildAgentRequest({ question, hits, ...settings, docTypes })
+  }
   if (row !== 0) return buildAnswerRequest({ question, hits, ...settings })
   return {
     model: settings.model,
@@ -105,6 +136,8 @@ export interface EvalClient extends AnswerClient {
       system?: Anthropic.MessageCreateParamsNonStreaming['system']
       messages: Anthropic.MessageParam[]
       output_config?: Anthropic.MessageCreateParamsNonStreaming['output_config']
+      tools?: Anthropic.MessageCountTokensTool[]
+      tool_choice?: Anthropic.ToolChoice
     }): PromiseLike<{ input_tokens: number }>
   }
 }
@@ -153,6 +186,7 @@ export async function planAnswers(options: PlanOptions): Promise<AnswerJob[]> {
     const variant = ROW_VARIANT[row]
     const rowEngine = variant === undefined ? engine : options.engineFor?.(variant)
     if (rowEngine === undefined) throw new Error(`row ${String(row)} needs another index`)
+    const docTypes = row === AGENT_ROW ? rowEngine.docTypes(sourceId) : undefined
     for (const question of questions) {
       const hits =
         strategy === undefined
@@ -163,7 +197,7 @@ export async function planAnswers(options: PlanOptions): Promise<AnswerJob[]> {
                 meter,
               )
             ).hits
-      const request = rowRequest(row, sourceId, question.question, hits, settings)
+      const request = rowRequest(row, sourceId, question.question, hits, settings, docTypes)
       const samples = noise && NOISE_ROWS.includes(row) ? [1, 2] : [1]
       for (const sample of samples) {
         jobs.push({ question, row, sample, hits, request, key: requestKey(request, sample) })
@@ -238,6 +272,12 @@ export class Runner {
 
   get stopped(): boolean {
     return this.#stop !== undefined
+  }
+
+  /** Stops the run before its next paid call, and throws. What it paid for is in the cache. */
+  halt(reason: string): never {
+    this.#stop = reason
+    throw new EvalStoppedError(reason)
   }
 
   /** Throws when the run stopped early. What it paid for is in the cache. */
@@ -342,6 +382,14 @@ export class Runner {
   get pricing(): PricingSettings {
     return this.#options.pricing
   }
+
+  get cache(): EvalCache {
+    return this.#options.cache
+  }
+
+  get now(): () => number {
+    return this.#options.now ?? (() => performance.now())
+  }
 }
 
 const textOf = (message: Pick<Anthropic.Message, 'content'>): string =>
@@ -414,9 +462,208 @@ export function cachedAnswer(
   job: AnswerJob,
   cache: EvalCache,
   pricing: PricingSettings,
+  /** What row 6's runs are kept under. */
+  scope?: AgentRunScope,
 ): EvalAnswer | undefined {
+  if (job.row === AGENT_ROW) {
+    if (scope === undefined) return undefined
+    const run = cache.get(agentRunKey(job, scope)) as CachedAgentRun | undefined
+    return run === undefined ? undefined : agentAnswerOf(job, run, true, pricing)
+  }
   const cached = cache.get(job.key) as CachedCall | undefined
   return cached === undefined ? undefined : answerOf(job, cached, true, pricing)
+}
+
+/**
+ * A finished run of the loop (ADR-0019): what its answer needs, timed with its searches. Each step
+ * is cached too, by its own request, so a run that stopped part-way pays only for the rest.
+ */
+interface CachedAgentRun {
+  message: Anthropic.Message
+  context: string[]
+  searches: EvalAgentSearch[]
+  steps: EvalAgentStep[]
+  latencyMs: number
+  firstTokenMs: number | null
+  failure?: string
+}
+
+/** What decides a run of the loop besides its first request. */
+export interface AgentRunScope {
+  maxSearches: number
+  /**
+   * What decides a search's results: the retrieval settings, and the index's chunks and vectors.
+   * The query vectors are cached by their text, so they stay the same.
+   */
+  searchIdentity: string
+}
+
+/**
+ * Where a run of the loop is kept: by its first request, the loop's version, the hash of the texts
+ * its steps send, its limit and what decides its searches. Change any of them, and the run is new.
+ */
+export function agentRunKey(job: Pick<AnswerJob, 'key'>, scope: AgentRunScope): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        'agent-run',
+        AGENT_LOOP_VERSION,
+        loopTextsHash(),
+        scope.maxSearches,
+        scope.searchIdentity,
+        job.key,
+      ]),
+    )
+    .digest('hex')
+}
+
+function stepOf(message: Anthropic.Message): EvalAgentStep {
+  const { usage } = message
+  return {
+    stopReason: message.stop_reason,
+    inputTokens: usage.input_tokens,
+    cacheWriteTokens: usage.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+    outputTokens: usage.output_tokens,
+  }
+}
+
+const sumOf = <T>(items: readonly T[], value: (item: T) => number): number =>
+  items.reduce((total, item) => total + value(item), 0)
+
+/**
+ * An agentic answer. Its input counts every input token of every step, cached or not, so that it
+ * reads beside the other rows. Its cost prices writes and reads as they were billed, and
+ * `uncachedCostUsd` prices the same tokens at the input price.
+ */
+function agentAnswerOf(
+  job: AnswerJob,
+  run: CachedAgentRun,
+  fromCache: boolean,
+  pricing: PricingSettings,
+): EvalAnswer {
+  const { message, steps } = run
+  const billed = new UsageMeter()
+  for (const step of steps) {
+    billed.recordMessage(message.model, {
+      input_tokens: step.inputTokens,
+      output_tokens: step.outputTokens,
+      cache_creation_input_tokens: step.cacheWriteTokens,
+      cache_read_input_tokens: step.cacheReadTokens,
+    })
+  }
+  const inputTokens = sumOf(
+    steps,
+    (step) => step.inputTokens + step.cacheWriteTokens + step.cacheReadTokens,
+  )
+  const outputTokens = sumOf(steps, (step) => step.outputTokens)
+  const plain = new UsageMeter()
+  plain.recordMessage(message.model, { input_tokens: inputTokens, output_tokens: outputTokens })
+  return {
+    questionId: job.question.id,
+    row: job.row,
+    sample: job.sample,
+    status: run.failure === undefined ? statusOf(message) : 'failed',
+    ...(run.failure === undefined ? {} : { error: run.failure }),
+    model: message.model,
+    stopReason: message.stop_reason,
+    text: textOf(message),
+    blocks: message.content.filter((block) => block.type === 'text'),
+    claims: claimsOf(
+      message,
+      run.context.map((chunkId) => ({ chunkId })),
+    ),
+    context: run.context,
+    inputTokens,
+    outputTokens,
+    costUsd: billed.estimateCost(pricing).total,
+    latencyMs: run.latencyMs,
+    firstTokenMs: run.firstTokenMs,
+    fromCache,
+    steps,
+    searches: run.searches,
+    uncachedCostUsd: plain.estimateCost(pricing).total,
+  }
+}
+
+/** A step may stop for its tool. Otherwise it is held to what any answer is. */
+const checkStep: ReplyCheck = (message) => {
+  if (message.stop_reason !== 'tool_use') checkAnswer(message)
+}
+
+export interface AgentEvalOptions extends AgentRunScope {
+  /** The doc types the source's index holds, which the tool offers. */
+  docTypes: readonly string[]
+  /** Hybrid on the plain index, for a query of Claude's own. */
+  search: AgentSearchFn
+  /** Waits before the second answers. Tests pass their own. */
+  sleep?: (ms: number) => Promise<void>
+  /** Told of that wait before it starts. */
+  onWait?: (ms: number) => void
+}
+
+/** One agentic answer: from its stored run, or step by step, each step from the cache or paid. */
+async function runAgentAnswer(
+  job: AnswerJob,
+  runner: Runner,
+  agent: AgentEvalOptions,
+): Promise<EvalAnswer> {
+  const { cache, pricing, now } = runner
+  const recordKey = agentRunKey(job, agent)
+  const stored = cache.get(recordKey) as CachedAgentRun | undefined
+  if (stored !== undefined) return agentAnswerOf(job, stored, true, pricing)
+  const start = now()
+  const calls: { call: CachedCall; fromCache: boolean; at: number }[] = []
+  const loop = await runAgentLoop({
+    first: job.request,
+    hits: job.hits,
+    docTypes: agent.docTypes,
+    maxSearches: agent.maxSearches,
+    // A search that fails stops the run, as ADR-0019 has a rejected Voyage call do.
+    search: async (query, docTypes) => {
+      try {
+        return await agent.search(query, docTypes)
+      } catch (error) {
+        return runner.halt(`a search of row 6 failed, which stops the run: ${reasonOf(error)}`)
+      }
+    },
+    call: async (request, step, context) => {
+      const at = now() - start
+      const key = step === 0 ? job.key : requestKey(request, job.sample)
+      const kind = step === 0 ? 'agent-first' : 'agent-step'
+      const result = await runner.call(kind, request, key, checkStep)
+      calls.push({ ...result, at })
+      checkCitations(result.call.message, context)
+      return result.call.message
+    },
+  })
+  const paid = calls.some(({ fromCache }) => !fromCache)
+  const last = calls.at(-1)
+  const earlier = sumOf(calls.slice(0, -1), ({ call }) => call.latencyMs)
+  const firstToken = last?.call.firstTokenMs ?? null
+  // A run that paid for a step is timed with its searches. One replayed from cached steps alone,
+  // with no run stored, has only the steps' own times.
+  const run: CachedAgentRun = {
+    message: loop.message,
+    context: loop.context.map((hit) => hit.chunkId),
+    searches: loop.searches,
+    steps: loop.messages.map(stepOf),
+    latencyMs: paid ? now() - start : sumOf(calls, ({ call }) => call.latencyMs),
+    firstTokenMs: firstToken === null ? null : (paid ? (last?.at ?? 0) : earlier) + firstToken,
+    ...(loop.failure === undefined ? {} : { failure: loop.failure }),
+  }
+  if (paid) cache.put(recordKey, 'agent-run', { value: run, inputTokens: 0, outputTokens: 0 })
+  return agentAnswerOf(job, run, !paid, pricing)
+}
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+
+export interface AnswerRunOptions extends RunnerOptions {
+  /** Needed when a job is of row 6. */
+  agent?: AgentEvalOptions | undefined
 }
 
 const reasonOf = (error: unknown): string =>
@@ -435,15 +682,26 @@ function inOrder<
   )
 }
 
-/** Answers every job. A failed call is recorded as failed, and is never a score. */
+/**
+ * Answers every job. A failed call is recorded as failed, and is never a score. Row 6's second
+ * answers run last, once no cache entry of its first answers can be read (ADR-0019).
+ */
 export async function runAnswers(
   jobs: readonly AnswerJob[],
-  options: RunnerOptions,
+  options: AnswerRunOptions,
 ): Promise<EvalAnswer[]> {
+  const { agent } = options
+  if (agent === undefined && jobs.some((job) => job.row === AGENT_ROW)) {
+    throw new Error('row 6 needs the agent options')
+  }
   const runner = new Runner(options)
   const answers: EvalAnswer[] = []
-  await runner.run(jobs, async (job) => {
+  const work = async (job: AnswerJob): Promise<void> => {
     try {
+      if (job.row === AGENT_ROW && agent !== undefined) {
+        answers.push(await runAgentAnswer(job, runner, agent))
+        return
+      }
       const { call, fromCache } = await runner.call('answer', job.request, job.key, checkAnswer)
       answers.push(answerOf(job, call, fromCache, runner.pricing))
     } catch (error) {
@@ -468,7 +726,24 @@ export async function runAnswers(
         fromCache: false,
       })
     }
-  })
+  }
+  const isSecondAgentic = (job: AnswerJob): boolean => job.row === AGENT_ROW && job.sample > 1
+  await runner.run(
+    jobs.filter((job) => !isSecondAgentic(job)),
+    work,
+  )
+  const later = jobs.filter(isSecondAgentic)
+  if (agent !== undefined && later.length > 0 && !runner.stopped) {
+    // Only a first request that is not cached here is sent, and only that could read an entry.
+    const sends = later.some(
+      (job) => !runner.cache.has(job.key) && !runner.cache.has(agentRunKey(job, agent)),
+    )
+    if (sends) {
+      agent.onWait?.(SECOND_ANSWERS_WAIT_MS)
+      await (agent.sleep ?? sleep)(SECOND_ANSWERS_WAIT_MS)
+    }
+    await runner.run(later, work)
+  }
   runner.check()
   return inOrder(answers)
 }

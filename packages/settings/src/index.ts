@@ -4,6 +4,7 @@
 export { settings } from './settings.ts'
 export {
   defineSettings,
+  type AgenticSettings,
   type ContextualizeSettings,
   type Effort,
   type EmbeddingsSettings,

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import {
   NO_CONTEXT,
+  type AnswerEvent,
   type Citation,
   type RetrievalRequest,
   type Strategy,
@@ -69,6 +70,8 @@ export interface CommandContext {
   createReranker?: (() => RerankProvider) | undefined
   /** For tests. Defaults to the embedding provider named in settings. */
   createProvider?: (() => EmbeddingProvider) | undefined
+  /** For tests. Waits, as before row 6's second answers (ADR-0019). Defaults to a timer. */
+  sleep?: ((ms: number) => Promise<void>) | undefined
 }
 
 // Progress lines during a long sync: at most one every this many milliseconds.
@@ -324,15 +327,15 @@ export async function searchCommand(
 
 export async function askCommand(
   ctx: CommandContext,
-  args: RetrievalArgs & { verbose: boolean },
+  args: RetrievalArgs & { verbose: boolean; agentic?: boolean },
 ): Promise<void> {
   const { out } = ctx
   const citations: Citation[] = []
   // The engine records usage in the meter as it goes, also when the stream
   // fails part-way, so run() still reports those tokens.
-  await ctx.engine.ask(requestOf(args), {
+  const run = {
     meter: ctx.meter,
-    onEvent: (event) => {
+    onEvent: (event: AnswerEvent) => {
       if (event.type === 'trace') {
         if (args.verbose) out.write(`${formatTrace(event.trace)}\n\n`)
       } else if (event.type === 'text') {
@@ -350,6 +353,23 @@ export async function askCommand(
         if (event.stopReason === 'refusal') out.write('\n\n(Claude declined to answer.)')
         out.write(`\n\n${formatCitations(citations)}\n`)
       }
+    },
+  }
+  if (args.agentic !== true) {
+    await ctx.engine.ask(requestOf(args), run)
+    return
+  }
+  // Agentic mode (ADR-0019): each search of Claude's own is printed as it happens.
+  await ctx.engine.askAgentic(requestOf(args), {
+    ...run,
+    onSearch: (search, trace) => {
+      const filter = search.docTypes.length === 0 ? '' : ` in ${search.docTypes.join(', ')}`
+      const shown =
+        search.alreadyShown === 0 ? '' : `, ${String(search.alreadyShown)} already shown`
+      out.write(
+        `[searched${filter}: "${search.query}", ${String(search.chunkIds.length)} new${shown}]\n`,
+      )
+      if (args.verbose) out.write(`${formatTrace(trace)}\n\n`)
     },
   })
 }

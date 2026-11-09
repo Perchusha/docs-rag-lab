@@ -587,3 +587,88 @@ describe('anchorCandidates', () => {
     expect(found.map(({ row }) => row)).toEqual([2])
   })
 })
+
+describe('row 6 metrics', () => {
+  const step = (write: number, read: number, stopReason = 'end_turn') => ({
+    stopReason,
+    inputTokens: 5,
+    cacheWriteTokens: write,
+    cacheReadTokens: read,
+    outputTokens: 10,
+  })
+
+  it('counts searches, steps, cache writes and reads, lapses, and what the searches reached', () => {
+    const result = rowResult(
+      6,
+      1,
+      options({
+        primaryChunks: (id) => new Set(id === ID(1) ? ['p1'] : ['p2']),
+        answers: [
+          // Answers from its first search, which held the anchor.
+          answer(1, 6, {
+            context: ['p1', 'x'],
+            steps: [step(1000, 0)],
+            searches: [],
+            costUsd: 0.01,
+            uncachedCostUsd: 0.008,
+          }),
+          // Its own search brings the anchor, and its second step reads nothing: a lapse.
+          answer(2, 6, {
+            context: ['x', 'p2'],
+            steps: [step(1000, 0, 'tool_use'), step(900, 0)],
+            searches: [{ query: 'q', docTypes: [], chunkIds: ['p2'], alreadyShown: 0 }],
+            costUsd: 0.02,
+            uncachedCostUsd: 0.025,
+          }),
+          // A question the docs do not answer, whose first step read another answer's entry.
+          answer(11, 6, { context: ['x'], steps: [step(0, 1000)], searches: [], costUsd: 0.001 }),
+        ],
+      }),
+    )
+
+    expect(result.agent).toEqual({
+      answers: 3,
+      searchedAgain: 1,
+      searches: 1,
+      steps: 4,
+      inputTokens: 20,
+      cacheWriteTokens: 2900,
+      cacheReadTokens: 1000,
+      outputTokens: 40,
+      costUsd: 0.031,
+      uncachedCostUsd: 0.033,
+      lapses: 1,
+      firstStepReads: 1,
+      primaryInFirstSearch: 1,
+      primaryReached: 2,
+      answerable: 2,
+      questions: [
+        {
+          questionId: ID(1),
+          steps: 1,
+          searches: 0,
+          primaryInFirstSearch: true,
+          primaryReached: true,
+        },
+        {
+          questionId: ID(2),
+          steps: 2,
+          searches: 1,
+          primaryInFirstSearch: false,
+          primaryReached: true,
+        },
+        {
+          questionId: ID(11),
+          steps: 1,
+          searches: 0,
+          primaryInFirstSearch: null,
+          primaryReached: null,
+        },
+      ],
+    })
+  })
+
+  it('leaves the other rows as they were', () => {
+    expect(rowResult(3, 1, options({ answers: [answer(1, 3)] }))).not.toHaveProperty('agent')
+  })
+})
