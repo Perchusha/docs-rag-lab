@@ -358,6 +358,27 @@
   color: var(--color-text);
 }
 
+/* The section of the docs an answer was checked against, and the block its quote is in. */
+.passage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.quoted {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline-start: var(--space-3);
+  border-inline-start: var(--space-1) solid var(--color-border-strong);
+}
+
+.quotedLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .draft {
   white-space: pre-wrap;
   color: var(--color-text);

@@ -3,8 +3,9 @@ import { chunkDocument, type Chunk, type ParsedDoc, type Section } from '@docs-r
 import { describe, expect, it } from 'vitest'
 
 import type { BankChunk } from './documents.ts'
-import { quoteCitation, sectionCitation, withQuoteCitations } from './sections.ts'
+import { quoteCitation, quotePassage, sectionCitation, withQuoteCitations } from './sections.ts'
 import type { BankRow, QuestionRow } from './store.ts'
+import { testChunk } from './test-chunks.ts'
 
 const TEXT = {
   a: 'Alpha holds that the first rule applies to every value it is given here.',
@@ -134,6 +135,47 @@ describe('sectionCitation (ADR-0018)', () => {
       url: 'https://docs.example.com/page#b',
       sectionPath: ['B'],
     })
+  })
+})
+
+describe('quotePassage (ADR-0018)', () => {
+  it('gives the section the quote is in, without its heading or the sections around it', () => {
+    expect(quotePassage(chunkWith(TEXT.b), TEXT.b)).toEqual({
+      blocks: [{ text: TEXT.b, quote: true }],
+    })
+    expect(quotePassage(chunkWith(TEXT.a), TEXT.a)).toEqual({
+      blocks: [{ text: TEXT.a, quote: true }],
+    })
+    // Above the chunk's first heading, up to it.
+    expect(quotePassage(chunkWith(TEXT.y), TEXT.y)).toEqual({
+      blocks: [{ text: TEXT.y, quote: true }],
+    })
+    expect(quotePassage(chunkWith(TEXT.x1), TEXT.x1)).toEqual({
+      blocks: [{ text: TEXT.x1, quote: true }],
+    })
+  })
+
+  it('marks the blocks the quote is in, and keeps the others of its section', () => {
+    const code = '```js\nconst n = 1\n```'
+    const chunk = testChunk('m', [
+      'The first paragraph says what the section is about.',
+      'The second paragraph holds the words the question quotes.',
+      code,
+    ])
+
+    expect(quotePassage(chunk, 'the words the question quotes')).toEqual({
+      blocks: [
+        { text: 'The first paragraph says what the section is about.', quote: false },
+        { text: 'The second paragraph holds the words the question quotes.', quote: true },
+        { text: code, quote: false },
+      ],
+    })
+  })
+
+  it('gives none for a quote the chunk does not hold', () => {
+    expect(
+      quotePassage(chunkWith(TEXT.b), 'Words that no chunk of the page holds.'),
+    ).toBeUndefined()
   })
 })
 

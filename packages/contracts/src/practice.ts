@@ -45,12 +45,29 @@ export interface PracticeOverview {
   summary: PracticeSummary
 }
 
+/** A block of the docs, as markdown, and whether the question's quote is in it. */
+export interface PassageBlock {
+  text: string
+  quote: boolean
+}
+
+/**
+ * What a generated question's answer was checked against, as its card shows it (ADR-0018): the
+ * section of its chunk that the quote is in, block by block, without the section's heading, which
+ * the card's link names.
+ */
+export interface QuestionPassage {
+  blocks: PassageBlock[]
+}
+
 /** A card to practise: a question, why it was picked, and its topic's title. */
 export interface PracticeCard {
   question: BankQuestion
   /** Never rated, or rated and due again now. */
   state: 'new' | 'due'
   topicTitle: string
+  /** For a generated question whose quote is found in its chunk. */
+  passage?: QuestionPassage
 }
 
 export interface PracticeDeck {

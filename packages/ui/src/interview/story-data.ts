@@ -17,7 +17,7 @@ import type {
   TopicProgress,
 } from '@docs-rag-lab/contracts'
 
-import { interviewQuestions } from '../fixtures.ts'
+import { interviewPassageCards, interviewQuestions } from '../fixtures.ts'
 import type { InterviewTransport } from '../lib/interview-transport.ts'
 
 export const SOURCES = [
@@ -142,12 +142,21 @@ const card = (question: PracticeCard['question'], topicTitle: string): PracticeC
   topicTitle,
 })
 
+/** A generated question with the passage the app shows for it. */
+function passageCard(index: number, topicTitle: string): PracticeCard {
+  const found = interviewPassageCards[index]
+  if (found === undefined) throw new Error(`no passage card at ${String(index)}`)
+  return { ...card(found.question, topicTitle), passage: found.passage }
+}
+
 export const CARDS = {
   compilerError: card(interviewQuestions.compilerError, 'The Basics'),
   withSetup: card(interviewQuestions.withSetup, 'Classes'),
   compilerType: card(interviewQuestions.compilerType, 'Narrowing'),
   theory: card(interviewQuestions.theory, 'Narrowing'),
   pitfall: card(interviewQuestions.pitfall, 'Hooks'),
+  strictNullChecks: passageCard(0, 'The Basics'),
+  pureComponent: passageCard(1, 'PureComponent'),
 }
 
 const asked = (question: BankQuestion, topicTitle: string): MockQuestion => ({

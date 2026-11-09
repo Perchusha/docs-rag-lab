@@ -209,6 +209,15 @@ describe('pickCards (Quick 10 and a topic)', () => {
     expect(ids(new Date('2026-11-08T23:00:00.000Z'))).toEqual(ids(NOW))
     expect(ids(new Date('2026-11-09T12:00:00.000Z'))).not.toEqual(ids(NOW))
   })
+
+  it('gives a card the passage its quote is in, and keeps it past the flags', () => {
+    const passage = { blocks: [{ text: 'The docs say so.', quote: true }] }
+    const withPassage = withoutFlagged({ ...bank, passages: new Map([['t1', passage]]) }, ['t2'])
+    const picked = pickCards(withPassage, [], { sources: ['typescript'], count: 10, now: NOW })
+
+    expect(picked.find(({ question }) => question.id === 't1')?.passage).toEqual(passage)
+    expect(picked.filter((card) => card.passage !== undefined)).toHaveLength(1)
+  })
 })
 
 describe('withoutFlagged (ADR-0018)', () => {

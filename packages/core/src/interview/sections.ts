@@ -1,8 +1,8 @@
 // The section of a chunk that a quote or an example is in (ADR-0018). A chunk can hold several
 // sections: the chunker writes each nested heading as a markdown heading line at the start of a
 // block's span, and records the fragments of every section it contains, in order. A card links to
-// the section its quote is in, not the one its chunk starts in.
-import type { QuestionCitation } from '@docs-rag-lab/contracts'
+// the section its quote is in, not the one its chunk starts in, and shows that section.
+import type { QuestionCitation, QuestionPassage } from '@docs-rag-lab/contracts'
 
 import { citationUrl, type BankChunk, type BankDocument } from './documents.ts'
 import type { BankRow } from './store.ts'
@@ -74,6 +74,31 @@ export function sectionCitation(
     sectionPath = [...sectionPath.slice(0, Math.max(0, heading.level - 2)), heading.title]
   }
   return { url: citationUrl(document, { anchor }), sectionPath }
+}
+
+/**
+ * What a generated question's card shows of the docs: the section of its chunk the quote is in,
+ * from past its heading to the next heading, one block per span, with the blocks the quote is in
+ * marked. The checker read the whole chunk, but this is the part the card's link opens. Undefined
+ * when the quote is not found.
+ */
+export function quotePassage(
+  chunk: Pick<BankChunk, 'text' | 'spans'>,
+  quote: string,
+): QuestionPassage | undefined {
+  const at = quoteAt(quote, chunk.text)
+  if (at === undefined) return undefined
+  const headings = headingsOf(chunk)
+  const index = headings.findLastIndex((heading) => heading.start <= at.start)
+  const start = headings[index]?.end ?? 0
+  const end = headings[index + 1]?.start ?? chunk.text.length
+  const blocks = chunk.spans.flatMap(([spanStart, spanEnd]) => {
+    const from = Math.max(spanStart, start)
+    const to = Math.min(spanEnd, end)
+    const text = from < to ? chunk.text.slice(from, to).trim() : ''
+    return text === '' ? [] : [{ text, quote: from < at.end && at.start < to }]
+  })
+  return blocks.length === 0 ? undefined : { blocks }
 }
 
 /** The section a generated question's quote is in, or the chunk's own when the quote is not found. */

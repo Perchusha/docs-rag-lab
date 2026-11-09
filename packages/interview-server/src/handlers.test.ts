@@ -39,6 +39,7 @@ const bank: LoadedBank = {
     ...Array.from({ length: 12 }, (_, i) => question('typescript', `t${String(i)}`, 'narrowing')),
     question('react', 'r1', 'hooks'),
   ],
+  passages: new Map([['r1', { blocks: [{ text: 'The docs say so.', quote: true }] }]]),
 }
 
 function backend(): InterviewBackend {
@@ -122,6 +123,8 @@ describe('handleDeck', () => {
 
     expect(deck.cards.map(({ question: q }) => q.id)).toEqual(['r1'])
     expect(deck.cards[0]?.topicTitle).toBe('Hooks')
+    // The section of the docs its quote is in, for the card to show.
+    expect(deck.cards[0]?.passage).toEqual({ blocks: [{ text: 'The docs say so.', quote: true }] })
   })
 
   it('refuses a bad topic or count', () => {

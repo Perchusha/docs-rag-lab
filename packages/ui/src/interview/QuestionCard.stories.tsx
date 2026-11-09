@@ -86,6 +86,49 @@ export const TheoryAnswered: Story = {
   },
 }
 
+/**
+ * The card the owner found wanting (ADR-0018): its link opens the section its quote is in, and the
+ * card shows that section, which backs the whole answer, with the quote marked.
+ */
+export const QuoteSectionShown: Story = {
+  args: { card: CARDS.strictNullChecks },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    const passage = within(canvas.getByRole('region', { name: 'From the docs' }))
+    await expect(passage.getByText('The quote')).toBeVisible()
+    await expect(passage.getByText(/spares/)).toBeVisible()
+    // Its links lead to the docs, not into the app.
+    await expect(passage.getByRole('link', { name: /strictNullChecks/ })).toHaveAttribute(
+      'href',
+      'https://www.typescriptlang.org/tsconfig#strictNullChecks',
+    )
+    await expect(
+      canvas.getByRole('link', { name: 'The Basics > strictNullChecks' }),
+    ).toHaveAttribute(
+      'href',
+      'https://www.typescriptlang.org/docs/handbook/2/basic-types.html#strictnullchecks',
+    )
+  },
+}
+
+/** A section of several blocks: only the one the quote is in is marked. */
+export const QuoteInTheMiddle: Story = {
+  args: { card: CARDS.pureComponent, sourceTitle: 'React' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    const passage = within(canvas.getByRole('region', { name: 'From the docs' }))
+    await expect(passage.getAllByText('The quote')).toHaveLength(1)
+    await expect(passage.getByText(/We recommend defining components as functions/)).toBeVisible()
+    await expect(passage.getByText(/class Greeting extends PureComponent/)).toBeVisible()
+    await expect(passage.getByRole('link', { name: /See how to migrate/ })).toHaveAttribute(
+      'href',
+      'https://react.dev/reference/react/PureComponent#alternatives',
+    )
+  },
+}
+
 /** A Pitfall question shows a block of the docs' code, never one a model wrote. */
 export const PitfallAnswered: Story = {
   args: { card: CARDS.pitfall, sourceTitle: 'React' },

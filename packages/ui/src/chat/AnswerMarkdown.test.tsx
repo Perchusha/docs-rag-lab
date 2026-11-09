@@ -80,6 +80,20 @@ describe('AnswerMarkdown', () => {
     expect(html('## A heading')).toContain('<h2>A heading</h2>')
   })
 
+  it('resolves the relative links of an excerpt against its page, and still drops unsafe ones', () => {
+    const out = renderToStaticMarkup(
+      <AnswerMarkdown
+        markdown="[a](/tsconfig#strict) [b](#alternatives) [c](javascript:alert(1))"
+        quoted
+        baseUrl="https://react.dev/reference/react/PureComponent"
+      />,
+    )
+    expect(out).toContain('href="https://react.dev/tsconfig#strict"')
+    expect(out).toContain('href="https://react.dev/reference/react/PureComponent#alternatives"')
+    expect(out).not.toContain('javascript:')
+    expect(out.match(/<a /g)).toHaveLength(2)
+  })
+
   describe('GFM', () => {
     const table = '| | `any` | `unknown` |\n|---|---|---|\n| Safety | Unsafe. | Type-safe. |'
 

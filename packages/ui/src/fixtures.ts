@@ -12,6 +12,7 @@ import {
   type DashboardRunComparison,
   type DashboardRunEntry,
   type DocumentChunks,
+  type QuestionPassage,
   type RetrievalTrace,
   type UsageSummary,
 } from '@docs-rag-lab/contracts'
@@ -31,6 +32,7 @@ import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
 import varianceNdjson from './__fixtures__/answer-variance.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
 import interviewCompiler from './__fixtures__/interview-compiler-questions.json'
+import interviewPassages from './__fixtures__/interview-passage-cards.json'
 import interviewWritten from './__fixtures__/interview-written-questions.json'
 import satisfiesRerank from './__fixtures__/trace-satisfies-rerank.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
@@ -142,3 +144,14 @@ export const interviewQuestions = {
   theory: nth(interviewWritten, 0),
   pitfall: nth(interviewWritten, 1),
 }
+
+/**
+ * Two generated questions from the bank, with the passage the app cuts for each from its index
+ * (ADR-0018): the section of its chunk the quote is in. On strictNullChecks, the card the owner
+ * found linked to the wrong section and backed by half a quote; on PureComponent, a passage of
+ * three blocks with the quote in the middle one, and links relative to its page.
+ */
+export const interviewPassageCards = interviewPassages as unknown as {
+  question: BankQuestion
+  passage: QuestionPassage
+}[]

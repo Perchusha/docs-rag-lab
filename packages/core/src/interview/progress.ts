@@ -8,6 +8,7 @@ import type {
   BankTopic,
   PracticeCard,
   PracticeOverview,
+  QuestionPassage,
   Rating,
   TopicGroup,
   TopicProgress,
@@ -25,6 +26,8 @@ import {
 export interface LoadedBank {
   topics: BankTopic[]
   questions: BankQuestion[]
+  /** What each generated question's card shows of the docs, by question ID, where its quote is found. */
+  passages?: ReadonlyMap<string, QuestionPassage>
 }
 
 /** Where the interview-prep app keeps its progress and flags (SPEC section 4), under the data folder. */
@@ -38,7 +41,7 @@ export const interviewStatePath = (root: string, dataDir: string): string =>
 export function withoutFlagged(bank: LoadedBank, flagged: Iterable<string>): LoadedBank {
   const hidden = new Set(flagged)
   if (hidden.size === 0) return bank
-  return { topics: bank.topics, questions: bank.questions.filter(({ id }) => !hidden.has(id)) }
+  return { ...bank, questions: bank.questions.filter(({ id }) => !hidden.has(id)) }
 }
 
 /**
@@ -177,11 +180,15 @@ export function pickCards(
       sources.includes(question.source) &&
       (topic === undefined || (question.source === topic.source && question.topicId === topic.id)),
   )
-  const card = (question: BankQuestion, state: PracticeCard['state']): PracticeCard => ({
-    question,
-    state,
-    topicTitle: titles.get(topicKey(question.source, question.topicId)) ?? question.topicId,
-  })
+  const card = (question: BankQuestion, state: PracticeCard['state']): PracticeCard => {
+    const passage = bank.passages?.get(question.id)
+    return {
+      question,
+      state,
+      topicTitle: titles.get(topicKey(question.source, question.topicId)) ?? question.topicId,
+      ...(passage === undefined ? {} : { passage }),
+    }
+  }
 
   const due = candidates
     .flatMap((question) => {

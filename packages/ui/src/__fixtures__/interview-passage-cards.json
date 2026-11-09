@@ -1,0 +1,66 @@
+[
+  {
+    "question": {
+      "id": "26082709d02428f9",
+      "source": "typescript",
+      "kind": "theory",
+      "topicId": "handbook-v2/Basics",
+      "prompt": "By default, how does TypeScript treat `null` and `undefined`, and what problem does the strictNullChecks flag address?",
+      "answer": "By default, values like null and undefined are assignable to any other type, which makes some code easier to write but leads to many bugs when those values are not handled. The strictNullChecks flag makes handling null and undefined explicit, so the developer no longer has to worry about whether they forgot to handle them.",
+      "quote": "By default, values like `null` and `undefined` are assignable to any other type.",
+      "citation": {
+        "url": "https://www.typescriptlang.org/docs/handbook/2/basic-types.html#strictnullchecks",
+        "title": "The Basics",
+        "sectionPath": [
+          "strictNullChecks"
+        ],
+        "docPath": "packages/documentation/copy/en/handbook-v2/Basics.md",
+        "chunkId": "b1b23da5a29590a31d4fe833"
+      },
+      "verifiedBy": "checker"
+    },
+    "passage": {
+      "blocks": [
+        {
+          "text": "By default, values like `null` and `undefined` are assignable to any other type.\nThis can make writing some code easier, but forgetting to handle `null` and `undefined` is the cause of countless bugs in the world - some consider it a [billion dollar mistake](https://www.youtube.com/watch?v=ybrQvs4x0Ps)!\nThe [`strictNullChecks`](/tsconfig#strictNullChecks) flag makes handling `null` and `undefined` more explicit, and _spares_ us from worrying about whether we _forgot_ to handle `null` and `undefined`.",
+          "quote": true
+        }
+      ]
+    }
+  },
+  {
+    "question": {
+      "id": "d2234fb1c63d3faa",
+      "source": "react",
+      "kind": "theory",
+      "topicId": "reference/react",
+      "prompt": "How does PureComponent differ from Component in terms of when it re-renders?",
+      "answer": "PureComponent is similar to Component but skips re-renders when props and state are the same as before. Extending PureComponent is equivalent to defining a custom shouldComponentUpdate method that shallowly compares props and state.",
+      "quote": "`PureComponent` is similar to [`Component`](/reference/react/Component) but it skips re-renders for same props and state.",
+      "citation": {
+        "url": "https://react.dev/reference/react/PureComponent",
+        "title": "PureComponent",
+        "sectionPath": [],
+        "docPath": "src/content/reference/react/PureComponent.md",
+        "chunkId": "32dfc55037a04cb1c550f28a"
+      },
+      "verifiedBy": "checker"
+    },
+    "passage": {
+      "blocks": [
+        {
+          "text": "[Pitfall]\n\nWe recommend defining components as functions instead of classes. [See how to migrate.](#alternatives)",
+          "quote": false
+        },
+        {
+          "text": "`PureComponent` is similar to [`Component`](/reference/react/Component) but it skips re-renders for same props and state. Class components are still supported by React, but we don't recommend using them in new code.",
+          "quote": true
+        },
+        {
+          "text": "```js\nclass Greeting extends PureComponent {\n  render() {\n    return <h1>Hello, {this.props.name}!</h1>;\n  }\n}\n```",
+          "quote": false
+        }
+      ]
+    }
+  }
+]

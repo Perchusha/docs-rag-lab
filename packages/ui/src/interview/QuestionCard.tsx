@@ -3,10 +3,12 @@ import {
   RATINGS,
   type BankQuestion,
   type PracticeCard,
+  type QuestionPassage,
   type Rating,
 } from '@docs-rag-lab/contracts'
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 
+import { AnswerMarkdown } from '../chat/AnswerMarkdown.tsx'
 import common from '../lib/common.module.css'
 import { cardAction, focusOf, KIND_LABELS, RATING_LABELS } from '../lib/interview.ts'
 import styles from './Interview.module.css'
@@ -29,7 +31,39 @@ export interface QuestionCardProps {
   busy?: boolean | undefined
 }
 
-function Answer({ question }: { question: BankQuestion }) {
+/**
+ * The section of the docs a generated answer was checked against, the one its link opens
+ * (ADR-0018): the block its quote is in is marked by a rule and a label, never by colour alone.
+ * Relative links lead to the docs.
+ */
+function Passage({ passage, pageUrl }: { passage: QuestionPassage; pageUrl: string }) {
+  const id = useId()
+  return (
+    <section className={styles.passage} aria-labelledby={`${id}-passage`}>
+      <h4 id={`${id}-passage`} className={styles.subheading}>
+        From the docs
+      </h4>
+      {passage.blocks.map((block, i) =>
+        block.quote ? (
+          <div key={i} className={styles.quoted}>
+            <p className={styles.quotedLabel}>The quote</p>
+            <AnswerMarkdown markdown={block.text} quoted baseUrl={pageUrl} />
+          </div>
+        ) : (
+          <AnswerMarkdown key={i} markdown={block.text} quoted baseUrl={pageUrl} />
+        ),
+      )}
+    </section>
+  )
+}
+
+function Answer({
+  question,
+  passage,
+}: {
+  question: BankQuestion
+  passage: QuestionPassage | undefined
+}) {
   const { compiler, citation } = question
   const section = citation.sectionPath.join(' > ')
   return (
@@ -56,12 +90,16 @@ function Answer({ question }: { question: BankQuestion }) {
           <p>
             <InlineText text={question.answer} />
           </p>
-          {question.quote !== undefined && (
-            <blockquote className={styles.quote}>
-              <p>
-                <InlineText text={question.quote} />
-              </p>
-            </blockquote>
+          {passage !== undefined ? (
+            <Passage passage={passage} pageUrl={citation.url} />
+          ) : (
+            question.quote !== undefined && (
+              <blockquote className={styles.quote}>
+                <p>
+                  <InlineText text={question.quote} />
+                </p>
+              </blockquote>
+            )
           )}
         </>
       )}
@@ -276,7 +314,7 @@ export function QuestionCard({
                 You wrote: <span className={styles.draft}>{draft.trim()}</span>
               </p>
             )}
-            <Answer question={question} />
+            <Answer question={question} passage={card.passage} />
           </section>
           <fieldset className={styles.ratings} disabled={busy === true}>
             <legend>How well did you know it?</legend>

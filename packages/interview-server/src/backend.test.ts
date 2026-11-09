@@ -23,7 +23,7 @@ describe('onceInterview (ADR-0018)', () => {
     const backend = factory()
     expect(factory()).toBe(backend)
     expect(builds).toBe(1)
-    expect(backend.bank()).toEqual({ topics: [], questions: [] })
+    expect(backend.bank()).toEqual({ topics: [], questions: [], passages: new Map() })
     expect(backend.state().reviewCount()).toBe(0)
     expect(existsSync(statePath(root))).toBe(true)
     expect(statePath(root).replaceAll('\\', '/')).toMatch(/\/data\/apps\/interview-prep\.sqlite$/)

@@ -12,7 +12,7 @@
 // scroll inside their own focusable box, so the page never has to.
 import type { Citation } from '@docs-rag-lab/contracts'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import Markdown, { type Components, type Options } from 'react-markdown'
+import Markdown, { defaultUrlTransform, type Components, type Options } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { citationNumber } from '../lib/answer.ts'
@@ -30,6 +30,11 @@ export interface AnswerMarkdownProps {
    * they do not become headings of the page.
    */
   quoted?: boolean | undefined
+  /**
+   * For an excerpt of a page: its relative links resolve against the page, so that they lead to
+   * the docs and not into the app. Without it they show as text.
+   */
+  baseUrl?: string | undefined
 }
 
 const QUOTED_HEADING = ({ children }: { children?: ReactNode }) => (
@@ -41,6 +46,19 @@ const NO_CITATIONS: readonly Citation[] = []
 
 // Only ~~two tildes~~ strike through: version ranges like ~5.0 are common here.
 const REMARK_PLUGINS: Options['remarkPlugins'] = [[remarkGfm, { singleTilde: false }]]
+
+/** A link of an excerpt against its page, then sanitized as react-markdown does by default. */
+function resolveAgainst(baseUrl: string): (url: string) => string {
+  return (url) => {
+    let resolved = url
+    try {
+      resolved = new URL(url, baseUrl).href
+    } catch {
+      // Not a URL even against the page: left for the default to judge.
+    }
+    return defaultUrlTransform(resolved)
+  }
+}
 
 function isWebUrl(href: string | undefined): href is string {
   return href !== undefined && /^https?:\/\//i.test(href)
@@ -155,17 +173,22 @@ export function AnswerMarkdown({
   citations = NO_CITATIONS,
   onCitation,
   quoted = false,
+  baseUrl,
 }: AnswerMarkdownProps) {
   const context = useMemo(() => ({ citations, onCitation }), [citations, onCitation])
   // Parsing is the costly part, and the page renders on every delta of the newest
   // answer. Earlier answers keep their text, so they do not parse again.
   const content = useMemo(
     () => (
-      <Markdown remarkPlugins={REMARK_PLUGINS} components={quoted ? QUOTED_COMPONENTS : COMPONENTS}>
+      <Markdown
+        remarkPlugins={REMARK_PLUGINS}
+        components={quoted ? QUOTED_COMPONENTS : COMPONENTS}
+        {...(baseUrl === undefined ? {} : { urlTransform: resolveAgainst(baseUrl) })}
+      >
         {markdown}
       </Markdown>
     ),
-    [markdown, quoted],
+    [markdown, quoted, baseUrl],
   )
   return (
     <div className={styles.markdown}>
