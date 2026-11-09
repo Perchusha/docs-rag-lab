@@ -9,10 +9,14 @@ import {
   appendBankRows,
   bankPath,
   keptGeneratedRows,
+  ownerRejections,
   readBank,
+  rejectQuestion,
+  withRejection,
   writeBank,
   type BankHeader,
   type BankRow,
+  type QuestionRow,
 } from './store.ts'
 
 const EM_DASH = String.fromCodePoint(0x2014)
@@ -96,6 +100,46 @@ describe('the bank file (ADR-0018)', () => {
     ])
     expect(keptGeneratedRows(bank, { ...header, checker: 'sonnet:333' })).toEqual([])
     expect(keptGeneratedRows(undefined, header)).toEqual([])
+  })
+
+  it('rejects a shown question by the owner, keeping it in the file with the reason', () => {
+    const path = join(dir(), 'react.jsonl')
+    const bank = rejectQuestion({ header, rows }, 'q2', `  Says set once${EM_DASH}it is not.  `)
+    writeBank(path, bank.header, bank.rows)
+
+    const q2 = (list: readonly BankRow[]) =>
+      list.find((item): item is QuestionRow => item.row === 'question' && item.question.id === 'q2')
+    const read = q2(readBank(path)?.rows ?? [])
+    expect(read?.status).toBe('rejected-owner')
+    expect(read?.ownerReason).toBe('Says set once-it is not.')
+    expect(q2(rejectQuestion(bank, 'q2', 'Other reason.').rows)?.ownerReason).toBe('Other reason.')
+    // A run keeps the rejection of a generated question with the rest of its rows.
+    expect(keptGeneratedRows(bank, header)).toContainEqual(q2(bank.rows))
+  })
+
+  it('refuses a rejection with no reason, of no question, or of one never shown', () => {
+    const bank = { header, rows }
+
+    expect(() => rejectQuestion(bank, 'q2', '  ')).toThrow('a rejection needs a reason')
+    expect(() => rejectQuestion(bank, 'nope', 'Wrong.')).toThrow(
+      'the react bank has no question nope',
+    )
+    expect(() => rejectQuestion(bank, 'q1', 'Wrong.')).toThrow(
+      'question q1 is dropped-check, so the app never showed it',
+    )
+  })
+
+  it('puts a rejection back on a question made again from the same text, and only then', () => {
+    const rejected = ownerRejections(rejectQuestion({ header, rows }, 'c1', 'Wrong.'))
+    const compiler = rows[3] as QuestionRow
+
+    expect(withRejection(compiler, rejected)).toEqual({
+      ...compiler,
+      status: 'rejected-owner',
+      ownerReason: 'Wrong.',
+    })
+    expect(withRejection({ ...compiler, textHash: 'changed' }, rejected).status).toBe('shown')
+    expect(ownerRejections(undefined).size).toBe(0)
   })
 
   it('refuses a version it does not know', () => {

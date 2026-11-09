@@ -9,7 +9,9 @@ import {
   COMPILER_IDENTITY_PREFIX,
   createEmbeddingProvider,
   GENERATE_SYSTEM_PROMPT,
+  interviewStatePath,
   openIndexes,
+  openInterviewState,
   readBank,
   type EvalClient,
   type QuestionRow,
@@ -261,6 +263,30 @@ describe('drl questions (ADR-0018)', () => {
     expect(out).toContain('1 questions written')
   })
 
+  it('links each kept question to the section its quote is in, with no call', async () => {
+    await drl('questions', 'typescript', '--yes')
+    // As a bank written before links followed the quote has it.
+    writeFileSync(
+      bankFile(),
+      readFileSync(bankFile(), 'utf8').replaceAll(
+        '"url":"https://x.dev/a#two"',
+        '"url":"https://x.dev/a#old"',
+      ),
+    )
+    expect(questionsIn().some((row) => row.question.citation.url === 'https://x.dev/a#old')).toBe(
+      true,
+    )
+    claudeRequests = []
+
+    await drl('questions', 'typescript')
+    expect(claudeRequests).toEqual([])
+    expect(
+      questionsIn()
+        .filter((row) => row.question.kind === 'theory')
+        .map((row) => row.question.citation.url),
+    ).toEqual(['https://x.dev/a#one', 'https://x.dev/a#two'])
+  })
+
   it('writes the sheet of the sample, and scores labels only against that sample', async () => {
     await drl('questions', 'typescript', '--yes')
 
@@ -289,6 +315,94 @@ describe('drl questions (ADR-0018)', () => {
     const wrong = await drl('questions', 'score', labels)
     expect(wrong.code).toBe(1)
     expect(wrong.err).toContain('these labels are of sample aaaaaaaaaaaa')
+  })
+
+  it('rejects a shown question by the owner, and a rerun keeps the rejection', async () => {
+    await drl('questions', 'typescript', '--yes')
+    const [compiler, theory] = questionsIn()
+    if (compiler === undefined || theory === undefined) throw new Error('no questions')
+
+    // An unquoted reason is every word after the ID, not the first one.
+    const rejected = await drl(
+      'questions',
+      'reject',
+      theory.question.id,
+      'Says',
+      'more',
+      'than',
+      'its',
+      'quote.',
+    )
+    expect(rejected.code).toBe(0)
+    expect(rejected.out).toContain(`rejected ${theory.question.id} of typescript`)
+    expect(await drl('questions', 'reject', compiler.question.id, 'Wrong line.')).toMatchObject({
+      code: 0,
+    })
+    const statuses = () =>
+      questionsIn().map((row) => [row.question.kind, row.status, row.ownerReason])
+    const expected = [
+      ['compiler-error', 'rejected-owner', 'Wrong line.'],
+      ['theory', 'rejected-owner', 'Says more than its quote.'],
+      ['theory', 'shown', undefined],
+    ]
+    expect(statuses()).toEqual(expected)
+
+    // Compiler questions are made again on every run, and keep their rejection.
+    claudeRequests = []
+    await drl('questions', 'typescript', '--yes')
+    expect(claudeRequests).toEqual([])
+    expect(statuses()).toEqual(expected)
+  })
+
+  it('refuses a rejection with no reason, or of a question no bank has', async () => {
+    await drl('questions', 'typescript')
+    const [compiler] = questionsIn()
+
+    const noReason = await drl('questions', 'reject', compiler?.question.id ?? '')
+    expect(noReason.code).toBe(1)
+    expect(noReason.err).toContain(
+      `questions reject needs a reason, or a flag of ${compiler?.question.id ?? ''} in the app to take it from`,
+    )
+    const unknown = await drl('questions', 'reject', 'nope', 'Wrong.')
+    expect(unknown.code).toBe(1)
+    expect(unknown.err).toContain('no bank has a question nope')
+  })
+
+  it('lists the cards flagged in the app, and rejects one with the reason of its flag', async () => {
+    expect((await drl('questions', 'flagged')).out).toContain('no card is flagged as wrong')
+    await drl('questions', 'typescript', '--yes')
+    const [compiler, theory] = questionsIn()
+    if (compiler === undefined || theory === undefined) throw new Error('no questions')
+    const state = openInterviewState(interviewStatePath(root, settings.dataDir))
+    state.saveFlag({
+      questionId: theory.question.id,
+      reason: 'The code shows otherwise.',
+      flaggedAt: '2026-11-09T10:00:00.000Z',
+    })
+    state.saveFlag({ questionId: 'gone', reason: 'Old.', flaggedAt: '2026-11-09T11:00:00.000Z' })
+    state.close()
+
+    const listed = await drl('questions', 'flagged')
+    expect(listed.code).toBe(0)
+    expect(listed.out).toContain('2 cards flagged as wrong')
+    expect(listed.out).toContain(`${theory.question.id}, flagged 2026-11-09, typescript theory`)
+    expect(listed.out).toContain('Your reason: The code shows otherwise.')
+    expect(listed.out).toContain(`pnpm drl questions reject ${theory.question.id}`)
+    expect(listed.out).toContain('In the bank: no longer there')
+
+    expect((await drl('questions', 'reject', theory.question.id)).code).toBe(0)
+    expect(questionsIn().find((row) => row.question.id === theory.question.id)).toMatchObject({
+      status: 'rejected-owner',
+      ownerReason: 'The code shows otherwise.',
+    })
+    expect((await drl('questions', 'flagged')).out).toContain('In the bank: rejected already')
+
+    // A flag made by mistake is taken back, once.
+    expect((await drl('questions', 'unflag', 'gone')).out).toContain('unflagged gone')
+    const again = await drl('questions', 'unflag', 'gone')
+    expect(again.code).toBe(1)
+    expect(again.err).toContain('gone is not flagged')
+    expect((await drl('questions', 'flagged')).out).toContain('1 card flagged as wrong')
   })
 
   it('refuses --pilot with commands other than sync --contextual and questions', async () => {

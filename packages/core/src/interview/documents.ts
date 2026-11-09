@@ -17,6 +17,8 @@ export interface BankChunk {
   anchor: string
   /** The headings of the section the chunk starts in. */
   sectionPath: string[]
+  /** The fragments of every section the chunk contains, in order, as the chunker records them. */
+  anchors: string[]
   /** Character ranges of the rendered blocks in `text`. */
   spans: [number, number][]
   /** What the compiler said of the chunk's examples, in the compiled index only. */
@@ -75,6 +77,7 @@ export function bankDocuments(source: Source, index: BankIndex): BankDocument[] 
         textHash: hashes.get(chunk.chunkId) ?? '',
         anchor: chunk.anchor,
         sectionPath: stringsOf(chunk.metadata.sectionPath),
+        anchors: stringsOf(chunk.metadata.anchors),
         spans: spansOf(chunk.metadata.spans),
         compiler: compilerOf(chunk.metadata.compiler),
       })),

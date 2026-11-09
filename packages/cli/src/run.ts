@@ -56,7 +56,14 @@ import {
 import { evalCompareCommand, evalRunCommand, evalVerifyCommand } from './eval-commands.ts'
 import { evalDraftCheckCommand, evalWalkCommand, WALK_TOP } from './eval-draft.ts'
 import { evalRerankCheckCommand } from './eval-rerank.ts'
-import { questionsCommand, questionsSampleCommand, questionsScoreCommand } from './questions.ts'
+import {
+  questionsCommand,
+  questionsFlaggedCommand,
+  questionsRejectCommand,
+  questionsSampleCommand,
+  questionsScoreCommand,
+  questionsUnflagCommand,
+} from './questions.ts'
 import { syncCompiledCommand } from './sync-compiled.ts'
 import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
 import { formatDuration } from './format.ts'
@@ -85,6 +92,13 @@ Commands:
       [--pilot <n>]           Only n chunks, and print their questions with the forecast
   questions sample            The sheet of M8's test: 20 generated questions, with no verdict
   questions score <labels>    How many of those questions pass the owner's labels
+  questions flagged           The cards flagged as wrong in the interview-prep app, with the
+                              reason and what the bank says of each
+  questions unflag <id>       Take a flag back: the app shows the card again
+  questions reject <id> [reason]
+                              The owner found a shown question wrong: it stays in its bank
+                              with the reason, and the app no longer shows it. With no
+                              reason, the one given when it was flagged in the app
   ask "<question>"            Answer from the docs with cited sources
       [--verbose]             Print the retrieval trace before the answer
   search "<question>"         Retrieval only, no answer: print the retrieval trace
@@ -648,7 +662,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const [first, second] = rest
       if (first === undefined) {
         throw new CliError(
-          'questions needs a source id, sample or score, for example: drl questions typescript',
+          'questions needs a source id, sample, score, flagged, unflag or reject, for example: drl questions typescript',
         )
       }
       if (first === 'sample') {
@@ -656,6 +670,18 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       } else if (first === 'score') {
         if (second === undefined) throw new CliError('questions score needs a labels file')
         questionsScoreCommand(ctx, { labels: second })
+      } else if (first === 'flagged') {
+        questionsFlaggedCommand(ctx)
+      } else if (first === 'unflag') {
+        if (second === undefined) throw new CliError('questions unflag needs a question id')
+        questionsUnflagCommand(ctx, { questionId: second })
+      } else if (first === 'reject') {
+        if (second === undefined) throw new CliError('questions reject needs a question id')
+        const reason = rest.slice(2).join(' ').trim()
+        questionsRejectCommand(ctx, {
+          questionId: second,
+          reason: reason === '' ? undefined : reason,
+        })
       } else {
         await questionsCommand(ctx, {
           source: first,

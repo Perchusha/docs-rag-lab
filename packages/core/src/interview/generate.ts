@@ -12,7 +12,8 @@ import { forEachLimit, promptHash } from '../eval/answers.ts'
 import type { AnswerClient } from '../generate.ts'
 import type { RunGuard } from '../run-guard.ts'
 import type { ModelUsage, UsageMeter } from '../usage.ts'
-import { citationUrl, type BankChunk, type BankDocument } from './documents.ts'
+import type { BankChunk, BankDocument } from './documents.ts'
+import { quoteCitation } from './sections.ts'
 import type { BankRow, QuestionRow } from './store.ts'
 import { calloutsOf, quoteFound, withoutEmDash } from './text.ts'
 
@@ -226,6 +227,7 @@ export function bankIdentity(
     textHash: '',
     anchor: '',
     sectionPath: [],
+    anchors: [],
     spans: [],
     compiler: [],
   }
@@ -566,6 +568,8 @@ function questionOf(
   index: number,
   generator: string,
 ): BankQuestion {
+  // The section the quote is in, which need not be the one the chunk starts in.
+  const { url, sectionPath } = quoteCitation(document, chunk, draft.quote)
   return {
     id: sha256Hex([chunk.id, chunk.textHash, generator, String(index)].join('\n')).slice(0, 16),
     source: source.id,
@@ -576,9 +580,9 @@ function questionOf(
     answer: draft.answer,
     quote: draft.quote,
     citation: {
-      url: citationUrl(document, chunk),
+      url,
       title: document.title,
-      sectionPath: chunk.sectionPath,
+      sectionPath,
       docPath: document.path,
       chunkId: chunk.id,
     },

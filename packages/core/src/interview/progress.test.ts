@@ -2,7 +2,14 @@ import type { BankQuestion, BankTopic } from '@docs-rag-lab/contracts'
 import type { StoredCard } from '@docs-rag-lab/db'
 import { describe, expect, it } from 'vitest'
 
-import { pickCards, practiceOverview, scheduleReview, type LoadedBank } from './progress.ts'
+import {
+  interviewStatePath,
+  pickCards,
+  practiceOverview,
+  scheduleReview,
+  withoutFlagged,
+  type LoadedBank,
+} from './progress.ts'
 
 const NOW = new Date('2026-11-08T12:00:00.000Z')
 
@@ -201,5 +208,36 @@ describe('pickCards (Quick 10 and a topic)', () => {
 
     expect(ids(new Date('2026-11-08T23:00:00.000Z'))).toEqual(ids(NOW))
     expect(ids(new Date('2026-11-09T12:00:00.000Z'))).not.toEqual(ids(NOW))
+  })
+
+  it('gives a card the passage its quote is in, and keeps it past the flags', () => {
+    const passage = { blocks: [{ text: 'The docs say so.', quote: true }] }
+    const withPassage = withoutFlagged({ ...bank, passages: new Map([['t1', passage]]) }, ['t2'])
+    const picked = pickCards(withPassage, [], { sources: ['typescript'], count: 10, now: NOW })
+
+    expect(picked.find(({ question }) => question.id === 't1')?.passage).toEqual(passage)
+    expect(picked.filter((card) => card.passage !== undefined)).toHaveLength(1)
+  })
+})
+
+describe('withoutFlagged (ADR-0018)', () => {
+  it('hides the cards the owner flagged as wrong from practice and from the counts', () => {
+    const visible = withoutFlagged(bank, ['t1', 'r2'])
+
+    expect(visible.questions.map(({ id }) => id)).toEqual(['t2', 't3', 't4', 'r1'])
+    expect(visible.topics).toBe(bank.topics)
+    expect(
+      pickCards(visible, [], { sources: ['typescript', 'react'], count: 10, now: NOW }).map(
+        ({ question }) => question.id,
+      ),
+    ).not.toContain('t1')
+    expect(practiceOverview(visible, [], 0, ['typescript'], NOW).summary.questions).toBe(3)
+    expect(withoutFlagged(bank, [])).toBe(bank)
+  })
+
+  it('names where the app keeps its state, under the data folder', () => {
+    expect(interviewStatePath('/repo', 'data').replaceAll('\\', '/')).toBe(
+      '/repo/data/apps/interview-prep.sqlite',
+    )
   })
 })

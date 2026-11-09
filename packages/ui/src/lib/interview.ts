@@ -1,6 +1,7 @@
 // The interview-prep app's pure logic (ADR-0018): which key does what on a card, what the topic
-// search keeps, and the words for progress. Components stay thin.
+// search keeps, and the words for progress and for the mock interview. Components stay thin.
 import type {
+  MockSummary,
   PracticeSummary,
   QuestionKind,
   Rating,
@@ -121,4 +122,21 @@ export function dueText(due: string, now: Date): string {
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `in ${plural(hours, 'hour')}`
   return `in ${plural(Math.round(hours / 24), 'day')}`
+}
+
+/** A mock interview's score in words, never by colour alone. */
+export const scoreText = (score: number, max: number): string =>
+  `${String(score)} of ${String(max)}`
+
+/** What grading cost, at list prices, in words. */
+export function costText(usd: number): string {
+  if (usd === 0) return 'nothing'
+  return usd < 0.005 ? 'less than a cent' : `about $${usd.toFixed(2)}`
+}
+
+/** The first line of a mock interview's summary. */
+export function mockSummaryText(summary: MockSummary): string {
+  const answered = summary.questions.length
+  if (answered === 0) return 'No answer was graded.'
+  return `${scoreText(summary.score, summary.max)} over ${plural(answered, 'question')}. Grading cost ${costText(summary.costUsd)} at list prices.`
 }

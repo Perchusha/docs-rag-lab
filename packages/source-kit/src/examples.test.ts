@@ -55,10 +55,16 @@ describe('codeBlocks', () => {
 
 describe('compiledExamples (ADR-0018)', () => {
   it('pairs each output that has errors or queries with the block it follows', () => {
-    expect(compiledExamples(text, compiler)).toEqual([
+    const examples = compiledExamples(text, compiler)
+
+    expect(examples.map(({ lang, code, output }) => ({ lang, code, output }))).toEqual([
       { lang: 'ts', code: 'declare function f(n: number): void\nf("x");', output: withError },
       { lang: 'ts', code: 'let n = 1;\n//  ^?', output: withQuery },
     ])
+    // Each starts at its own opening fence.
+    expect(
+      examples.map(({ start, code }) => text.startsWith(`\`\`\`ts\n${code}\n`, start)),
+    ).toEqual([true, true])
   })
 
   it('pairs nothing when the text and the metadata disagree', () => {

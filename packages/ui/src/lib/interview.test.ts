@@ -1,11 +1,14 @@
-import type { TopicGroup, TopicProgress } from '@docs-rag-lab/contracts'
+import type { MockSummary, TopicGroup, TopicProgress } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
 import {
   cardAction,
+  costText,
   dueText,
   filterGroups,
   isFirstRun,
+  mockSummaryText,
+  scoreText,
   summaryText,
   topicProgressText,
   type CardKey,
@@ -113,5 +116,30 @@ describe('progress in words', () => {
     expect(dueText('2026-11-08T12:10:00.000Z', now)).toBe('in 10 minutes')
     expect(dueText('2026-11-08T15:00:00.000Z', now)).toBe('in 3 hours')
     expect(dueText('2026-11-11T12:00:00.000Z', now)).toBe('in 3 days')
+  })
+})
+
+describe('the words of the mock interview', () => {
+  const summary: MockSummary = {
+    sessionId: 's1',
+    questions: [
+      { questionId: 'q1', source: 'react', topicTitle: 'Hooks', prompt: 'Q?', score: 3, max: 4 },
+      { questionId: 'q2', source: 'react', topicTitle: 'State', prompt: 'Q?', score: 2, max: 2 },
+    ],
+    score: 5,
+    max: 6,
+    weakTopics: [],
+    read: [],
+    costUsd: 0.0312,
+  }
+
+  it('says the score and what grading cost, in words', () => {
+    expect(scoreText(1, 2)).toBe('1 of 2')
+    expect(mockSummaryText(summary)).toBe(
+      '5 of 6 over 2 questions. Grading cost about $0.03 at list prices.',
+    )
+    expect(costText(0)).toBe('nothing')
+    expect(costText(0.004)).toBe('less than a cent')
+    expect(mockSummaryText({ ...summary, questions: [] })).toBe('No answer was graded.')
   })
 })

@@ -20,6 +20,8 @@ export interface CompiledExample {
   lang: string
   code: string
   output: CompilerOutput
+  /** Offset of the opening fence in the chunk's text, for the section the example is in. */
+  start: number
 }
 
 const OPENING = /^(`{3,})([^`]*)$/
@@ -66,6 +68,6 @@ export function compiledExamples(
   return blocks.flatMap((block, i) => {
     const output = outputs[i]
     const lang = block.info.split(/\s+/)[0] ?? ''
-    return output === undefined ? [] : [{ lang, code: block.code, output }]
+    return output === undefined ? [] : [{ lang, code: block.code, output, start: block.start }]
   })
 }

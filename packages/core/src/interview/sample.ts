@@ -24,15 +24,21 @@ export const BANK_SAMPLE_PLAN: BankSamplePlan = {
   allowed: 2,
 }
 
+/**
+ * A generated question that passed every check. The owner's rejections came after the draw, so a
+ * rejected question is still a candidate: otherwise rejecting one would change the sample that its
+ * labels were given on.
+ */
 const isGenerated = (row: QuestionRow): boolean =>
-  row.status === 'shown' && (row.question.kind === 'theory' || row.question.kind === 'pitfall')
+  (row.status === 'shown' || row.status === 'rejected-owner') &&
+  (row.question.kind === 'theory' || row.question.kind === 'pitfall')
 
 const byId = (a: QuestionRow, b: QuestionRow): number => a.question.id.localeCompare(b.question.id)
 
 /**
- * The sample, from each source's shown generated questions. A source with too few gives what it
- * has. It reads nothing of the checker but which questions it kept, since those are the ones the
- * app shows.
+ * The sample, from each source's generated questions that passed the checks. A source with too few
+ * gives what it has. It reads nothing of the checker but which questions it kept, since those are
+ * the ones the app showed.
  */
 export function bankSample(
   rowsBySource: ReadonlyMap<string, readonly QuestionRow[]>,

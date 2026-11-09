@@ -1,5 +1,6 @@
 import type {
   BankQuestion,
+  FlagResult,
   PracticeDeck,
   PracticeOverview,
   ReviewResult,
@@ -9,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   handleDeck,
+  handleFlag,
   handleOverview,
   handleReview,
   MAX_DECK,
@@ -37,11 +39,21 @@ const bank: LoadedBank = {
     ...Array.from({ length: 12 }, (_, i) => question('typescript', `t${String(i)}`, 'narrowing')),
     question('react', 'r1', 'hooks'),
   ],
+  passages: new Map([['r1', { blocks: [{ text: 'The docs say so.', quote: true }] }]]),
 }
 
 function backend(): InterviewBackend {
   const state = openInterviewState(':memory:')
-  return { sources: ['typescript', 'react'], bank: () => bank, state: () => state, now: () => NOW }
+  return {
+    sources: ['typescript', 'react'],
+    bank: () => bank,
+    state: () => state,
+    interviewer: () => {
+      throw new Error('practice calls no model')
+    },
+    now: () => NOW,
+    newId: () => 'session-1',
+  }
 }
 
 const get = (path: string) => new Request(`http://127.0.0.1:3002${path}`)
@@ -111,6 +123,8 @@ describe('handleDeck', () => {
 
     expect(deck.cards.map(({ question: q }) => q.id)).toEqual(['r1'])
     expect(deck.cards[0]?.topicTitle).toBe('Hooks')
+    // The section of the docs its quote is in, for the card to show.
+    expect(deck.cards[0]?.passage).toEqual({ blocks: [{ text: 'The docs say so.', quote: true }] })
   })
 
   it('refuses a bad topic or count', () => {
@@ -148,5 +162,48 @@ describe('handleReview', () => {
     const missing = await handleReview(backend, post({ questionId: 'nope', rating: 'good' }))
     expect(missing.status).toBe(404)
     expect(await missing.json()).toEqual({ error: 'the bank has no question nope' })
+  })
+})
+
+describe('handleFlag', () => {
+  it('hides a card the owner flagged as wrong, and keeps the reason', async () => {
+    const one = backend()
+    const response = await handleFlag(
+      () => one,
+      post({ questionId: 'r1', reason: '  The code disagrees.  ' }),
+    )
+
+    expect(response.status).toBe(200)
+    expect((await response.json()) as FlagResult).toEqual({
+      questionId: 'r1',
+      flaggedAt: NOW.toISOString(),
+    })
+    expect(one.state().flags()).toEqual([
+      { questionId: 'r1', reason: 'The code disagrees.', flaggedAt: NOW.toISOString() },
+    ])
+    const overview = (await handleOverview(
+      () => one,
+      get('/api/interview/overview'),
+    ).json()) as PracticeOverview
+    expect(overview.sources).toEqual([
+      { id: 'typescript', questions: 12 },
+      { id: 'react', questions: 0 },
+    ])
+    const deck = (await handleDeck(
+      () => one,
+      get('/api/interview/deck?sources=react'),
+    ).json()) as PracticeDeck
+    expect(deck.cards).toEqual([])
+  })
+
+  it('refuses no reason, a body that is not a flag, and a question the bank does not have', async () => {
+    expect((await handleFlag(backend, post('not json'))).status).toBe(400)
+    const blank = await handleFlag(backend, post({ questionId: 't1', reason: ' ' }))
+    expect(blank.status).toBe(400)
+    expect(await blank.json()).toEqual({
+      error: 'a flag is { questionId, reason }, with a reason of 1 to 2000 characters',
+    })
+    const missing = await handleFlag(backend, post({ questionId: 'nope', reason: 'Wrong.' }))
+    expect(missing.status).toBe(404)
   })
 })

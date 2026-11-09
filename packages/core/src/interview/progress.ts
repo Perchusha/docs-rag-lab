@@ -1,11 +1,14 @@
 // Practice and progress in the interview-prep app (ADR-0018): FSRS schedules each card, Quick 10
 // and a topic's practice pick the cards, and the topic map counts what was seen and how it went.
 // The scheduler is ts-fsrs, behind this file alone.
+import { join } from 'node:path'
+
 import type {
   BankQuestion,
   BankTopic,
   PracticeCard,
   PracticeOverview,
+  QuestionPassage,
   Rating,
   TopicGroup,
   TopicProgress,
@@ -23,6 +26,22 @@ import {
 export interface LoadedBank {
   topics: BankTopic[]
   questions: BankQuestion[]
+  /** What each generated question's card shows of the docs, by question ID, where its quote is found. */
+  passages?: ReadonlyMap<string, QuestionPassage>
+}
+
+/** Where the interview-prep app keeps its progress and flags (SPEC section 4), under the data folder. */
+export const interviewStatePath = (root: string, dataDir: string): string =>
+  join(root, dataDir, 'apps', 'interview-prep.sqlite')
+
+/**
+ * The bank without the cards the owner flagged as wrong (ADR-0018): those are hidden for them,
+ * whatever the bank says, and neither practised nor counted.
+ */
+export function withoutFlagged(bank: LoadedBank, flagged: Iterable<string>): LoadedBank {
+  const hidden = new Set(flagged)
+  if (hidden.size === 0) return bank
+  return { ...bank, questions: bank.questions.filter(({ id }) => !hidden.has(id)) }
 }
 
 /**
@@ -161,11 +180,15 @@ export function pickCards(
       sources.includes(question.source) &&
       (topic === undefined || (question.source === topic.source && question.topicId === topic.id)),
   )
-  const card = (question: BankQuestion, state: PracticeCard['state']): PracticeCard => ({
-    question,
-    state,
-    topicTitle: titles.get(topicKey(question.source, question.topicId)) ?? question.topicId,
-  })
+  const card = (question: BankQuestion, state: PracticeCard['state']): PracticeCard => {
+    const passage = bank.passages?.get(question.id)
+    return {
+      question,
+      state,
+      topicTitle: titles.get(topicKey(question.source, question.topicId)) ?? question.topicId,
+      ...(passage === undefined ? {} : { passage }),
+    }
+  }
 
   const due = candidates
     .flatMap((question) => {

@@ -69,10 +69,16 @@ const PITFALL =
   '[Pitfall]\n\nCalling a hook inside a loop breaks the order React relies on.\n\n```js\nfor (const x of xs) useState(x)\n```'
 
 const several = testDocument('learn/state.md', [
-  testChunk('s1', [
-    prose('s1'),
-    '```js src/App.js\n// @noErrors\nconst [n, setN] = useState(0)\n```',
-  ]),
+  // Its prose under a heading, as in a chunk that holds two sections.
+  testChunk(
+    's1',
+    [
+      'An introduction to state.',
+      `### Snapshot\n\n${prose('s1')}`,
+      '```js src/App.js\n// @noErrors\nconst [n, setN] = useState(0)\n```',
+    ],
+    { anchor: 'state', anchors: ['state', 'snapshot'] },
+  ),
   testChunk('s2', [prose('s2')]),
   testChunk('s3', [prose('s3')]),
 ])
@@ -424,7 +430,12 @@ describe('generateBank (ADR-0018)', () => {
       source: 'react',
       topicId: 'topic',
       verifiedBy: 'checker',
-      citation: { chunkId: 's1' },
+      // The section the quote is in, not the one the chunk starts in.
+      citation: {
+        chunkId: 's1',
+        url: 'https://docs.example.com/learn/state#snapshot',
+        sectionPath: ['Section', 'Snapshot'],
+      },
     })
     expect(
       rows.flatMap((row) => (row.row === 'chunk' ? [[row.chunkId, row.questions]] : [])),

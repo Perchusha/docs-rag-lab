@@ -38,6 +38,7 @@ export const settings = defineSettings({
     judge: 'claude-opus-5-5',
     questions: 'claude-haiku-5-5',
     questionCheck: 'claude-sonnet-5-5',
+    interviewer: 'claude-sonnet-5-5',
   },
   answer: { effort: 'low', maxTokens: 16_000 },
   contextualize: {
@@ -64,6 +65,8 @@ export const settings = defineSettings({
     minCacheableTokens: 512,
     maxUsd: 10,
   },
+  // ADR-0018 estimates about a cent a graded answer: one hybrid search and one call to Sonnet.
+  interviewer: { effort: 'low', maxTokens: 4_000, questions: 5, passages: 6 },
   pricing: {
     checked: '2026-11-03',
     sources: [

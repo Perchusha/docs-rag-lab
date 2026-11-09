@@ -20,6 +20,7 @@ const stored = (path: string, docType: string): StoredDocument => ({
       context: null,
       metadata: {
         sectionPath: ['Intro'],
+        anchors: ['intro'],
         spans: [[15, 20]],
         compiler: [{ errors: [], queries: [] }],
       },
@@ -75,6 +76,7 @@ describe('bankDocuments (ADR-0018)', () => {
           textHash: 'hash of a.md',
           anchor: 'intro',
           sectionPath: ['Intro'],
+          anchors: ['intro'],
           spans: [[15, 20]],
           compiler: [{ errors: [], queries: [] }],
         },

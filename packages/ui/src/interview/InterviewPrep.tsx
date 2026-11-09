@@ -1,8 +1,16 @@
 'use client'
 // The interview-prep app (ADR-0018): choose technologies, then Quick 10 or a topic, and practise
-// card by card. An app renders this from a server component with its config: serializable props
-// only, so the transport is built here from the endpoints unless a story passes its own.
-import type { PracticeCard, PracticeOverview, Rating, TopicProgress } from '@docs-rag-lab/contracts'
+// card by card, or a mock interview graded against the docs. An app renders this from a server
+// component with its config: serializable props only, so the transport is built here from the
+// endpoints unless a story passes its own.
+import type {
+  MockSession,
+  MockSummary,
+  PracticeCard,
+  PracticeOverview,
+  Rating,
+  TopicProgress,
+} from '@docs-rag-lab/contracts'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import type { Theme } from '../DocsAssistant.tsx'
@@ -14,8 +22,10 @@ import {
 } from '../lib/interview-transport.ts'
 import { useFocusRing } from '../lib/useFocusRing.ts'
 import styles from './Interview.module.css'
+import { MockInterview } from './MockInterview.tsx'
 import { PracticeStart } from './PracticeStart.tsx'
 import { QuestionCard } from './QuestionCard.tsx'
+import { SessionSummary } from './SessionSummary.tsx'
 import { TechPicker } from './TechPicker.tsx'
 import { TopicMap } from './TopicMap.tsx'
 
@@ -32,14 +42,29 @@ export interface InterviewPrepProps {
 
 type View =
   | { kind: 'home' }
-  | { kind: 'practice'; label: string; cards: PracticeCard[]; index: number; ratings: Rating[] }
-  | { kind: 'done'; label: string; ratings: Rating[] }
+  | {
+      kind: 'practice'
+      label: string
+      cards: PracticeCard[]
+      index: number
+      ratings: Rating[]
+      /** Cards flagged as wrong in this sitting, which are hidden from now on. */
+      flagged: number
+    }
+  | { kind: 'done'; label: string; ratings: Rating[]; flagged: number }
+  | { kind: 'mock'; session: MockSession }
+  | { kind: 'mockDone'; summary: MockSummary }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 const plural = (count: number, one: string): string =>
   `${String(count)} ${count === 1 ? one : `${one}s`}`
+
+const listOf = (names: readonly string[]): string =>
+  names.length <= 1
+    ? (names[0] ?? 'the chosen technologies')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`
 
 export function InterviewPrep(props: InterviewPrepProps) {
   const { title, sources, theme, endpoints } = props
@@ -95,7 +120,7 @@ export function InterviewPrep(props: InterviewPrepProps) {
       if (deck.cards.length === 0) {
         setError('Nothing to practise there right now: every card is waiting for its day.')
       } else {
-        setView({ kind: 'practice', label, cards: deck.cards, index: 0, ratings: [] })
+        setView({ kind: 'practice', label, cards: deck.cards, index: 0, ratings: [], flagged: 0 })
       }
     } catch (failure) {
       setError(messageOf(failure))
@@ -104,22 +129,64 @@ export function InterviewPrep(props: InterviewPrepProps) {
     }
   }
 
-  const rate = async (rating: Rating) => {
+  /** Saves what the owner did with the current card, then goes on to the next one. */
+  const act = async (
+    save: (card: PracticeCard) => Promise<unknown>,
+    after: { rating?: Rating; flagged?: boolean },
+    what: string,
+  ) => {
     if (view.kind !== 'practice' || busy) return
     const card = view.cards[view.index]
     if (card === undefined) return
     setBusy(true)
     try {
-      await transport.review({ questionId: card.question.id, rating })
+      await save(card)
       setError(undefined)
-      const ratings = [...view.ratings, rating]
+      const ratings = after.rating === undefined ? view.ratings : [...view.ratings, after.rating]
+      const flagged = view.flagged + (after.flagged === true ? 1 : 0)
       setView(
         view.index + 1 < view.cards.length
-          ? { ...view, index: view.index + 1, ratings }
-          : { kind: 'done', label: view.label, ratings },
+          ? { ...view, index: view.index + 1, ratings, flagged }
+          : { kind: 'done', label: view.label, ratings, flagged },
       )
     } catch (failure) {
-      setError(`The rating was not saved: ${messageOf(failure)}`)
+      setError(`The ${what} was not saved: ${messageOf(failure)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const rate = (rating: Rating) =>
+    act((card) => transport.review({ questionId: card.question.id, rating }), { rating }, 'rating')
+
+  const flag = (reason: string) =>
+    act(
+      (card) => transport.flag({ questionId: card.question.id, reason }),
+      { flagged: true },
+      'flag',
+    )
+
+  const startMock = async () => {
+    setBusy(true)
+    try {
+      const session = await transport.mockStart(chosen)
+      setError(undefined)
+      setView({ kind: 'mock', session })
+    } catch (failure) {
+      setError(messageOf(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const finishMock = async (sessionId: string) => {
+    setBusy(true)
+    try {
+      const summary = await transport.mockSummary(sessionId)
+      setError(undefined)
+      setView({ kind: 'mockDone', summary })
+    } catch (failure) {
+      setError(`The summary did not load: ${messageOf(failure)}`)
     } finally {
       setBusy(false)
     }
@@ -144,9 +211,16 @@ export function InterviewPrep(props: InterviewPrepProps) {
       ? `${view.label}: card ${String(view.index + 1)} of ${String(view.cards.length)}`
       : view.kind === 'done'
         ? `${view.label} done`
-        : overview === undefined
-          ? 'Loading'
-          : ''
+        : view.kind === 'mock'
+          ? 'Mock interview'
+          : view.kind === 'mockDone'
+            ? 'Mock interview done'
+            : overview === undefined
+              ? 'Loading'
+              : ''
+  const chosenTitles = chosen
+    .filter((id) => overview?.sources.find((source) => source.id === id)?.questions !== 0)
+    .map((id) => titles[id] ?? id)
 
   return (
     <div className={styles.root} data-drl-theme="" style={style}>
@@ -175,16 +249,28 @@ export function InterviewPrep(props: InterviewPrepProps) {
             />
             <PracticeStart
               summary={overview?.summary}
-              sourceTitles={chosen
-                .filter(
-                  (id) => overview?.sources.find((source) => source.id === id)?.questions !== 0,
-                )
-                .map((id) => titles[id] ?? id)}
+              sourceTitles={chosenTitles}
               busy={busy}
               onQuick={() => {
                 void start('Quick 10')
               }}
             />
+            <section className={styles.section} aria-labelledby="drl-mock-heading">
+              <h2 id="drl-mock-heading">Mock interview</h2>
+              <p>
+                {`A few open questions across ${listOf(chosenTitles)}, one per topic. Claude grades each answer against the docs, with a score of 0 to 2 and the passages it rests on, then asks one follow-up. A graded answer costs about a cent; a skipped one costs nothing.`}
+              </p>
+              <button
+                type="button"
+                className={styles.primary}
+                disabled={busy || overview === undefined || overview.summary.questions === 0}
+                onClick={() => {
+                  void startMock()
+                }}
+              >
+                Start a mock interview
+              </button>
+            </section>
             {overview !== undefined && overview.groups.length > 0 && (
               <TopicMap
                 groups={overview.groups}
@@ -214,6 +300,12 @@ export function InterviewPrep(props: InterviewPrepProps) {
               onRate={(rating) => {
                 void rate(rating)
               }}
+              onFlag={(reason) => {
+                void flag(reason)
+              }}
+              onCheck={(answer, signal) =>
+                transport.check({ questionId: card.question.id, answer }, signal)
+              }
             />
           </>
         )}
@@ -226,6 +318,8 @@ export function InterviewPrep(props: InterviewPrepProps) {
               {`${plural(view.ratings.length, 'card')}, ${String(
                 view.ratings.filter((rating) => rating === 'good' || rating === 'easy').length,
               )} known. Each comes back when it is due.`}
+              {view.flagged > 0 &&
+                ` ${plural(view.flagged, 'card')} flagged as wrong, hidden from now on.`}
             </p>
             <div className={styles.actions}>
               <button
@@ -243,6 +337,28 @@ export function InterviewPrep(props: InterviewPrepProps) {
               </button>
             </div>
           </section>
+        )}
+        {view.kind === 'mock' && (
+          <MockInterview
+            key={view.session.id}
+            session={view.session}
+            sourceTitles={titles}
+            onAnswer={(request) => transport.mockAnswer(request)}
+            onFinish={() => {
+              void finishMock(view.session.id)
+            }}
+          />
+        )}
+        {view.kind === 'mockDone' && (
+          <SessionSummary
+            summary={view.summary}
+            sourceTitles={titles}
+            busy={busy}
+            onAgain={() => {
+              void startMock()
+            }}
+            onHome={home}
+          />
         )}
       </main>
     </div>

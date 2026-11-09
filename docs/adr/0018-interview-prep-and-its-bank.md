@@ -91,17 +91,42 @@ FSRS through `ts-fsrs` 6.0.0, with no fuzz, so that the same ratings always give
 
 The interviewer asks a theory question from the bank for the chosen technologies. The owner answers. Hybrid search on the plain index retrieves passages for the question and the answer, and Sonnet grades the answer against them, with citations, a score of 0 to 2 and one follow-up. After the last question, the summary names the weak topics and three sections to read. An agent with tools, `search_docs`, `get_progress` and `record_score`, is M9's agentic mode, which can take this loop over.
 
+As built in PR 4:
+- **The questions** are generated ones, theory and Pitfall, since compiler questions have one exact answer: five, from a different topic each, a technology in turn, in an order the session's ID decides. The owner's flagged and rejected cards are not asked. The route sends them without the bank's answer.
+- **One search per answer,** for what was asked and what was answered together, in six passages: Voyage's free tier allows three requests a minute, and an answer takes longer than that to write.
+- **The grade** reads the question, its code, the bank's answer and its quote, the passages, and for a follow-up the first answer. Its instructions say the bank's answer can be wrong or say more than the docs, and that the passages and the code decide when they disagree: that is how H's two failures went wrong. It returns the score, feedback citing passages by number, and the follow-up, as structured output, and a reply that is cut off or does not match is refused.
+- **What it costs:** about a cent per graded answer at list prices, from about 3,000 tokens in and 300 out. The summary shows what the saved grades cost. A grade whose reply cannot be used is refused with a 502 and saves nothing, so its cost is not in the summary; nor is a second answer to the same step, from another tab, which gets a 409. A skipped answer costs nothing, only Skip skips, and the summary is computed from the grades, with no call. The instructions are below the size the model caches, so the grade sets no cache entry.
+- **The keys** are read when the first answer is graded, not when the app starts, so practice works without them.
+- **Not run against the API in PR 4:** the grade's request has the shape of the checker's, which ran through the whole bank, and the owner's hands-on review makes its first real calls.
+
 ### 8. Packages
 
 - **`contracts`:** the bank's questions, topics, ratings and progress, and the interview's events.
 - **`core`:** the bank, the topics, FSRS and the interviewer.
 - **`interview-server`,** new: the app's route handlers, under the same boundary as `docs-server`. It imports `core`, `contracts` and `settings`, never `ui`, `db` or a source.
-- **`ui`:** the technology picker, the topic map, the card, the ratings, the progress summary and the interview, each with stories in both colour schemes, with axe and keyboard play tests.
-- **`cli`:** `drl questions <source>`, and the sheet and score of the test below.
+- **`ui`:** the technology picker, the topic map, the card with its ratings, its section of the docs, its check and its flag, the progress summary, the mock interview and its summary, each with stories in both colour schemes, with axe and keyboard play tests.
+- **`cli`:** `drl questions <source>`, the sheet and score of the test below, and `drl questions flagged`, `unflag` and `reject` (section 10).
 
 ### 9. Not in M8
 
 Levels, a pasted job description, voice, promoting a question to the golden set and an agent with tools.
+
+### 10. The owner's rejections, and the flag on a card
+
+By the owner's decision of 2026-11-09, after H's labels:
+- **A shown question the owner finds wrong is rejected in the bank,** by `drl questions reject <id> [reason]`. Its row keeps everything, with the status `rejected-owner` and the owner's reason, and the app does not show it. A rerun keeps the rejection: a generated row is kept as it is, and a compiler question, made again on every run, gets it back while its chunk's text is the same.
+- **H's sample still counts a rejected question,** since the rejection came after the draw. Otherwise rejecting a sampled question would change the sample its labels were given on, and `drl questions score` would refuse them.
+- **Every card has "This answer is wrong"** once its answer is shown. The owner says why, and the card is hidden for them at once, whatever the bank says. The reason stays in `data/apps/interview-prep.sqlite`, and `drl questions flagged` lists each flag with the card and the bank's status. `drl questions reject <id>` takes the flag's reason when none is given, and `drl questions unflag <id>` takes back a flag made by mistake.
+- **The bank is not checked again.** H's 2 failures in 20 suggest about one theory card in ten may generalize past its quote, with a wide interval. A second check of every generated question against its code would cost about as much as the first, which M8's budget does not have.
+
+### 11. What the owner's review changed
+
+The owner's hands-on review of Quick 10, on 2026-11-09, found a card on strictNullChecks in The Basics whose link said `The Basics > noImplicitAny`, and whose quote backed only half of its answer, the default behaviour. The owner asked for three changes, made in PR 4:
+- **A card links to the section its quote is in.** A chunk can hold several sections, and a question's link and section path were those of the section its chunk starts in. The chunker writes each nested heading as a heading line at the start of a block's span and records the fragment of every section the chunk contains, in order, so core reads the section of a position from the two. A generated question takes the section of its quote, and a compiler question that of its example. Where the headings and the fragments do not line up, as on compiler option pages whose subheadings have no fragment, the link stays the chunk's own. `drl questions` puts the links of kept questions right on every run, with no call: at the banks' commits it moved 184 of TypeScript's 800 generated questions and 110 of its compiler questions, and 508 of React's 1,863. Question IDs did not change, so H's sample and score stand.
+- **Once the answer is shown, a generated question's card shows that section of the docs,** past its heading and up to the next one, block by block, with the quote's block marked by a rule and a label, and code as the site shows it, through the source's `displayCode`: without it, 355 of TypeScript's 800 passages showed twoslash markup, and with it 22 still show a line `displayCode` keeps, mostly `// @filename`, as compiler cards do. The checker read the whole chunk, but the section is what the link opens, or a part of it on the few pages whose subheadings have no fragment, and on the owner's card it backs the whole answer. The app cuts it from the index when it loads the bank, as it already reads every chunk to leave out stale questions, so the bank does not grow. Its relative links lead to the docs.
+- **Check my answer** grades what the owner wrote on a card, once its answer is shown: the mock interview's search and grader, with no follow-up, through `POST /api/interview/check`. It shows the score, what was right and what is missing, the passages cited and what it cost, about a cent. It runs only on a click, once per card unless it fails, is given up when the card moves on, and stores nothing: the owner's own rating still schedules the card. It is offered on every card, compiler questions too, whose reference the grader is told is the compiler's output, which decides what the code does.
+
+The owner also chose that **an answer can be in any language,** graded on what it says, with the feedback and any follow-up in the language of the answer. It holds for the mock interview too, since the grader is shared. Like the mock interview's grade, the check made no paid call in PR 4: the owner's use makes the first.
 
 ## The hypothesis
 
@@ -152,7 +177,7 @@ Written on 2026-11-09, after the run and before the owner labels H's sample.
 - **React's quote check drops more,** 14% against 5%: its chunks are often code, challenges and their solutions, and Haiku quoted another part of the document, which it reads whole. Those questions are not grounded in the chunk they cite, so dropping them is the check working.
 - **A checker reply that skipped a verdict stopped the first start,** on one TypeScript chunk. Verdicts are now read in order when they are numbered otherwise, and a question with no verdict is not kept, with a reason saying so. Committing that fix stopped the React start by the run guard (ADR-0010), and the rerun paid only for what was missing.
 
-**Spend: $8.91 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, the run $8.34, and $0.02 for the 6 options the refinement put back, which gave 12 questions, all shown. The forecast of $7.30 was low by about a fifth: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
+**Spend: $8.91 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, the run $8.34, and $0.02 for the 6 options the refinement put back, which gave 12 questions, all shown. The forecast of $7.30 was low by about 17%, against the $8.80 of the run and its stopped starts, which paid for chunks the rerun kept: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
 
 **H's sample is drawn from the final bank,** sample `2823ff0b5089`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet. A first draw, `892b4a468224`, came before the refinement and was never labelled. React's 10 are the same in both, since its questions did not change and the draw is seeded.
 
@@ -163,14 +188,16 @@ The owner labelled the sheet blind on 2026-11-09. The labels were committed as `
 **H holds: 18 of the 20 passed both counts,** 70% to 97% by the Wilson interval, and 2 failed, the most the rule allows.
 - **All 20 were answerable** from the passage they cite.
 - **The 2 failures are TypeScript theory questions** whose stored answer is not right and complete: item 13, `449e74e193d36549`, on `readonly` in Classes, and item 17, `c82b1dc894cd989d`, on `verbatimModuleSyntax`. React's 10 all passed, the 3 on Pitfall callouts among them.
-- **What each failed answer says beyond its quote,** read after the scoring, since the labels give no reasons. Item 13's answer adds that a readonly field "can be set once during construction", which the docs do not say, and the example under it initializes the field and then assigns it again in the constructor. Item 17's answer says that anything marked with `type` is dropped entirely, and the example under it shows `import { type xyz } from "xyz"` rewritten to `import {} from "xyz"`, not dropped. Sonnet passed both, reading the answer against the quote rather than against the code shown with it. An answer that generalizes past its quote is the failure to watch.
+- **What each failed answer says beyond its quote,** read after the scoring, since the labels give no reasons. Item 13's answer adds that a readonly field "can be set once during construction", which the docs do not say, and the example under it initializes the field and then assigns it again in the constructor. Item 17's answer says that anything marked with `type` is dropped entirely, and the example under it shows `import { type xyz } from "xyz"` rewritten to `import {} from "xyz"`, not dropped. Sonnet passed both, reading the answer against the quote and the prose around it rather than against the code shown with it. In item 17 the docs' own sentence says "Anything that uses the `type` modifier is dropped entirely", and only the example below it shows otherwise. An answer that generalizes past its quote is the failure to watch.
+
+**What followed, by the owner's decision:** both questions are rejected in the bank with these reasons, every card can be flagged as wrong, and the README states the rate, 2 of 20 or 10% (3% to 30%), with this failure mode (section 10). `drl questions score` still gives the same result on the committed labels.
 
 ## The PRs
 
 1. This ADR, the bank's code and `drl questions`, with no paid call. The compiler questions are written then, since they cost nothing.
 2. The practice app: `interview-server`, the progress store, the ui components and `apps/interview-prep`.
 3. The bank's paid run, after its pilot, and the test of H.
-4. The mock interview, then the README, the journal and SPEC, and the milestone's close.
+4. The owner's rejections and the flag on a card (section 10), the mock interview, then the README, the journal and SPEC, and the milestone's close. The owner's hands-on review added the changes of section 11 to it.
 
 ## Alternatives considered
 

@@ -19,15 +19,23 @@ import {
   forecastBank,
   generateBank,
   generatedChunks,
+  interviewStatePath,
   keptGeneratedRows,
   openIndexes,
+  openInterviewState,
+  ownerRejections,
   planBank,
   readBank,
+  rejectQuestion,
+  RejectError,
+  withQuoteCitations,
+  withRejection,
   writeBank,
   type BankDocument,
   type BankHeader,
   type BankLabel,
   type BankRow,
+  type CardFlag,
   type QuestionRow,
   type Source,
 } from '@docs-rag-lab/core'
@@ -37,6 +45,7 @@ import { CliError } from './errors.ts'
 import {
   formatBankCheck,
   formatBankPlan,
+  formatFlag,
   formatBankSheet,
   formatPilotQuestion,
 } from './questions-format.ts'
@@ -101,17 +110,21 @@ export async function questionsCommand(
   const path = bankPath(ctx.root, source.id)
 
   const current = currentKeys(documents)
+  const earlier = readBank(path)
+  // Made again on every run, with the owner's rejections put back where the text is the same.
+  const rejections = ownerRejections(earlier)
   const fromCompiler: QuestionRow[] = documents.flatMap((document) =>
-    compilerQuestions(source, document, compiler).map(({ question, textHash }) => ({
-      row: 'question' as const,
-      status: 'shown' as const,
-      textHash,
-      question,
-    })),
+    compilerQuestions(source, document, compiler).map(({ question, textHash }) =>
+      withRejection({ row: 'question', status: 'shown', textHash, question }, rejections),
+    ),
   )
-  // What earlier runs paid for, for chunks whose text is still the same.
-  const kept = keptGeneratedRows(readBank(path), header).filter(
-    (row) => current.get(chunkIdOf(row)) === row.textHash,
+  // What earlier runs paid for, for chunks whose text is still the same, each linked to the
+  // section its quote is in.
+  const kept = withQuoteCitations(
+    keptGeneratedRows(earlier, header).filter(
+      (row) => current.get(chunkIdOf(row)) === row.textHash,
+    ),
+    documents,
   )
   const known = generatedChunks(kept)
   const options = { models, settings: settings.interviewBank, pricing: settings.pricing, known }
@@ -251,4 +264,107 @@ export function questionsScoreCommand(ctx: CommandContext, args: { labels: strin
   const text = formatBankCheck(check)
   writeFileSync(path.replace(/\.json$/, '.md'), text)
   ctx.out.write(text)
+}
+
+/** The cards the owner flagged as wrong in the interview-prep app, oldest first. */
+function appFlags(ctx: CommandContext): { path: string; flags: CardFlag[] } {
+  const path = interviewStatePath(ctx.root, ctx.settings.dataDir)
+  // The app creates its store; listing flags never does.
+  if (!existsSync(path)) return { path, flags: [] }
+  const state = openInterviewState(path)
+  try {
+    return { path, flags: state.flags() }
+  } finally {
+    state.close()
+  }
+}
+
+/** Every question row of every bank, whatever its status, by question ID. */
+function bankRows(ctx: CommandContext): Map<string, QuestionRow> {
+  const rows = new Map<string, QuestionRow>()
+  for (const source of ctx.sources) {
+    if (source.interviewTopic === undefined) continue
+    for (const row of readBank(bankPath(ctx.root, source.id))?.rows ?? []) {
+      if (row.row === 'question') rows.set(row.question.id, row)
+    }
+  }
+  return rows
+}
+
+/**
+ * `drl questions flagged`: the cards the owner flagged as wrong in the app (ADR-0018), each with
+ * its reason and what the bank says of it, so that they can be rejected there.
+ */
+export function questionsFlaggedCommand(ctx: CommandContext): void {
+  const { path, flags } = appFlags(ctx)
+  if (flags.length === 0) {
+    ctx.out.write(`no card is flagged as wrong in ${path}\n`)
+    return
+  }
+  const rows = bankRows(ctx)
+  const listed = flags.map((flag) => formatFlag(flag, rows.get(flag.questionId)))
+  ctx.out.write(
+    `${count(flags.length)} ${flags.length === 1 ? 'card' : 'cards'} flagged as wrong in ${path}:\n\n${listed.join('\n\n')}\n`,
+  )
+}
+
+/**
+ * `drl questions unflag <question id>`: a flag taken back, since the card was flagged by mistake.
+ * The app shows the card again, unless the bank rejected it.
+ */
+export function questionsUnflagCommand(ctx: CommandContext, args: { questionId: string }): void {
+  const path = interviewStatePath(ctx.root, ctx.settings.dataDir)
+  if (!existsSync(path)) throw new CliError(`no card is flagged: ${path} does not exist`)
+  const state = openInterviewState(path)
+  let removed
+  try {
+    removed = state.deleteFlag(args.questionId)
+  } finally {
+    state.close()
+  }
+  if (!removed) throw new CliError(`${args.questionId} is not flagged in ${path}`)
+  ctx.out.write(
+    `unflagged ${args.questionId}: the app shows it again, unless the bank rejected it\n`,
+  )
+}
+
+/**
+ * `drl questions reject <question id> [reason]`: the owner found a shown question wrong
+ * (ADR-0018). It stays in its bank with the reason, and the app no longer shows it. With no
+ * reason, the reason the owner gave when flagging it in the app is used.
+ */
+export function questionsRejectCommand(
+  ctx: CommandContext,
+  args: { questionId: string; reason: string | undefined },
+): void {
+  const reason =
+    args.reason ??
+    appFlags(ctx).flags.find(({ questionId }) => questionId === args.questionId)?.reason
+  if (reason === undefined || reason.trim() === '') {
+    throw new CliError(
+      `questions reject needs a reason, or a flag of ${args.questionId} in the app to take it from`,
+    )
+  }
+  for (const source of ctx.sources) {
+    if (source.interviewTopic === undefined) continue
+    const path = bankPath(ctx.root, source.id)
+    const bank = readBank(path)
+    const found = bank?.rows.find(
+      (row): row is QuestionRow => row.row === 'question' && row.question.id === args.questionId,
+    )
+    if (bank === undefined || found === undefined) continue
+    let rejected
+    try {
+      rejected = rejectQuestion(bank, args.questionId, reason)
+    } catch (error) {
+      if (error instanceof RejectError) throw new CliError(error.message)
+      throw error
+    }
+    writeBank(path, rejected.header, rejected.rows)
+    ctx.out.write(
+      `rejected ${args.questionId} of ${source.id}, "${found.question.prompt}": the app no longer shows it (${path})\n`,
+    )
+    return
+  }
+  throw new CliError(`no bank has a question ${args.questionId}`)
 }

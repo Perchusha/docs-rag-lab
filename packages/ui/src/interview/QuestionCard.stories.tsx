@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { QuestionCard } from './QuestionCard.tsx'
-import { CARDS } from './story-data.ts'
+import { CARDS, CHECKED } from './story-data.ts'
 
 const meta = {
   title: 'Interview/QuestionCard',
@@ -86,6 +86,49 @@ export const TheoryAnswered: Story = {
   },
 }
 
+/**
+ * The card the owner found wanting (ADR-0018): its link opens the section its quote is in, and the
+ * card shows that section, which backs the whole answer, with the quote marked.
+ */
+export const QuoteSectionShown: Story = {
+  args: { card: CARDS.strictNullChecks },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    const passage = within(canvas.getByRole('region', { name: 'From the docs' }))
+    await expect(passage.getByText('The quote')).toBeVisible()
+    await expect(passage.getByText(/spares/)).toBeVisible()
+    // Its links lead to the docs, not into the app.
+    await expect(passage.getByRole('link', { name: /strictNullChecks/ })).toHaveAttribute(
+      'href',
+      'https://www.typescriptlang.org/tsconfig#strictNullChecks',
+    )
+    await expect(
+      canvas.getByRole('link', { name: 'The Basics > strictNullChecks' }),
+    ).toHaveAttribute(
+      'href',
+      'https://www.typescriptlang.org/docs/handbook/2/basic-types.html#strictnullchecks',
+    )
+  },
+}
+
+/** A section of several blocks: only the one the quote is in is marked. */
+export const QuoteInTheMiddle: Story = {
+  args: { card: CARDS.pureComponent, sourceTitle: 'React' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    const passage = within(canvas.getByRole('region', { name: 'From the docs' }))
+    await expect(passage.getAllByText('The quote')).toHaveLength(1)
+    await expect(passage.getByText(/We recommend defining components as functions/)).toBeVisible()
+    await expect(passage.getByText(/class Greeting extends PureComponent/)).toBeVisible()
+    await expect(passage.getByRole('link', { name: /See how to migrate/ })).toHaveAttribute(
+      'href',
+      'https://react.dev/reference/react/PureComponent#alternatives',
+    )
+  },
+}
+
 /** A Pitfall question shows a block of the docs' code, never one a model wrote. */
 export const PitfallAnswered: Story = {
   args: { card: CARDS.pitfall, sourceTitle: 'React' },
@@ -163,5 +206,157 @@ export const RatingOnItsWay: Story = {
     await expect(canvas.getByRole('group', { name: 'How well did you know it?' })).toBeDisabled()
     await userEvent.keyboard('4')
     await expect(args.onRate).not.toHaveBeenCalled()
+  },
+}
+
+/**
+ * "This answer is wrong", by the keyboard: the reason field takes focus, no shortcut fires while
+ * typing in it, a blank reason is refused with a message, and Ctrl+Enter hides the card.
+ */
+export const FlagThisAnswer: Story = {
+  args: { card: CARDS.theory, onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByRole('button', { name: 'This answer is wrong' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+
+    const field = canvas.getByRole('textbox', { name: 'What is wrong with it?' })
+    await expect(field).toHaveFocus()
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await expect(field).toHaveAttribute('aria-invalid', 'true')
+    await expect(canvas.getByText(/Say what is wrong/)).toBeVisible()
+    await expect(args.onFlag).not.toHaveBeenCalled()
+
+    await userEvent.keyboard('Says 1 thing 3 times, and 4 is wrong')
+    await expect(args.onRate).not.toHaveBeenCalled()
+    await expect(field).toHaveAttribute('aria-invalid', 'false')
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await expect(args.onFlag).toHaveBeenCalledWith('Says 1 thing 3 times, and 4 is wrong')
+  },
+}
+
+/** Cancel closes the form and gives focus back to the button that opened it; no digit rates meanwhile. */
+export const FlagCancelled: Story = {
+  args: { card: CARDS.pitfall, sourceTitle: 'React', onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    // With the form open, a digit rates nothing, even with focus on one of its buttons.
+    canvas.getByRole('button', { name: 'Cancel' }).focus()
+    await userEvent.keyboard('2')
+    await expect(args.onRate).not.toHaveBeenCalled()
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'This answer is wrong' })).toHaveFocus(),
+    )
+    await expect(canvas.queryByRole('textbox', { name: 'What is wrong with it?' })).toBeNull()
+    await expect(args.onFlag).not.toHaveBeenCalled()
+    await userEvent.keyboard('2')
+    await expect(args.onRate).toHaveBeenCalledWith('hard')
+  },
+}
+
+/** Escape in the reason field cancels too, and gives focus back. */
+export const FlagEscaped: Story = {
+  args: { card: CARDS.theory, onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    await userEvent.keyboard('Not sure.{Escape}')
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'This answer is wrong' })).toHaveFocus(),
+    )
+    await expect(args.onFlag).not.toHaveBeenCalled()
+  },
+}
+
+const ANSWER = 'По умолчанию null и undefined можно присвоить любому типу.'
+
+/**
+ * "Check my answer", once the answer is shown: what was written goes to the grader, in any
+ * language, and the grade comes back with its sources and its cost. Focus stays where it was, the
+ * status line says the grade is in, and 3 still rates the card.
+ */
+export const CheckMyAnswer: Story = {
+  args: {
+    card: CARDS.strictNullChecks,
+    onCheck: fn(() => Promise.resolve(CHECKED)),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByText(/Check my answer grades what you wrote/)).toBeVisible()
+    await userEvent.click(canvas.getByRole('textbox', { name: /Your answer/ }))
+    await userEvent.keyboard(`  ${ANSWER}  `)
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+    await expect(args.onCheck).toHaveBeenCalledTimes(1)
+    await expect(args.onCheck).toHaveBeenCalledWith(ANSWER, expect.any(AbortSignal))
+    await expect(await canvas.findByText('Checked: 1 of 2.')).toBeVisible()
+    // The button that had focus is gone, so the grade's heading takes it.
+    await expect(canvas.getByRole('heading', { name: 'Your answer, checked' })).toHaveFocus()
+    const grade = within(canvas.getByRole('region', { name: 'Your answer, checked' }))
+    await expect(grade.getByText('Score: 1 of 2')).toBeVisible()
+    await expect(grade.getByText(/Не хватает того, что делает флаг/)).toBeVisible()
+    await expect(grade.getByRole('link', { name: 'The Basics > strictNullChecks' })).toBeVisible()
+    await expect(grade.getByText(/This check cost about \$0\.01/)).toBeVisible()
+    // Once is enough: the grade does not change by asking again.
+    await expect(canvas.queryByRole('button', { name: 'Check my answer' })).toBeNull()
+
+    await userEvent.keyboard('3')
+    await expect(args.onRate).toHaveBeenCalledWith('good')
+  },
+}
+
+// Storybook resets a mock's chained answers before each story, so the count lives here.
+let failedChecks = 0
+
+/** A failed check says why, and can be tried again; while one runs, its button waits. */
+export const CheckFailed: Story = {
+  args: {
+    card: CARDS.theory,
+    // The first check fails, and the second never answers.
+    onCheck: fn(() =>
+      failedChecks++ === 0
+        ? Promise.reject(new Error('the grade stopped with max_tokens, so it was not kept'))
+        : new Promise<typeof CHECKED>(() => undefined),
+    ),
+  },
+  play: async ({ args, canvasElement }) => {
+    failedChecks = 0
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('textbox', { name: /Your answer/ }))
+    await userEvent.keyboard('Any expression.')
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Check my answer' }))
+
+    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+      'The check failed: the grade stopped with max_tokens, so it was not kept',
+    )
+    const again = canvas.getByRole('button', { name: 'Check it again' })
+    await userEvent.click(again)
+    await expect(canvas.getByText('Checking your answer against the docs.')).toBeVisible()
+    // It waits, and keeps focus, so a second click sends nothing.
+    await expect(again).toHaveAttribute('aria-disabled', 'true')
+    await expect(again).toHaveFocus()
+    await userEvent.click(again)
+    await expect(args.onCheck).toHaveBeenCalledTimes(2)
+  },
+}
+
+/** With nothing written there is nothing to check, so the card offers no check. */
+export const NoCheckWithoutAnAnswer: Story = {
+  args: { card: CARDS.theory, onCheck: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await expect(canvas.getByRole('heading', { name: 'Answer' })).toHaveFocus()
+    await expect(canvas.queryByRole('button', { name: 'Check my answer' })).toBeNull()
+    await expect(args.onCheck).not.toHaveBeenCalled()
   },
 }

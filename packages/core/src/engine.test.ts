@@ -50,6 +50,7 @@ const settings: EngineSettings = {
     judge: 'claude-judge',
     questions: 'claude-small',
     questionCheck: 'claude-test',
+    interviewer: 'claude-test',
   },
   answer: { effort: 'low', maxTokens: 100 },
   retrieval: { strategy: 'hybrid', topK: 2, candidates: 10, rrfK: 60 },

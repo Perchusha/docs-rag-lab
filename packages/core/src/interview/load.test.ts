@@ -29,19 +29,31 @@ const source = (id: string, compiled: boolean): Source => {
 }
 
 function seedIndex(sourceId: string, variant?: 'compiled'): void {
-  const chunk = (id: string, ordinal: number) => ({
-    id,
-    ordinal,
-    headingPath: [],
-    anchor: '',
-    blockTypes: ['prose'],
-    text: `Text of ${id}.`,
-    context: null,
-    metadata: {},
-    tokenCount: 3,
-    textHash: `hash-${id}`,
-    vector: new Float32Array(4),
-  })
+  // Two sections, as the chunker writes them: a span per block, the heading joined to its block.
+  const intro = (id: string) => `Intro of ${id}.`
+  const later = (id: string) => `## Later\n\nText of ${id}, which a quoted question rests on.`
+  const chunk = (id: string, ordinal: number) => {
+    const head = `Page > ${id}\n\n`
+    const second = head.length + intro(id).length + 2
+    return {
+      id,
+      ordinal,
+      headingPath: [],
+      anchor: '',
+      blockTypes: ['prose'],
+      text: `${head}${intro(id)}\n\n${later(id)}`,
+      context: null,
+      metadata: {
+        spans: [
+          [head.length, head.length + intro(id).length],
+          [second, second + later(id).length],
+        ],
+      },
+      tokenCount: 3,
+      textHash: `hash-${id}`,
+      vector: new Float32Array(4),
+    }
+  }
   const document = (path: string, ids: string[]) => ({
     path,
     url: `https://x.dev/${path}`,
@@ -87,8 +99,27 @@ const question = (id: string, chunkId: string): BankQuestion => ({
   verifiedBy: 'compiler',
 })
 
+const generated = (id: string, chunkId: string, quote: string): BankQuestion => ({
+  ...question(id, chunkId),
+  kind: 'theory',
+  quote,
+  verifiedBy: 'checker',
+})
+
 const rows: BankRow[] = [
   { row: 'question', status: 'shown', textHash: 'hash-a1', question: question('shown', 'a1') },
+  {
+    row: 'question',
+    status: 'shown',
+    textHash: 'hash-a1',
+    question: generated('quoted', 'a1', 'which a quoted question rests on'),
+  },
+  {
+    row: 'question',
+    status: 'shown',
+    textHash: 'hash-a1',
+    question: generated('unquoted', 'a1', 'words that the chunk does not hold'),
+  },
   {
     row: 'question',
     status: 'dropped-check',
@@ -130,7 +161,24 @@ describe('loadInterviewBank (ADR-0018)', () => {
     expect(bank.topics).toEqual([
       { source: 'typescript', id: 'a.md', title: 'Title of a.md', group: 'Handbook' },
     ])
-    expect(bank.questions.map(({ id }) => id)).toEqual(['shown'])
+    expect(bank.questions.map(({ id }) => id)).toEqual(['quoted', 'shown', 'unquoted'])
+  })
+
+  it('gives each generated question the section of its chunk its quote is in', () => {
+    seedIndex('typescript', 'compiled')
+    writeBank(bankPath(root, 'typescript'), header('compiled'), rows)
+
+    const bank = loadInterviewBank({
+      root,
+      dataDir: join(root, 'data'),
+      sources: [source('typescript', true)],
+    })
+    expect([...(bank.passages ?? [])]).toEqual([
+      [
+        'quoted',
+        { blocks: [{ text: 'Text of a1, which a quoted question rests on.', quote: true }] },
+      ],
+    ])
   })
 
   it('reads the index the bank was built from', () => {
@@ -142,7 +190,7 @@ describe('loadInterviewBank (ADR-0018)', () => {
       dataDir: join(root, 'data'),
       sources: [source('typescript', true)],
     })
-    expect(bank.questions.map(({ id }) => id)).toEqual(['shown'])
+    expect(bank.questions.map(({ id }) => id)).toEqual(['quoted', 'shown', 'unquoted'])
   })
 
   it('has nothing for a source with no bank, no index or no topics', () => {
@@ -155,6 +203,6 @@ describe('loadInterviewBank (ADR-0018)', () => {
       dataDir: join(root, 'data'),
       sources: [source('typescript', true), source('react', false), noTopics],
     })
-    expect(bank).toEqual({ topics: [], questions: [] })
+    expect(bank).toEqual({ topics: [], questions: [], passages: new Map() })
   })
 })

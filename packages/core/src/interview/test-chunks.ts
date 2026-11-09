@@ -7,7 +7,12 @@ import type { BankChunk, BankDocument } from './documents.ts'
 export function testChunk(
   id: string,
   blocks: readonly string[],
-  options: { compiler?: CompilerOutput[]; anchor?: string; heading?: string } = {},
+  options: {
+    compiler?: CompilerOutput[]
+    anchor?: string
+    anchors?: string[]
+    heading?: string
+  } = {},
 ): BankChunk {
   let text = options.heading ?? 'Page > Section'
   const spans: [number, number][] = []
@@ -22,6 +27,9 @@ export function testChunk(
     textHash: sha256Hex(text),
     anchor: options.anchor ?? '',
     sectionPath: ['Section'],
+    anchors:
+      options.anchors ??
+      (options.anchor === undefined || options.anchor === '' ? [] : [options.anchor]),
     spans,
     compiler: options.compiler ?? [],
   }
