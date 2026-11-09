@@ -1,6 +1,6 @@
 # ADR-0019: Agentic mode, and what M9 tests
 
-- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists.
+- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists. PR 2 corrected how row 6 reproduces, which `drl eval verify` does not cover, and what its markdown quotes, as "What PR 2 built" says, before any answer of row 6. The test did not change.
 - Date: 2026-11-09
 - Milestone: M9
 
@@ -37,7 +37,7 @@ Row 6 is ladder row 6 of SPEC section 10.
 - **The limit is said in a tool result,** not by changing `tool_choice` or removing the tool. Either change drops the cached conversation, and removing the tool drops the whole cache.
 - **The system prompt** keeps row 3's rules: use only the search results, say so when they are not enough, keep the answer short and direct, and include code only from the results. It adds two rules: when the results do not hold what the question asks, search again with a different query; and do not describe the searches in the answer. The exact text is in code, and its hash is in the report, like every prompt's.
 - **The answer is the text of the last message.** The API numbers search results across the whole request, the first message's and every tool result's, in order. So each citation maps to a chunk, and the claims are checked as in rows 2 to 5.
-- **Each step is cached in the eval cache by its own request** (ADR-0010), and the vectors of the agent's queries are cached in the embedding cache. So `drl eval verify` replays row 6 with no call.
+- **Each step is cached in the eval cache by its own request** (ADR-0010), and the vectors of the agent's queries are cached in the embedding cache. A finished run of the loop is kept whole too, timed with its searches. So the same `drl eval answers` command, run again, replays row 6 with no call, as it does every row.
 - **Row 6 answers twice under `--noise`,** like rows 3, 4, 5 and 7. A second answer's first request is the same as its first answer's, so the second answers start 6 minutes after the last first answer ends, when every cache entry of the first answers has expired. No answer then reads another's cache entry.
 
 ### 2. Prompt caching
@@ -56,7 +56,7 @@ Each step resends the system prompt, the tool and everything so far. Every reque
 - **So caching from the first step pays if about one answer in three searches again, or more.** The run measures this, and it is not assumed.
 
 **What the report records:**
-- for each answer: the input that was not cached, the cache writes, the cache reads and the output, in tokens, and the steps and searches with their queries;
+- for each answer: the input that was not cached, the cache writes, the cache reads and the output, in tokens, and the steps and searches with their queries, in the report's JSON;
 - for each row: the same sums and their cost;
 - the cost of the same tokens with no caching, writes and reads at the input price;
 - the share of answers that searched again;
@@ -99,7 +99,7 @@ So H can hold only if a second search fixes nearly every retrieval miss and cost
 
 ### 5. Reported, and deciding nothing
 
-**The motivating cases.** For each of these the report gives the agent's queries, whether a primary anchor reached the chunks it read, and its score. They suggested the idea, so they cannot be its evidence, as ADR-0014 said of H5. The whole set decides.
+**The motivating cases.** For each of these the report gives the agent's queries in its JSON, and in its markdown the steps and searches, whether a primary anchor was in the first search and whether one reached the chunks it read, and the scores of rows 3 and 6. They suggested the idea, so they cannot be its evidence, as ADR-0014 said of H5. The whole set decides.
 
 | Question | What it asks | Hybrid's rank of a primary anchor | Row 3, both runs | Row 0 |
 |---|---|---|---|---|
@@ -123,7 +123,7 @@ So H can hold only if a second search fixes nearly every retrieval miss and cost
 8 questions are in Russian: ts-0004, ts-0016, ts-0023, ts-0038 and react-0005, react-0011, react-0012, which have answers, and ts-0042, which the docs do not answer.
 
 - **Row 6's first search is the Russian question,** as row 3's is.
-- **The report records the language of each query of the agent's own.** It also records whether such a query brought in a primary anchor that the Russian question's search left out, as that search did on ts-0038 and react-0011.
+- **The report keeps each query of the agent's own in its JSON, and its markdown counts those written in Cyrillic.** The markdown quotes no query, since it quotes neither the docs nor Claude (ADR-0010). It also shows whether such a search brought in a primary anchor that the Russian question's search left out, as that search did on ts-0038 and react-0011.
 - **They are too few for a verdict, and nothing is decided by them.**
 - **The note bears on two open items:**
   - M6's: keyword search pushes the right chunk down on some Russian questions, and skipping it when the languages differ was a candidate;
@@ -173,7 +173,7 @@ These come first. If one fails, the numbers are not read as a result.
 3. **What the dashboard builds is unchanged** for every report, against a snapshot taken before PR 2, apart from what a PR says it adds.
 4. **Row 3 is unchanged:** the estimate shows no paid call for row 3's answers or verdicts on either set.
 5. **This test comes first:** the commit that adds this ADR is an ancestor of the commit every M9 report stamps.
-6. **M9's reports reproduce byte for byte,** with every step of row 6 replayed from the caches.
+6. **M9's reports reproduce.** `drl eval verify` says byte for byte on their retrieval. Their answers are not its subject (ADR-0010): the same `drl eval answers` command, run again, replays row 6 from the cache with no call and gives the same answers.
 7. **Every cited text is in its chunk's text,** as ADR-0014's check 7.
 
 ## Estimates
@@ -205,12 +205,26 @@ The pilot's forecast decides, and a run stops before its next call at the limit,
    - `core`: the loop and the tool, row 6 in eval, and the cache columns of the report;
    - `cli`: `drl ask --agentic`, `--rows 6` for `drl eval answers`, and `drl eval pool`, which computes section 3's test over the two reports with no API call.
    - Tests on fixtures. No new dependency.
+   - The dashboard's view of a report with row 6, in `core`.
 3. **The runs:**
    - the pilot, then both sets, and the test of H;
    - the reports and their verify records;
    - the README, the journal, SPEC and CLAUDE.md's commands;
    - the code-reviewer subagent.
 4. **The docs apps' agentic chat,** section 7: `docs-server`, `ui`, the NDJSON event in `contracts`, and the stories.
+
+## What PR 2 built
+
+Before any answer of row 6, with no paid call:
+- **The loop** is `core`'s `runAgentLoop`, which row 6, `drl ask --agentic` and PR 4's chat share. A tool result holds the new chunks as `search_result` blocks, then one line on what was left out and how many searches are left. A call after the last search gets an error result, and a further one ends the answer as failed.
+- **Row 6's first request** is row 3's, with `AGENT_SYSTEM_PROMPT`, `search_docs` under a strict schema with the doc types the index holds, `disable_parallel_tool_use`, and a top-level `cache_control`. Its tool's description and the prompt are hashed in the report, as `agent` and `agentTool`.
+- **A run of the loop is kept whole** in the eval cache, under the first request, the loop's version and the limit, with the time it took, searches and the wait for Voyage included. Each step is kept by its own request too, under the kinds `agent-first` and `agent-step`, so a run that stopped pays only for the rest, and the estimate learns from them how often Claude searches.
+- **The estimate** counts each first request, tool included, for free, and prices the prefix written once, each search read and written, and each step's output. Until 5 runs are cached it assumes one search in two answers, and it prints what the answers would cost if each used every search.
+- **The second answers** start after a wait of 6 minutes, and only when one of their first requests is not cached.
+- **The report** adds, for row 6, each step's tokens, the searches, and the cost with and without caching, and per row the searches, steps, cache writes and reads, lapses, first steps that read the cache, and how often a primary anchor was in the first search or reached the conversation. Its markdown shows these by question too, and counts the queries in Cyrillic.
+- **`drl eval pool`** reads two reports or more and prints section 3's test. With `--name` it writes it under `eval/pooled/`, outside `eval/reports/`, whose folders are sources. A guard no report could compare is left out, as for row 0, which cites nothing. Run on TypeScript's `m7-regraded` and React's `m6` with `--rows 0,3`, it read both with no API call.
+- **The dashboard** shows a report with row 6 as row 3 against row 6, each with its own run to run, and says that one search stays the chat's default unless this test, over both sources, holds.
+- **Integrity checks 1 and 3:** before PR 2, `drl eval verify` said byte for byte on 14 of the 19 named reports, and "not comparable" on the 5 whose retrieval code lives at tags of their own: `m4-control`, `m4-h1`, `m4-h2`, `m4-h1-h2` and `m5-h5`. What the dashboard builds for every report was snapshotted then, and is unchanged at the end of PR 2.
 
 ## Alternatives considered
 
