@@ -136,6 +136,26 @@ At the list prices in `packages/settings`, from about 2,060 chunks in scope and 
 
 About $7 for the bank, against a limit of $10 for M8. A pilot replaces these guesses with measured tokens before the full run, as in M5.
 
+## What the bank's run gave
+
+Written on 2026-11-09, after the run and before the owner labels H's sample.
+
+**The pilot,** 10 chunks of each source, shown to the owner before the full run: 35 questions, 29 shown, $0.09, and a forecast of about $7.30 for the rest. It led to the rule on tool setup pages above.
+
+**The full run** wrote the bank's questions for every chunk in scope:
+
+| Source | Chunks | Compiler questions | Generated | Shown | Dropped by the quote check | Dropped by Sonnet |
+|---|---|---|---|---|---|---|
+| TypeScript | 436 | 327 | 913 | 790 | 43 | 80 |
+| React | 1,527 | 0 | 2,877 | 1,863, of which 63 on Pitfall callouts | 413 | 601 |
+
+- **React's quote check drops more,** 14% against 5%: its chunks are often code, challenges and their solutions, and Haiku quoted another part of the document, which it reads whole. Those questions are not grounded in the chunk they cite, so dropping them is the check working.
+- **A checker reply that skipped a verdict stopped the first start,** on one TypeScript chunk. Verdicts are now read in order when they are numbered otherwise, and a question with no verdict is not kept, with a reason saying so. Committing that fix stopped the React start by the run guard (ADR-0010), and the rerun paid only for what was missing.
+
+**Spend: $8.89 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, and the run $8.34. The forecast of $7.30 was low by about a fifth: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
+
+**H's sample is drawn,** sample `892b4a468224`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet.
+
 ## The PRs
 
 1. This ADR, the bank's code and `drl questions`, with no paid call. The compiler questions are written then, since they cost nothing.
