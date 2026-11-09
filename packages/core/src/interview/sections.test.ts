@@ -16,6 +16,8 @@ const TEXT = {
   y1: 'Y one goes deeper into the subsection, with the details the overview left out.',
   t: 'T introduces an option whose subsections have headings but no fragments at all.',
   t1: 'T one describes the first value of the option, under a heading with no anchor.',
+  z1: 'Z one sits under a section that has no text of its own, and has a fragment.',
+  z2: 'Z two sits under the same section, but its own heading has no fragment at all.',
 }
 
 const section = (headingPath: string[], anchor: string, text?: string): Section => ({
@@ -24,8 +26,8 @@ const section = (headingPath: string[], anchor: string, text?: string): Section 
   blocks: text === undefined ? [] : [{ kind: 'prose', text }],
 })
 
-// Small enough that the page is cut into packs, as long pages are: A and B together, then X, Y
-// and T each on their own.
+// Small enough that the page is cut into packs, as long pages are: A and B together, then X, Y,
+// T and Z each on their own.
 const doc: ParsedDoc = {
   title: 'Page',
   url: 'https://docs.example.com/page',
@@ -41,6 +43,9 @@ const doc: ParsedDoc = {
     section(['Y', 'Y1'], 'y1', TEXT.y1),
     section(['T'], 't', TEXT.t),
     section(['T', 'T1'], '', TEXT.t1),
+    section(['Z'], 'z'),
+    section(['Z', 'Z1'], 'z1', TEXT.z1),
+    section(['Z', 'Z2'], '', TEXT.z2),
   ],
 }
 
@@ -70,6 +75,7 @@ describe('sectionCitation (ADR-0018)', () => {
       ['x', ['x', 'x1', 'x2']],
       ['y', ['y', 'y1']],
       ['t', ['t']],
+      ['z', ['z', 'z1']],
     ])
   })
 
@@ -104,6 +110,16 @@ describe('sectionCitation (ADR-0018)', () => {
       url: 'https://docs.example.com/page#y1',
       sectionPath: ['Y', 'Y1'],
     })
+  })
+
+  it('never links a heading to the fragment of the section above it', () => {
+    // Z's heading is in the chunk's first line, and Z2 has no fragment: Z1 is not Z.
+    for (const text of [TEXT.z1, TEXT.z2]) {
+      expect(quoteCitation(document, chunkWith(text), text)).toEqual({
+        url: 'https://docs.example.com/page#z',
+        sectionPath: ['Z'],
+      })
+    }
   })
 
   it('keeps the section the chunk starts in when its headings have no fragment', () => {
@@ -170,6 +186,29 @@ describe('quotePassage (ADR-0018)', () => {
         { text: code, quote: false },
       ],
     })
+  })
+
+  it('shows code as the site does, through the source', () => {
+    const chunk = testChunk('c', [
+      'The value is checked against its annotation, and a mismatch is an error.',
+      '```ts twoslash\n// @errors: 2322\ndeclare const x: number\n// ---cut---\nlet n: number = "x"\n```\n\nCompiler output:\n- Error TS2322',
+    ])
+    const source = {
+      displayCode: (code: string) => {
+        const lines = code.split('\n').filter((line) => !line.startsWith('// @'))
+        const cut = lines.indexOf('// ---cut---')
+        return { code: lines.slice(cut + 1).join('\n'), setup: lines.slice(0, cut).join('\n') }
+      },
+    }
+
+    expect(quotePassage(chunk, 'a mismatch is an error', source)?.blocks[1]).toEqual({
+      text: '```ts twoslash\nlet n: number = "x"\n```\n\nCompiler output:\n- Error TS2322',
+      quote: false,
+    })
+    // A source that shows code as it is changes nothing.
+    expect(quotePassage(chunk, 'a mismatch is an error', {})?.blocks[1]?.text).toContain(
+      '---cut---',
+    )
   })
 
   it('gives none for a quote the chunk does not hold', () => {

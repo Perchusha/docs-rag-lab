@@ -3,6 +3,7 @@
 // block's span, and records the fragments of every section it contains, in order. A card links to
 // the section its quote is in, not the one its chunk starts in, and shows that section.
 import type { QuestionCitation, QuestionPassage } from '@docs-rag-lab/contracts'
+import { codeBlocks, type Source } from '@docs-rag-lab/source-kit'
 
 import { citationUrl, type BankChunk, type BankDocument } from './documents.ts'
 import type { BankRow } from './store.ts'
@@ -43,18 +44,26 @@ function headingsOf(chunk: Pick<BankChunk, 'text' | 'spans'>): Heading[] {
 /**
  * Each heading's fragment, when the chunk's fragments line up with its headings. The chunker
  * records the fragment of the section the chunk starts in, then each heading's, leaving out empty
- * and repeated ones, so a chunk that starts at a heading records that one once. When they do not
- * line up, as on pages whose subheadings have no fragment, there is none to give.
+ * and repeated ones, so a chunk that starts at its own section's heading records that one once.
+ * When they do not line up, as on pages whose subheadings have no fragment, there is none to give.
  */
 function headingAnchors(chunk: BankChunk, headings: readonly Heading[]): string[] | undefined {
   const skip = chunk.anchors.length - headings.length
   if (skip !== 0 && skip !== 1) return undefined
   if (chunk.anchor === '') return skip === 0 ? chunk.anchors : undefined
   if (chunk.anchors[0] !== chunk.anchor) return undefined
-  const startsAtHeading = headings[0] !== undefined && headings[0].start === chunk.spans[0]?.[0]
-  // With none left out, the chunk's own fragment is its first heading's.
-  if (skip === 0 && !startsAtHeading) return undefined
-  return chunk.anchors.slice(skip)
+  if (skip === 1) return chunk.anchors.slice(1)
+  // With none left out, the chunk's own fragment must be its first heading's: the chunk starts at
+  // the heading of the section it starts in. A section whose heading is in the chunk's first line
+  // and that has one child fragment empty or repeated also counts as many, and would shift each
+  // link by one section.
+  const first = headings[0]
+  const own =
+    first !== undefined &&
+    first.start === chunk.spans[0]?.[0] &&
+    first.level === Math.min(6, chunk.sectionPath.length + 1) &&
+    first.title === chunk.sectionPath.at(-1)
+  return own ? chunk.anchors : undefined
 }
 
 /** The section a position of a chunk's text is in: its link and its headings. */
@@ -77,14 +86,31 @@ export function sectionCitation(
 }
 
 /**
+ * A block with its code as the docs site shows it, through the source's displayCode: twoslash
+ * directives, query lines and the setup above a cut stay out, as they do on a compiler card.
+ */
+function displayed(text: string, source: Pick<Source, 'displayCode'>): string {
+  let out = text
+  // From the last block back, so that the offsets of the earlier ones still hold.
+  for (const block of codeBlocks(text).reverse()) {
+    const open = text.slice(block.start, text.indexOf('\n', block.start))
+    const close = text.slice(text.lastIndexOf('\n', block.end - 1) + 1, block.end)
+    const code = source.displayCode?.(block.code).code ?? block.code
+    out = `${out.slice(0, block.start)}${open}\n${code}\n${close}${out.slice(block.end)}`
+  }
+  return out
+}
+
+/**
  * What a generated question's card shows of the docs: the section of its chunk the quote is in,
  * from past its heading to the next heading, one block per span, with the blocks the quote is in
- * marked. The checker read the whole chunk, but this is the part the card's link opens. Undefined
- * when the quote is not found.
+ * marked, and code as the site shows it. The checker read the whole chunk, but this is the part
+ * the card's link opens. Undefined when the quote is not found.
  */
 export function quotePassage(
   chunk: Pick<BankChunk, 'text' | 'spans'>,
   quote: string,
+  source: Pick<Source, 'displayCode'> = {},
 ): QuestionPassage | undefined {
   const at = quoteAt(quote, chunk.text)
   if (at === undefined) return undefined
@@ -96,7 +122,13 @@ export function quotePassage(
     const from = Math.max(spanStart, start)
     const to = Math.min(spanEnd, end)
     const text = from < to ? chunk.text.slice(from, to).trim() : ''
-    return text === '' ? [] : [{ text, quote: from < at.end && at.start < to }]
+    if (text === '') return []
+    return [
+      {
+        text: source.displayCode === undefined ? text : displayed(text, source),
+        quote: from < at.end && at.start < to,
+      },
+    ]
   })
   return blocks.length === 0 ? undefined : { blocks }
 }

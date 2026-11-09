@@ -55,7 +55,7 @@ export function loadInterviewBank(options: LoadBankOptions): LoadedBank {
         if (chunk?.textHash !== row.textHash) continue
         questions.push(question)
         const passage =
-          question.quote === undefined ? undefined : quotePassage(chunk, question.quote)
+          question.quote === undefined ? undefined : quotePassage(chunk, question.quote, source)
         if (passage !== undefined) passages.set(question.id, passage)
       }
     } finally {
