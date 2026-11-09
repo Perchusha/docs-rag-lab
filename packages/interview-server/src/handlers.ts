@@ -1,6 +1,7 @@
 // The interview-prep app's routes as plain functions from a Request to a Response (ADR-0018), so
 // they are tested without Next.js. Each route file of the app is one line that calls one of these
-// with the app's backend (apps/CLAUDE.md: routes stay thin). None calls a model.
+// with the app's backend (apps/CLAUDE.md: routes stay thin). Only the mock interview's answers
+// call a model, in mock-handlers.ts.
 import {
   MAX_FLAG_REASON,
   parseFlagRequest,
@@ -15,6 +16,7 @@ import {
   practiceOverview,
   scheduleReview,
   withoutFlagged,
+  type Interviewer,
   type InterviewState,
   type LoadedBank,
 } from '@docs-rag-lab/core'
@@ -26,9 +28,23 @@ export interface InterviewBackend {
   bank(): LoadedBank
   state(): Pick<
     InterviewState,
-    'cards' | 'card' | 'saveReview' | 'reviewCount' | 'saveFlag' | 'flags' | 'close'
+    | 'cards'
+    | 'card'
+    | 'saveReview'
+    | 'reviewCount'
+    | 'saveFlag'
+    | 'flags'
+    | 'saveMockSession'
+    | 'mockSession'
+    | 'saveMockTurn'
+    | 'mockTurns'
+    | 'close'
   >
+  /** The mock interview's retrieval and Claude client, built on first use, since they need keys. */
+  interviewer(): Interviewer
   now(): Date
+  /** A new mock interview's ID. */
+  newId(): string
 }
 
 /** Builds the backend on first use; a failure there becomes a 500, not a crash. */
@@ -38,17 +54,18 @@ export type BackendFactory = () => InterviewBackend
 export const MAX_DECK = 50
 export const QUICK_DECK = 10
 
-const NO_STORE = { 'cache-control': 'no-store' }
+export const NO_STORE = { 'cache-control': 'no-store' }
 
-const fail = (status: number, error: string): Response => Response.json({ error }, { status })
+export const fail = (status: number, error: string): Response =>
+  Response.json({ error }, { status })
 
-function failure(error: unknown): Response {
+export function failure(error: unknown): Response {
   console.error(error)
   return fail(500, error instanceof Error ? error.message : String(error))
 }
 
 /** The bank as the owner sees it: without the cards they flagged as wrong. */
-function visibleBank(backend: InterviewBackend): LoadedBank {
+export function visibleBank(backend: InterviewBackend): LoadedBank {
   return withoutFlagged(
     backend.bank(),
     backend
@@ -62,10 +79,20 @@ function visibleBank(backend: InterviewBackend): LoadedBank {
 function sourcesOf(url: URL, backend: InterviewBackend): string[] | Response {
   const value = url.searchParams.get('sources')
   if (value === null) return [...backend.sources]
-  const asked = value
-    .split(',')
-    .map((part) => part.trim())
-    .filter((part) => part !== '')
+  return chosenSources(
+    value
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part !== ''),
+    backend,
+  )
+}
+
+/** Some of the app's sources, in its order, or a 400 when none is chosen or one is unknown. */
+export function chosenSources(
+  asked: readonly string[],
+  backend: InterviewBackend,
+): string[] | Response {
   const unknown = asked.filter((id) => !backend.sources.includes(id))
   if (asked.length === 0) return fail(400, 'choose at least one technology')
   if (unknown.length > 0) {

@@ -59,6 +59,23 @@ export {
   type TopicProgress,
 } from './practice.ts'
 export {
+  MAX_MOCK_ANSWER,
+  MOCK_STEPS,
+  parseMockAnswerRequest,
+  parseMockStartRequest,
+  type MockAnswerRequest,
+  type MockCitation,
+  type MockGrade,
+  type MockQuestion,
+  type MockQuestionResult,
+  type MockScore,
+  type MockSession,
+  type MockStartRequest,
+  type MockStep,
+  type MockSummary,
+  type MockWeakTopic,
+} from './mock.ts'
+export {
   ANSWER_COMPARED_METRICS,
   ANSWER_ROWS,
   type AgreementResult,

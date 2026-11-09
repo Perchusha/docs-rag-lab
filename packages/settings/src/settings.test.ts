@@ -36,6 +36,7 @@ describe('settings', () => {
       settings.models.judge,
       settings.models.questions,
       settings.models.questionCheck,
+      settings.models.interviewer,
     ]
     for (const model of used) expect(Object.keys(settings.pricing.models)).toContain(model)
   })

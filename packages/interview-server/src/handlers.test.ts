@@ -43,7 +43,16 @@ const bank: LoadedBank = {
 
 function backend(): InterviewBackend {
   const state = openInterviewState(':memory:')
-  return { sources: ['typescript', 'react'], bank: () => bank, state: () => state, now: () => NOW }
+  return {
+    sources: ['typescript', 'react'],
+    bank: () => bank,
+    state: () => state,
+    interviewer: () => {
+      throw new Error('practice calls no model')
+    },
+    now: () => NOW,
+    newId: () => 'session-1',
+  }
 }
 
 const get = (path: string) => new Request(`http://127.0.0.1:3002${path}`)

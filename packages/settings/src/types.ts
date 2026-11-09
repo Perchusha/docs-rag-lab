@@ -75,6 +75,17 @@ export interface InterviewBankSettings {
   maxUsd: number
 }
 
+/** The interview-prep app's mock interview (ADR-0018). The model is in `models.interviewer`. */
+export interface InterviewerSettings {
+  effort: Effort
+  /** A grade is a score, a short feedback and one follow-up. A reply cut off by this is refused. */
+  maxTokens: number
+  /** Questions in one mock interview. */
+  questions: number
+  /** Passages hybrid search retrieves for each answer, which the grade reads and cites. */
+  passages: number
+}
+
 export interface RetrievalSettings {
   /** The same values as Strategy in @docs-rag-lab/contracts; core checks that they match. */
   strategy: 'vector' | 'hybrid' | 'rerank'
@@ -109,6 +120,8 @@ export interface Settings {
     questions: string
     /** Checks each written question against its chunk. Not the model that wrote it. */
     questionCheck: string
+    /** Grades the owner's answers in the mock interview, against the docs (ADR-0018). */
+    interviewer: string
   }
   answer: { effort: Effort; maxTokens: number }
   contextualize: ContextualizeSettings
@@ -122,6 +135,7 @@ export interface Settings {
   }
   retrieval: RetrievalSettings
   interviewBank: InterviewBankSettings
+  interviewer: InterviewerSettings
   pricing: PricingSettings
 }
 

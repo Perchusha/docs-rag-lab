@@ -25,4 +25,6 @@ export {
   type CardFlag,
   type CardReview,
   type StoredCard,
+  type StoredMockSession,
+  type StoredMockTurn,
 } from './interview-state.ts'

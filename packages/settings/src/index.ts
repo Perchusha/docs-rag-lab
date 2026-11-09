@@ -8,6 +8,7 @@ export {
   type Effort,
   type EmbeddingsSettings,
   type InterviewBankSettings,
+  type InterviewerSettings,
   type ModelPrice,
   type PricingSettings,
   type RerankSettings,

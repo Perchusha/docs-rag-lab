@@ -158,6 +158,20 @@ export {
 } from './interview/progress.ts'
 export { loadInterviewBank, type LoadBankOptions } from './interview/load.ts'
 export {
+  gradeAnswer,
+  GradeError,
+  gradeRequest,
+  INTERVIEWER_SYSTEM_PROMPT,
+  mockQuestionOf,
+  mockSummary,
+  pickMockQuestions,
+  type GradeInput,
+  type GradeOptions,
+  type GradePassage,
+  type GradeResult,
+  type Interviewer,
+} from './interview/interviewer.ts'
+export {
   hasPrefixedChunks,
   variantIndexPath,
   embeddingCachePath,
@@ -386,6 +400,8 @@ export {
   type CardFlag,
   type InterviewState,
   type StoredCard,
+  type StoredMockSession,
+  type StoredMockTurn,
 } from '@docs-rag-lab/db'
 export {
   CHUNKER_VERSION,
