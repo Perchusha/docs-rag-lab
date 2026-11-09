@@ -27,11 +27,7 @@ export interface BankHeader {
  * or the owner, who found a shown question wrong after it passed every check.
  */
 export type QuestionStatus =
-  | 'shown'
-  | 'dropped-quote'
-  | 'dropped-code'
-  | 'dropped-check'
-  | 'rejected-owner'
+  'shown' | 'dropped-quote' | 'dropped-code' | 'dropped-check' | 'rejected-owner'
 
 export interface QuestionRow {
   row: 'question'

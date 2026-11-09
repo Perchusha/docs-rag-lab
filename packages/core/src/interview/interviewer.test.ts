@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 
 import type { AnswerClient } from '../generate.ts'
 import type { Retrieval } from '../retrieve.ts'
-import type { UsageMeter } from '../usage.ts'
 import {
   gradeAnswer,
   gradeRequest,
@@ -155,7 +154,7 @@ function fakeInterviewer(
     searches,
     requests,
     interviewer: {
-      search: (request: RetrievalRequest, _meter: UsageMeter): Promise<Retrieval> => {
+      search: (request: RetrievalRequest): Promise<Retrieval> => {
         searches.push(request)
         return Promise.resolve({ hits: [hit(1), hit(2), hit(3)], trace: {} as Retrieval['trace'] })
       },
