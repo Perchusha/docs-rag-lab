@@ -17,6 +17,7 @@ import {
   rowRequest,
   runAnswers,
   runJudge,
+  SECOND_ANSWERS_WAIT_MS,
   type AnswerJob,
   type EvalClient,
 } from './answers.ts'
@@ -808,5 +809,198 @@ describe('runJudge', () => {
     await runJudge([answer()], options_)
 
     expect(requests).toHaveLength(2)
+  })
+})
+
+describe('row 6', () => {
+  const agentPricing: PricingSettings = {
+    checked: '2026-11-09',
+    sources: [],
+    models: { [MODEL]: { input: 2, output: 10, cacheWrite5m: 2.5, cacheRead: 0.1 } },
+  }
+  const DOC_TYPES = ['handbook', 'reference']
+
+  function agentJob(sample = 1, question: GoldenQuestion = answerable): AnswerJob {
+    const hits = [hit('c1')]
+    const request = rowRequest(6, 'demo', question.question, hits, settings, DOC_TYPES)
+    return { question, row: 6, sample, hits, request, key: requestKey(request, sample) }
+  }
+
+  const usage = (input: number, write: number, read: number, output: number) => ({
+    input_tokens: input,
+    cache_creation_input_tokens: write,
+    cache_read_input_tokens: read,
+    output_tokens: output,
+  })
+  const searching = message({
+    stop_reason: 'tool_use',
+    content: [{ type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'more' } }],
+    usage: usage(3, 1000, 0, 20),
+  } as Partial<Anthropic.Message>)
+  const answering = message({
+    content: [
+      {
+        type: 'text',
+        text: 'From the second search.',
+        citations: [
+          {
+            type: 'search_result_location',
+            cited_text: 'text of c2',
+            source: 'https://x.dev/a',
+            title: 'A',
+            search_result_index: 1,
+            start_block_index: 0,
+            end_block_index: 1,
+          },
+        ],
+      },
+    ],
+    usage: usage(2, 800, 1000, 50),
+  } as Partial<Anthropic.Message>)
+  const reply = (request: Anthropic.MessageCreateParamsNonStreaming) =>
+    request.messages.length === 1 ? searching : answering
+
+  function agentOptions(client: EvalClient, waits: number[] = [], searched: string[] = []) {
+    cache ??= openEvalCache(':memory:')
+    return {
+      client,
+      cache,
+      pricing: agentPricing,
+      meter: new UsageMeter(),
+      maxUsd: 100,
+      concurrency: 1,
+      now: () => 0,
+      agent: {
+        maxSearches: 2,
+        docTypes: DOC_TYPES,
+        search: (query: string) => {
+          searched.push(query)
+          return Promise.resolve([hit('c1'), hit('c2')])
+        },
+        sleep: (ms: number) => {
+          waits.push(ms)
+          return Promise.resolve()
+        },
+      },
+    }
+  }
+
+  it("asks with row 3's search results, the tool and caching, and needs the doc types", () => {
+    const { request } = agentJob()
+
+    expect(request.tools?.map((tool) => (tool as { name: string }).name)).toEqual(['search_docs'])
+    expect(request.cache_control).toEqual({ type: 'ephemeral' })
+    expect(() => rowRequest(6, 'demo', 'Q?', [], settings)).toThrow('doc types')
+  })
+
+  it('answers step by step, and records each step, its searches, and both costs', async () => {
+    const { client, requests } = fakeClient(reply)
+    const searched: string[] = []
+
+    const [result] = await runAnswers([agentJob()], agentOptions(client, [], searched))
+
+    expect(searched).toEqual(['more'])
+    expect(requests).toHaveLength(2)
+    expect(result).toMatchObject({
+      row: 6,
+      status: 'ok',
+      text: 'From the second search.',
+      context: ['c1', 'c2'],
+      claims: [{ citations: [{ chunkId: 'c2' }] }],
+      inputTokens: 3 + 1000 + 2 + 800 + 1000,
+      outputTokens: 70,
+      fromCache: false,
+      searches: [{ query: 'more', docTypes: [], chunkIds: ['c2'], alreadyShown: 1 }],
+      steps: [
+        { stopReason: 'tool_use', inputTokens: 3, cacheWriteTokens: 1000, cacheReadTokens: 0 },
+        { stopReason: 'end_turn', inputTokens: 2, cacheWriteTokens: 800, cacheReadTokens: 1000 },
+      ],
+    })
+    // Billed: 5 input at $2, 1,800 written at $2.50, 1,000 read at $0.10, 70 out at $10.
+    expect(result?.costUsd).toBeCloseTo((5 * 2 + 1800 * 2.5 + 1000 * 0.1 + 70 * 10) / 1e6, 12)
+    expect(result?.uncachedCostUsd).toBeCloseTo((2805 * 2 + 70 * 10) / 1e6, 12)
+  })
+
+  it('replays a finished run from the cache, with no call and no search', async () => {
+    const first = fakeClient(reply)
+    const [paid] = await runAnswers([agentJob()], agentOptions(first.client))
+    const again = fakeClient(() => new Error('no call expected'))
+    const searched: string[] = []
+
+    const [replayed] = await runAnswers([agentJob()], agentOptions(again.client, [], searched))
+
+    expect(again.requests).toEqual([])
+    expect(searched).toEqual([])
+    expect(replayed).toEqual({ ...paid, fromCache: true })
+  })
+
+  it('waits before the second answers, and not when their first requests are cached', async () => {
+    const order: string[] = []
+    const { client } = fakeClient((request) => {
+      order.push(`call ${String(request.messages.length)}`)
+      return reply(request)
+    })
+    const waits: number[] = []
+    const options_ = agentOptions(client, waits)
+    const sleep = options_.agent.sleep
+    options_.agent.sleep = (ms) => {
+      order.push('wait')
+      return sleep(ms)
+    }
+
+    await runAnswers([agentJob(1), agentJob(2)], options_)
+    await runAnswers([agentJob(1), agentJob(2)], options_)
+
+    expect(waits).toEqual([SECOND_ANSWERS_WAIT_MS])
+    expect(order).toEqual(['call 1', 'call 3', 'wait', 'call 1', 'call 3'])
+  })
+
+  it('records a loop that will not stop as failed, never as a score', async () => {
+    const { client } = fakeClient(() => searching)
+
+    const [result] = await runAnswers([agentJob()], agentOptions(client))
+
+    expect(result?.status).toBe('failed')
+    expect(result?.error).toBe('it asked for a search after it was told none was left')
+  })
+
+  it('refuses row 6 without the agent options', async () => {
+    const { client } = fakeClient(reply)
+
+    await expect(runAnswers([agentJob()], options(client))).rejects.toThrow('agent options')
+  })
+})
+
+describe('planAnswers for row 6', () => {
+  it("searches as row 3 does, and offers the index's doc types", async () => {
+    const strategies: (string | undefined)[] = []
+    const fake = {
+      embedQueries: () => Promise.resolve([]),
+      search: (request: { strategy?: string }) => {
+        strategies.push(request.strategy)
+        return Promise.resolve({ hits: [hit('h1')] })
+      },
+      docTypes: () => ['handbook', 'option'],
+    } as unknown as Engine
+
+    const jobs = await planAnswers({
+      engine: fake,
+      sourceId: 'demo',
+      questions: [answerable],
+      rows: [6],
+      noise: true,
+      settings,
+      meter: new UsageMeter(),
+    })
+
+    expect(strategies).toEqual(['hybrid'])
+    expect(jobs.map((item) => [item.row, item.sample])).toEqual([
+      [6, 1],
+      [6, 2],
+    ])
+    const tool = jobs[0]?.request.tools?.[0] as Anthropic.Tool
+    expect(tool.input_schema).toMatchObject({
+      properties: { docTypes: { items: { enum: ['handbook', 'option'] } } },
+    })
   })
 })

@@ -10,7 +10,7 @@ import {
   type AnswerJob,
   type EvalClient,
 } from './answers.ts'
-import { estimateCost } from './cost.ts'
+import { agentAnswerUsd, estimateCost } from './cost.ts'
 import { parseGoldenSet, type GoldenQuestion } from './golden.ts'
 
 const pricing: PricingSettings = {
@@ -280,5 +280,78 @@ describe('estimateCost', () => {
         retest: false,
       }),
     ).rejects.toThrow('no price')
+  })
+})
+
+describe('row 6', () => {
+  const agentPricing: PricingSettings = {
+    checked: '2026-11-09',
+    sources: [],
+    models: {
+      answer: { input: 2, output: 10, cacheWrite5m: 2.5, cacheRead: 0.1 },
+      judge: { input: 4, output: 20 },
+    },
+  }
+
+  function agentJob(sample = 1): AnswerJob {
+    const request = rowRequest(6, 'demo', answerable.question, [], settings, ['handbook'])
+    return {
+      question: answerable,
+      row: 6,
+      sample,
+      hits: [],
+      request,
+      key: requestKey(request, sample),
+    }
+  }
+
+  it('prices the prefix written once, each search read and written, and every step output', () => {
+    const price = agentPricing.models.answer
+    // No search: 1,000 written at $2.50 and 500 out at $10.
+    expect(agentAnswerUsd(price, 1000, 0, 500)).toBeCloseTo(0.0075, 12)
+    // Two searches: 3,000 written, 1,000 + 2,000 read at $0.10, and 3 steps of 500 out.
+    expect(agentAnswerUsd(price, 1000, 2, 500)).toBeCloseTo(
+      (3000 * 2.5 + 3000 * 0.1 + 1500 * 10) / 1e6,
+      12,
+    )
+  })
+
+  it('assumes a search in two answers until runs are cached, and says what all searches cost', async () => {
+    const { fake, counted } = client()
+    cache ??= openEvalCache(':memory:')
+
+    const result = await estimateCost({
+      jobs: [agentJob(), job(answerable, 3)],
+      client: fake,
+      cache,
+      pricing: agentPricing,
+      answerModel: 'answer',
+      judge,
+      retest: false,
+      maxSearches: 2,
+    })
+
+    expect(counted).toHaveLength(2)
+    expect(counted.some((params) => 'tools' in params)).toBe(true)
+    expect(result.answers.calls).toBe(1)
+    expect(result.agent).toMatchObject({
+      calls: 1,
+      cached: 0,
+      searchesPerAnswer: 0.5,
+      assumedSearches: true,
+    })
+    const price = agentPricing.models.answer
+    expect(result.agent?.usd).toBeCloseTo(agentAnswerUsd(price, 1000, 0.5, 500), 12)
+    expect(result.agent?.upToUsd).toBeCloseTo(agentAnswerUsd(price, 1000, 2, 500), 12)
+    expect(result.usd).toBeCloseTo(
+      result.answers.usd + (result.agent?.usd ?? 0) + result.judge.usd,
+      12,
+    )
+  })
+
+  it('needs the limit of searches for row 6', async () => {
+    cache ??= openEvalCache(':memory:')
+
+    await expect(estimate([agentJob()], client().fake)).rejects.toThrow('limit of searches')
   })
 })

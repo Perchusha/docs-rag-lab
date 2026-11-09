@@ -255,6 +255,9 @@ export {
   type RunGuard,
 } from './run-guard.ts'
 export {
+  AGENT_LOOP_VERSION,
+  AGENT_ROW,
+  agentRunKey,
   cachedAnswer,
   claimsOf,
   judgeCallsOf,
@@ -269,7 +272,10 @@ export {
   rowRequest,
   runAnswers,
   runJudge,
+  SECOND_ANSWERS_WAIT_MS,
+  type AgentEvalOptions,
   type AnswerJob,
+  type AnswerRunOptions,
   type AnswerSettings,
   type EvalClient,
   type JudgeOptions,
@@ -311,7 +317,9 @@ export {
   type SpotCheckOptions,
 } from './eval/calibrate.ts'
 export {
+  agentAnswerUsd,
   estimateCost,
+  type AgentCostLine,
   type EvalCostEstimate,
   type CostLine,
   type EstimateOptions,

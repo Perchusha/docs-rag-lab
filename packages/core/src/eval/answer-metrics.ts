@@ -2,6 +2,7 @@
 // are computed from the stored answers and verdicts, with no call to anything.
 import {
   ANSWER_COMPARED_METRICS,
+  type AgentRowMetrics,
   type AnchorCandidate,
   type AnswerComparedMetric,
   type AnswerComparison,
@@ -16,6 +17,7 @@ import {
   type RefusalMetrics,
 } from '@docs-rag-lab/contracts'
 
+import { AGENT_ROW } from './answers.ts'
 import { signTest, verdictOf } from './compare.ts'
 import type { GoldenQuestion } from './golden.ts'
 import { isUnanswerable } from './judge.ts'
@@ -116,6 +118,56 @@ export interface AnswerResultsOptions {
   support: readonly EvalSupport[]
   /** The chunks a question's primary and acceptable anchors resolved to. */
   anchorChunks: (questionId: string) => ReadonlySet<string>
+  /** The chunks its primary anchors resolved to, for what row 6's searches reached. */
+  primaryChunks?: ((questionId: string) => ReadonlySet<string>) | undefined
+}
+
+/** Row 6's searches, steps and caching, over its answers (ADR-0019). */
+function agentMetricsOf(
+  answers: readonly EvalAnswer[],
+  isAnswerable: (answer: EvalAnswer) => boolean,
+  primaryChunks: (questionId: string) => ReadonlySet<string>,
+): AgentRowMetrics {
+  const steps = answers.flatMap((answer) => answer.steps ?? [])
+  const searchesOf = (answer: EvalAnswer) => answer.searches ?? []
+  const lapses = answers.reduce((total, answer) => {
+    const list = answer.steps ?? []
+    return (
+      total +
+      list.filter((step, i) => {
+        const before = list[i - 1]
+        return before !== undefined && step.cacheReadTokens === 0 && before.cacheWriteTokens > 0
+      }).length
+    )
+  }, 0)
+  const answerable = answers.filter(isAnswerable)
+  const reaches = (answer: EvalAnswer, chunks: readonly string[]): boolean => {
+    const primary = primaryChunks(answer.questionId)
+    return chunks.some((chunkId) => primary.has(chunkId))
+  }
+  const firstSearch = (answer: EvalAnswer): string[] => {
+    const own = new Set(searchesOf(answer).flatMap((search) => search.chunkIds))
+    return answer.context.filter((chunkId) => !own.has(chunkId))
+  }
+  return {
+    answers: answers.length,
+    searchedAgain: answers.filter((answer) => searchesOf(answer).length > 0).length,
+    searches: sum(answers.map((answer) => searchesOf(answer).length)),
+    steps: steps.length,
+    inputTokens: sum(steps.map((step) => step.inputTokens)),
+    cacheWriteTokens: sum(steps.map((step) => step.cacheWriteTokens)),
+    cacheReadTokens: sum(steps.map((step) => step.cacheReadTokens)),
+    outputTokens: sum(steps.map((step) => step.outputTokens)),
+    costUsd: roundMean(sum(answers.map((answer) => answer.costUsd))),
+    uncachedCostUsd: roundMean(sum(answers.map((answer) => answer.uncachedCostUsd ?? 0))),
+    lapses,
+    firstStepReads: answers.filter((answer) => (answer.steps?.[0]?.cacheReadTokens ?? 0) > 0)
+      .length,
+    primaryInFirstSearch: answerable.filter((answer) => reaches(answer, firstSearch(answer)))
+      .length,
+    primaryReached: answerable.filter((answer) => reaches(answer, answer.context)).length,
+    answerable: answerable.length,
+  }
 }
 
 const rowLabel = (row: AnswerRow, sample: number): string =>
@@ -177,6 +229,18 @@ export function rowResult(
       failed: idsWith('failed').sort(),
       unjudged,
     },
+    ...(row === AGENT_ROW
+      ? {
+          agent: agentMetricsOf(
+            all.map(({ answer }) => answer),
+            (answer) => {
+              const question = questions.get(answer.questionId)
+              return question !== undefined && !isUnanswerable(question)
+            },
+            options.primaryChunks ?? (() => new Set()),
+          ),
+        }
+      : {}),
   }
 }
 
