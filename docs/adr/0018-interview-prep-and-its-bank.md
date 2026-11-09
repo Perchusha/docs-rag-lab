@@ -146,15 +146,15 @@ Written on 2026-11-09, after the run and before the owner labels H's sample.
 
 | Source | Chunks | Compiler questions | Generated | Shown | Dropped by the quote check | Dropped by Sonnet |
 |---|---|---|---|---|---|---|
-| TypeScript | 436 | 327 | 913 | 790 | 43 | 80 |
+| TypeScript | 442 | 327 | 925 | 802 | 43 | 80 |
 | React | 1,527 | 0 | 2,877 | 1,863, of which 63 on Pitfall callouts | 413 | 601 |
 
 - **React's quote check drops more,** 14% against 5%: its chunks are often code, challenges and their solutions, and Haiku quoted another part of the document, which it reads whole. Those questions are not grounded in the chunk they cite, so dropping them is the check working.
 - **A checker reply that skipped a verdict stopped the first start,** on one TypeScript chunk. Verdicts are now read in order when they are numbered otherwise, and a question with no verdict is not kept, with a reason saying so. Committing that fix stopped the React start by the run guard (ADR-0010), and the rerun paid only for what was missing.
 
-**Spend: $8.89 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, and the run $8.34. The forecast of $7.30 was low by about a fifth: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
+**Spend: $8.91 of Claude at list prices,** against the limit of $10: the pilot $0.09, the two stopped starts $0.46, the run $8.34, and $0.02 for the 6 options the refinement put back, which gave 12 questions, all shown. The forecast of $7.30 was low by about a fifth: Haiku wrote about two questions per chunk, and Sonnet's reasons were longer than the pilot's.
 
-**H's sample is drawn,** sample `892b4a468224`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet.
+**H's sample is drawn from the final bank,** sample `2823ff0b5089`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet. A first draw, `892b4a468224`, came before the refinement and was never labelled. React's 10 are the same in both, since its questions did not change and the draw is seeded.
 
 ## The PRs
 
