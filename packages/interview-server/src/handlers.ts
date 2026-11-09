@@ -2,7 +2,10 @@
 // they are tested without Next.js. Each route file of the app is one line that calls one of these
 // with the app's backend (apps/CLAUDE.md: routes stay thin). None calls a model.
 import {
+  MAX_FLAG_REASON,
+  parseFlagRequest,
   parseReviewRequest,
+  type FlagResult,
   type PracticeDeck,
   type PracticeOverview,
   type ReviewResult,
@@ -11,6 +14,7 @@ import {
   pickCards,
   practiceOverview,
   scheduleReview,
+  withoutFlagged,
   type InterviewState,
   type LoadedBank,
 } from '@docs-rag-lab/core'
@@ -20,7 +24,10 @@ export interface InterviewBackend {
   /** The sources the app offers, in the order it lists them. */
   sources: readonly string[]
   bank(): LoadedBank
-  state(): Pick<InterviewState, 'cards' | 'card' | 'saveReview' | 'reviewCount' | 'close'>
+  state(): Pick<
+    InterviewState,
+    'cards' | 'card' | 'saveReview' | 'reviewCount' | 'saveFlag' | 'flags' | 'close'
+  >
   now(): Date
 }
 
@@ -38,6 +45,17 @@ const fail = (status: number, error: string): Response => Response.json({ error 
 function failure(error: unknown): Response {
   console.error(error)
   return fail(500, error instanceof Error ? error.message : String(error))
+}
+
+/** The bank as the owner sees it: without the cards they flagged as wrong. */
+function visibleBank(backend: InterviewBackend): LoadedBank {
+  return withoutFlagged(
+    backend.bank(),
+    backend
+      .state()
+      .flags()
+      .map(({ questionId }) => questionId),
+  )
 }
 
 /** `?sources=typescript,react`: some of the app's sources, or all of them when absent. */
@@ -65,7 +83,7 @@ export function handleOverview(factory: BackendFactory, request: Request): Respo
     if (sources instanceof Response) return sources
     const state = backend.state()
     const overview: PracticeOverview = practiceOverview(
-      backend.bank(),
+      visibleBank(backend),
       state.cards(),
       state.reviewCount(),
       sources,
@@ -105,7 +123,7 @@ export function handleDeck(factory: BackendFactory, request: Request): Response 
     const count = countOf(url.searchParams.get('count'))
     if (count instanceof Response) return count
     const deck: PracticeDeck = {
-      cards: pickCards(backend.bank(), backend.state().cards(), {
+      cards: pickCards(visibleBank(backend), backend.state().cards(), {
         sources: topic === undefined ? sources : [topic.source],
         topic,
         count,
@@ -145,6 +163,38 @@ export async function handleReview(factory: BackendFactory, request: Request): P
     )
     state.saveReview({ card, rating: card.lastRating, reviewedAt: now.toISOString() })
     const result: ReviewResult = { questionId: review.questionId, due: card.due }
+    return Response.json(result, { headers: NO_STORE })
+  } catch (error) {
+    return failure(error)
+  }
+}
+
+/**
+ * POST /api/interview/flag: the owner found a card's answer wrong. The card is hidden for them,
+ * and the reason is kept in the progress store, for `drl questions flagged` (ADR-0018).
+ */
+export async function handleFlag(factory: BackendFactory, request: Request): Promise<Response> {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return fail(400, 'the body must be JSON')
+  }
+  const flag = parseFlagRequest(body)
+  if (flag === undefined) {
+    return fail(
+      400,
+      `a flag is { questionId, reason }, with a reason of 1 to ${String(MAX_FLAG_REASON)} characters`,
+    )
+  }
+  try {
+    const backend = factory()
+    if (!backend.bank().questions.some(({ id }) => id === flag.questionId)) {
+      return fail(404, `the bank has no question ${flag.questionId}`)
+    }
+    const flaggedAt = backend.now().toISOString()
+    backend.state().saveFlag({ ...flag, flaggedAt })
+    const result: FlagResult = { questionId: flag.questionId, flaggedAt }
     return Response.json(result, { headers: NO_STORE })
   } catch (error) {
     return failure(error)

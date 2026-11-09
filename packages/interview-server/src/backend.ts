@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import {
   findRepoRoot,
+  interviewStatePath,
   loadInterviewBank,
   openInterviewState,
   type LoadedBank,
@@ -23,9 +24,8 @@ export interface BackendOptions {
   now?: (() => Date) | undefined
 }
 
-/** Where the app keeps its progress (SPEC section 4). */
-export const statePath = (root: string): string =>
-  join(root, settings.dataDir, 'apps', 'interview-prep.sqlite')
+/** Where the app keeps its progress and flags (SPEC section 4). */
+export const statePath = (root: string): string => interviewStatePath(root, settings.dataDir)
 
 /** The app's backend, built by the first call that succeeds and the same one after that. */
 export function onceInterview(options: BackendOptions): () => InterviewBackend {

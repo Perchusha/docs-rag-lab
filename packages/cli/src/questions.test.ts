@@ -9,7 +9,9 @@ import {
   COMPILER_IDENTITY_PREFIX,
   createEmbeddingProvider,
   GENERATE_SYSTEM_PROMPT,
+  interviewStatePath,
   openIndexes,
+  openInterviewState,
   readBank,
   type EvalClient,
   type QuestionRow,
@@ -329,10 +331,42 @@ describe('drl questions (ADR-0018)', () => {
 
     const noReason = await drl('questions', 'reject', compiler?.question.id ?? '')
     expect(noReason.code).toBe(1)
-    expect(noReason.err).toContain('questions reject needs a question id and a reason')
+    expect(noReason.err).toContain(
+      `questions reject needs a reason, or a flag of ${compiler?.question.id ?? ''} in the app to take it from`,
+    )
     const unknown = await drl('questions', 'reject', 'nope', 'Wrong.')
     expect(unknown.code).toBe(1)
     expect(unknown.err).toContain('no bank has a question nope')
+  })
+
+  it('lists the cards flagged in the app, and rejects one with the reason of its flag', async () => {
+    expect((await drl('questions', 'flagged')).out).toContain('no card is flagged as wrong')
+    await drl('questions', 'typescript', '--yes')
+    const [compiler, theory] = questionsIn()
+    if (compiler === undefined || theory === undefined) throw new Error('no questions')
+    const state = openInterviewState(interviewStatePath(root, settings.dataDir))
+    state.saveFlag({
+      questionId: theory.question.id,
+      reason: 'The code shows otherwise.',
+      flaggedAt: '2026-11-09T10:00:00.000Z',
+    })
+    state.saveFlag({ questionId: 'gone', reason: 'Old.', flaggedAt: '2026-11-09T11:00:00.000Z' })
+    state.close()
+
+    const listed = await drl('questions', 'flagged')
+    expect(listed.code).toBe(0)
+    expect(listed.out).toContain('2 cards flagged as wrong')
+    expect(listed.out).toContain(`${theory.question.id}, flagged 2026-11-09, typescript theory`)
+    expect(listed.out).toContain('Your reason: The code shows otherwise.')
+    expect(listed.out).toContain(`pnpm drl questions reject ${theory.question.id}`)
+    expect(listed.out).toContain('In the bank: no longer there')
+
+    expect((await drl('questions', 'reject', theory.question.id)).code).toBe(0)
+    expect(questionsIn().find((row) => row.question.id === theory.question.id)).toMatchObject({
+      status: 'rejected-owner',
+      ownerReason: 'The code shows otherwise.',
+    })
+    expect((await drl('questions', 'flagged')).out).toContain('In the bank: rejected already')
   })
 
   it('refuses --pilot with commands other than sync --contextual and questions', async () => {

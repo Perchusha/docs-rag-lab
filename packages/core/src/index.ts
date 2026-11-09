@@ -148,9 +148,11 @@ export {
 } from './interview/sample.ts'
 export { calloutsOf, quoteFound, withoutEmDash } from './interview/text.ts'
 export {
+  interviewStatePath,
   pickCards,
   practiceOverview,
   scheduleReview,
+  withoutFlagged,
   type LoadedBank,
   type PickOptions,
 } from './interview/progress.ts'
@@ -379,7 +381,12 @@ export {
 } from './generate.ts'
 export type { SearchHit } from '@docs-rag-lab/db'
 export { openEvalCache, readIndexCommit, type EvalCache } from '@docs-rag-lab/db'
-export { openInterviewState, type InterviewState, type StoredCard } from '@docs-rag-lab/db'
+export {
+  openInterviewState,
+  type CardFlag,
+  type InterviewState,
+  type StoredCard,
+} from '@docs-rag-lab/db'
 export {
   CHUNKER_VERSION,
   DOC_TYPES,

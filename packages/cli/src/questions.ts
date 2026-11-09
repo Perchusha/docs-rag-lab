@@ -19,8 +19,10 @@ import {
   forecastBank,
   generateBank,
   generatedChunks,
+  interviewStatePath,
   keptGeneratedRows,
   openIndexes,
+  openInterviewState,
   ownerRejections,
   planBank,
   readBank,
@@ -32,6 +34,7 @@ import {
   type BankHeader,
   type BankLabel,
   type BankRow,
+  type CardFlag,
   type QuestionRow,
   type Source,
 } from '@docs-rag-lab/core'
@@ -41,6 +44,7 @@ import { CliError } from './errors.ts'
 import {
   formatBankCheck,
   formatBankPlan,
+  formatFlag,
   formatBankSheet,
   formatPilotQuestion,
 } from './questions-format.ts'
@@ -257,16 +261,64 @@ export function questionsScoreCommand(ctx: CommandContext, args: { labels: strin
   ctx.out.write(text)
 }
 
+/** The cards the owner flagged as wrong in the interview-prep app, oldest first. */
+function appFlags(ctx: CommandContext): { path: string; flags: CardFlag[] } {
+  const path = interviewStatePath(ctx.root, ctx.settings.dataDir)
+  // The app creates its store; listing flags never does.
+  if (!existsSync(path)) return { path, flags: [] }
+  const state = openInterviewState(path)
+  try {
+    return { path, flags: state.flags() }
+  } finally {
+    state.close()
+  }
+}
+
+/** Every question row of every bank, whatever its status, by question ID. */
+function bankRows(ctx: CommandContext): Map<string, QuestionRow> {
+  const rows = new Map<string, QuestionRow>()
+  for (const source of ctx.sources) {
+    if (source.interviewTopic === undefined) continue
+    for (const row of readBank(bankPath(ctx.root, source.id))?.rows ?? []) {
+      if (row.row === 'question') rows.set(row.question.id, row)
+    }
+  }
+  return rows
+}
+
 /**
- * `drl questions reject <question id> <reason>`: the owner found a shown question wrong
- * (ADR-0018). It stays in its bank with the reason, and the app no longer shows it.
+ * `drl questions flagged`: the cards the owner flagged as wrong in the app (ADR-0018), each with
+ * its reason and what the bank says of it, so that they can be rejected there.
+ */
+export function questionsFlaggedCommand(ctx: CommandContext): void {
+  const { path, flags } = appFlags(ctx)
+  if (flags.length === 0) {
+    ctx.out.write(`no card is flagged as wrong in ${path}\n`)
+    return
+  }
+  const rows = bankRows(ctx)
+  const listed = flags.map((flag) => formatFlag(flag, rows.get(flag.questionId)))
+  ctx.out.write(
+    `${count(flags.length)} ${flags.length === 1 ? 'card' : 'cards'} flagged as wrong in ${path}:\n\n${listed.join('\n\n')}\n`,
+  )
+}
+
+/**
+ * `drl questions reject <question id> [reason]`: the owner found a shown question wrong
+ * (ADR-0018). It stays in its bank with the reason, and the app no longer shows it. With no
+ * reason, the reason the owner gave when flagging it in the app is used.
  */
 export function questionsRejectCommand(
   ctx: CommandContext,
   args: { questionId: string; reason: string | undefined },
 ): void {
-  if (args.reason === undefined || args.reason.trim() === '') {
-    throw new CliError('questions reject needs a question id and a reason')
+  const reason =
+    args.reason ??
+    appFlags(ctx).flags.find(({ questionId }) => questionId === args.questionId)?.reason
+  if (reason === undefined || reason.trim() === '') {
+    throw new CliError(
+      `questions reject needs a reason, or a flag of ${args.questionId} in the app to take it from`,
+    )
   }
   for (const source of ctx.sources) {
     if (source.interviewTopic === undefined) continue
@@ -278,7 +330,7 @@ export function questionsRejectCommand(
     if (bank === undefined || found === undefined) continue
     let rejected
     try {
-      rejected = rejectQuestion(bank, args.questionId, args.reason)
+      rejected = rejectQuestion(bank, args.questionId, reason)
     } catch (error) {
       if (error instanceof RejectError) throw new CliError(error.message)
       throw error

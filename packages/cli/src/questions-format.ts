@@ -1,6 +1,6 @@
 // What drl questions prints and writes (ADR-0018): the plan, the pilot's questions, the sheet the
-// owner labels the bank's sample from, and the score of those labels.
-import type { BankCheck, BankPlan, QuestionRow, TokenPlan } from '@docs-rag-lab/core'
+// owner labels the bank's sample from, the score of those labels, and the cards flagged as wrong.
+import type { BankCheck, BankPlan, CardFlag, QuestionRow, TokenPlan } from '@docs-rag-lab/core'
 
 const count = (n: number): string => n.toLocaleString('en-US')
 const usd = (n: number): string => `$${n.toFixed(4)}`
@@ -105,5 +105,30 @@ export function formatBankCheck(check: BankCheck): string {
       ? 'H holds.'
       : 'H misses: the generated questions are hidden, and the owner is asked.',
     '',
+  ].join('\n')
+}
+
+/** What `drl questions flagged` prints of one flag: the card, the owner's reason, and the bank's status. */
+export function formatFlag(flag: CardFlag, row: QuestionRow | undefined): string {
+  const head = `${flag.questionId}, flagged ${flag.flaggedAt.slice(0, 10)}`
+  if (row === undefined) {
+    return [
+      head,
+      `  Your reason: ${flag.reason}`,
+      '  In the bank: no longer there, since its chunk changed or a run dropped it',
+    ].join('\n')
+  }
+  const { question } = row
+  return [
+    `${head}, ${question.source} ${question.kind}`,
+    `  Question: ${question.prompt}`,
+    `  Stored answer: ${question.answer}`,
+    `  Docs: ${question.citation.url}`,
+    `  Your reason: ${flag.reason}`,
+    row.status === 'rejected-owner'
+      ? '  In the bank: rejected already'
+      : row.status === 'shown'
+        ? `  In the bank: shown. To reject it with your reason: pnpm drl questions reject ${flag.questionId}`
+        : `  In the bank: ${row.status}`,
   ].join('\n')
 }

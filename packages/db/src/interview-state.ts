@@ -1,6 +1,7 @@
 // The interview-prep app's own state: data/apps/interview-prep.sqlite (SPEC section 4, ADR-0018).
-// One row per card the owner has rated, with its FSRS state as JSON and when it is due, and one
-// row per rating. Core computes the state; this module only keeps it.
+// One row per card the owner has rated, with its FSRS state as JSON and when it is due, one row
+// per rating, and one per card the owner flagged as wrong, with the reason. Core computes the
+// state; this module only keeps it.
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -23,6 +24,13 @@ const MIGRATIONS = [
     reviewed_at text not null
   );
   `,
+  `
+  create table flags (
+    question_id text primary key,
+    reason text not null,
+    flagged_at text not null
+  ) without rowid;
+  `,
 ]
 
 /** A card the owner has rated: its FSRS state, as core serialises it, and when it is due. */
@@ -40,6 +48,14 @@ export interface CardReview {
   card: StoredCard
   rating: number
   reviewedAt: string
+}
+
+/** A card the owner found wrong: hidden for them, with the reason, until the bank decides. */
+export interface CardFlag {
+  questionId: string
+  reason: string
+  /** An ISO date and time. */
+  flaggedAt: string
 }
 
 interface CardRow {
@@ -95,6 +111,31 @@ export class InterviewState {
         )
         .run(card)
     })()
+  }
+
+  /** A card flagged as wrong. Flagging it again keeps the new reason. */
+  saveFlag(flag: CardFlag): void {
+    this.#db
+      .prepare(
+        `insert into flags (question_id, reason, flagged_at) values (@questionId, @reason, @flaggedAt)
+         on conflict (question_id) do update set
+           reason = excluded.reason, flagged_at = excluded.flagged_at`,
+      )
+      .run(flag)
+  }
+
+  /** Every card flagged as wrong, oldest first. */
+  flags(): CardFlag[] {
+    const rows = this.#db.prepare('select * from flags order by flagged_at, question_id').all() as {
+      question_id: string
+      reason: string
+      flagged_at: string
+    }[]
+    return rows.map((row) => ({
+      questionId: row.question_id,
+      reason: row.reason,
+      flaggedAt: row.flagged_at,
+    }))
   }
 
   /** Every rating ever given. */

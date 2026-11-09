@@ -76,3 +76,32 @@ export function parseReviewRequest(value: unknown): ReviewRequest | undefined {
   const known = RATINGS.find((name) => name === rating)
   return known === undefined ? undefined : { questionId, rating: known }
 }
+
+/** The longest reason a flag keeps. */
+export const MAX_FLAG_REASON = 2_000
+
+/**
+ * The owner found a card's answer wrong (ADR-0018). The card is hidden for them, and the reason
+ * is kept locally, so that `drl questions flagged` can list it for a rejection in the bank.
+ */
+export interface FlagRequest {
+  questionId: string
+  reason: string
+}
+
+export interface FlagResult {
+  questionId: string
+  /** When the card was flagged, as an ISO date and time. */
+  flaggedAt: string
+}
+
+/** A flag request as JSON, checked, with its reason trimmed. Anything else gives undefined. */
+export function parseFlagRequest(value: unknown): FlagRequest | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const { questionId, reason } = value as Partial<Record<keyof FlagRequest, unknown>>
+  if (typeof questionId !== 'string' || questionId === '') return undefined
+  if (typeof reason !== 'string') return undefined
+  const trimmed = reason.trim()
+  if (trimmed === '' || trimmed.length > MAX_FLAG_REASON) return undefined
+  return { questionId, reason: trimmed }
+}

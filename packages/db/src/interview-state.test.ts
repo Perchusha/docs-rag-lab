@@ -48,6 +48,36 @@ describe('the interview state (ADR-0018)', () => {
     state.close()
   })
 
+  it('keeps the cards flagged as wrong with the reason, the last reason winning', () => {
+    const state = openInterviewState(':memory:')
+    expect(state.flags()).toEqual([])
+    state.saveFlag({
+      questionId: 'q2',
+      reason: 'Says set once.',
+      flaggedAt: '2026-11-09T10:00:00.000Z',
+    })
+    state.saveFlag({
+      questionId: 'q1',
+      reason: 'Wrong line.',
+      flaggedAt: '2026-11-09T11:00:00.000Z',
+    })
+    state.saveFlag({
+      questionId: 'q2',
+      reason: 'Says set once, and the code disagrees.',
+      flaggedAt: '2026-11-09T12:00:00.000Z',
+    })
+
+    expect(state.flags()).toEqual([
+      { questionId: 'q1', reason: 'Wrong line.', flaggedAt: '2026-11-09T11:00:00.000Z' },
+      {
+        questionId: 'q2',
+        reason: 'Says set once, and the code disagrees.',
+        flaggedAt: '2026-11-09T12:00:00.000Z',
+      },
+    ])
+    state.close()
+  })
+
   it('creates its folder and keeps the state across openings', () => {
     const root = mkdtempSync(join(tmpdir(), 'interview-state-'))
     const path = join(root, 'apps', 'interview-prep.sqlite')

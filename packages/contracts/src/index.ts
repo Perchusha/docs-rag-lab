@@ -42,8 +42,12 @@ export {
   type VerifiedBy,
 } from './interview.ts'
 export {
+  MAX_FLAG_REASON,
+  parseFlagRequest,
   parseReviewRequest,
   RATINGS,
+  type FlagRequest,
+  type FlagResult,
   type PracticeCard,
   type PracticeDeck,
   type PracticeOverview,
