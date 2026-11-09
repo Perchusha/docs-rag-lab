@@ -263,6 +263,30 @@ describe('drl questions (ADR-0018)', () => {
     expect(out).toContain('1 questions written')
   })
 
+  it('links each kept question to the section its quote is in, with no call', async () => {
+    await drl('questions', 'typescript', '--yes')
+    // As a bank written before links followed the quote has it.
+    writeFileSync(
+      bankFile(),
+      readFileSync(bankFile(), 'utf8').replaceAll(
+        '"url":"https://x.dev/a#two"',
+        '"url":"https://x.dev/a#old"',
+      ),
+    )
+    expect(questionsIn().some((row) => row.question.citation.url === 'https://x.dev/a#old')).toBe(
+      true,
+    )
+    claudeRequests = []
+
+    await drl('questions', 'typescript')
+    expect(claudeRequests).toEqual([])
+    expect(
+      questionsIn()
+        .filter((row) => row.question.kind === 'theory')
+        .map((row) => row.question.citation.url),
+    ).toEqual(['https://x.dev/a#one', 'https://x.dev/a#two'])
+  })
+
   it('writes the sheet of the sample, and scores labels only against that sample', async () => {
     await drl('questions', 'typescript', '--yes')
 

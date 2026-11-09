@@ -147,6 +147,7 @@ export {
   type BankSamplePlan,
 } from './interview/sample.ts'
 export { calloutsOf, quoteFound, withoutEmDash } from './interview/text.ts'
+export { withQuoteCitations } from './interview/sections.ts'
 export {
   interviewStatePath,
   pickCards,

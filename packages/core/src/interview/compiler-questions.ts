@@ -3,7 +3,8 @@
 import type { BankQuestion, CompilerAnswer } from '@docs-rag-lab/contracts'
 import { compiledExamples, sha256Hex, type Source } from '@docs-rag-lab/source-kit'
 
-import { citationUrl, type BankChunk, type BankDocument } from './documents.ts'
+import type { BankChunk, BankDocument } from './documents.ts'
+import { sectionCitation } from './sections.ts'
 import { withoutEmDash } from './text.ts'
 
 /** A question as the bank stores it, with the text of the chunk it was made from. */
@@ -58,13 +59,6 @@ function chunkQuestions(
   compiler: string,
 ): MadeQuestion[] {
   if (chunk.compiler.length === 0) return []
-  const citation = {
-    url: citationUrl(document, chunk),
-    title: document.title,
-    sectionPath: chunk.sectionPath,
-    docPath: document.path,
-    chunkId: chunk.id,
-  }
   const idOf = (kind: string, example: number, item: number): string =>
     sha256Hex([chunk.id, chunk.textHash, kind, String(example), String(item)].join('\n')).slice(
       0,
@@ -72,6 +66,15 @@ function chunkQuestions(
     )
 
   return compiledExamples(chunk.text, chunk.compiler).flatMap((example, e) => {
+    // The section the example is in, which need not be the one the chunk starts in.
+    const { url, sectionPath } = sectionCitation(document, chunk, example.start)
+    const citation = {
+      url,
+      title: document.title,
+      sectionPath,
+      docPath: document.path,
+      chunkId: chunk.id,
+    }
     const displayed = source.displayCode?.(example.code) ?? { code: example.code, setup: '' }
     const shown = displayed.code
     const code = {

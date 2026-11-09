@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { testChunk } from './test-chunks.ts'
-import { calloutsOf, quoteForm, quoteFound, withoutEmDash } from './text.ts'
+import { calloutsOf, quoteAt, quoteForm, quoteFound, withoutEmDash } from './text.ts'
 
 const EM_DASH = String.fromCodePoint(0x2014)
 const EN_DASH = String.fromCodePoint(0x2013)
@@ -32,6 +32,30 @@ describe('quoteFound (ADR-0018)', () => {
   it('takes no quote too short to support anything', () => {
     expect(quoteFound('narrows', chunk)).toBe(false)
     expect(quoteForm('  a  `b`\n*c*  ')).toBe('a b c')
+  })
+})
+
+describe('quoteAt (ADR-0018)', () => {
+  const chunk = `Narrowing > typeof\n\nTypeScript knows that \`typeof x === "string"\` narrows \`x\` to **string**${EM_DASH}inside the block.\n\nMore text after it.`
+
+  it('finds the quote where the quote check does, as offsets in the text', () => {
+    const at = quoteAt('knows that typeof x === "string" narrows x to string-inside', chunk)
+
+    expect(at).toBeDefined()
+    expect(chunk.slice(at?.start, at?.end)).toBe(
+      `knows that \`typeof x === "string"\` narrows \`x\` to **string**${EM_DASH}inside`,
+    )
+  })
+
+  it('agrees with the quote check on what it finds', () => {
+    for (const quote of [
+      `narrows x to string${EN_DASH}inside   the block.`,
+      `the block. More text`,
+      'TypeScript knows that typeof x always narrows',
+      'narrows',
+    ]) {
+      expect(quoteAt(quote, chunk) !== undefined).toBe(quoteFound(quote, chunk))
+    }
   })
 })
 

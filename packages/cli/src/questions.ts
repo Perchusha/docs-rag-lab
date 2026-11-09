@@ -28,6 +28,7 @@ import {
   readBank,
   rejectQuestion,
   RejectError,
+  withQuoteCitations,
   withRejection,
   writeBank,
   type BankDocument,
@@ -117,9 +118,13 @@ export async function questionsCommand(
       withRejection({ row: 'question', status: 'shown', textHash, question }, rejections),
     ),
   )
-  // What earlier runs paid for, for chunks whose text is still the same.
-  const kept = keptGeneratedRows(earlier, header).filter(
-    (row) => current.get(chunkIdOf(row)) === row.textHash,
+  // What earlier runs paid for, for chunks whose text is still the same, each linked to the
+  // section its quote is in.
+  const kept = withQuoteCitations(
+    keptGeneratedRows(earlier, header).filter(
+      (row) => current.get(chunkIdOf(row)) === row.textHash,
+    ),
+    documents,
   )
   const known = generatedChunks(kept)
   const options = { models, settings: settings.interviewBank, pricing: settings.pricing, known }

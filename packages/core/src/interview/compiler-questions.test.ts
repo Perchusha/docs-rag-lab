@@ -88,6 +88,24 @@ describe('compilerQuestions (ADR-0018)', () => {
     expect(error?.textHash).toBe(chunk.textHash)
   })
 
+  it('links each example to the section it is in', () => {
+    const later = testChunk(
+      'chunk-2',
+      ['Some prose about narrowing.', `### Later\n\n${code('let n = 1;\n//  ^?', queries)}`],
+      { compiler: [queries], anchor: 'narrowing', anchors: ['narrowing', 'later'] },
+    )
+    const [first] = compilerQuestions(
+      source,
+      testDocument('handbook/Narrowing.md', [later]),
+      COMPILER,
+    )
+
+    expect(first?.question.citation).toMatchObject({
+      url: 'https://docs.example.com/handbook/Narrowing#later',
+      sectionPath: ['Section', 'Later'],
+    })
+  })
+
   it('asks for each type query whose line the docs show', () => {
     const types = made.filter(({ question }) => question.kind === 'compiler-type')
 
