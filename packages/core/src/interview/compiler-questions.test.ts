@@ -1,7 +1,7 @@
 import { renderBlock, type CompilerOutput, type Source } from '@docs-rag-lab/source-kit'
 import { describe, expect, it } from 'vitest'
 
-import { compilerQuestions, ERROR_PROMPT, typePrompt } from './compiler-questions.ts'
+import { codeSpan, compilerQuestions, ERROR_PROMPT, typePrompt } from './compiler-questions.ts'
 import { testChunk, testDocument } from './test-chunks.ts'
 
 const COMPILER = 'twoslash 0.3.9, typescript 6.0.2'
@@ -15,12 +15,15 @@ const source: Source = {
   parserVersion: 1,
   match: () => true,
   parse: () => Promise.reject(new Error('not parsed in this test')),
-  // As the TypeScript source does it, in short: no directives and no query lines.
-  displayCode: (code) =>
-    code
-      .split('\n')
-      .filter((line) => !/^\s*\/\/\s*(@\w+|\^)/.test(line))
-      .join('\n'),
+  // As the TypeScript source does it, in short: no directives and no query lines, and what is
+  // above a cut is the setup.
+  displayCode: (code) => {
+    const lines = code.split('\n').filter((line) => !/^\s*\/\/\s*(@\w+|\^)/.test(line))
+    const cut = lines.indexOf('// ---cut---')
+    return cut === -1
+      ? { code: lines.join('\n'), setup: '' }
+      : { code: lines.slice(cut + 1).join('\n'), setup: lines.slice(0, cut).join('\n') }
+  },
 }
 
 const errors: CompilerOutput = {
@@ -71,7 +74,7 @@ describe('compilerQuestions (ADR-0018)', () => {
       prompt: ERROR_PROMPT,
       code: { lang: 'ts', code: 'declare function f(n: number): void\nf("x");', compiled: true },
       answer:
-        "It does not compile. TypeScript reports:\n- TS2345 on `f(\"x\");`: Argument of type 'string' is not assignable   to 'number'.",
+        "It does not compile. TypeScript reports:\n- TS2345 on `f(\"x\");`: Argument of type 'string' is not assignable\n    to 'number'.",
       compiler: { compiler: COMPILER, errors: errors.errors, queries: [] },
       citation: {
         url: 'https://docs.example.com/handbook/Narrowing#narrowing',
@@ -111,6 +114,30 @@ describe('compilerQuestions (ADR-0018)', () => {
       COMPILER,
     )
     expect(changed[0]?.question.id).not.toBe(made[0]?.question.id)
+  })
+
+  it('writes code that holds a backtick in a longer code span, so its end can be found', () => {
+    expect(codeSpan('x')).toBe('`x`')
+    expect(codeSpan('type Id = `${Lang}_id`;')).toBe('`` type Id = `${Lang}_id`; ``')
+    expect(typePrompt('Id', '  type Id = `${Lang}_id`;')).toBe(
+      'What type does TypeScript show for `Id` on the line `` type Id = `${Lang}_id`; ``?',
+    )
+  })
+
+  it('keeps what the site hides as the setup, so the question can show it on demand', () => {
+    const withSetup = testChunk(
+      'chunk-3',
+      [code('declare function f(n: number): void\n// ---cut---\nf("x");', errors)],
+      { compiler: [errors] },
+    )
+
+    const [question] = compilerQuestions(source, testDocument('b.md', [withSetup]), COMPILER)
+    expect(question?.question.code).toEqual({
+      lang: 'ts',
+      code: 'f("x");',
+      setup: 'declare function f(n: number): void',
+      compiled: true,
+    })
   })
 
   it('asks nothing of an error on a line the docs do not show', () => {

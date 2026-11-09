@@ -7,6 +7,7 @@ export {
   type CompileOptions,
   type CompileResult,
   type CompilerOutput,
+  type DisplayedCode,
   type DocType,
   type InterviewDocument,
   type InterviewTopic,

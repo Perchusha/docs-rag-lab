@@ -48,7 +48,7 @@ const base: Omit<Source, 'compiled'> = {
   match: () => true,
   parse: () => Promise.reject(new Error('not parsed in this test')),
   interviewTopic: ({ path, title }) => ({ id: path, title, group: 'Handbook' }),
-  displayCode: (code) => code.replace('// @errors: 2322\n', ''),
+  displayCode: (code) => ({ code: code.replace('// @errors: 2322\n', ''), setup: '' }),
 }
 const source: Source = { ...base, compiled: () => ({ ...base, compiler: 'twoslash test' }) }
 

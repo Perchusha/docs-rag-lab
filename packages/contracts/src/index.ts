@@ -42,6 +42,19 @@ export {
   type VerifiedBy,
 } from './interview.ts'
 export {
+  parseReviewRequest,
+  RATINGS,
+  type PracticeCard,
+  type PracticeDeck,
+  type PracticeOverview,
+  type PracticeSummary,
+  type Rating,
+  type ReviewRequest,
+  type ReviewResult,
+  type TopicGroup,
+  type TopicProgress,
+} from './practice.ts'
+export {
   ANSWER_COMPARED_METRICS,
   ANSWER_ROWS,
   type AgreementResult,

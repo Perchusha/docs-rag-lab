@@ -1,0 +1,106 @@
+[
+  {
+    "id": "f703caf1f0ceef11",
+    "source": "typescript",
+    "kind": "compiler-error",
+    "topicId": "handbook-v2/Basics",
+    "prompt": "Does this code compile? If not, which errors does TypeScript report, and on which lines?",
+    "code": {
+      "lang": "ts",
+      "code": "function greet(person: string, date: Date) {\n  console.log(`Hello ${person}, today is ${date.toDateString()}!`);\n}\n\ngreet(\"Maddison\", Date());",
+      "compiled": true
+    },
+    "answer": "It does not compile. TypeScript reports:\n- TS2345 on `greet(\"Maddison\", Date());`: Argument of type 'string' is not assignable to parameter of type 'Date'.",
+    "compiler": {
+      "compiler": "twoslash 0.3.9, typescript 6.0.2",
+      "errors": [
+        {
+          "code": 2345,
+          "line": "greet(\"Maddison\", Date());",
+          "text": "Argument of type 'string' is not assignable to parameter of type 'Date'."
+        }
+      ],
+      "queries": []
+    },
+    "citation": {
+      "url": "https://www.typescriptlang.org/docs/handbook/2/basic-types.html#explicit-types",
+      "title": "The Basics",
+      "sectionPath": [
+        "Explicit Types"
+      ],
+      "docPath": "packages/documentation/copy/en/handbook-v2/Basics.md",
+      "chunkId": "3a24ef434c7db13f50d76640"
+    },
+    "verifiedBy": "compiler"
+  },
+  {
+    "id": "ecd116c8ad721efb",
+    "source": "typescript",
+    "kind": "compiler-error",
+    "topicId": "handbook-v2/Classes",
+    "prompt": "Does this code compile? If not, which errors does TypeScript report, and on which lines?",
+    "code": {
+      "lang": "ts",
+      "code": "class Derived extends Base {\n  // forgot to do anything\n}",
+      "setup": "abstract class Base {\n  abstract getName(): string;\n  printName() {}\n}",
+      "compiled": true
+    },
+    "answer": "It does not compile. TypeScript reports:\n- TS2515 on `class Derived extends Base {`: Non-abstract class 'Derived' does not implement inherited abstract member getName from class 'Base'.",
+    "compiler": {
+      "compiler": "twoslash 0.3.9, typescript 6.0.2",
+      "errors": [
+        {
+          "code": 2515,
+          "line": "class Derived extends Base {",
+          "text": "Non-abstract class 'Derived' does not implement inherited abstract member getName from class 'Base'."
+        }
+      ],
+      "queries": []
+    },
+    "citation": {
+      "url": "https://www.typescriptlang.org/docs/handbook/2/classes.html#abstract-classes-and-members",
+      "title": "Classes",
+      "sectionPath": [
+        "abstract Classes and Members"
+      ],
+      "docPath": "packages/documentation/copy/en/handbook-v2/Classes.md",
+      "chunkId": "21c90545311fc28e13614adb"
+    },
+    "verifiedBy": "compiler"
+  },
+  {
+    "id": "2b834cb5a0bce698",
+    "source": "typescript",
+    "kind": "compiler-type",
+    "topicId": "handbook-v2/Narrowing",
+    "prompt": "What type does TypeScript show for `shape` on the line `return Math.PI * shape.radius ** 2;`?",
+    "code": {
+      "lang": "ts",
+      "code": "function getArea(shape: Shape) {\n  if (shape.kind === \"circle\") {\n    return Math.PI * shape.radius ** 2;\n  }\n}",
+      "setup": "interface Circle {\n  kind: \"circle\";\n  radius: number;\n}\n\ninterface Square {\n  kind: \"square\";\n  sideLength: number;\n}\n\ntype Shape = Circle | Square;",
+      "compiled": true
+    },
+    "answer": "(parameter) shape: Circle",
+    "compiler": {
+      "compiler": "twoslash 0.3.9, typescript 6.0.2",
+      "errors": [],
+      "queries": [
+        {
+          "target": "shape",
+          "line": "    return Math.PI * shape.radius ** 2;",
+          "text": "(parameter) shape: Circle"
+        }
+      ]
+    },
+    "citation": {
+      "url": "https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions",
+      "title": "Narrowing",
+      "sectionPath": [
+        "Discriminated unions"
+      ],
+      "docPath": "packages/documentation/copy/en/handbook-v2/Narrowing.md",
+      "chunkId": "2393d08d7271318db87804a1"
+    },
+    "verifiedBy": "compiler"
+  }
+]

@@ -22,3 +22,21 @@ export interface DocsAppConfig {
 export function defineDocsApp<const Config extends DocsAppConfig>(config: Config): Config {
   return config
 }
+
+/** What the interview-prep app configures for itself in its interview.config.ts (ADR-0018). */
+export interface InterviewAppConfig {
+  /** The app's ID, also its folder under apps/. */
+  id: string
+  title: string
+  tagline?: string | undefined
+  theme: Theme
+  /** The technologies it offers, each a source with a bank, in the order it lists them. */
+  sources: readonly { id: string; title: string }[]
+}
+
+/** Checks the interview app's config against InterviewAppConfig and returns it as is. */
+export function defineInterviewApp<const Config extends InterviewAppConfig>(
+  config: Config,
+): Config {
+  return config
+}

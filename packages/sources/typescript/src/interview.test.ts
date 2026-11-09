@@ -70,8 +70,9 @@ describe('interviewTopicOf (ADR-0018)', () => {
 
     expect(source.interviewTopic?.(handbook)).toEqual(interviewTopicOf(handbook))
     expect(source.compiled?.().interviewTopic?.(handbook)).toEqual(interviewTopicOf(handbook))
-    expect(source.displayCode?.('// @noErrors\nlet a = 1')).toBe('let a = 1')
-    expect(source.compiled?.().displayCode?.('// @noErrors\nlet a = 1')).toBe('let a = 1')
+    const shown = { code: 'let a = 1', setup: '' }
+    expect(source.displayCode?.('// @noErrors\nlet a = 1')).toEqual(shown)
+    expect(source.compiled?.().displayCode?.('// @noErrors\nlet a = 1')).toEqual(shown)
   })
 })
 
@@ -90,8 +91,8 @@ describe('displayCode (ADR-0018)', () => {
       'n = "x";',
     ].join('\n')
 
-    expect(displayCode(code)).toBe(
-      [
+    expect(displayCode(code)).toEqual({
+      code: [
         'function padLeft(padding: number | string, input: string) {',
         '  return " ".repeat(padding) + input;',
         '}',
@@ -99,18 +100,21 @@ describe('displayCode (ADR-0018)', () => {
         '// @ts-expect-error',
         'n = "x";',
       ].join('\n'),
-    )
+      setup: '',
+    })
   })
 
   it('keeps file names, which the example shows', () => {
-    expect(displayCode('// @filename: a.ts\nexport const a = 1')).toBe(
+    expect(displayCode('// @filename: a.ts\nexport const a = 1').code).toBe(
       '// @filename: a.ts\nexport const a = 1',
     )
   })
 
-  it('shows only what the cut markers leave visible', () => {
+  it('shows only what the cut markers leave visible, and keeps the rest as the setup', () => {
     const code = [
+      '// @errors: 2304',
       'declare const hidden: string',
+      '//            ^?',
       '// ---cut---',
       '',
       'const shown = hidden',
@@ -122,6 +126,9 @@ describe('displayCode (ADR-0018)', () => {
       'const after = 2',
     ].join('\n')
 
-    expect(displayCode(code)).toBe('const shown = hidden\nshown.length')
+    expect(displayCode(code)).toEqual({
+      code: 'const shown = hidden\nshown.length',
+      setup: 'declare const hidden: string\nconst alsoHidden = 1\nconst after = 2',
+    })
   })
 })

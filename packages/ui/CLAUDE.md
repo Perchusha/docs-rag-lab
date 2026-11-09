@@ -1,13 +1,13 @@
 # packages/ui
 
-Client components for the docs assistants: chat, citations and the retrieval inspector (M3), the eval dashboard (M4, ADR-0013), later the topic map. Decisions are in ADR-0008.
+Client components for the docs assistants: chat, citations and the retrieval inspector (M3), the eval dashboard (M4, ADR-0013), and the interview-prep app with its topic map and cards (M8, ADR-0018). Decisions are in ADR-0008.
 
 ## Boundaries
 
 - Client-safe: imports no internal package but `@docs-rag-lab/contracts`, not even `import type` from core or db (rule `ui-no-internal-packages`, ADR-0006).
 - No Node.js built-ins (rule `ui-no-node-builtins`).
 - Data arrives through props and app route handlers. The shapes it renders (the retrieval trace, citations, the answer stream) come from `@docs-rag-lab/contracts`; ui does not define its own copies (ADR-0006).
-- The public entry exports `DocsAssistant`, `EvalDashboard`, `defineDocsApp` and the transports. Other components are their parts and stay private. The one other export is `tokens.css`, which an app imports in its global stylesheet and no component imports.
+- The public entry exports `DocsAssistant`, `EvalDashboard`, `InterviewPrep`, `defineDocsApp`, `defineInterviewApp` and the transports. Other components are their parts and stay private. The one other export is `tokens.css`, which an app imports in its global stylesheet and no component imports.
 
 ## Conventions
 

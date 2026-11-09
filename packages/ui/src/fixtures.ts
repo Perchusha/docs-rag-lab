@@ -5,6 +5,7 @@
 import {
   EventDecoder,
   type AnswerEvent,
+  type BankQuestion,
   type Citation,
   type DashboardDetails,
   type DashboardRun,
@@ -29,6 +30,8 @@ import answerNdjson from './__fixtures__/answer-satisfies.ndjson?raw'
 import tableAnswerNdjson from './__fixtures__/answer-table.ndjson?raw'
 import varianceNdjson from './__fixtures__/answer-variance.ndjson?raw'
 import documentTs49 from './__fixtures__/document-ts-4-9.json'
+import interviewCompiler from './__fixtures__/interview-compiler-questions.json'
+import interviewWritten from './__fixtures__/interview-written-questions.json'
 import satisfiesRerank from './__fixtures__/trace-satisfies-rerank.json'
 import satisfiesVector from './__fixtures__/trace-satisfies-vector.json'
 import satisfies from './__fixtures__/trace-satisfies.json'
@@ -119,3 +122,23 @@ export const varianceFixture = answer(varianceNdjson)
  * recording attempts did not reproduce it.
  */
 export const citationAfterCodeFixture = answer(citationAfterCodeNdjson)
+
+/**
+ * The interview app's questions (ADR-0018). The compiler questions are real, from
+ * interview/bank/typescript.jsonl: one on errors, one with a setup the site hides, and one on a
+ * type. The theory and pitfall questions are written by hand until the bank's paid run: their
+ * quotes, code and citations are real docs text, cut to 300 characters.
+ */
+function nth(list: unknown, index: number): BankQuestion {
+  const question = (list as BankQuestion[])[index]
+  if (question === undefined) throw new Error(`no interview fixture at ${String(index)}`)
+  return question
+}
+
+export const interviewQuestions = {
+  compilerError: nth(interviewCompiler, 0),
+  withSetup: nth(interviewCompiler, 1),
+  compilerType: nth(interviewCompiler, 2),
+  theory: nth(interviewWritten, 0),
+  pitfall: nth(interviewWritten, 1),
+}

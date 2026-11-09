@@ -74,6 +74,14 @@ describe('boundary rules (SPEC section 4)', () => {
     ])
   })
 
+  it('interview-server imports only core, contracts and settings', () => {
+    expect(edges('interview-server-allowed-packages')).toEqual([
+      'packages/interview-server/src/imports-db.ts -> packages/db/src/index.ts',
+      'packages/interview-server/src/imports-source.ts -> packages/sources/react/src/index.ts',
+      'packages/interview-server/src/imports-ui.ts -> packages/ui/src/index.ts',
+    ])
+  })
+
   it('ui imports no internal package but contracts, not even types', () => {
     expect(edges('ui-no-internal-packages')).toEqual([
       'packages/ui/src/imports-core-type.ts -> packages/core/src/index.ts',
@@ -174,6 +182,9 @@ describe('boundary rules (SPEC section 4)', () => {
       'packages/docs-server/src/index.ts -> packages/core/src/index.ts',
       'packages/docs-server/src/index.ts -> packages/contracts/src/index.ts',
       'packages/docs-server/src/index.ts -> packages/settings/src/index.ts',
+      'packages/interview-server/src/index.ts -> packages/core/src/index.ts',
+      'packages/interview-server/src/index.ts -> packages/contracts/src/index.ts',
+      'packages/interview-server/src/index.ts -> packages/settings/src/index.ts',
       'packages/core/src/same-package.ts -> packages/core/src/internal.ts',
       'packages/sources/typescript/src/same-package.ts -> packages/sources/typescript/src/internal.ts',
       'packages/sources/typescript/src/index.ts -> packages/source-kit/src/index.ts',
