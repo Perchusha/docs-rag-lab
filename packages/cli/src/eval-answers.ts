@@ -15,6 +15,8 @@ import {
   type EvalSpotCheck,
 } from '@docs-rag-lab/contracts'
 import {
+  AGENT_ROW,
+  AGENT_SYSTEM_PROMPT,
   anchorCandidates,
   anchorKey,
   calibrate,
@@ -61,6 +63,8 @@ import {
   spotCheckPlanFor,
   SUPPORT_SYSTEM_PROMPT,
   ANSWER_SYSTEM_PROMPT,
+  searchDocsTool,
+  type AgentEvalOptions,
   type EvalCache,
   type EvalClient,
   type GoldenQuestion,
@@ -104,6 +108,8 @@ function withEvalCache<T>(ctx: CommandContext, run: (cache: EvalCache) => Promis
 interface Golden {
   questions: GoldenQuestion[]
   anchorChunks: (questionId: string) => ReadonlySet<string>
+  /** Primary anchors only, for what row 6's searches reached (ADR-0019). */
+  primaryChunks: (questionId: string) => ReadonlySet<string>
 }
 
 /**
@@ -119,21 +125,25 @@ function goldenOf(ctx: CommandContext, source: Source, setHash?: string): Golden
     const { questions, check } = golden
     const compiled = readGoldenLock(ctx.root, source.id, { setHash, variant: 'compiled' })
     const locks = [check.lock, ...(compiled?.setHash === check.lock.setHash ? [compiled] : [])]
+    const chunksOf = (anchors: GoldenQuestion['primary']) =>
+      new Set(
+        anchors.flatMap((anchor) =>
+          locks.flatMap((lock) =>
+            (lock.anchors[anchorKey(anchor)] ?? []).map(({ chunkId }) => chunkId),
+          ),
+        ),
+      )
     const chunks = new Map(
       questions.map((question) => [
         question.id,
-        new Set(
-          [...question.primary, ...question.acceptable].flatMap((anchor) =>
-            locks.flatMap((lock) =>
-              (lock.anchors[anchorKey(anchor)] ?? []).map(({ chunkId }) => chunkId),
-            ),
-          ),
-        ),
+        chunksOf([...question.primary, ...question.acceptable]),
       ]),
     )
+    const primary = new Map(questions.map((question) => [question.id, chunksOf(question.primary)]))
     return {
       questions: questions.filter((question) => !check.stale.includes(question.id)),
       anchorChunks: (id) => chunks.get(id) ?? new Set(),
+      primaryChunks: (id) => primary.get(id) ?? new Set(),
     }
   } finally {
     indexes.close()
@@ -151,6 +161,8 @@ const COMPARED_ROWS: readonly (readonly [AnswerRow, AnswerRow])[] = [
   [3, 5],
   [4, 5],
   [3, 7],
+  [3, 6],
+  [0, 6],
 ]
 
 export function parseRows(text: string | undefined): AnswerRow[] {
@@ -299,6 +311,29 @@ export async function evalAnswersCommand(
     maxTokens: settings.answer.maxTokens,
   }
   const judge = { model: settings.models.judge, ...settings.evalAnswers.judge }
+  const agentic = args.rows.includes(AGENT_ROW)
+  const docTypes = agentic ? ctx.engine.docTypes(source.id) : []
+  const { maxSearches } = settings.agentic
+  // Row 6's searches of Claude's own: hybrid on the plain index, as its first search (ADR-0019).
+  const agent: AgentEvalOptions | undefined = agentic
+    ? {
+        maxSearches,
+        docTypes,
+        search: async (query, types) =>
+          (
+            await ctx.engine.search(
+              { question: query, source: source.id, strategy: 'hybrid', docTypes: [...types] },
+              ctx.meter,
+            )
+          ).hits,
+        onWait: (ms) => {
+          ctx.out.write(
+            `row 6: waiting ${String(ms / 60_000)} minutes, so that no second answer reads a cache entry of a first one\n`,
+          )
+        },
+        ...(ctx.sleep === undefined ? {} : { sleep: ctx.sleep }),
+      }
+    : undefined
 
   await withEvalCache(ctx, async (cache) => {
     const jobs = await planAnswers({
@@ -319,6 +354,7 @@ export async function evalAnswersCommand(
       answerModel: answer.model,
       judge,
       retest: args.noise,
+      maxSearches,
     })
     ctx.out.write(`${formatCostEstimate(estimate, maxUsd)}\n`)
     if (estimate.usd > maxUsd) {
@@ -356,7 +392,7 @@ export async function evalAnswersCommand(
         }
       },
     })
-    const answers = await runAnswers(jobs, runner('answers'))
+    const answers = await runAnswers(jobs, { ...runner('answers'), agent })
     const byId = new Map(questions.map((question) => [question.id, question]))
     const { verdicts, support } = await runJudge(answers, {
       ...runner('judge'),
@@ -364,7 +400,14 @@ export async function evalAnswersCommand(
       questions: byId,
       retest: args.noise,
     })
-    const options = { questions, answers, verdicts, support, anchorChunks: golden.anchorChunks }
+    const options = {
+      questions,
+      answers,
+      verdicts,
+      support,
+      anchorChunks: golden.anchorChunks,
+      primaryChunks: golden.primaryChunks,
+    }
     const twice = args.noise ? args.rows.filter((row) => NOISE_ROWS.includes(row)) : []
     const rows = [
       ...args.rows.map((row) => rowResult(row, 1, options)),
@@ -384,6 +427,12 @@ export async function evalAnswersCommand(
         correctness: promptHash(CORRECTNESS_SYSTEM_PROMPT),
         refusal: promptHash(REFUSAL_SYSTEM_PROMPT),
         support: promptHash(SUPPORT_SYSTEM_PROMPT),
+        ...(agentic
+          ? {
+              agent: promptHash(AGENT_SYSTEM_PROMPT),
+              agentTool: promptHash(JSON.stringify(searchDocsTool(docTypes))),
+            }
+          : {}),
       },
       rows,
       comparisons,

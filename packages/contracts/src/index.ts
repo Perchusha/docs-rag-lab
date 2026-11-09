@@ -83,6 +83,7 @@ export {
 export {
   ANSWER_COMPARED_METRICS,
   ANSWER_ROWS,
+  type AgentQuestion,
   type AgentRowMetrics,
   type AgreementResult,
   type AnchorCandidate,

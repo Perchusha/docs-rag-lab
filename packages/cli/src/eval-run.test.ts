@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 
 import type { EvalReport } from '@docs-rag-lab/contracts'
 import {
@@ -79,6 +79,21 @@ function fakeClaude(request: ClaudeRequest): ClaudeMessage {
   const text = JSON.stringify(request.messages)
   const judged = request.output_config?.format != null
   const usage = { input_tokens: 1000, output_tokens: 100 }
+  // Row 6 searches once on the first question, then answers like any row.
+  if (request.tools !== undefined && request.messages.length === 1 && text.includes('First?')) {
+    return {
+      id: 'm',
+      type: 'message',
+      role: 'assistant',
+      model: request.model,
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'Second?' } },
+      ],
+      stop_reason: 'tool_use',
+      stop_sequence: null,
+      usage: { ...usage, cache_creation_input_tokens: 900, cache_read_input_tokens: 0 },
+    } as unknown as ClaudeMessage
+  }
   const content = judged
     ? [{ type: 'text', text: JSON.stringify(judgeBody(system, text)), citations: null }]
     : [
@@ -872,6 +887,77 @@ describe('drl eval answers', () => {
     expect(answers.answers.map(({ questionId, row }) => [questionId, row])).toEqual([
       ['ts-0001', 0],
       ['ts-0001', 3],
+    ])
+  })
+
+  it('answers row 6 step by step, waits before its second answers, and pools with no call', async () => {
+    const waits: number[] = []
+    const out = capture()
+    const code = await run(['eval', 'answers', '--yes', '--noise', '--rows', '0,2,3,6'], {
+      settings: unlimited,
+      out: out.writer,
+      err: capture().writer,
+      root,
+      debug: false,
+      now: () => clock,
+      createEvalClient: () => fakeEvalClient,
+      createReranker: () => fakeReranker,
+      createProvider: fakeEmbeddings,
+      sleep: (ms) => {
+        waits.push(ms)
+        return Promise.resolve()
+      },
+    })
+
+    expect(code).toBe(0)
+    expect(waits).toEqual([6 * 60_000])
+    expect(out.text()).toContain(
+      'row 6: 6 answers (0 cached), at 0.50 searches of its own an answer, assumed until 5 runs are cached',
+    )
+    expect(out.text()).toContain('row 6: waiting 6 minutes')
+    const path = reportPathIn(out.text())
+    const answers = answersOf(out.text())
+    expect(answers.rows.map(({ row, sample }) => [row, sample])).toEqual([
+      [0, 1],
+      [2, 1],
+      [3, 1],
+      [6, 1],
+      [3, 2],
+      [6, 2],
+    ])
+    const first = answers.answers.find(
+      ({ questionId, row, sample }) => questionId === 'ts-0001' && row === 6 && sample === 1,
+    )
+    expect(first?.steps?.map(({ stopReason }) => stopReason)).toEqual(['tool_use', 'end_turn'])
+    expect(first?.searches?.map(({ query }) => query)).toEqual(['Second?'])
+    expect(answers.prompts).toHaveProperty('agent')
+    expect(answers.prompts).toHaveProperty('agentTool')
+    expect(answers.comparisons.map(({ a, b }) => [a, b])).toContainEqual(['row 3', 'row 6'])
+    expect(answers.comparisons.map(({ a, b }) => [a, b])).toContainEqual(['row 0', 'row 6'])
+    const row6 = answers.rows.find(({ row, sample }) => row === 6 && sample === 1)
+    expect(row6?.agent).toMatchObject({ answers: 3, searchedAgain: 1, searches: 1, answerable: 2 })
+    const markdown = readFileSync(path.replace(/\.json$/, '.md'), 'utf8')
+    expect(markdown).toContain('### Agentic mode, row 6')
+    expect(markdown).not.toContain('Second?')
+
+    const paid = claudeRequests.length
+    const pooled = await drl(
+      'eval',
+      'pool',
+      relative(root, path),
+      relative(root, path),
+      '--name',
+      'm9',
+    )
+    expect(pooled.code).toBe(0)
+    expect(pooled.out).toContain("ADR-0019's test: row 3 against row 6, over 2 reports together")
+    expect(claudeRequests).toHaveLength(paid)
+    const written = JSON.parse(readFileSync(join(root, 'eval', 'pooled', 'm9.json'), 'utf8')) as {
+      metrics: { metric: string; questions: number }[]
+    }
+    expect(written.metrics.map(({ metric, questions }) => [metric, questions])[0]).toEqual([
+      'fully-correct',
+      4,
     ])
   })
 

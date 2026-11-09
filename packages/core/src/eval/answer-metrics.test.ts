@@ -642,6 +642,29 @@ describe('row 6 metrics', () => {
       primaryInFirstSearch: 1,
       primaryReached: 2,
       answerable: 2,
+      questions: [
+        {
+          questionId: ID(1),
+          steps: 1,
+          searches: 0,
+          primaryInFirstSearch: true,
+          primaryReached: true,
+        },
+        {
+          questionId: ID(2),
+          steps: 2,
+          searches: 1,
+          primaryInFirstSearch: false,
+          primaryReached: true,
+        },
+        {
+          questionId: ID(11),
+          steps: 1,
+          searches: 0,
+          primaryInFirstSearch: null,
+          primaryReached: null,
+        },
+      ],
     })
   })
 

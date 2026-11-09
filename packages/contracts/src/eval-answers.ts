@@ -111,6 +111,18 @@ export interface AgentRowMetrics {
   primaryReached: number
   /** The answerable questions those two counts are of. */
   answerable: number
+  /** Each answer, by question: what the report shows for the motivating cases (ADR-0019). */
+  questions: AgentQuestion[]
+}
+
+/** One agentic answer's steps and searches, and what they reached. */
+export interface AgentQuestion {
+  questionId: string
+  steps: number
+  searches: number
+  /** Null on a question the docs do not answer, which has no anchor. */
+  primaryInFirstSearch: boolean | null
+  primaryReached: boolean | null
 }
 
 /** How an answer to an unanswerable question handled it (the owner's rule, ADR-0009). */

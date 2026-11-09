@@ -25,10 +25,15 @@ function table(header: readonly string[], rows: readonly (readonly string[])[]):
 }
 
 export function formatCostEstimate(estimate: EvalCostEstimate, maxUsd: number): string {
-  const { answers, judge } = estimate
+  const { answers, judge, agent } = estimate
   const lines = [
     'estimate, at list prices checked ' + estimate.pricesChecked + ':',
     `  answers: ${String(answers.calls)} (${String(answers.cached)} cached), ${count(answers.inputTokens)} in by count_tokens, about ${count(answers.outputTokens)} out, ${usd(answers.usd)}`,
+    ...(agent === undefined
+      ? []
+      : [
+          `  row 6: ${String(agent.calls)} answers (${String(agent.cached)} cached), at ${agent.searchesPerAnswer.toFixed(2)} searches of its own an answer${agent.assumedSearches ? ', assumed until 5 runs are cached' : ''}: about ${count(agent.inputTokens)} in, most of it written to the cache once and read after, and ${count(agent.outputTokens)} out, ${usd(agent.usd)}; ${usd(agent.upToUsd)} if every answer used every search`,
+        ]),
     `  judge: ${String(judge.calls)} calls (${String(judge.cached)} cached), about ${count(judge.inputTokens)} in and ${count(judge.outputTokens)} out, ${usd(judge.usd)}`,
     `  total: about ${usd(estimate.usd)}, against a limit of $${maxUsd.toFixed(2)}`,
   ]
@@ -136,6 +141,111 @@ function exploratorySection(rows: readonly AnswerRowResult[]): string[] {
   ]
 }
 
+const yesNo = (value: boolean | null): string => (value === null ? '-' : value ? 'yes' : 'no')
+
+/** Cyrillic letters in a query of Claude's own: counted, never quoted. */
+const CYRILLIC = /[Ѐ-ӿ]/
+
+/**
+ * Row 6's searches, steps and caching (ADR-0019). It counts the queries in Cyrillic and does not
+ * quote them: they are Claude's words, and the JSON keeps them.
+ */
+function agentSection(answers: EvalAnswers): string[] {
+  const rows = answers.rows.flatMap((row) =>
+    row.agent === undefined ? [] : [{ row, ...row.agent }],
+  )
+  if (rows.length === 0) return []
+  const scoreOf = (questionId: string, row: number, sample: number): string => {
+    const found = answers.verdicts.find(
+      (verdict) =>
+        verdict.questionId === questionId &&
+        verdict.row === row &&
+        verdict.sample === sample &&
+        verdict.judgeSample === 1,
+    )
+    if (found?.status !== 'ok') return '-'
+    return found.correctness === null ? (found.outcome ?? '-') : String(found.correctness)
+  }
+  const cyrillic = (row: AnswerRowResult): number =>
+    answers.answers
+      .filter((answer) => answer.row === row.row && answer.sample === row.sample)
+      .flatMap((answer) => answer.searches ?? [])
+      .filter((search) => CYRILLIC.test(search.query)).length
+  const first = rows.find(({ row }) => row.sample === 1)
+  return [
+    '### Agentic mode, row 6',
+    "Each step of row 6 resends the conversation so far, with automatic prompt caching (ADR-0019). Its input is counted three ways: neither written nor read, written to the cache, and read from it. Without caching prices the same tokens at the input price. A lapse is a step after the first that read nothing cached although the step before wrote. The queries are in the report's JSON, as Claude wrote them.",
+    table(
+      [
+        'Row',
+        'Answers',
+        'Searched again',
+        'Searches',
+        'In Cyrillic',
+        'Steps',
+        'Input, not cached',
+        'Cache writes',
+        'Cache reads',
+        'Output',
+        'Cost',
+        'Without caching',
+        'Lapses',
+        'First steps that read the cache',
+      ],
+      rows.map((item) => [
+        rowName(item.row),
+        String(item.answers),
+        String(item.searchedAgain),
+        String(item.searches),
+        String(cyrillic(item.row)),
+        String(item.steps),
+        count(item.inputTokens),
+        count(item.cacheWriteTokens),
+        count(item.cacheReadTokens),
+        count(item.outputTokens),
+        usd(item.costUsd),
+        usd(item.uncachedCostUsd),
+        String(item.lapses),
+        String(item.firstStepReads),
+      ]),
+    ),
+    table(
+      ['Row', 'Answerable', 'A primary anchor in the first search', 'A primary anchor reached'],
+      rows.map((item) => [
+        rowName(item.row),
+        String(item.answerable),
+        String(item.primaryInFirstSearch),
+        String(item.primaryReached),
+      ]),
+    ),
+    ...(first === undefined
+      ? []
+      : [
+          '#### Row 6 by question, first answers',
+          table(
+            [
+              'Question',
+              'Steps',
+              'Searches',
+              'Primary anchor, first search',
+              'Primary anchor, reached',
+              'Row 3',
+              'Row 6',
+            ],
+            first.questions.map((question) => [
+              question.questionId,
+              String(question.steps),
+              String(question.searches),
+              yesNo(question.primaryInFirstSearch),
+              yesNo(question.primaryReached),
+              scoreOf(question.questionId, 3, 1),
+              scoreOf(question.questionId, 6, 1),
+            ]),
+          ),
+        ]),
+  ]
+}
+
 /** The answer sections of a report's markdown. */
 export function answerSections(answers: EvalAnswers, judgeLine: string): string[] {
   const { rows } = answers
@@ -180,6 +290,7 @@ export function answerSections(answers: EvalAnswers, judgeLine: string): string[
         usd(row.overall.meanCostUsd),
       ]),
     ),
+    ...agentSection(answers),
     '### Per tag',
     table(
       ['Tag', ...CORRECT_HEADER],

@@ -167,6 +167,16 @@ function agentMetricsOf(
       .length,
     primaryReached: answerable.filter((answer) => reaches(answer, answer.context)).length,
     answerable: answerable.length,
+    questions: answers.map((answer) => {
+      const scored = isAnswerable(answer)
+      return {
+        questionId: answer.questionId,
+        steps: answer.steps?.length ?? 0,
+        searches: searchesOf(answer).length,
+        primaryInFirstSearch: scored ? reaches(answer, firstSearch(answer)) : null,
+        primaryReached: scored ? reaches(answer, answer.context) : null,
+      }
+    }),
   }
 }
 

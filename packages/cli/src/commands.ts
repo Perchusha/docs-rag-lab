@@ -70,6 +70,8 @@ export interface CommandContext {
   createReranker?: (() => RerankProvider) | undefined
   /** For tests. Defaults to the embedding provider named in settings. */
   createProvider?: (() => EmbeddingProvider) | undefined
+  /** For tests. Waits, as before row 6's second answers (ADR-0019). Defaults to a timer. */
+  sleep?: ((ms: number) => Promise<void>) | undefined
 }
 
 // Progress lines during a long sync: at most one every this many milliseconds.
