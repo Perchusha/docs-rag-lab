@@ -3,7 +3,7 @@
 import type { DifferenceVerdict } from './eval-difference.ts'
 
 /** The rows of the strategy ladder (SPEC section 10) that answer metrics measure so far. */
-export const ANSWER_ROWS = [0, 2, 3, 4, 5, 7] as const
+export const ANSWER_ROWS = [0, 2, 3, 4, 5, 6, 7] as const
 
 export type AnswerRow = (typeof ANSWER_ROWS)[number]
 
@@ -42,8 +42,12 @@ export interface EvalAnswer {
   blocks: unknown[]
   /** Text blocks with citations. A claim's citations are all of them, not the first per source. */
   claims: EvalClaim[]
-  /** The chunks the answer was given, in order. Empty for row 0. */
+  /**
+   * The chunks the answer was given, in order. Empty for row 0. For row 6, every chunk of the
+   * conversation, in the order the API numbers search results.
+   */
   context: string[]
+  /** For row 6, every input token of every step, cached or not: `steps` has the split. */
   inputTokens: number
   outputTokens: number
   costUsd: number
@@ -51,6 +55,62 @@ export interface EvalAnswer {
   firstTokenMs: number | null
   /** The request was answered before, so this run did not pay for it. */
   fromCache: boolean
+  /** Row 6 only (ADR-0019): each request of the loop, in order, with its tokens. */
+  steps?: EvalAgentStep[]
+  /** Row 6 only: the searches of Claude's own, in order, after the first search it was given. */
+  searches?: EvalAgentSearch[]
+  /** Row 6 only: what the same tokens would cost with no caching, writes and reads at the input price. */
+  uncachedCostUsd?: number
+}
+
+/** One request of an agentic answer, with the tokens the API counted for it (ADR-0019). */
+export interface EvalAgentStep {
+  stopReason: string | null
+  /** Input that was neither written to the cache nor read from it. */
+  inputTokens: number
+  cacheWriteTokens: number
+  cacheReadTokens: number
+  outputTokens: number
+}
+
+/** One search of Claude's own in an agentic answer. */
+export interface EvalAgentSearch {
+  query: string
+  /** The doc types it asked for. Empty means all. */
+  docTypes: string[]
+  /** The chunks it returned: hybrid's top results that the conversation did not hold yet. */
+  chunkIds: string[]
+  /** How many of hybrid's top results were already in the conversation, and left out. */
+  alreadyShown: number
+}
+
+/** What a row of agentic answers did and cost, over its answers (ADR-0019). */
+export interface AgentRowMetrics {
+  answers: number
+  /** Answers that made at least one search of their own. */
+  searchedAgain: number
+  /** Searches of their own, over all answers. */
+  searches: number
+  /** Requests, over all answers. */
+  steps: number
+  /** Over all steps: input neither written nor read, cache writes, cache reads, output. */
+  inputTokens: number
+  cacheWriteTokens: number
+  cacheReadTokens: number
+  outputTokens: number
+  costUsd: number
+  /** The same tokens with no caching. */
+  uncachedCostUsd: number
+  /** Steps after the first that read nothing cached, although the step before wrote some. */
+  lapses: number
+  /** Answers whose first step read the cache: another answer's entry, which the run avoids. */
+  firstStepReads: number
+  /** Answerable questions whose first search, row 3's, held a chunk of a primary anchor. */
+  primaryInFirstSearch: number
+  /** Answerable questions where a chunk of a primary anchor reached the conversation. */
+  primaryReached: number
+  /** The answerable questions those two counts are of. */
+  answerable: number
 }
 
 /** How an answer to an unanswerable question handled it (the owner's rule, ADR-0009). */
@@ -126,6 +186,8 @@ export interface AnswerRowResult {
   refusals: RefusalMetrics
   /** Question IDs left out of the metrics, by why. unjudged: the judge's reply was unusable. */
   excluded: { truncated: string[]; refused: string[]; failed: string[]; unjudged: string[] }
+  /** Row 6 only: its searches, steps and caching (ADR-0019). */
+  agent?: AgentRowMetrics
 }
 
 export const ANSWER_COMPARED_METRICS = [

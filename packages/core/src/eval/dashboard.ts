@@ -47,6 +47,7 @@ const ROW_NAMES: Record<AnswerRow, string> = {
   3: 'Hybrid',
   4: 'Rerank',
   5: 'Rerank + contexts',
+  6: 'Agentic',
   7: 'Hybrid, compiled',
 }
 const ROWS: readonly AnswerRow[] = [0, 2, 3, 4, 5, 7]

@@ -57,6 +57,8 @@ export const settings = defineSettings({
   // Hybrid = vector + BM25 + exact tokens, fused by RRF (ADR-0005). k=60 and 50 candidates
   // per list are the usual defaults, not tuned: a sweep over 40 questions would fit noise (ADR-0009).
   retrieval: { strategy: 'hybrid', topK: 8, candidates: 50, rrfK: 60 },
+  // Row 6 and the agentic chat start from hybrid's search and may search twice more (ADR-0019).
+  agentic: { maxSearches: 2 },
   // ADR-0018 estimates about $7 for the bank, against a limit of $10 for M8.
   interviewBank: {
     generate: { effort: 'low', maxTokens: 2_000 },
