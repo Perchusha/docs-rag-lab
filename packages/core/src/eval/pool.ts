@@ -125,13 +125,15 @@ function storedDifference(answers: EvalAnswers, a: string, b: string, metric: Po
     ?.differences.find((difference) => difference.metric === metric)
 }
 
-function storedSplit(report: EvalReport, a: AnswerRow, b: AnswerRow, metric: PooledMetric): Split {
+/** A guard as a report compared it, or undefined when it did not, as row 0 has no citations. */
+function storedSplit(
+  report: EvalReport,
+  a: AnswerRow,
+  b: AnswerRow,
+  metric: PooledMetric,
+): Split | undefined {
   const found = storedDifference(answersOf(report), label(a), label(b), metric)
-  if (found === undefined) {
-    throw new PoolError(
-      `the report of ${report.identity.sourceId} compares no ${label(a)} with ${label(b)} on ${metric}`,
-    )
-  }
+  if (found === undefined) return undefined
   const questions = found.aBetter + found.bBetter + found.tied
   return {
     questions,
@@ -204,24 +206,40 @@ export function poolReports(
       }
     }
   }
-  const metrics = POOLED_METRICS.map((metric) =>
+  const guard = (metric: PooledMetric): EvalPooledMetric[] => {
+    const splits = reports.map((report) => storedSplit(report, a, b, metric))
+    // No report could compare it, as for a row that cites nothing: the test has no such guard.
+    if (splits.every((split) => split === undefined)) return []
+    const missing = reports.find((_, i) => splits[i] === undefined)
+    if (missing !== undefined) {
+      throw new PoolError(
+        `the report of ${missing.identity.sourceId} compares no ${label(a)} with ${label(b)} on ${metric}`,
+      )
+    }
+    return [
+      pooledMetric(
+        metric,
+        splits.filter((split): split is Split => split !== undefined),
+        {
+          a: sumOrNull(reports.map((report) => storedRunToRun(report, a, metric))),
+          b: sumOrNull(reports.map((report) => storedRunToRun(report, b, metric))),
+        },
+      ),
+    ]
+  }
+  const metrics = POOLED_METRICS.flatMap((metric) =>
     metric === 'fully-correct'
-      ? pooledMetric(
-          metric,
-          reports.map((report) => fullySplit(report, a, b)),
-          {
-            a: sumOrNull(reports.map((report) => fullyRunToRun(report, a, a, b))),
-            b: sumOrNull(reports.map((report) => fullyRunToRun(report, b, a, b))),
-          },
-        )
-      : pooledMetric(
-          metric,
-          reports.map((report) => storedSplit(report, a, b, metric)),
-          {
-            a: sumOrNull(reports.map((report) => storedRunToRun(report, a, metric))),
-            b: sumOrNull(reports.map((report) => storedRunToRun(report, b, metric))),
-          },
-        ),
+      ? [
+          pooledMetric(
+            metric,
+            reports.map((report) => fullySplit(report, a, b)),
+            {
+              a: sumOrNull(reports.map((report) => fullyRunToRun(report, a, a, b))),
+              b: sumOrNull(reports.map((report) => fullyRunToRun(report, b, a, b))),
+            },
+          ),
+        ]
+      : guard(metric),
   )
   const notOk = reports.flatMap((report) =>
     answersOf(report)

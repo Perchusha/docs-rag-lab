@@ -950,7 +950,8 @@ describe('drl eval answers', () => {
       'm9',
     )
     expect(pooled.code).toBe(0)
-    expect(pooled.out).toContain("ADR-0019's test: row 3 against row 6, over 2 reports together")
+    expect(pooled.out).toContain('# row 3 against row 6, over 2 reports together')
+    expect(pooled.out).toContain("So ADR-0019's H does not hold.")
     expect(claudeRequests).toHaveLength(paid)
     const written = JSON.parse(readFileSync(join(root, 'eval', 'pooled', 'm9.json'), 'utf8')) as {
       metrics: { metric: string; questions: number }[]

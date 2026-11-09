@@ -45,8 +45,11 @@ export function formatPooled(pooled: EvalPooled): string {
     : fully?.verdict !== 'b'
       ? `the verdict on fully correct is "${verdictWords(fully?.verdict ?? 'noise', a, b)}", not ${rowName(b)} better.`
       : `a guard names ${rowName(a)}: ${guardForA.map(({ metric }) => metric).join(', ')}.`
+  const shown = pooled.holds ? `${rowName(b)} is shown better` : `${rowName(b)} is not shown better`
+  const h =
+    a === 3 && b === 6 ? ` So ADR-0019's H ${pooled.holds ? 'holds' : 'does not hold'}.` : ''
   return [
-    `# ADR-0019's test: ${rowName(a)} against ${rowName(b)}, over ${String(pooled.reports.length)} reports together`,
+    `# ${rowName(a)} against ${rowName(b)}, over ${String(pooled.reports.length)} reports together`,
     table(
       ['Source', 'Report', 'Commit', 'Golden set'],
       pooled.reports.map((report) => [
@@ -79,7 +82,7 @@ export function formatPooled(pooled: EvalPooled): string {
         verdictWords(metric.verdict, a, b),
       ]),
     ),
-    `**${pooled.holds ? 'H holds' : 'H does not hold'}:** ${why}`,
+    `**${shown}:** ${why}${h}`,
     pooled.notOk.length === 0
       ? 'Every first answer of both rows finished.'
       : `First answers that did not finish, each counted as not fully correct: ${pooled.notOk

@@ -231,8 +231,15 @@ describe('poolReports', () => {
 
     expect(() => poolReports([none], 3, 6)).toThrow(PoolError)
     expect(() => poolReports([ts], 3, 5)).toThrow('has no row 5')
-    expect(() =>
-      poolReports([report('ts', { first: [2] }, { first: [2] }, { comparisons: [] })], 3, 6),
-    ).toThrow('compares no row 3 with row 6')
+    const without = report('react', { first: [2] }, { first: [2] }, { comparisons: [] })
+    expect(() => poolReports([ts, without], 3, 6)).toThrow(
+      'the report of react compares no row 3 with row 6 on citations-hold',
+    )
+  })
+
+  it('has no guard that no report could compare, as for a row that cites nothing', () => {
+    const ts = report('ts', { first: [2] }, { first: [2] }, { comparisons: [] })
+
+    expect(poolReports([ts], 3, 6).metrics.map(({ metric }) => metric)).toEqual(['fully-correct'])
   })
 })
