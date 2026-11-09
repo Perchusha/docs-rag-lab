@@ -4,7 +4,7 @@ Short notes per milestone, with before/after numbers where they exist. Newest fi
 
 ## M8 - The interview-prep app: a bank that passed a blind test, and a mock interview (2026-11-09)
 
-Before M8, the engine answered questions about the docs. After it, `pnpm dev:interview` asks them: Quick 10 across TypeScript and React, a topic map, cards scheduled by FSRS, and a mock interview graded against the docs. M8 was a product milestone, judged mainly by the owner's hands-on review, with one hypothesis on the bank, fixed first in ADR-0018. It took four PRs, #38 to #40 and this one, whose merge waits on the owner's hands-on review: that review is M8's acceptance, and its first graded answers are the mock interview's first real calls.
+Before M8, the engine answered questions about the docs. After it, `pnpm dev:interview` asks them: Quick 10 across TypeScript and React, a topic map, cards scheduled by FSRS, and a mock interview graded against the docs. M8 was a product milestone, judged mainly by the owner's hands-on review, with one hypothesis on the bank, fixed first in ADR-0018. It took four PRs, #38 to #41. The last merged on 2026-11-09, once the owner's hands-on review, M8's acceptance, had passed.
 
 | The bank, at docs `205122bb` and `2177e28d` | TypeScript | React |
 |---|---|---|
