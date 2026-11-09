@@ -109,7 +109,7 @@ export default defineDocsApp({
 })
 ```
 
-An app itself is a page and one-line routes over the handlers in `docs-server`: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order), and the dashboard's under `/api/eval`. It listens on 127.0.0.1 only (ADR-0008): `ts-docs` on port 3000 and `react-docs` on 3001. The interview-prep app is a page and one-line routes over the handlers in `interview-server`, `GET /api/interview/overview`, `GET /api/interview/deck` and `POST /api/interview/review`, none of which calls a model, on port 3002 (ADR-0018).
+An app itself is a page and one-line routes over the handlers in `docs-server`: `POST /api/ask` (the answer as an NDJSON stream of events), `POST /api/search` (the trace, no Claude call) and `GET /api/documents` (a document's chunks in order), and the dashboard's under `/api/eval`. It listens on 127.0.0.1 only (ADR-0008): `ts-docs` on port 3000 and `react-docs` on 3001. The interview-prep app is a page and one-line routes over the handlers in `interview-server`, `GET /api/interview/overview`, `GET /api/interview/deck` and `POST /api/interview/review`, none of which calls a model, and the mock interview's and `POST /api/interview/check`, which do, on port 3002 (ADR-0018).
 
 **Storage layout:**
 - The index belongs to the source, not to the app: `data/sources/<source-id>.sqlite`. Apps open the source indexes they need, so `interview-prep` reads the TS and React indexes without duplicating them.
@@ -386,8 +386,8 @@ Hybrid + contextual retrieval without the reranker is measured too, for retrieva
 **Modes:**
 1. **Compiler-verified questions (TS).** Generated from twoslash examples: "what type is inferred here?", "which error does this produce?". The correct answer comes from compiler output stored at ingest, not from the LLM.
 2. **"What is wrong with this code?" (React).** Generated from `<Pitfall>` blocks.
-3. **Flashcards.** Short question and answer, with the citation on the back.
-4. **Mock interview.** In M8, a fixed loop (ADR-0018): a few generated questions, one per topic. Hybrid search retrieves passages for each answer, and Sonnet grades it against them, with citations, a score of 0 to 2 and one follow-up. Where the bank's answer and the passages disagree, the passages decide. The summary names the weak topics and three sections to read. In M9, an agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
+3. **Flashcards.** Short question and answer, with the citation on the back: a link to the section the quote or the example is in, and for a generated question that section of the docs, with the quote marked. Once the answer is shown, Check my answer grades what was written with the mock interview's grader, where a compiler question's answer from the compiler decides what its code does, with no follow-up and nothing stored; the owner's own rating still schedules the card.
+4. **Mock interview.** In M8, a fixed loop (ADR-0018): a few generated questions, one per topic. Hybrid search retrieves passages for each answer, and Sonnet grades it against them, with citations, a score of 0 to 2 and one follow-up. Where the bank's answer and the passages disagree, the passages decide. An answer can be in any language, and the feedback comes in that language. The summary names the weak topics and three sections to read. In M9, an agent (Sonnet) with the tools `search_docs`, `get_progress` and `record_score`:
    - asks open questions by topic and level;
    - grades answers against the retrieved docs;
    - gives feedback with citations;

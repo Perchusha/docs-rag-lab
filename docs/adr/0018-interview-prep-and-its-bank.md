@@ -104,7 +104,7 @@ As built in PR 4:
 - **`contracts`:** the bank's questions, topics, ratings and progress, and the interview's events.
 - **`core`:** the bank, the topics, FSRS and the interviewer.
 - **`interview-server`,** new: the app's route handlers, under the same boundary as `docs-server`. It imports `core`, `contracts` and `settings`, never `ui`, `db` or a source.
-- **`ui`:** the technology picker, the topic map, the card with its ratings and its flag, the progress summary, the mock interview and its summary, each with stories in both colour schemes, with axe and keyboard play tests.
+- **`ui`:** the technology picker, the topic map, the card with its ratings, its section of the docs, its check and its flag, the progress summary, the mock interview and its summary, each with stories in both colour schemes, with axe and keyboard play tests.
 - **`cli`:** `drl questions <source>`, the sheet and score of the test below, and `drl questions flagged`, `unflag` and `reject` (section 10).
 
 ### 9. Not in M8
@@ -118,6 +118,15 @@ By the owner's decision of 2026-11-09, after H's labels:
 - **H's sample still counts a rejected question,** since the rejection came after the draw. Otherwise rejecting a sampled question would change the sample its labels were given on, and `drl questions score` would refuse them.
 - **Every card has "This answer is wrong"** once its answer is shown. The owner says why, and the card is hidden for them at once, whatever the bank says. The reason stays in `data/apps/interview-prep.sqlite`, and `drl questions flagged` lists each flag with the card and the bank's status. `drl questions reject <id>` takes the flag's reason when none is given, and `drl questions unflag <id>` takes back a flag made by mistake.
 - **The bank is not checked again.** H's 2 failures in 20 suggest about one theory card in ten may generalize past its quote, with a wide interval. A second check of every generated question against its code would cost about as much as the first, which M8's budget does not have.
+
+### 11. What the owner's review changed
+
+The owner's hands-on review of Quick 10, on 2026-11-09, found a card on strictNullChecks in The Basics whose link said `The Basics > noImplicitAny`, and whose quote backed only half of its answer, the default behaviour. The owner asked for three changes, made in PR 4:
+- **A card links to the section its quote is in.** A chunk can hold several sections, and a question's link and section path were those of the section its chunk starts in. The chunker writes each nested heading as a heading line at the start of a block's span and records the fragment of every section the chunk contains, in order, so core reads the section of a position from the two. A generated question takes the section of its quote, and a compiler question that of its example. Where the headings and the fragments do not line up, as on compiler option pages whose subheadings have no fragment, the link stays the chunk's own. `drl questions` puts the links of kept questions right on every run, with no call: at the banks' commits it moved 184 of TypeScript's 800 generated questions and 110 of its compiler questions, and 508 of React's 1,863. Question IDs did not change, so H's sample and score stand.
+- **Once the answer is shown, a generated question's card shows that section of the docs,** past its heading and up to the next one, block by block, with the quote's block marked by a rule and a label. The checker read the whole chunk, but the section is what the link opens, and on the owner's card it backs the whole answer. The app cuts it from the index when it loads the bank, as it already reads every chunk to leave out stale questions, so the bank does not grow. Its relative links lead to the docs.
+- **Check my answer** grades what the owner wrote on a card, once its answer is shown: the mock interview's search and grader, with no follow-up, through `POST /api/interview/check`. It shows the score, what was right and what is missing, the passages cited and what it cost, about a cent. It runs only on a click, once per card unless it fails, is given up when the card moves on, and stores nothing: the owner's own rating still schedules the card. It is offered on every card, compiler questions too, whose reference the grader is told is the compiler's output, which decides what the code does.
+
+The owner also chose that **an answer can be in any language,** graded on what it says, with the feedback and any follow-up in the language of the answer. It holds for the mock interview too, since the grader is shared. Like the mock interview's grade, the check made no paid call in PR 4: the owner's use makes the first.
 
 ## The hypothesis
 
@@ -188,7 +197,7 @@ The owner labelled the sheet blind on 2026-11-09. The labels were committed as `
 1. This ADR, the bank's code and `drl questions`, with no paid call. The compiler questions are written then, since they cost nothing.
 2. The practice app: `interview-server`, the progress store, the ui components and `apps/interview-prep`.
 3. The bank's paid run, after its pilot, and the test of H.
-4. The owner's rejections and the flag on a card (section 10), the mock interview, then the README, the journal and SPEC, and the milestone's close.
+4. The owner's rejections and the flag on a card (section 10), the mock interview, then the README, the journal and SPEC, and the milestone's close. The owner's hands-on review added the changes of section 11 to it.
 
 ## Alternatives considered
 

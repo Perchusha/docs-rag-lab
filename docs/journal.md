@@ -29,7 +29,9 @@ Before M8, the engine answered questions about the docs. After it, `pnpm dev:int
 - **ts-fsrs 5.4.2 patched `Date.prototype` on import,** for the whole server process. It was found after the choice, and 6.0.0 replaced it before the paid run.
 - **About one compiler question in five shows code whose declarations the site hides above `---cut---`.** "Does it compile?" is unfair without them, so the card shows them one click away.
 
-**Spend:** $8.91 of Claude at list prices for the bank, against a limit of $10: $0.09 for the pilot, $0.46 for two starts that stopped, $8.34 for the run and $0.02 for the returned options. The mock interview made no paid call in M8's PRs: about a cent per graded answer, from the estimate, as the owner uses it.
+**What the owner's review found,** on its first Quick 10: a card on strictNullChecks linked to the section on noImplicitAny, and its quote backed only half of its answer. A link was the section its chunk starts in, and a chunk can hold several. Now it is the section the quote is in, or the example for a compiler question: with no call, that moved 802 links, 184 of TypeScript's 800 generated questions, 110 of its 327 compiler questions and 508 of React's 1,863. The card also shows that section of the docs with the quote marked, and Check my answer grades what was written on it with the mock interview's grader, in any language, for about a cent.
+
+**Spend:** $8.91 of Claude at list prices for the bank, against a limit of $10: $0.09 for the pilot, $0.46 for two starts that stopped, $8.34 for the run and $0.02 for the returned options. The mock interview and Check my answer made no paid call in M8's PRs: about a cent per graded answer or check, from the estimate, as the owner uses them.
 
 **Next:** M9, agentic mode, measured on the frozen sets only (ADR-0015, section 6). The mock interview's fixed loop is what an agent with `search_docs`, `get_progress` and `record_score` can take over.
 
@@ -37,7 +39,7 @@ Before M8, the engine answered questions about the docs. After it, `pnpm dev:int
 
 None of these changes a result above:
 - **About one theory card in ten may say more than the docs,** by H's interval. A check of each answer against the code shown with it, not only its quote, would find more, at about the cost of the first check.
-- **The mock interview's grading is not measured.** Its first real calls are the owner's review. A small labelled set of answers would say how far its scores can be trusted.
+- **The mock interview's grading is not measured,** nor is Check my answer, which uses the same grader. Their first real calls are the owner's. A small labelled set of answers would say how far its scores can be trusted.
 - **The mock interview picks questions by topic and chance,** not by progress. `get_progress` in M9 could aim it at weak topics.
 - **M7's open items are still open,** apart from the compiled index, which the bank now reads.
 
