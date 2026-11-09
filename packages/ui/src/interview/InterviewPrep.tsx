@@ -1,8 +1,16 @@
 'use client'
 // The interview-prep app (ADR-0018): choose technologies, then Quick 10 or a topic, and practise
-// card by card. An app renders this from a server component with its config: serializable props
-// only, so the transport is built here from the endpoints unless a story passes its own.
-import type { PracticeCard, PracticeOverview, Rating, TopicProgress } from '@docs-rag-lab/contracts'
+// card by card, or a mock interview graded against the docs. An app renders this from a server
+// component with its config: serializable props only, so the transport is built here from the
+// endpoints unless a story passes its own.
+import type {
+  MockSession,
+  MockSummary,
+  PracticeCard,
+  PracticeOverview,
+  Rating,
+  TopicProgress,
+} from '@docs-rag-lab/contracts'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import type { Theme } from '../DocsAssistant.tsx'
@@ -14,8 +22,10 @@ import {
 } from '../lib/interview-transport.ts'
 import { useFocusRing } from '../lib/useFocusRing.ts'
 import styles from './Interview.module.css'
+import { MockInterview } from './MockInterview.tsx'
 import { PracticeStart } from './PracticeStart.tsx'
 import { QuestionCard } from './QuestionCard.tsx'
+import { SessionSummary } from './SessionSummary.tsx'
 import { TechPicker } from './TechPicker.tsx'
 import { TopicMap } from './TopicMap.tsx'
 
@@ -42,12 +52,19 @@ type View =
       flagged: number
     }
   | { kind: 'done'; label: string; ratings: Rating[]; flagged: number }
+  | { kind: 'mock'; session: MockSession }
+  | { kind: 'mockDone'; summary: MockSummary }
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 const plural = (count: number, one: string): string =>
   `${String(count)} ${count === 1 ? one : `${one}s`}`
+
+const listOf = (names: readonly string[]): string =>
+  names.length <= 1
+    ? (names[0] ?? 'the chosen technologies')
+    : `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`
 
 export function InterviewPrep(props: InterviewPrepProps) {
   const { title, sources, theme, endpoints } = props
@@ -149,6 +166,32 @@ export function InterviewPrep(props: InterviewPrepProps) {
       'flag',
     )
 
+  const startMock = async () => {
+    setBusy(true)
+    try {
+      const session = await transport.mockStart(chosen)
+      setError(undefined)
+      setView({ kind: 'mock', session })
+    } catch (failure) {
+      setError(messageOf(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const finishMock = async (sessionId: string) => {
+    setBusy(true)
+    try {
+      const summary = await transport.mockSummary(sessionId)
+      setError(undefined)
+      setView({ kind: 'mockDone', summary })
+    } catch (failure) {
+      setError(`The summary did not load: ${messageOf(failure)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const home = () => {
     setView({ kind: 'home' })
     setGeneration((value) => value + 1)
@@ -168,9 +211,16 @@ export function InterviewPrep(props: InterviewPrepProps) {
       ? `${view.label}: card ${String(view.index + 1)} of ${String(view.cards.length)}`
       : view.kind === 'done'
         ? `${view.label} done`
-        : overview === undefined
-          ? 'Loading'
-          : ''
+        : view.kind === 'mock'
+          ? 'Mock interview'
+          : view.kind === 'mockDone'
+            ? 'Mock interview done'
+            : overview === undefined
+              ? 'Loading'
+              : ''
+  const chosenTitles = chosen
+    .filter((id) => overview?.sources.find((source) => source.id === id)?.questions !== 0)
+    .map((id) => titles[id] ?? id)
 
   return (
     <div className={styles.root} data-drl-theme="" style={style}>
@@ -199,16 +249,28 @@ export function InterviewPrep(props: InterviewPrepProps) {
             />
             <PracticeStart
               summary={overview?.summary}
-              sourceTitles={chosen
-                .filter(
-                  (id) => overview?.sources.find((source) => source.id === id)?.questions !== 0,
-                )
-                .map((id) => titles[id] ?? id)}
+              sourceTitles={chosenTitles}
               busy={busy}
               onQuick={() => {
                 void start('Quick 10')
               }}
             />
+            <section className={styles.section} aria-labelledby="drl-mock-heading">
+              <h2 id="drl-mock-heading">Mock interview</h2>
+              <p>
+                {`A few open questions across ${listOf(chosenTitles)}, one per topic. Claude grades each answer against the docs, with a score of 0 to 2 and the passages it rests on, then asks one follow-up. A graded answer costs about a cent; a skipped one costs nothing.`}
+              </p>
+              <button
+                type="button"
+                className={styles.primary}
+                disabled={busy || overview === undefined || overview.summary.questions === 0}
+                onClick={() => {
+                  void startMock()
+                }}
+              >
+                Start a mock interview
+              </button>
+            </section>
             {overview !== undefined && overview.groups.length > 0 && (
               <TopicMap
                 groups={overview.groups}
@@ -272,6 +334,28 @@ export function InterviewPrep(props: InterviewPrepProps) {
               </button>
             </div>
           </section>
+        )}
+        {view.kind === 'mock' && (
+          <MockInterview
+            key={view.session.id}
+            session={view.session}
+            sourceTitles={titles}
+            onAnswer={(request) => transport.mockAnswer(request)}
+            onFinish={() => {
+              void finishMock(view.session.id)
+            }}
+          />
+        )}
+        {view.kind === 'mockDone' && (
+          <SessionSummary
+            summary={view.summary}
+            sourceTitles={titles}
+            busy={busy}
+            onAgain={() => {
+              void startMock()
+            }}
+            onHome={home}
+          />
         )}
       </main>
     </div>

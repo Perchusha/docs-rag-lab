@@ -1,20 +1,10 @@
 import { RATINGS, type BankQuestion, type PracticeCard, type Rating } from '@docs-rag-lab/contracts'
-import { ChevronRight } from 'lucide-react'
-import {
-  Fragment,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type SyntheticEvent,
-  type KeyboardEvent,
-} from 'react'
+import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 
-import { codeSpans } from '../lib/code-spans.ts'
 import common from '../lib/common.module.css'
 import { cardAction, focusOf, KIND_LABELS, RATING_LABELS } from '../lib/interview.ts'
-import { ScrollRegion } from '../lib/ScrollRegion.tsx'
 import styles from './Interview.module.css'
+import { InlineText, isSubmitKey, QuestionCodeBlock } from './QuestionParts.tsx'
 
 export interface QuestionCardProps {
   card: PracticeCard
@@ -31,58 +21,6 @@ export interface QuestionCardProps {
   onFlag?: ((reason: string) => void) | undefined
   /** A rating or a flag is on its way: the buttons wait. */
   busy?: boolean | undefined
-}
-
-/** Text with its code spans as code: the bank writes them as markdown does. */
-function InlineText({ text }: { text: string }) {
-  return (
-    <>
-      {codeSpans(text).map((part, i) =>
-        part.code ? <code key={i}>{part.text}</code> : <Fragment key={i}>{part.text}</Fragment>,
-      )}
-    </>
-  )
-}
-
-function Code({ question }: { question: BankQuestion }) {
-  const [setupOpen, setSetupOpen] = useState(false)
-  const id = useId()
-  const { code } = question
-  if (code === undefined) return null
-  return (
-    <>
-      {code.setup !== undefined && (
-        <>
-          <button
-            type="button"
-            className={styles.disclosure}
-            aria-expanded={setupOpen}
-            aria-controls={setupOpen ? `${id}-setup` : undefined}
-            onClick={() => {
-              setSetupOpen(!setupOpen)
-            }}
-          >
-            <ChevronRight className={styles.chevron} aria-hidden="true" />
-            Setup (hidden on the site)
-          </button>
-          {setupOpen && (
-            <div id={`${id}-setup`}>
-              <ScrollRegion label="Setup code" focusOnlyWhenOverflowing>
-                <pre className={styles.code}>
-                  <code>{code.setup}</code>
-                </pre>
-              </ScrollRegion>
-            </div>
-          )}
-        </>
-      )}
-      <ScrollRegion label="Code" focusOnlyWhenOverflowing>
-        <pre className={styles.code}>
-          <code>{code.code}</code>
-        </pre>
-      </ScrollRegion>
-    </>
-  )
 }
 
 function Answer({ question }: { question: BankQuestion }) {
@@ -132,9 +70,6 @@ function Answer({ question }: { question: BankQuestion }) {
     </>
   )
 }
-
-const isSubmitKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean =>
-  event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey
 
 /**
  * "This answer is wrong", once the answer is shown (ADR-0018): the owner says why, and the card
@@ -245,7 +180,7 @@ export function QuestionCard({
   }, [revealed])
 
   useEffect(() => {
-    const onKey = (event: globalThis.KeyboardEvent) => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || flagging) return
       const action = cardAction(
         {
@@ -279,7 +214,7 @@ export function QuestionCard({
       <h2 id={`${id}-prompt`} ref={prompt} tabIndex={-1} className={styles.prompt}>
         <InlineText text={question.prompt} />
       </h2>
-      <Code question={question} />
+      <QuestionCodeBlock code={question.code} />
       {!revealed && (
         <>
           <label className={styles.field}>

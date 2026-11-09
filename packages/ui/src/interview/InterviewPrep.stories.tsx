@@ -1,4 +1,4 @@
-import type { FlagRequest, ReviewRequest } from '@docs-rag-lab/contracts'
+import type { FlagRequest, MockAnswerRequest, ReviewRequest } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 
@@ -13,7 +13,15 @@ const meta = {
     tagline: 'Questions from the TypeScript and React docs, with compiler-verified answers',
     sources: SOURCES,
     theme: { accent: { light: '#6f42c1', dark: '#b392f0' } },
-    endpoints: { overview: '/o', deck: '/d', review: '/r', flag: '/f' },
+    endpoints: {
+      overview: '/o',
+      deck: '/d',
+      review: '/r',
+      flag: '/f',
+      mock: '/m',
+      mockAnswer: '/ma',
+      mockSummary: '/ms',
+    },
     transport: storyTransport(),
   },
 } satisfies Meta<typeof InterviewPrep>
@@ -118,6 +126,46 @@ export const FlagHidesTheCard: Story = {
   },
 }
 
+const answers: MockAnswerRequest[] = []
+
+/**
+ * A mock interview from the main screen to its summary: the first question is answered and so
+ * is its follow-up, the second is skipped, and the summary takes focus.
+ */
+export const MockInterviewToTheSummary: Story = {
+  args: { transport: storyTransport({ summary: UNDER_WAY, answers }) },
+  play: async ({ canvasElement }) => {
+    answers.length = 0
+    const canvas = within(canvasElement)
+    await expect(await canvas.findByText(/A graded answer costs about a cent/)).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Start a mock interview' }))
+
+    await waitFor(() =>
+      expect(canvas.getAllByRole('status')[0]).toHaveTextContent('Mock interview'),
+    )
+    await userEvent.type(await canvas.findByRole('textbox', { name: 'Your answer' }), 'Truthiness.')
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await userEvent.type(
+      await canvas.findByRole('textbox', { name: 'Your answer to the follow-up' }),
+      '0 and NaN.',
+    )
+    await userEvent.keyboard('{Control>}{Enter}{/Control}')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Next question' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Skip' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'See the summary' }))
+
+    const done = await canvas.findByRole('heading', { name: 'Mock interview done' })
+    await waitFor(() => expect(done).toHaveFocus())
+    await expect(answers.map(({ step, answer }) => [step, answer])).toEqual([
+      ['question', 'Truthiness.'],
+      ['follow-up', '0 and NaN.'],
+      ['question', ''],
+    ])
+    await userEvent.click(canvas.getByRole('button', { name: 'Back to topics' }))
+    await expect(await canvas.findByRole('heading', { name: 'Topics' })).toBeVisible()
+  },
+}
+
 /** Reflow at 320 CSS px (WCAG 1.4.10): nothing scrolls sideways but a code block's own box. */
 export const Reflow320: Story = {
   parameters: {
@@ -139,6 +187,25 @@ export const Reflow320: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Quick 10' }))
     await userEvent.click(await canvas.findByRole('button', { name: 'Setup (hidden on the site)' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await expect(reflowProblems(canvasElement)).toEqual([])
+  },
+}
+
+/** The mock interview's grade and its summary reflow at 320 CSS px too. */
+export const MockReflow320: Story = {
+  ...Reflow320,
+  args: { transport: storyTransport({ summary: UNDER_WAY }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(window.innerWidth).toBe(320)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Start a mock interview' }))
+    await userEvent.type(await canvas.findByRole('textbox', { name: 'Your answer' }), 'Truthiness.')
+    await userEvent.click(canvas.getByRole('button', { name: 'Submit answer' }))
+    await canvas.findByRole('heading', { name: 'The answer from the docs' })
+    await expect(reflowProblems(canvasElement)).toEqual([])
+
+    await userEvent.click(canvas.getByRole('button', { name: 'End the interview' }))
+    await canvas.findByRole('heading', { name: 'Mock interview done' })
     await expect(reflowProblems(canvasElement)).toEqual([])
   },
 }

@@ -3,6 +3,10 @@
 import type {
   FlagRequest,
   FlagResult,
+  MockAnswerRequest,
+  MockGrade,
+  MockSession,
+  MockSummary,
   PracticeDeck,
   PracticeOverview,
   ReviewRequest,
@@ -18,6 +22,12 @@ export interface InterviewEndpoints {
   review: string
   /** POST a FlagRequest: the FlagResult. */
   flag: string
+  /** POST a MockStartRequest: the MockSession. */
+  mock: string
+  /** POST a MockAnswerRequest: the MockGrade. */
+  mockAnswer: string
+  /** GET with ?session=: the MockSummary. */
+  mockSummary: string
 }
 
 export interface InterviewTransport {
@@ -25,6 +35,9 @@ export interface InterviewTransport {
   deck(sources: readonly string[], topic?: { source: string; id: string }): Promise<PracticeDeck>
   review(request: ReviewRequest): Promise<ReviewResult>
   flag(request: FlagRequest): Promise<FlagResult>
+  mockStart(sources: readonly string[]): Promise<MockSession>
+  mockAnswer(request: MockAnswerRequest): Promise<MockGrade>
+  mockSummary(sessionId: string): Promise<MockSummary>
 }
 
 /** The error a route sent as `{ "error": "..." }`, or the HTTP status. */
@@ -73,5 +86,9 @@ export function fetchInterviewTransport(endpoints: InterviewEndpoints): Intervie
       ),
     review: async (request) => json<ReviewResult>(await post(endpoints.review, request)),
     flag: async (request) => json<FlagResult>(await post(endpoints.flag, request)),
+    mockStart: async (sources) => json<MockSession>(await post(endpoints.mock, { sources })),
+    mockAnswer: async (request) => json<MockGrade>(await post(endpoints.mockAnswer, request)),
+    mockSummary: async (sessionId) =>
+      json<MockSummary>(await fetch(withQuery(endpoints.mockSummary, { session: sessionId }))),
   }
 }

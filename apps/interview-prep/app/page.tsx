@@ -15,6 +15,9 @@ export default function Page() {
         deck: '/api/interview/deck',
         review: '/api/interview/review',
         flag: '/api/interview/flag',
+        mock: '/api/interview/mock',
+        mockAnswer: '/api/interview/mock/answer',
+        mockSummary: '/api/interview/mock/summary',
       }}
     />
   )

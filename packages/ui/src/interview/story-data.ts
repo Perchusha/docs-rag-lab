@@ -2,7 +2,13 @@
 // sources, decks of the fixture questions, and a transport that answers from them with no network.
 // Not part of the public entry.
 import type {
+  BankQuestion,
   FlagRequest,
+  MockAnswerRequest,
+  MockGrade,
+  MockQuestion,
+  MockSession,
+  MockSummary,
   PracticeCard,
   PracticeOverview,
   PracticeSummary,
@@ -144,17 +150,140 @@ export const CARDS = {
   pitfall: card(interviewQuestions.pitfall, 'Hooks'),
 }
 
-/** Answers from the data above at once, and records each review it was sent. */
+const asked = (question: BankQuestion, topicTitle: string): MockQuestion => ({
+  id: question.id,
+  source: question.source,
+  kind: question.kind,
+  topicTitle,
+  prompt: question.prompt,
+  ...(question.code === undefined ? {} : { code: question.code }),
+})
+
+/** A mock interview of the two generated fixture questions. */
+export const MOCK_SESSION: MockSession = {
+  id: 'session-1',
+  questions: [
+    asked(interviewQuestions.theory, 'Narrowing'),
+    asked(interviewQuestions.pitfall, 'Hooks'),
+  ],
+}
+
+const NARROWING = 'https://www.typescriptlang.org/docs/handbook/2/narrowing.html'
+
+/** A first answer's grade, partly right, with a follow-up and the bank's answer. */
+export const PARTLY_RIGHT: MockGrade = {
+  questionId: interviewQuestions.theory.id,
+  step: 'question',
+  score: 1,
+  feedback:
+    'You are right that `if` narrows on truthiness [1]. You left out how TypeScript treats values such as `0`, `NaN` and `""`, which coerce to `false` [2].',
+  citations: [
+    {
+      number: 1,
+      url: `${NARROWING}#truthiness-narrowing`,
+      title: 'Narrowing > Truthiness narrowing',
+    },
+    {
+      number: 2,
+      url: `${NARROWING}#truthiness-narrowing`,
+      title: 'Narrowing > Truthiness narrowing (part 2 of 2)',
+    },
+  ],
+  followUp: 'Which values coerce to `false` in a condition?',
+  reference: {
+    answer: interviewQuestions.theory.answer,
+    citation: interviewQuestions.theory.citation,
+  },
+  skipped: false,
+}
+
+/** The answer to the follow-up, right. */
+export const FOLLOW_UP_RIGHT: MockGrade = {
+  questionId: interviewQuestions.theory.id,
+  step: 'follow-up',
+  score: 2,
+  feedback: 'Right: `0`, `NaN`, `""`, `0n`, `null` and `undefined` all coerce to `false` [1].',
+  citations: [
+    {
+      number: 1,
+      url: `${NARROWING}#truthiness-narrowing`,
+      title: 'Narrowing > Truthiness narrowing',
+    },
+  ],
+  skipped: false,
+}
+
+/** A skipped answer: scored 0, with no call. */
+export const skippedGrade = (request: MockAnswerRequest): MockGrade => ({
+  questionId: request.questionId,
+  step: request.step,
+  score: 0,
+  feedback: 'Skipped: nothing to grade.',
+  citations: [],
+  skipped: true,
+})
+
+export const MOCK_SUMMARY: MockSummary = {
+  sessionId: 'session-1',
+  questions: [
+    {
+      questionId: interviewQuestions.theory.id,
+      source: 'typescript',
+      topicTitle: 'Narrowing',
+      prompt: interviewQuestions.theory.prompt,
+      score: 3,
+      max: 4,
+    },
+    {
+      questionId: interviewQuestions.pitfall.id,
+      source: 'react',
+      topicTitle: 'Hooks',
+      prompt: interviewQuestions.pitfall.prompt,
+      score: 0,
+      max: 2,
+    },
+  ],
+  score: 3,
+  max: 6,
+  weakTopics: [
+    { source: 'react', topicId: 'reference/hooks', title: 'Hooks', score: 0, max: 2 },
+    {
+      source: 'typescript',
+      topicId: 'handbook-v2/Narrowing',
+      title: 'Narrowing',
+      score: 3,
+      max: 4,
+    },
+  ],
+  read: [
+    {
+      url: interviewQuestions.pitfall.citation.url,
+      title: 'useEffect > Specifying reactive dependencies',
+    },
+    { url: interviewQuestions.theory.citation.url, title: 'Narrowing > Truthiness narrowing' },
+  ],
+  costUsd: 0.0214,
+}
+
+/** Answers from the data above at once, and records each review, flag and answer it was sent. */
 export function storyTransport(
   options: {
     summary?: PracticeSummary
     deck?: PracticeCard[]
     reviews?: ReviewRequest[]
     flags?: FlagRequest[]
+    answers?: MockAnswerRequest[]
   } = {},
 ): InterviewTransport {
   const deck = options.deck ?? Object.values(CARDS)
   return {
+    mockStart: () => Promise.resolve(MOCK_SESSION),
+    mockAnswer: (request) => {
+      options.answers?.push(request)
+      if (request.answer === '') return Promise.resolve(skippedGrade(request))
+      return Promise.resolve(request.step === 'question' ? PARTLY_RIGHT : FOLLOW_UP_RIGHT)
+    },
+    mockSummary: () => Promise.resolve(MOCK_SUMMARY),
     overview: (sources) => Promise.resolve(overviewOf(options.summary ?? FIRST_RUN, sources)),
     deck: (sources, topicOf) =>
       Promise.resolve({

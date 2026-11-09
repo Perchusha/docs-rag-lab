@@ -7,6 +7,9 @@ const endpoints = {
   deck: '/api/interview/deck',
   review: '/api/interview/review',
   flag: '/api/interview/flag',
+  mock: '/api/interview/mock',
+  mockAnswer: '/api/interview/mock/answer',
+  mockSummary: '/api/interview/mock/summary',
 }
 
 afterEach(() => {
@@ -26,13 +29,25 @@ describe('fetchInterviewTransport (ADR-0018)', () => {
     await transport.deck(['react'], { source: 'react', id: 'reference/hooks' })
     await transport.review({ questionId: 'q1', rating: 'good' })
     await transport.flag({ questionId: 'q2', reason: 'Wrong.' })
+    await transport.mockStart(['react'])
+    await transport.mockAnswer({
+      sessionId: 's1',
+      questionId: 'q1',
+      step: 'question',
+      answer: 'A.',
+    })
+    await transport.mockSummary('s1')
 
     expect(calls.map(([url]) => url)).toEqual([
       '/api/interview/overview?sources=typescript%2Creact',
       '/api/interview/deck?sources=react&topic=react%3Areference%2Fhooks',
       '/api/interview/review',
       '/api/interview/flag',
+      '/api/interview/mock',
+      '/api/interview/mock/answer',
+      '/api/interview/mock/summary?session=s1',
     ])
+    expect(calls[4]?.[1]).toMatchObject({ method: 'POST', body: '{"sources":["react"]}' })
     expect(calls[2]?.[1]).toMatchObject({
       method: 'POST',
       body: '{"questionId":"q1","rating":"good"}',
