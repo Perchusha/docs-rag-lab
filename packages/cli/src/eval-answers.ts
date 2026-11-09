@@ -1,6 +1,7 @@
 // drl eval answers, label, calibrate and judge-check: answer metrics (SPEC section 10,
 // ADR-0012). These are the eval commands that spend money, so each prints an estimate first,
 // and none makes a paid call without --yes.
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 
@@ -15,8 +16,10 @@ import {
   type EvalSpotCheck,
 } from '@docs-rag-lab/contracts'
 import {
+  AGENT_LOOP_VERSION,
   AGENT_ROW,
   AGENT_SYSTEM_PROMPT,
+  loopTextsHash,
   anchorCandidates,
   anchorKey,
   calibrate,
@@ -248,6 +251,28 @@ function compiledIndexOf(
   }
 }
 
+/**
+ * What decides a search of row 6's own, besides its query: the retrieval settings and the plain
+ * index's chunks and vectors. A stored run of the loop is kept under it (ADR-0019).
+ */
+function searchIdentityOf(ctx: CommandContext, source: Source): string {
+  const indexes = openIndexes(join(ctx.root, ctx.settings.dataDir), source.id, { create: false })
+  try {
+    return createHash('sha256')
+      .update(
+        JSON.stringify([
+          ctx.settings.retrieval,
+          indexes.index.chunksHash(),
+          indexes.index.vectorsHash(),
+        ]),
+      )
+      .digest('hex')
+      .slice(0, 16)
+  } finally {
+    indexes.close()
+  }
+}
+
 /** The rerank calls these rows and questions still need. They are free, and they take a while. */
 async function missingRerankCalls(
   ctx: CommandContext,
@@ -314,10 +339,12 @@ export async function evalAnswersCommand(
   const agentic = args.rows.includes(AGENT_ROW)
   const docTypes = agentic ? ctx.engine.docTypes(source.id) : []
   const { maxSearches } = settings.agentic
+  const searchIdentity = agentic ? searchIdentityOf(ctx, source) : ''
   // Row 6's searches of Claude's own: hybrid on the plain index, as its first search (ADR-0019).
   const agent: AgentEvalOptions | undefined = agentic
     ? {
         maxSearches,
+        searchIdentity,
         docTypes,
         search: async (query, types) =>
           (
@@ -354,7 +381,7 @@ export async function evalAnswersCommand(
       answerModel: answer.model,
       judge,
       retest: args.noise,
-      maxSearches,
+      agent,
     })
     ctx.out.write(`${formatCostEstimate(estimate, maxUsd)}\n`)
     if (estimate.usd > maxUsd) {
@@ -436,6 +463,16 @@ export async function evalAnswersCommand(
       },
       rows,
       comparisons,
+      ...(agentic
+        ? {
+            agentic: {
+              loopVersion: AGENT_LOOP_VERSION,
+              loopTexts: loopTextsHash(),
+              maxSearches,
+              searchIdentity,
+            },
+          }
+        : {}),
       judgeRetest: judgeRetest(verdicts),
       candidates: anchorCandidates(options, (id) => report.result.chunks[id]?.docPath ?? ''),
       ...(contextualIndex === undefined ? {} : { contextualIndex }),

@@ -11,7 +11,7 @@ import {
 import type { SearchHit } from '@docs-rag-lab/db'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
-import { buildAgentRequest, runAgentLoop, type AgentSearchFn } from './agent.ts'
+import { buildAgentRequest, checkCitations, runAgentLoop, type AgentSearchFn } from './agent.ts'
 import {
   buildAnswerRequest,
   CitationNumbering,
@@ -120,8 +120,10 @@ export interface AgenticAskOptions extends AskOptions {
 /**
  * Agentic mode (ADR-0019): the same first search as ask(), then Claude may search again. Events
  * are ask()'s, and each search of Claude's own goes to `onSearch`. Citations are numbered over
- * every chunk of the conversation, as the API numbers its search results. A loop that fails is
- * thrown, as any failure is.
+ * every chunk of the conversation, as the API numbers its search results, and checked against it.
+ * Only the answer's own step reaches the events, as only it is scored in eval: a step that asks
+ * for a search keeps whatever text it had to itself. So the answer arrives when its step ends. A
+ * loop that fails is thrown, as any failure is.
  */
 export async function askAgentic(options: AgenticAskOptions): Promise<Retrieval> {
   const { onEvent, meter, model } = options
@@ -147,15 +149,24 @@ export async function askAgentic(options: AgenticAskOptions): Promise<Retrieval>
     maxSearches: options.maxSearches,
     search: options.search,
     ...(options.onSearch === undefined ? {} : { onSearch: options.onSearch }),
-    call: (request: Anthropic.MessageCreateParamsNonStreaming, _step, context) => {
+    call: async (request: Anthropic.MessageCreateParamsNonStreaming, _step, context) => {
       // The loop's own list, which grows with each search, so later citations find their chunk.
       numbering ??= new CitationNumbering(context)
-      return streamAnswer(
+      const held: (() => void)[] = []
+      const handlers = streamHandlers(options, numbering)
+      const message = await streamAnswer(
         options.client,
         request,
-        streamHandlers(options, numbering),
+        {
+          onText: (text) => held.push(() => handlers.onText?.(text)),
+          onTextBlock: (block) => held.push(() => handlers.onTextBlock?.(block)),
+          onUsage: handlers.onUsage,
+        },
         options.signal,
       )
+      checkCitations(message, context)
+      if (message.stop_reason !== 'tool_use') for (const send of held) send()
+      return message
     },
   })
   if (loop.failure !== undefined) throw new Error(`the agentic answer failed: ${loop.failure}`)

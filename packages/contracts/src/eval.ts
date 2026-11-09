@@ -227,9 +227,16 @@ export interface EvalPooled {
   metrics: EvalPooledMetric[]
   /** First answers of either row that did not finish. On fully correct, each counts as not. */
   notOk: { sourceId: string; questionId: string; row: AnswerRow; status: AnswerStatus }[]
+  /** First answers that finished with no usable verdict. On fully correct, each counts as not. */
+  unjudged: { sourceId: string; questionId: string; row: AnswerRow }[]
   /** Row b's hallucinations on the questions the docs do not answer, in its first answers. */
   hallucinations: { sourceId: string; questionId: string }[]
-  /** Whether the verdict names b on fully correct, and names a on no other metric. */
+  /** Rows answered twice by design whose second answers some report lacks: the bar is unknown. */
+  runToRunMissing: AnswerRow[]
+  /**
+   * Whether the verdict names b on fully correct and a on no other metric, with every run to run
+   * known and every first answer judged.
+   */
   holds: boolean
 }
 

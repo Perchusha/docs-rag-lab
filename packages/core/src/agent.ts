@@ -3,11 +3,19 @@
 // Every request asks for automatic prompt caching, so each step reads the prefix the step before
 // wrote and writes only what it added. The limit is said in a tool result, never by changing
 // tool_choice or dropping the tool: either change would drop the cached conversation.
+import { createHash } from 'node:crypto'
+
 import type Anthropic from '@anthropic-ai/sdk'
 import type { EvalAgentSearch } from '@docs-rag-lab/contracts'
 import type { SearchHit } from '@docs-rag-lab/db'
 
-import { buildAnswerRequest, toSearchResult, type AnswerRequestOptions } from './generate.ts'
+import {
+  buildAnswerRequest,
+  citationSource,
+  citationTitle,
+  toSearchResult,
+  type AnswerRequestOptions,
+} from './generate.ts'
 
 export const SEARCH_DOCS = 'search_docs'
 
@@ -101,6 +109,90 @@ export function searchesLeftNote(left: number): string {
   return `You can search ${String(left)} more ${left === 1 ? 'time' : 'times'}.`
 }
 
+/** What a search's result says of the results it left out, before the searches left. */
+export function shownNote(found: number, fresh: number): string {
+  if (found === 0) return 'This search found nothing.'
+  const shown = found - fresh
+  if (shown === 0) return ''
+  if (fresh === 0) {
+    return found === 1
+      ? 'Its one result is already in this conversation.'
+      : `All ${String(found)} of its results are already in this conversation.`
+  }
+  return shown === 1
+    ? '1 of its results was already in this conversation, and is left out.'
+    : `${String(shown)} of its results were already in this conversation, and are left out.`
+}
+
+/** The error results a step can send. */
+export const LOOP_ERRORS = {
+  noSearchLeft: 'No search is left. Answer from the results you have.',
+  unknownTool: (name: string): string => `There is no tool named ${name}.`,
+  didNotRun: (reason: string, left: number): string =>
+    `The search did not run: ${reason}. ${searchesLeftNote(left)}`,
+}
+
+/**
+ * A hash of every text a step can send besides the search results, from samples of each. A stored
+ * run of the loop is kept under it, so that rewording one never replays a run made with another.
+ */
+export function loopTextsHash(): string {
+  const samples = [
+    ...[0, 1, 2].map(searchesLeftNote),
+    ...[
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [2, 1],
+      [3, 2],
+      [8, 8],
+    ].map(([found = 0, fresh = 0]) => shownNote(found, fresh)),
+    LOOP_ERRORS.noSearchLeft,
+    LOOP_ERRORS.unknownTool('x'),
+    LOOP_ERRORS.didNotRun('x', 1),
+  ]
+  return createHash('sha256').update(JSON.stringify(samples)).digest('hex').slice(0, 16)
+}
+
+/** Thrown when a citation does not name the chunk the loop's list puts at its index. */
+export class CitationMismatchError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CitationMismatchError'
+  }
+}
+
+/**
+ * Checks that each search-result citation of a message names the chunk the loop's list puts at its
+ * index, by the source and title that chunk was sent with. ADR-0019 takes the API's numbering to
+ * run across the whole request; a numbering that did not would map citations to other chunks with
+ * no error, so this says so instead.
+ */
+export function checkCitations(message: Anthropic.Message, context: readonly SearchHit[]): void {
+  for (const block of message.content) {
+    if (block.type !== 'text') continue
+    for (const citation of block.citations ?? []) {
+      if (citation.type !== 'search_result_location') continue
+      const index = citation.search_result_index
+      const hit = context[index]
+      if (hit === undefined) {
+        throw new CitationMismatchError(
+          `a citation points to search result ${String(index)}, and the conversation has ${String(context.length)}`,
+        )
+      }
+      const title = citation.title
+      if (
+        citation.source !== citationSource(hit) ||
+        (title !== null && title !== citationTitle(hit))
+      ) {
+        throw new CitationMismatchError(
+          `search result ${String(index)} is cited as ${citation.source}, and the loop sent ${citationSource(hit)} there`,
+        )
+      }
+    }
+  }
+}
+
 /** Sends one request of the loop and returns Claude's message. `context` is every chunk so far. */
 export type AgentCall = (
   request: Anthropic.MessageCreateParamsNonStreaming,
@@ -151,7 +243,8 @@ const errorResult = (id: string, text: string): Anthropic.ToolResultBlockParam =
  * Runs the loop until Claude stops asking for searches (ADR-0019). Each search returns the
  * strategy's top results less the chunks the conversation already holds. After the last search
  * allowed, a further call gets an error result, and a message that still asks for one ends the
- * loop as failed.
+ * loop as failed. So does one that asks for a tool on the last request allowed, the first, one
+ * per search and one after the error: whatever it calls, the loop never makes more.
  */
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
   const { maxSearches, call, search, docTypes } = options
@@ -171,6 +264,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     if (refusedOnce) {
       return { ...result, failure: 'it asked for a search after it was told none was left' }
     }
+    if (messages.length >= maxSearches + 2) {
+      return { ...result, failure: 'it did not stop within the requests allowed' }
+    }
     const uses = message.content.filter(
       (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
     )
@@ -178,21 +274,19 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     const results: Anthropic.ToolResultBlockParam[] = []
     for (const use of uses) {
       if (use.name !== SEARCH_DOCS) {
-        results.push(errorResult(use.id, `There is no tool named ${use.name}.`))
+        results.push(errorResult(use.id, LOOP_ERRORS.unknownTool(use.name)))
         continue
       }
       if (used >= maxSearches) {
         refusedOnce = true
-        results.push(errorResult(use.id, 'No search is left. Answer from the results you have.'))
+        results.push(errorResult(use.id, LOOP_ERRORS.noSearchLeft))
         continue
       }
       used++
       const left = maxSearches - used
       const input = searchInput(use.input, docTypes)
       if (typeof input === 'string') {
-        results.push(
-          errorResult(use.id, `The search did not run: ${input}. ${searchesLeftNote(left)}`),
-        )
+        results.push(errorResult(use.id, LOOP_ERRORS.didNotRun(input, left)))
         continue
       }
       const found = await search(input.query, input.docTypes)
@@ -209,14 +303,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       }
       searches.push(record)
       options.onSearch?.(record, fresh)
-      const shown =
-        found.length === 0
-          ? 'This search found nothing.'
-          : fresh.length === 0
-            ? `All ${String(found.length)} of its results are already in this conversation.`
-            : record.alreadyShown === 0
-              ? ''
-              : `${String(record.alreadyShown)} of its results already in this conversation were left out.`
+      const shown = shownNote(found.length, fresh.length)
       results.push({
         type: 'tool_result',
         tool_use_id: use.id,

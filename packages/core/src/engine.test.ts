@@ -330,10 +330,11 @@ describe('createEngine', () => {
       ...base,
       stop_reason: 'tool_use',
       content: [
+        { type: 'text', text: 'I will search for classes.', citations: null },
         { type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'classes' } },
       ],
     } as Anthropic.Message
-    const citing = (index: number): Anthropic.Message =>
+    const citing = (index: number, source: string): Anthropic.Message =>
       ({
         ...base,
         stop_reason: 'end_turn',
@@ -345,8 +346,8 @@ describe('createEngine', () => {
               {
                 type: 'search_result_location',
                 cited_text: 'Interfaces and classes.',
-                source: 'https://x.dev/a',
-                title: 'A',
+                source,
+                title: null,
                 search_result_index: index,
                 start_block_index: 0,
                 end_block_index: 1,
@@ -356,7 +357,11 @@ describe('createEngine', () => {
         ],
       }) as Anthropic.Message
     // The first search takes 2 of the 3 chunks, so the search of its own adds the third, at index 2.
-    const client = fakeAnswerClient({ messages: [searching, citing(2)] })
+    const firstHits = (await engine(provider).search({ question: QUESTION }, new UsageMeter())).hits
+    const third = ['near', 'code', 'other'].find((id) => !firstHits.some((h) => h.chunkId === id))
+    const client = fakeAnswerClient({
+      messages: [searching, citing(2, `https://x.dev/a#${third ?? ''}`)],
+    })
     const events: AnswerEvent[] = []
     const searches: [EvalAgentSearch, string][] = []
     const host = engine(provider, client)
@@ -384,6 +389,9 @@ describe('createEngine', () => {
       [[1, added[0]]],
     )
     expect(events.at(-1)).toMatchObject({ type: 'done', stopReason: 'end_turn' })
+    // Only the answer's own step reaches the events, as only it is scored in eval.
+    const text = events.flatMap((event) => (event.type === 'text' ? [event.text] : [])).join('')
+    expect(text).toBe('Classes.')
   })
 
   it('creates the Claude client before retrieving, so a missing key costs no embedding', async () => {

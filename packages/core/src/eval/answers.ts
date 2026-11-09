@@ -18,7 +18,13 @@ import type {
 import type { EvalCache, SearchHit } from '@docs-rag-lab/db'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
-import { buildAgentRequest, runAgentLoop, type AgentSearchFn } from '../agent.ts'
+import {
+  buildAgentRequest,
+  checkCitations,
+  loopTextsHash,
+  runAgentLoop,
+  type AgentSearchFn,
+} from '../agent.ts'
 import type { Engine } from '../engine.ts'
 import type { IndexVariant } from '../indexes.ts'
 import { buildAnswerRequest, streamAnswer, type AnswerClient } from '../generate.ts'
@@ -268,6 +274,12 @@ export class Runner {
     return this.#stop !== undefined
   }
 
+  /** Stops the run before its next paid call, and throws. What it paid for is in the cache. */
+  halt(reason: string): never {
+    this.#stop = reason
+    throw new EvalStoppedError(reason)
+  }
+
   /** Throws when the run stopped early. What it paid for is in the cache. */
   check(): void {
     if (this.#stop !== undefined) throw new EvalStoppedError(this.#stop)
@@ -450,12 +462,12 @@ export function cachedAnswer(
   job: AnswerJob,
   cache: EvalCache,
   pricing: PricingSettings,
-  /** Row 6's limit, under which its runs are kept. */
-  maxSearches?: number,
+  /** What row 6's runs are kept under. */
+  scope?: AgentRunScope,
 ): EvalAnswer | undefined {
   if (job.row === AGENT_ROW) {
-    if (maxSearches === undefined) return undefined
-    const run = cache.get(agentRunKey(job, maxSearches)) as CachedAgentRun | undefined
+    if (scope === undefined) return undefined
+    const run = cache.get(agentRunKey(job, scope)) as CachedAgentRun | undefined
     return run === undefined ? undefined : agentAnswerOf(job, run, true, pricing)
   }
   const cached = cache.get(job.key) as CachedCall | undefined
@@ -476,10 +488,32 @@ interface CachedAgentRun {
   failure?: string
 }
 
-/** Where a run of the loop is kept: by its first request, the loop's version and its limit. */
-export function agentRunKey(job: Pick<AnswerJob, 'key'>, maxSearches: number): string {
+/** What decides a run of the loop besides its first request. */
+export interface AgentRunScope {
+  maxSearches: number
+  /**
+   * What decides a search's results: the retrieval settings, and the index's chunks and vectors.
+   * The query vectors are cached by their text, so they stay the same.
+   */
+  searchIdentity: string
+}
+
+/**
+ * Where a run of the loop is kept: by its first request, the loop's version, the hash of the texts
+ * its steps send, its limit and what decides its searches. Change any of them, and the run is new.
+ */
+export function agentRunKey(job: Pick<AnswerJob, 'key'>, scope: AgentRunScope): string {
   return createHash('sha256')
-    .update(JSON.stringify(['agent-run', AGENT_LOOP_VERSION, maxSearches, job.key]))
+    .update(
+      JSON.stringify([
+        'agent-run',
+        AGENT_LOOP_VERSION,
+        loopTextsHash(),
+        scope.maxSearches,
+        scope.searchIdentity,
+        job.key,
+      ]),
+    )
     .digest('hex')
 }
 
@@ -557,8 +591,7 @@ const checkStep: ReplyCheck = (message) => {
   if (message.stop_reason !== 'tool_use') checkAnswer(message)
 }
 
-export interface AgentEvalOptions {
-  maxSearches: number
+export interface AgentEvalOptions extends AgentRunScope {
   /** The doc types the source's index holds, which the tool offers. */
   docTypes: readonly string[]
   /** Hybrid on the plain index, for a query of Claude's own. */
@@ -576,7 +609,7 @@ async function runAgentAnswer(
   agent: AgentEvalOptions,
 ): Promise<EvalAnswer> {
   const { cache, pricing, now } = runner
-  const recordKey = agentRunKey(job, agent.maxSearches)
+  const recordKey = agentRunKey(job, agent)
   const stored = cache.get(recordKey) as CachedAgentRun | undefined
   if (stored !== undefined) return agentAnswerOf(job, stored, true, pricing)
   const start = now()
@@ -586,13 +619,21 @@ async function runAgentAnswer(
     hits: job.hits,
     docTypes: agent.docTypes,
     maxSearches: agent.maxSearches,
-    search: agent.search,
-    call: async (request, step) => {
+    // A search that fails stops the run, as ADR-0019 has a rejected Voyage call do.
+    search: async (query, docTypes) => {
+      try {
+        return await agent.search(query, docTypes)
+      } catch (error) {
+        return runner.halt(`a search of row 6 failed, which stops the run: ${reasonOf(error)}`)
+      }
+    },
+    call: async (request, step, context) => {
       const at = now() - start
       const key = step === 0 ? job.key : requestKey(request, job.sample)
       const kind = step === 0 ? 'agent-first' : 'agent-step'
       const result = await runner.call(kind, request, key, checkStep)
       calls.push({ ...result, at })
+      checkCitations(result.call.message, context)
       return result.call.message
     },
   })
@@ -695,7 +736,7 @@ export async function runAnswers(
   if (agent !== undefined && later.length > 0 && !runner.stopped) {
     // Only a first request that is not cached here is sent, and only that could read an entry.
     const sends = later.some(
-      (job) => !runner.cache.has(job.key) && !runner.cache.has(agentRunKey(job, agent.maxSearches)),
+      (job) => !runner.cache.has(job.key) && !runner.cache.has(agentRunKey(job, agent)),
     )
     if (sends) {
       agent.onWait?.(SECOND_ANSWERS_WAIT_MS)

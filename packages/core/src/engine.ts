@@ -284,6 +284,8 @@ export function createEngine(options: EngineOptions): Engine {
           signal: run.signal,
           toolDocTypes,
           maxSearches: settings.agentic.maxSearches,
+          // A search of Claude's own takes the request's strategy and top K, and its own doc
+          // types: the request's filter is for the first search, and the tool says which to use.
           search: async (query, docTypes) => {
             const retrieval = await retrieve(
               retrieveOptions(

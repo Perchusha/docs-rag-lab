@@ -6,10 +6,13 @@ import { describe, expect, it } from 'vitest'
 import {
   AGENT_SYSTEM_PROMPT,
   buildAgentRequest,
+  checkCitations,
+  CitationMismatchError,
   runAgentLoop,
   SEARCH_DOCS,
   searchesLeftNote,
   searchInput,
+  shownNote,
   type AgentCall,
 } from './agent.ts'
 import { buildAnswerRequest } from './generate.ts'
@@ -118,6 +121,61 @@ describe('searchesLeftNote', () => {
   })
 })
 
+describe('shownNote', () => {
+  it('says what a search left out, in the singular too', () => {
+    expect(shownNote(0, 0)).toBe('This search found nothing.')
+    expect(shownNote(3, 3)).toBe('')
+    expect(shownNote(1, 0)).toBe('Its one result is already in this conversation.')
+    expect(shownNote(8, 0)).toBe('All 8 of its results are already in this conversation.')
+    expect(shownNote(3, 2)).toBe(
+      '1 of its results was already in this conversation, and is left out.',
+    )
+    expect(shownNote(8, 5)).toBe(
+      '3 of its results were already in this conversation, and are left out.',
+    )
+  })
+})
+
+describe('checkCitations', () => {
+  const citing = (index: number, source: string, title: string | null): Anthropic.Message =>
+    reply(
+      [
+        {
+          type: 'text',
+          text: 'Cited.',
+          citations: [
+            {
+              type: 'search_result_location',
+              cited_text: 'x',
+              source,
+              title,
+              search_result_index: index,
+              start_block_index: 0,
+              end_block_index: 1,
+            },
+          ],
+        },
+      ],
+      'end_turn',
+    )
+  const context = [hit('a'), { ...hit('b'), url: 'https://x.dev/b' }]
+
+  it('passes a citation that names the chunk at its index', () => {
+    expect(() => {
+      checkCitations(citing(1, 'https://x.dev/b', 'A'), context)
+    }).not.toThrow()
+  })
+
+  it('refuses one that names another chunk, or points past the conversation', () => {
+    expect(() => {
+      checkCitations(citing(1, 'https://x.dev/a', 'A'), context)
+    }).toThrow(CitationMismatchError)
+    expect(() => {
+      checkCitations(citing(2, 'https://x.dev/a', null), context)
+    }).toThrow('the conversation has 2')
+  })
+})
+
 describe('runAgentLoop', () => {
   it('ends at once when Claude answers from the first search', async () => {
     const { call, requests } = scripted([answer])
@@ -183,7 +241,7 @@ describe('runAgentLoop', () => {
     expect(results[0]?.tool_use_id).toBe('toolu_1')
     expect(content.map((block) => block.type)).toEqual(['search_result', 'search_result', 'text'])
     expect(content.at(-1)?.text).toBe(
-      '1 of its results already in this conversation were left out. You can search 1 more time.',
+      '1 of its results was already in this conversation, and is left out. You can search 1 more time.',
     )
   })
 
@@ -211,12 +269,33 @@ describe('runAgentLoop', () => {
     const second = resultOf(2)?.content as { type: string; text?: string }[]
     expect(second.map((block) => block.type)).toEqual(['text'])
     expect(second[0]?.text).toBe(
-      'All 1 of its results are already in this conversation. That was the last search: no search is left. Answer from the results you have.',
+      'Its one result is already in this conversation. That was the last search: no search is left. Answer from the results you have.',
     )
     expect(resultOf(3)?.is_error).toBe(true)
     expect(resultOf(3)?.content).toBe('No search is left. Answer from the results you have.')
     expect(requests).toHaveLength(4)
     expect(result.failure).toBe('it asked for a search after it was told none was left')
+  })
+
+  it('never makes more requests than the first, one per search and one after the error', async () => {
+    const other = reply(
+      [{ type: 'tool_use', id: 't', name: 'other_tool', input: {} } as Anthropic.ToolUseBlock],
+      'tool_use',
+    )
+    const { call, requests } = scripted([other, other, other, other, other])
+    const { search } = searchesOf({})
+
+    const result = await runAgentLoop({
+      first,
+      hits: [hit('a')],
+      docTypes: DOC_TYPES,
+      maxSearches: 2,
+      call,
+      search,
+    })
+
+    expect(requests).toHaveLength(4)
+    expect(result.failure).toBe('it did not stop within the requests allowed')
   })
 
   it('answers a bad input with an error, which uses up a search', async () => {

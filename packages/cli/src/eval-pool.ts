@@ -40,11 +40,16 @@ export function formatPooled(pooled: EvalPooled): string {
   const { a, b } = pooled
   const fully = pooled.metrics.find(({ metric }) => metric === 'fully-correct')
   const guardForA = pooled.metrics.filter(({ verdict }) => verdict === 'a')
+  const missing = pooled.runToRunMissing.map(rowName).join(' and ')
   const why = pooled.holds
     ? `the verdict names ${rowName(b)} on fully correct, past twice the larger run to run, and names ${rowName(a)} on no guard.`
     : fully?.verdict !== 'b'
       ? `the verdict on fully correct is "${verdictWords(fully?.verdict ?? 'noise', a, b)}", not ${rowName(b)} better.`
-      : `a guard names ${rowName(a)}: ${guardForA.map(({ metric }) => metric).join(', ')}.`
+      : guardForA.length > 0
+        ? `a guard names ${rowName(a)}: ${guardForA.map(({ metric }) => metric).join(', ')}.`
+        : pooled.runToRunMissing.length > 0
+          ? `${missing} was answered once in some report, so the run to run that the margin must pass is unknown.`
+          : 'some first answers have no verdict.'
   const shown = pooled.holds ? `${rowName(b)} is shown better` : `${rowName(b)} is not shown better`
   const h =
     a === 3 && b === 6 ? ` So ADR-0019's H ${pooled.holds ? 'holds' : 'does not hold'}.` : ''
@@ -88,6 +93,13 @@ export function formatPooled(pooled: EvalPooled): string {
       : `First answers that did not finish, each counted as not fully correct: ${pooled.notOk
           .map((item) => `${item.questionId} (${rowName(item.row)}, ${item.status})`)
           .join(', ')}.`,
+    ...(pooled.unjudged.length === 0
+      ? []
+      : [
+          `First answers with no verdict, each counted as not fully correct: ${pooled.unjudged
+            .map((item) => `${item.questionId} (${rowName(item.row)})`)
+            .join(', ')}.`,
+        ]),
     pooled.hallucinations.length === 0
       ? `${rowName(b)} made no hallucination on the questions the docs do not answer.`
       : `${rowName(b)} hallucinated on: ${pooled.hallucinations
@@ -102,7 +114,7 @@ export function evalPoolCommand(
   args: { paths: readonly string[]; rows: readonly AnswerRow[]; name: string | undefined },
 ): void {
   checkRunName(args.name)
-  if (args.paths.length < 2) throw new CliError('eval pool needs two report files or more')
+  if (args.paths.length === 0) throw new CliError('eval pool needs a report file or more')
   const [a, b] = args.rows
   if (args.rows.length !== 2 || a === undefined || b === undefined) {
     throw new CliError('eval pool compares two rows, such as --rows 3,6')

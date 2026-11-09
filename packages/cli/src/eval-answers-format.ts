@@ -32,7 +32,7 @@ export function formatCostEstimate(estimate: EvalCostEstimate, maxUsd: number): 
     ...(agent === undefined
       ? []
       : [
-          `  row 6: ${String(agent.calls)} answers (${String(agent.cached)} cached), at ${agent.searchesPerAnswer.toFixed(2)} searches of its own an answer${agent.assumedSearches ? ', assumed until 5 runs are cached' : ''}: about ${count(agent.inputTokens)} in, most of it written to the cache once and read after, and ${count(agent.outputTokens)} out, ${usd(agent.usd)}; ${usd(agent.upToUsd)} if every answer used every search`,
+          `  row 6: ${String(agent.calls)} answers (${String(agent.cached)} cached), at ${agent.searchesPerAnswer.toFixed(2)} searches of its own an answer${agent.assumedSearches ? ', assumed until 5 first steps are cached' : ''}: about ${count(agent.inputTokens)} in, each part written to the cache once and read by the steps after it, and ${count(agent.outputTokens)} out, ${usd(agent.usd)}; ${usd(agent.upToUsd)} if every answer used every search`,
         ]),
     `  judge: ${String(judge.calls)} calls (${String(judge.cached)} cached), about ${count(judge.inputTokens)} in and ${count(judge.outputTokens)} out, ${usd(judge.usd)}`,
     `  total: about ${usd(estimate.usd)}, against a limit of $${maxUsd.toFixed(2)}`,

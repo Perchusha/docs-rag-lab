@@ -95,6 +95,8 @@ function report(
     comparisons?: AnswerComparison[]
     unanswerable?: number
     hallucinated?: boolean
+    agentPrompt?: string
+    unjudged?: boolean
   } = {},
 ): EvalReport {
   const parts = [
@@ -127,6 +129,8 @@ function report(
     result: { unanswerable },
     run: { name: 'm9', repoSha: 'sha', createdAt: '2026-11-10' },
     answers: {
+      models: { answer: 'answer', judge: 'judge' },
+      prompts: { answer: 'a1', agent: options.agentPrompt ?? 'g1', correctness: 'c1' },
       answers: [
         ...parts.flatMap((part) => part.answers),
         ...graded(
@@ -164,6 +168,8 @@ describe('poolReports', () => {
     ])
     expect(pooled.holds).toBe(false)
     expect(pooled.reports.map(({ sourceId }) => sourceId)).toEqual(['ts', 'react'])
+    // Rows 3 and 6 are answered twice by design, and here once: their run to run is unknown.
+    expect(pooled.runToRunMissing).toEqual([3, 6])
   })
 
   it('holds when fully correct names row 6 past twice the run to run, and no guard names row 3', () => {
@@ -235,6 +241,62 @@ describe('poolReports', () => {
     expect(() => poolReports([ts, without], 3, 6)).toThrow(
       'the report of react compares no row 3 with row 6 on citations-hold',
     )
+  })
+
+  it('does not hold while a row answered twice by design lacks its run to run', () => {
+    // Row 6 answered once: the bar would fall to row 3's 1, and 6:0 would pass it.
+    const ts = report(
+      'ts',
+      { first: [1, 1, 1, 2, 2, 2], second: [1, 1, 1, 2, 2, 1] },
+      { first: [2, 2, 2, 2, 2, 2] },
+    )
+    const react = report(
+      'react',
+      { first: [1, 1, 1, 2], second: [1, 1, 1, 2] },
+      { first: [2, 2, 2, 2] },
+    )
+
+    const pooled = poolReports([ts, react], 3, 6)
+
+    expect(pooled.metrics[0]?.verdict).toBe('b')
+    expect(pooled.runToRunMissing).toEqual([6])
+    expect(pooled.holds).toBe(false)
+  })
+
+  it('names a first answer the judge did not grade, and does not hold with one', () => {
+    const ts = report(
+      'ts',
+      { first: [1, 1, 1, 2, 2, 2], second: [1, 1, 1, 2, 2, 2] },
+      { first: [2, 2, 2, 2, 2, 2], second: [2, 2, 2, 2, 2, 2] },
+    )
+    const answers = ts.answers
+    if (answers === undefined) throw new Error('no answers')
+    answers.verdicts = answers.verdicts.filter(
+      (verdict) => !(verdict.questionId === 'ts-0001' && verdict.row === 3 && verdict.sample === 1),
+    )
+    const react = report(
+      'react',
+      { first: [1, 1, 1, 2], second: [1, 1, 1, 2] },
+      { first: [2, 2, 2, 2], second: [2, 2, 2, 2] },
+    )
+
+    const pooled = poolReports([ts, react], 3, 6)
+
+    expect(pooled.unjudged).toEqual([{ sourceId: 'ts', questionId: 'ts-0001', row: 3 }])
+    expect(pooled.holds).toBe(false)
+  })
+
+  it('takes one report a source, graded by one judge under the same prompts', () => {
+    const ts = report('ts', { first: [2] }, { first: [2] })
+
+    expect(() => poolReports([ts, ts], 3, 6)).toThrow('two reports of ts')
+    expect(() =>
+      poolReports(
+        [ts, report('react', { first: [2] }, { first: [2] }, { agentPrompt: 'g2' })],
+        3,
+        6,
+      ),
+    ).toThrow('the reports differ on the agent prompt')
   })
 
   it('has no guard that no report could compare, as for a row that cites nothing', () => {

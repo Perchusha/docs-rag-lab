@@ -15,6 +15,7 @@ import {
   type PooledMetric,
 } from '@docs-rag-lab/contracts'
 
+import { NOISE_ROWS } from './answers.ts'
 import { signTest, verdictOf } from './compare.ts'
 import { roundMean } from './metrics.ts'
 
@@ -198,6 +199,12 @@ export function poolReports(
   b: AnswerRow,
 ): EvalPooled {
   if (reports.length === 0) throw new PoolError('the test needs at least one report')
+  const sources = reports.map((report) => report.identity.sourceId)
+  const twice = sources.find((source, i) => sources.indexOf(source) !== i)
+  if (twice !== undefined) {
+    throw new PoolError(`two reports of ${twice}: the test takes one report a source`)
+  }
+  checkSameJudgeAndPrompts(reports)
   for (const report of reports) {
     const answers = answersOf(report)
     for (const row of [a, b]) {
@@ -263,8 +270,32 @@ export function poolReports(
       )
       .map((verdict) => ({ sourceId: report.identity.sourceId, questionId: verdict.questionId })),
   )
-  const verdictOfMetric = (metric: PooledMetric) =>
-    metrics.find((found) => found.metric === metric)?.verdict
+  const unjudged = reports.flatMap((report) => {
+    const answers = answersOf(report)
+    const judged = new Set(
+      answers.verdicts
+        .filter((verdict) => verdict.judgeSample === 1 && verdict.status === 'ok')
+        .map((verdict) => `${verdict.questionId}/${String(verdict.row)}/${String(verdict.sample)}`),
+    )
+    return answers.answers
+      .filter(
+        (answer) =>
+          (answer.row === a || answer.row === b) && answer.sample === 1 && answer.status === 'ok',
+      )
+      .filter((answer) => !judged.has(`${answer.questionId}/${String(answer.row)}/1`))
+      .map((answer) => ({
+        sourceId: report.identity.sourceId,
+        questionId: answer.questionId,
+        row: answer.row,
+      }))
+  })
+  const fully = metrics.find((found) => found.metric === 'fully-correct')
+  // A row the reports answer twice by design has to have its run to run in every one: without it,
+  // the bar would fall to the other row's, and a margin could pass that should not.
+  const runToRunMissing = ([a, b] as const).filter(
+    (row, i) =>
+      NOISE_ROWS.includes(row) && (i === 0 ? fully?.runToRun.a : fully?.runToRun.b) == null,
+  )
   return {
     reports: reports.map((report) => ({
       sourceId: report.identity.sourceId,
@@ -277,8 +308,34 @@ export function poolReports(
     b,
     metrics,
     notOk,
+    unjudged,
     hallucinations,
+    runToRunMissing,
     holds:
-      verdictOfMetric('fully-correct') === 'b' && metrics.every(({ verdict }) => verdict !== 'a'),
+      fully?.verdict === 'b' &&
+      metrics.every(({ verdict }) => verdict !== 'a') &&
+      runToRunMissing.length === 0 &&
+      unjudged.length === 0,
+  }
+}
+
+/** The prompts every report must share, where they have them: the answer's and the judge's. */
+const SHARED_PROMPTS = ['answer', 'agent', 'correctness', 'refusal', 'support'] as const
+
+/** Reports graded by another judge, or asked otherwise, cannot be added up. */
+function checkSameJudgeAndPrompts(reports: readonly EvalReport[]): void {
+  const [first, ...rest] = reports.map(answersOf)
+  if (first === undefined) return
+  for (const other of rest) {
+    if (other.models.answer !== first.models.answer || other.models.judge !== first.models.judge) {
+      throw new PoolError('the reports were answered or judged by different models')
+    }
+    for (const key of SHARED_PROMPTS) {
+      const mine = first.prompts[key]
+      const theirs = other.prompts[key]
+      if (mine !== undefined && theirs !== undefined && mine !== theirs) {
+        throw new PoolError(`the reports differ on the ${key} prompt`)
+      }
+    }
   }
 }

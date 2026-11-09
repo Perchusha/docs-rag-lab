@@ -192,6 +192,9 @@ export { ask, askAgentic, usageSummary, type AgenticAskOptions, type AskOptions 
 export {
   AGENT_SYSTEM_PROMPT,
   buildAgentRequest,
+  checkCitations,
+  CitationMismatchError,
+  loopTextsHash,
   runAgentLoop,
   SEARCH_DOCS,
   searchDocsTool,
@@ -274,6 +277,7 @@ export {
   runJudge,
   SECOND_ANSWERS_WAIT_MS,
   type AgentEvalOptions,
+  type AgentRunScope,
   type AnswerJob,
   type AnswerRunOptions,
   type AnswerSettings,

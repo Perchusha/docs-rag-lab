@@ -1018,7 +1018,7 @@ function agenticAnswers(
 ): DashboardSection {
   const present = rowsIn(answers)
   const rows = ([3, 6] as const).filter((row) => present.includes(row))
-  const pairs: RowPair[] = [[3, 6]]
+  const pairs: RowPair[] = rows.length === 2 ? [[3, 6]] : []
   const columns = rows.map((row) => ROW_NAMES[row])
   const view: AnswerView = { rows, fullyPairs: pairs, pairs, perColumn: true }
   const measures = answerMeasures(report, answers, judge, view)

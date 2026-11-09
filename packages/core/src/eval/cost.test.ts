@@ -328,7 +328,7 @@ describe('row 6', () => {
       answerModel: 'answer',
       judge,
       retest: false,
-      maxSearches: 2,
+      agent: { maxSearches: 2, searchIdentity: 'index-1' },
     })
 
     expect(counted).toHaveLength(2)

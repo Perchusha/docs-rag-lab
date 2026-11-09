@@ -252,6 +252,11 @@ export interface EvalAnswers {
   prompts: Record<string, string>
   rows: AnswerRowResult[]
   comparisons: AnswerComparison[]
+  /**
+   * What row 6's loop was (ADR-0019): its version, the hash of the texts its steps send, its limit,
+   * and what decided its searches. Reports without row 6 have none.
+   */
+  agentic?: { loopVersion: number; loopTexts: string; maxSearches: number; searchIdentity: string }
   /** How often a second opinion from the judge matches its first, in a noise run. */
   judgeRetest: { compared: number; agreed: number } | null
   candidates: AnchorCandidate[]

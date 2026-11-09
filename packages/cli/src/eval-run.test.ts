@@ -72,6 +72,17 @@ let judgeBody: (system: string, text: string) => unknown = () => undefined
 /** Runs during each paid call: how a test moves the working tree under a run. */
 let duringPaidCall: (() => void) | undefined
 
+/** The source and title of the first search result a request sends. */
+function firstSearchResult(request: ClaudeRequest): { source: string; title: string } {
+  for (const message of request.messages) {
+    if (typeof message.content === 'string') continue
+    for (const block of message.content) {
+      if (block.type === 'search_result') return { source: block.source, title: block.title }
+    }
+  }
+  return { source: 's', title: 't' }
+}
+
 function fakeClaude(request: ClaudeRequest): ClaudeMessage {
   claudeRequests.push(request)
   duringPaidCall?.()
@@ -106,8 +117,8 @@ function fakeClaude(request: ClaudeRequest): ClaudeMessage {
                   type: 'search_result_location',
                   search_result_index: 0,
                   cited_text: 'SECRET PASSAGE.',
-                  source: 's',
-                  title: 't',
+                  // As the API does: the source and title the first search result was sent with.
+                  ...firstSearchResult(request),
                   start_block_index: 0,
                   end_block_index: 1,
                 },
@@ -912,7 +923,7 @@ describe('drl eval answers', () => {
     expect(code).toBe(0)
     expect(waits).toEqual([6 * 60_000])
     expect(out.text()).toContain(
-      'row 6: 6 answers (0 cached), at 0.50 searches of its own an answer, assumed until 5 runs are cached',
+      'row 6: 6 answers (0 cached), at 0.50 searches of its own an answer, assumed until 5 first steps are cached',
     )
     expect(out.text()).toContain('row 6: waiting 6 minutes')
     const path = reportPathIn(out.text())
@@ -941,25 +952,23 @@ describe('drl eval answers', () => {
     expect(markdown).not.toContain('Second?')
 
     const paid = claudeRequests.length
-    const pooled = await drl(
-      'eval',
-      'pool',
-      relative(root, path),
-      relative(root, path),
-      '--name',
-      'm9',
-    )
+    const twice = await drl('eval', 'pool', relative(root, path), relative(root, path))
+    expect(twice.code).toBe(1)
+    expect(twice.err).toContain('two reports of typescript')
+    const pooled = await drl('eval', 'pool', relative(root, path), '--name', 'm9')
     expect(pooled.code).toBe(0)
-    expect(pooled.out).toContain('# row 3 against row 6, over 2 reports together')
+    expect(pooled.out).toContain('# row 3 against row 6, over 1 reports together')
     expect(pooled.out).toContain("So ADR-0019's H does not hold.")
     expect(claudeRequests).toHaveLength(paid)
     const written = JSON.parse(readFileSync(join(root, 'eval', 'pooled', 'm9.json'), 'utf8')) as {
       metrics: { metric: string; questions: number }[]
+      runToRunMissing: number[]
     }
     expect(written.metrics.map(({ metric, questions }) => [metric, questions])[0]).toEqual([
       'fully-correct',
-      4,
+      2,
     ])
+    expect(written.runToRunMissing).toEqual([])
   })
 
   it('a noise run answers row 3 twice and asks the judge twice', async () => {

@@ -18,6 +18,7 @@ import {
   runAnswers,
   runJudge,
   SECOND_ANSWERS_WAIT_MS,
+  agentRunKey,
   type AnswerJob,
   type EvalClient,
 } from './answers.ts'
@@ -872,6 +873,7 @@ describe('row 6', () => {
       now: () => 0,
       agent: {
         maxSearches: 2,
+        searchIdentity: 'index-1',
         docTypes: DOC_TYPES,
         search: (query: string) => {
           searched.push(query)
@@ -962,6 +964,67 @@ describe('row 6', () => {
 
     expect(result?.status).toBe('failed')
     expect(result?.error).toBe('it asked for a search after it was told none was left')
+  })
+
+  it('resumes a run that stopped part-way, paying only for the steps it lacks', async () => {
+    const first = fakeClient(reply)
+    const broken = agentOptions(first.client)
+    broken.agent.search = () => Promise.reject(new Error('voyage said no'))
+
+    // A failed search stops the run, as a rejected Voyage call does (ADR-0019).
+    await expect(runAnswers([agentJob()], broken)).rejects.toThrow(EvalStoppedError)
+    expect(first.requests).toHaveLength(1)
+
+    const second = fakeClient(reply)
+    const [resumed] = await runAnswers([agentJob()], agentOptions(second.client))
+    expect(second.requests).toHaveLength(1)
+    expect(resumed?.status).toBe('ok')
+
+    const third = fakeClient(reply)
+    await runAnswers([agentJob()], agentOptions(third.client))
+    expect(third.requests).toHaveLength(0)
+  })
+
+  it('keeps a run under what decides its searches, so another index makes a new run', async () => {
+    const { client } = fakeClient(reply)
+    await runAnswers([agentJob()], agentOptions(client))
+    const searched: string[] = []
+    const elsewhere = agentOptions(client, [], searched)
+    elsewhere.agent.searchIdentity = 'index-2'
+
+    await runAnswers([agentJob()], elsewhere)
+
+    expect(searched).toEqual(['more'])
+  })
+
+  it('records an answer whose citation names another chunk as failed, and keeps no run', async () => {
+    const wrong = message({
+      content: [
+        {
+          type: 'text',
+          text: 'Cited.',
+          citations: [
+            {
+              type: 'search_result_location',
+              cited_text: 'text of c2',
+              source: 'https://elsewhere.dev',
+              title: 'A',
+              search_result_index: 1,
+              start_block_index: 0,
+              end_block_index: 1,
+            },
+          ],
+        },
+      ],
+    })
+    const { client } = fakeClient((request) => (request.messages.length === 1 ? searching : wrong))
+    const options_ = agentOptions(client)
+
+    const [result] = await runAnswers([agentJob()], options_)
+
+    expect(result?.status).toBe('failed')
+    expect(result?.error).toContain('search result 1 is cited as https://elsewhere.dev')
+    expect(options_.cache.has(agentRunKey(agentJob(), options_.agent))).toBe(false)
   })
 
   it('refuses row 6 without the agent options', async () => {

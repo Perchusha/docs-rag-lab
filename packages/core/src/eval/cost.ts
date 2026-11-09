@@ -9,6 +9,7 @@ import {
   agentRunKey,
   cachedAnswer,
   judgeCallsOf,
+  type AgentRunScope,
   type AnswerJob,
   type EvalClient,
 } from './answers.ts'
@@ -121,18 +122,18 @@ export interface EstimateOptions {
   judge: JudgeSettings
   /** A second opinion on row 3's first answers. */
   retest: boolean
-  /** Row 6's limit, under which its runs are kept. Needed when a job is of row 6. */
-  maxSearches?: number | undefined
+  /** What row 6's runs are kept under. Needed when a job is of row 6. */
+  agent?: AgentRunScope | undefined
 }
 
 /** What the run would pay. It calls count_tokens, which is free, and nothing else. */
 export async function estimateCost(options: EstimateOptions): Promise<EvalCostEstimate> {
   const { jobs: all, client, cache, pricing, answerModel, judge: judgeSettings, retest } = options
-  const { maxSearches } = options
+  const scope = options.agent
   const jobs = all.filter((job) => job.row !== AGENT_ROW)
   const agentJobs = all.filter((job) => job.row === AGENT_ROW)
-  if (agentJobs.length > 0 && maxSearches === undefined) {
-    throw new Error('row 6 needs its limit of searches for the estimate')
+  if (agentJobs.length > 0 && scope === undefined) {
+    throw new Error('row 6 needs its limit of searches and what decides them, for the estimate')
   }
   const missing = jobs.filter((job) => !cache.has(job.key))
   const answerStats = cache.stats('answer')
@@ -160,15 +161,15 @@ export async function estimateCost(options: EstimateOptions): Promise<EvalCostEs
   // cached too. A new answer can only be counted: a verdict, a support check if it may cite,
   // and a second opinion. Identical requests are one call.
   const agent =
-    agentJobs.length === 0 || maxSearches === undefined
+    agentJobs.length === 0 || scope === undefined
       ? undefined
-      : await agentLine(agentJobs, maxSearches, options, enough)
+      : await agentLine(agentJobs, scope, options, enough)
 
   const known = new Set<string>()
   let knownCached = 0
   let unknown = 0
   for (const job of all) {
-    const answer = cachedAnswer(job, cache, pricing, maxSearches)
+    const answer = cachedAnswer(job, cache, pricing, scope)
     if (answer === undefined) {
       unknown +=
         1 +
@@ -205,12 +206,13 @@ export async function estimateCost(options: EstimateOptions): Promise<EvalCostEs
 /** Row 6's line: past runs say how often Claude searched and how long each step's output was. */
 async function agentLine(
   jobs: readonly AnswerJob[],
-  maxSearches: number,
+  scope: AgentRunScope,
   options: EstimateOptions,
   enough: (calls: number) => boolean,
 ): Promise<AgentCostLine> {
   const { cache, client, pricing, answerModel } = options
-  const missing = jobs.filter((job) => !cache.has(agentRunKey(job, maxSearches)))
+  const { maxSearches } = scope
+  const missing = jobs.filter((job) => !cache.has(agentRunKey(job, scope)))
   const first = cache.stats('agent-first')
   const later = cache.stats('agent-step')
   const measured = enough(first.calls)
@@ -224,7 +226,10 @@ async function agentLine(
   return {
     calls: jobs.length,
     cached: jobs.length - missing.length,
-    inputTokens: sumOf(prefixes.map((prefix) => prefix * (1 + searches))),
+    // Every input token of every step: each prefix written once, and read by the steps after it.
+    inputTokens: sumOf(
+      prefixes.map((prefix) => prefix * (1 + searches) + (prefix * searches * (searches + 1)) / 2),
+    ),
     outputTokens: missing.length * (1 + searches) * output,
     usd: sumOf(prefixes.map((prefix) => agentAnswerUsd(price, prefix, searches, output))),
     searchesPerAnswer: searches,
