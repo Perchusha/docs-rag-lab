@@ -10,7 +10,9 @@ const OPTIONS = 'packages/tsconfig-reference/copy/en/options/'
  * The compiler options that configure a tool rather than the language, by ADR-0018's rule: a page
  * about installing, setting up or configuring a tool stays out of the bank and the topic map. An
  * option is about the language when it changes what TypeScript checks, how it resolves modules or
- * what it emits. These change only how tsc, its build mode, its watcher or an editor runs.
+ * what it emits, or how a project is laid out: which files it holds, which config it extends and
+ * how it is split into referenced projects. These change only how tsc, its build mode, its watcher
+ * or an editor runs.
  */
 export const TOOL_OPTIONS: ReadonlySet<string> = new Set([
   // Watch mode.
@@ -22,25 +24,17 @@ export const TOOL_OPTIONS: ReadonlySet<string> = new Set([
   'excludeFiles',
   'preserveWatchOutput',
   'assumeChangesOnlyAffectDirectDependencies',
-  // Build mode.
+  // Build mode, and the cache of incremental builds.
   'clean',
   'force',
   'verbose',
   'stopBuildOnErrors',
-  // Project references and incremental builds.
-  'composite',
-  'references',
   'incremental',
   'tsBuildInfoFile',
+  // Editors and type acquisition, project references in an editor among them.
   'disableReferencedProjectLoad',
   'disableSolutionSearching',
   'disableSourceOfProjectReferenceRedirect',
-  // Which files a project holds, and the config it extends.
-  'files',
-  'include',
-  'exclude',
-  'extends',
-  // Editors and type acquisition.
   'plugins',
   'disableSizeLimit',
   'typeAcquisition',

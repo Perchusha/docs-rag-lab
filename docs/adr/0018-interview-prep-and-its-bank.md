@@ -30,7 +30,7 @@ A new app, `apps/interview-prep`, on http://127.0.0.1:3002:
 
 A source says where each of its documents sits, through an optional `interviewTopic` on `Source` (source-kit), and leaves out what the bank does not cover:
 
-- **TypeScript:** each Handbook and Reference page is a topic, and the compiler options are one topic, "Compiler options": 96 of the 137, by the rule below. Release notes and the other docs are left out.
+- **TypeScript:** each Handbook and Reference page is a topic, and the compiler options are one topic, "Compiler options": 102 of the 137, by the rule below. Release notes and the other docs are left out.
 - **React:** each Learn page is a topic. Reference pages are aggregated by their folder: Hooks (the `use*` pages of `reference/react`), the rest of `reference/react`, `react-dom`, Server Components (`rsc`), Rules of React and the hooks lint rules. React Compiler and the dev tools had topics of their own until the rule below left their reference pages out.
 
 Core reads no source's paths: it asks the source.
@@ -41,16 +41,16 @@ Core reads no source's paths: it asks the source.
 
 Each source applies it, and the lists below follow from it. A page that explains the language or the library through a tool stays in, such as a lint rule that states a Rule of React.
 
-- **TypeScript, 41 option pages,** those that change only how tsc, its build mode, its watcher or an editor runs, and not what TypeScript checks, how it resolves modules or what it emits:
+- **TypeScript, 35 option pages,** those that change only how tsc, its build mode, its watcher or an editor runs, and not what TypeScript checks, how it resolves modules, what it emits or how a project is laid out:
   - watch mode: `watchFile`, `watchDirectory`, `fallbackPolling`, `synchronousWatchDirectory`, `excludeDirectories`, `excludeFiles`, `preserveWatchOutput`, `assumeChangesOnlyAffectDirectDependencies`;
-  - build mode: `clean`, `force`, `verbose`, `stopBuildOnErrors`;
-  - project references and incremental builds: `composite`, `references`, `incremental`, `tsBuildInfoFile`, `disableReferencedProjectLoad`, `disableSolutionSearching`, `disableSourceOfProjectReferenceRedirect`;
-  - which files a project holds, and the config it extends: `files`, `include`, `exclude`, `extends`;
-  - editors and type acquisition: `plugins`, `disableSizeLimit`, `typeAcquisition` with its `include` and `exclude`, `enable`, `disableFilenameBasedTypeAcquisition`;
+  - build mode, and the cache of incremental builds: `clean`, `force`, `verbose`, `stopBuildOnErrors`, `incremental`, `tsBuildInfoFile`;
+  - editors and type acquisition, project references in an editor among them: `disableReferencedProjectLoad`, `disableSolutionSearching`, `disableSourceOfProjectReferenceRedirect`, `plugins`, `disableSizeLimit`, `typeAcquisition` with its `include` and `exclude`, `enable`, `disableFilenameBasedTypeAcquisition`;
   - the compiler's own diagnostics and console output: `diagnostics`, `extendedDiagnostics`, `explainFiles`, `listFiles`, `listEmittedFiles`, `traceResolution`, `generateCpuProfile`, `generateTrace`, `pretty`, `noErrorTruncation`, `locale`.
 
   No Handbook or Reference page is about a tool. The project setup pages the owner named, such as Integrating with Build Tools, Compiler Options in MSBuild and Configuring Watch, are among the other docs, which the bank never covered, and Nightly Builds is not indexed at all.
 - **React, 23 pages:** the 7 Learn pages on starting a project and on editors and developer tools (`installation`, `creating-a-react-app`, `build-a-react-app-from-scratch`, `add-react-to-an-existing-project`, `setup`, `editor-setup`, `react-developer-tools`), React Compiler's installation, incremental adoption and debugging pages and its 10 reference pages on configuration and directives, the 2 developer tools reference pages, and the lint plugin's page on installing it. React Compiler's introduction, on what it does, and the lint rules stay.
+
+**The refinement of 2026-11-09, by the owner, after the full run and before any label:** the options on how a project is laid out are about TypeScript as it is used in a project, and come up in interviews, senior ones above all. So `files`, `include`, `exclude`, `extends`, `composite` and `references` are back in the bank and the topic map, which first left them out with 41 option pages. The three options on project references in an editor stay out with the editor's, and `incremental` and `tsBuildInfoFile`, the cache of incremental builds, with build mode. Their questions were written then, and H's sample was drawn again by the same procedure from the final bank, since nothing had been labelled.
 
 H's sample is drawn only from the pages that remain: questions already written for a page the rule leaves out are dropped from the bank by the next run, so they are neither shown nor sampled.
 

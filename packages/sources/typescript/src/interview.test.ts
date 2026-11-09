@@ -53,10 +53,11 @@ describe('interviewTopicOf (ADR-0018)', () => {
 
     for (const name of [
       'watchFile',
+      'clean',
       'incremental',
-      'composite',
-      'include',
+      'disableSolutionSearching',
       'listFiles',
+      'traceResolution',
       'typeAcquisition/include',
     ]) {
       expect(TOOL_OPTIONS.has(name), name).toBe(true)
@@ -70,10 +71,17 @@ describe('interviewTopicOf (ADR-0018)', () => {
       'declaration',
       'esModuleInterop',
       'paths',
+      // How a project is laid out, which the owner put back in.
+      'files',
+      'include',
+      'exclude',
+      'extends',
+      'composite',
+      'references',
     ]) {
       expect(topic(name)?.id, name).toBe('compiler-options')
     }
-    expect(TOOL_OPTIONS.size).toBe(41)
+    expect(TOOL_OPTIONS.size).toBe(35)
   })
 
   it('leaves out the release notes and the other docs', () => {
