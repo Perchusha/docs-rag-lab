@@ -188,6 +188,11 @@ export class InterviewState {
       .run(flag)
   }
 
+  /** A flag taken back: the card is shown again. False when there was none. */
+  deleteFlag(questionId: string): boolean {
+    return this.#db.prepare('delete from flags where question_id = ?').run(questionId).changes > 0
+  }
+
   /** Every card flagged as wrong, oldest first. */
   flags(): CardFlag[] {
     const rows = this.#db.prepare('select * from flags order by flagged_at, question_id').all() as {

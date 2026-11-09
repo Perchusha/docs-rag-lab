@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { openInterviewState, type StoredCard, type StoredMockTurn } from './interview-state.ts'
+import { migrate, openDatabase } from './open.ts'
 
 const card = (questionId: string, due: string, lastRating = 3, reviews = 1): StoredCard => ({
   questionId,
@@ -48,6 +49,39 @@ describe('the interview state (ADR-0018)', () => {
     state.close()
   })
 
+  it('keeps the cards and ratings of a file PR 2 wrote, and adds the flags and mock interviews', () => {
+    const root = mkdtempSync(join(tmpdir(), 'interview-state-'))
+    const path = join(root, 'interview-prep.sqlite')
+    // Version 1, as PR 2 shipped it.
+    const old = openDatabase(path)
+    migrate(old, [
+      `create table cards (question_id text primary key, state text not null, due text not null,
+         last_rating integer not null, reviews integer not null) without rowid;
+       create index cards_due on cards (due);
+       create table reviews (id integer primary key, question_id text not null,
+         rating integer not null, reviewed_at text not null);
+       insert into cards values ('q1', '{}', '2026-11-10T10:00:00.000Z', 3, 2);
+       insert into reviews (question_id, rating, reviewed_at) values ('q1', 3, '2026-11-08T10:00:00.000Z');`,
+    ])
+    old.close()
+
+    const state = openInterviewState(path)
+    expect(state.cards()).toEqual([
+      {
+        questionId: 'q1',
+        state: '{}',
+        due: '2026-11-10T10:00:00.000Z',
+        lastRating: 3,
+        reviews: 2,
+      },
+    ])
+    expect(state.reviewCount()).toBe(1)
+    expect(state.flags()).toEqual([])
+    expect(state.mockSession('s1')).toBeUndefined()
+    state.close()
+    rmSync(root, { recursive: true, force: true })
+  })
+
   it('keeps the cards flagged as wrong with the reason, the last reason winning', () => {
     const state = openInterviewState(':memory:')
     expect(state.flags()).toEqual([])
@@ -75,6 +109,9 @@ describe('the interview state (ADR-0018)', () => {
         flaggedAt: '2026-11-09T12:00:00.000Z',
       },
     ])
+    expect(state.deleteFlag('q1')).toBe(true)
+    expect(state.deleteFlag('q1')).toBe(false)
+    expect(state.flags().map(({ questionId }) => questionId)).toEqual(['q2'])
     state.close()
   })
 

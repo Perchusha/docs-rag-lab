@@ -304,6 +304,26 @@ export function questionsFlaggedCommand(ctx: CommandContext): void {
 }
 
 /**
+ * `drl questions unflag <question id>`: a flag taken back, since the card was flagged by mistake.
+ * The app shows the card again, unless the bank rejected it.
+ */
+export function questionsUnflagCommand(ctx: CommandContext, args: { questionId: string }): void {
+  const path = interviewStatePath(ctx.root, ctx.settings.dataDir)
+  if (!existsSync(path)) throw new CliError(`no card is flagged: ${path} does not exist`)
+  const state = openInterviewState(path)
+  let removed
+  try {
+    removed = state.deleteFlag(args.questionId)
+  } finally {
+    state.close()
+  }
+  if (!removed) throw new CliError(`${args.questionId} is not flagged in ${path}`)
+  ctx.out.write(
+    `unflagged ${args.questionId}: the app shows it again, unless the bank rejected it\n`,
+  )
+}
+
+/**
  * `drl questions reject <question id> [reason]`: the owner found a shown question wrong
  * (ADR-0018). It stays in its bank with the reason, and the app no longer shows it. With no
  * reason, the reason the owner gave when flagging it in the app is used.

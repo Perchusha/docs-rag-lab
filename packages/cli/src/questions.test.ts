@@ -298,11 +298,16 @@ describe('drl questions (ADR-0018)', () => {
     const [compiler, theory] = questionsIn()
     if (compiler === undefined || theory === undefined) throw new Error('no questions')
 
+    // An unquoted reason is every word after the ID, not the first one.
     const rejected = await drl(
       'questions',
       'reject',
       theory.question.id,
-      'Says more than its quote.',
+      'Says',
+      'more',
+      'than',
+      'its',
+      'quote.',
     )
     expect(rejected.code).toBe(0)
     expect(rejected.out).toContain(`rejected ${theory.question.id} of typescript`)
@@ -367,6 +372,13 @@ describe('drl questions (ADR-0018)', () => {
       ownerReason: 'The code shows otherwise.',
     })
     expect((await drl('questions', 'flagged')).out).toContain('In the bank: rejected already')
+
+    // A flag made by mistake is taken back, once.
+    expect((await drl('questions', 'unflag', 'gone')).out).toContain('unflagged gone')
+    const again = await drl('questions', 'unflag', 'gone')
+    expect(again.code).toBe(1)
+    expect(again.err).toContain('gone is not flagged')
+    expect((await drl('questions', 'flagged')).out).toContain('1 card flagged as wrong')
   })
 
   it('refuses --pilot with commands other than sync --contextual and questions', async () => {

@@ -62,6 +62,7 @@ import {
   questionsRejectCommand,
   questionsSampleCommand,
   questionsScoreCommand,
+  questionsUnflagCommand,
 } from './questions.ts'
 import { syncCompiledCommand } from './sync-compiled.ts'
 import { syncContextualCommand, syncControlCommand } from './sync-contextual.ts'
@@ -93,6 +94,7 @@ Commands:
   questions score <labels>    How many of those questions pass the owner's labels
   questions flagged           The cards flagged as wrong in the interview-prep app, with the
                               reason and what the bank says of each
+  questions unflag <id>       Take a flag back: the app shows the card again
   questions reject <id> [reason]
                               The owner found a shown question wrong: it stays in its bank
                               with the reason, and the app no longer shows it. With no
@@ -660,7 +662,7 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
       const [first, second] = rest
       if (first === undefined) {
         throw new CliError(
-          'questions needs a source id, sample, score, flagged or reject, for example: drl questions typescript',
+          'questions needs a source id, sample, score, flagged, unflag or reject, for example: drl questions typescript',
         )
       }
       if (first === 'sample') {
@@ -670,9 +672,16 @@ export async function run(argv: readonly string[], options: RunOptions = {}): Pr
         questionsScoreCommand(ctx, { labels: second })
       } else if (first === 'flagged') {
         questionsFlaggedCommand(ctx)
+      } else if (first === 'unflag') {
+        if (second === undefined) throw new CliError('questions unflag needs a question id')
+        questionsUnflagCommand(ctx, { questionId: second })
       } else if (first === 'reject') {
         if (second === undefined) throw new CliError('questions reject needs a question id')
-        questionsRejectCommand(ctx, { questionId: second, reason: rest[2] })
+        const reason = rest.slice(2).join(' ').trim()
+        questionsRejectCommand(ctx, {
+          questionId: second,
+          reason: reason === '' ? undefined : reason,
+        })
       } else {
         await questionsCommand(ctx, {
           source: first,
