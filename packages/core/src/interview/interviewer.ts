@@ -40,11 +40,13 @@ export function pickMockQuestions(
   count: number,
   seed: string,
 ): BankQuestion[] {
-  const order = (question: BankQuestion): string => sha256Hex(`${seed}\n${question.id}`)
   const lists = sources.map((source) =>
     bank.questions
       .filter((question) => question.source === source && ASKED.has(question.kind))
-      .sort((a, b) => order(a).localeCompare(order(b))),
+      // Each key once, not once per comparison.
+      .map((question) => ({ question, key: sha256Hex(`${seed}\n${question.id}`) }))
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map(({ question }) => question),
   )
   const cursors = lists.map(() => 0)
   const topics = new Set<string>()

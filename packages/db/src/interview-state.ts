@@ -224,16 +224,22 @@ export class InterviewState {
     }
   }
 
-  /** One graded answer. A step is answered once: a second answer to it throws. */
-  saveMockTurn(turn: StoredMockTurn): void {
-    this.#db
-      .prepare(
-        `insert into mock_turns (session_id, question_id, step, prompt, answer, score, feedback,
+  /**
+   * One graded answer. A step is answered once: a second answer to it, say from another tab, is
+   * not kept, and this returns false.
+   */
+  saveMockTurn(turn: StoredMockTurn): boolean {
+    return (
+      this.#db
+        .prepare(
+          `insert into mock_turns (session_id, question_id, step, prompt, answer, score, feedback,
            citations, follow_up, cost_usd, answered_at)
          values (@sessionId, @questionId, @step, @prompt, @answer, @score, @feedback, @citations,
-           @followUp, @costUsd, @answeredAt)`,
-      )
-      .run(turn)
+           @followUp, @costUsd, @answeredAt)
+         on conflict (session_id, question_id, step) do nothing`,
+        )
+        .run(turn).changes > 0
+    )
   }
 
   /** A session's graded answers, in the order they were given. */

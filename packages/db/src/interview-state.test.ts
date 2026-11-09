@@ -180,11 +180,10 @@ describe('the mock interviews', () => {
   it('takes one answer per step, and none for a session it does not have', () => {
     const state = openInterviewState(':memory:')
     state.saveMockSession({ id: 's1', questionIds: ['q1'], startedAt: '2026-11-09T09:00:00.000Z' })
-    state.saveMockTurn(turn('q1', 'question', 1))
+    expect(state.saveMockTurn(turn('q1', 'question', 1))).toBe(true)
 
-    expect(() => {
-      state.saveMockTurn(turn('q1', 'question', 2))
-    }).toThrow(/UNIQUE/)
+    expect(state.saveMockTurn(turn('q1', 'question', 2))).toBe(false)
+    expect(state.mockTurns('s1').map(({ score }) => score)).toEqual([1])
     expect(() => {
       state.saveMockTurn({ ...turn('q1', 'question', 2), sessionId: 'nope' })
     }).toThrow(/FOREIGN KEY/)

@@ -2,6 +2,7 @@
 // one and its summary call no model. Each answer that is not skipped costs one hybrid search and
 // one call to Claude, about a cent at list prices.
 import {
+  MAX_MOCK_ANSWER,
   parseMockAnswerRequest,
   parseMockStartRequest,
   type MockGrade,
@@ -10,6 +11,7 @@ import {
 } from '@docs-rag-lab/contracts'
 import {
   gradeAnswer,
+  GradeError,
   mockQuestionOf,
   mockSummary,
   pickMockQuestions,
@@ -90,7 +92,7 @@ export async function handleMockAnswer(
   if (answer === undefined) {
     return fail(
       400,
-      'an answer is { sessionId, questionId, step, answer }, with step question or follow-up',
+      `an answer is { sessionId, questionId, step, answer }, with step question or follow-up and an answer of at most ${String(MAX_MOCK_ANSWER)} characters`,
     )
   }
   try {
@@ -130,7 +132,7 @@ export async function handleMockAnswer(
               signal: request.signal,
             },
           )
-    state.saveMockTurn({
+    const saved = state.saveMockTurn({
       sessionId: session.id,
       questionId: question.id,
       step: answer.step,
@@ -143,6 +145,8 @@ export async function handleMockAnswer(
       costUsd: graded.costUsd,
       answeredAt: backend.now().toISOString(),
     })
+    // Another request, say from a second tab, answered this step while this one was graded.
+    if (!saved) return fail(409, 'this step is answered already')
     const grade: MockGrade = {
       questionId: question.id,
       step: answer.step,
@@ -157,6 +161,8 @@ export async function handleMockAnswer(
     }
     return Response.json(grade, { headers: NO_STORE })
   } catch (error) {
+    // The model's reply could not be used. Nothing was saved, so the answer can be sent again.
+    if (error instanceof GradeError) return fail(502, error.message)
     return failure(error)
   }
 }

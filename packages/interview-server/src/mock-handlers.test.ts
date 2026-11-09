@@ -219,4 +219,97 @@ describe('the mock interview routes (ADR-0018)', () => {
       error: 'the bank has no generated questions for these technologies yet',
     })
   })
+
+  it('never asks a card the owner flagged as wrong', async () => {
+    const one = backend(fakeInterviewer([]).interviewer)
+    one.state().saveFlag({ questionId: 'r1', reason: 'Wrong.', flaggedAt: NOW.toISOString() })
+    const session = (await (
+      await handleMockStart(() => one, post({ sources: ['typescript', 'react'] }))
+    ).json()) as MockSession
+
+    expect(session.questions.map(({ id }) => id)).toEqual(['t1'])
+  })
+
+  const answerTo = (one: InterviewBackend, body: Record<string, string>) =>
+    handleMockAnswer(
+      () => one,
+      post({ sessionId: 'session-1', questionId: 't1', step: 'question', answer: 'A.', ...body }),
+    )
+
+  it('has no follow-up after a skipped answer, or after a grade that asked none', async () => {
+    const one = backend(
+      fakeInterviewer([{ score: 2, feedback: 'Right.', citations: [], follow_up: '' }]).interviewer,
+    )
+    await handleMockStart(() => one, post({ sources: ['typescript', 'react'] }))
+
+    await answerTo(one, { answer: '' })
+    expect((await answerTo(one, { step: 'follow-up' })).status).toBe(409)
+    await answerTo(one, { questionId: 'r1' })
+    const none = await answerTo(one, { questionId: 'r1', step: 'follow-up' })
+    expect(none.status).toBe(409)
+    expect(await none.json()).toEqual({ error: 'this question has no follow-up to answer' })
+  })
+
+  it('refuses a grade it cannot use with a 502, saves nothing, and takes the answer again', async () => {
+    const fake = fakeInterviewer([
+      { score: 5, feedback: 'Off the scale.', citations: [], follow_up: '' },
+      { score: 1, feedback: 'Partly.', citations: [], follow_up: 'More?' },
+    ])
+    const one = backend(fake.interviewer)
+    await handleMockStart(() => one, post({ sources: ['typescript'] }))
+
+    const refused = await answerTo(one, {})
+    expect(refused.status).toBe(502)
+    expect(await refused.json()).toEqual({
+      error: 'the grade is missing a field, or its score is not 0, 1 or 2',
+    })
+    expect(one.state().mockTurns('session-1')).toEqual([])
+    expect((await answerTo(one, {})).status).toBe(200)
+    expect(fake.calls()).toBe(2)
+  })
+
+  it('keeps the first of two answers to one step, and gives the second a 409', async () => {
+    const other: { backend?: InterviewBackend } = {}
+    const fake = fakeInterviewer([{ score: 1, feedback: 'Partly.', citations: [], follow_up: '' }])
+    // While this answer is graded, another tab's answer to the same step is saved.
+    const racing: Interviewer = {
+      ...fake.interviewer,
+      search: (request, meter) => {
+        other.backend?.state().saveMockTurn({
+          sessionId: 'session-1',
+          questionId: 't1',
+          step: 'question',
+          prompt: 'Question t1?',
+          answer: 'From the other tab.',
+          score: 2,
+          feedback: 'Right.',
+          citations: '[]',
+          followUp: null,
+          costUsd: 0.01,
+          answeredAt: NOW.toISOString(),
+        })
+        return fake.interviewer.search(request, meter)
+      },
+    }
+    const one = backend(racing)
+    other.backend = one
+    await handleMockStart(() => one, post({ sources: ['typescript'] }))
+
+    const second = await answerTo(one, {})
+    expect(second.status).toBe(409)
+    expect(
+      one
+        .state()
+        .mockTurns('session-1')
+        .map(({ answer }) => answer),
+    ).toEqual(['From the other tab.'])
+  })
+
+  it('says how long an answer may be', async () => {
+    const one = backend(fakeInterviewer([]).interviewer)
+    const long = await answerTo(one, { answer: 'x'.repeat(4_001) })
+
+    expect(long.status).toBe(400)
+    expect(((await long.json()) as { error: string }).error).toContain('at most 4000 characters')
+  })
 })
