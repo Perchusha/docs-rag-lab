@@ -1,0 +1,30 @@
+{
+  "sample": "2823ff0b5089",
+  "labelled": 20,
+  "failed": [
+    {
+      "item": 13,
+      "questionId": "449e74e193d36549",
+      "source": "typescript",
+      "kind": "theory",
+      "answerable": true,
+      "correct": false
+    },
+    {
+      "item": 17,
+      "questionId": "c82b1dc894cd989d",
+      "source": "typescript",
+      "kind": "theory",
+      "answerable": true,
+      "correct": false
+    }
+  ],
+  "passed": {
+    "count": 18,
+    "of": 20,
+    "low": 0.6989663528135878,
+    "high": 0.9721335190383086
+  },
+  "allowed": 2,
+  "holds": true
+}

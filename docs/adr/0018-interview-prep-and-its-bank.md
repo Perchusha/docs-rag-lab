@@ -156,6 +156,15 @@ Written on 2026-11-09, after the run and before the owner labels H's sample.
 
 **H's sample is drawn from the final bank,** sample `2823ff0b5089`: 10 questions of each source, 3 of React's on Pitfall callouts, all from the pages the rule keeps, with nothing of the checker on the sheet. A first draw, `892b4a468224`, came before the refinement and was never labelled. React's 10 are the same in both, since its questions did not change and the draw is seeded.
 
+## H's result
+
+The owner labelled the sheet blind on 2026-11-09. The labels were committed as `interview/labels/bank-2823ff0b5089.json` before they were scored, and `drl questions score` wrote `interview/bank-check.json` and `interview/bank-check.md` from them.
+
+**H holds: 18 of the 20 passed both counts,** 70% to 97% by the Wilson interval, and 2 failed, the most the rule allows.
+- **All 20 were answerable** from the passage they cite.
+- **The 2 failures are TypeScript theory questions** whose stored answer is not right and complete: item 13, `449e74e193d36549`, on `readonly` in Classes, and item 17, `c82b1dc894cd989d`, on `verbatimModuleSyntax`. React's 10 all passed, the 3 on Pitfall callouts among them.
+- **What each failed answer says beyond its quote,** read after the scoring, since the labels give no reasons. Item 13's answer adds that a readonly field "can be set once during construction", which the docs do not say, and the example under it initializes the field and then assigns it again in the constructor. Item 17's answer says that anything marked with `type` is dropped entirely, and the example under it shows `import { type xyz } from "xyz"` rewritten to `import {} from "xyz"`, not dropped. Sonnet passed both, reading the answer against the quote rather than against the code shown with it. An answer that generalizes past its quote is the failure to watch.
+
 ## The PRs
 
 1. This ADR, the bank's code and `drl questions`, with no paid call. The compiler questions are written then, since they cost nothing.
