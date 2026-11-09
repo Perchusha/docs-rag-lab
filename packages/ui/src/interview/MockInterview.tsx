@@ -1,4 +1,10 @@
-import type { MockAnswerRequest, MockGrade, MockSession, MockStep } from '@docs-rag-lab/contracts'
+import {
+  MAX_MOCK_ANSWER,
+  type MockAnswerRequest,
+  type MockGrade,
+  type MockSession,
+  type MockStep,
+} from '@docs-rag-lab/contracts'
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 
 import common from '../lib/common.module.css'
@@ -32,25 +38,43 @@ function AnswerForm({
   onSubmit: (answer: string) => void
 }) {
   const [answer, setAnswer] = useState('')
+  const [empty, setEmpty] = useState(false)
+  const field = useRef<HTMLTextAreaElement>(null)
+  // Only Skip skips: a step skipped cannot be answered again, so an empty submit is refused.
   const submit = (event?: SyntheticEvent) => {
     event?.preventDefault()
-    if (!busy) onSubmit(answer.trim())
+    if (busy) return
+    if (answer.trim() === '') {
+      setEmpty(true)
+      field.current?.focus()
+      return
+    }
+    onSubmit(answer.trim())
   }
   return (
-    <form className={styles.section} onSubmit={submit}>
+    <form className={styles.section} noValidate onSubmit={submit}>
       <label className={styles.field}>
         {label}
         <textarea
+          ref={field}
           value={answer}
-          aria-describedby={`${id}-hint`}
+          maxLength={MAX_MOCK_ANSWER}
+          aria-invalid={empty}
+          aria-describedby={empty ? `${id}-empty ${id}-hint` : `${id}-hint`}
           onChange={(event) => {
             setAnswer(event.target.value)
+            if (event.target.value.trim() !== '') setEmpty(false)
           }}
           onKeyDown={(event) => {
             if (isSubmitKey(event)) submit(event)
           }}
         />
       </label>
+      {empty && (
+        <p id={`${id}-empty`} className={styles.fieldError}>
+          Write an answer, or press Skip.
+        </p>
+      )}
       <p id={`${id}-hint`} className={styles.muted}>
         <kbd className={styles.kbd}>Ctrl</kbd>+<kbd className={styles.kbd}>Enter</kbd> in the field
         submits it. Claude grades it against the docs, for about a cent; skipping costs nothing.

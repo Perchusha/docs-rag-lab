@@ -139,6 +139,26 @@ export const GradeFailed: Story = {
   },
 }
 
+/**
+ * An empty submit, by button or by Ctrl+Enter, is refused with a message: a skipped step cannot
+ * be answered again, so only Skip skips.
+ */
+export const EmptySubmitRefused: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const field = canvas.getByRole('textbox', { name: 'Your answer' })
+    await userEvent.click(canvas.getByRole('button', { name: 'Submit answer' }))
+
+    await expect(canvas.getByText('Write an answer, or press Skip.')).toBeVisible()
+    await expect(field).toHaveAttribute('aria-invalid', 'true')
+    await expect(field).toHaveFocus()
+    await userEvent.keyboard('   {Control>}{Enter}{/Control}')
+    await expect(args.onAnswer).not.toHaveBeenCalled()
+    await userEvent.keyboard('Truthiness.')
+    await expect(field).toHaveAttribute('aria-invalid', 'false')
+  },
+}
+
 /** The interview can end at any time, with what was graded so far. */
 export const EndEarly: Story = {
   play: async ({ args, canvasElement }) => {

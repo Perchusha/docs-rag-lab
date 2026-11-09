@@ -200,6 +200,10 @@ export const FlagCancelled: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
     await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    // With the form open, a digit rates nothing, even with focus on one of its buttons.
+    canvas.getByRole('button', { name: 'Cancel' }).focus()
+    await userEvent.keyboard('2')
+    await expect(args.onRate).not.toHaveBeenCalled()
     await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }))
 
     await waitFor(() =>
@@ -209,5 +213,21 @@ export const FlagCancelled: Story = {
     await expect(args.onFlag).not.toHaveBeenCalled()
     await userEvent.keyboard('2')
     await expect(args.onRate).toHaveBeenCalledWith('hard')
+  },
+}
+
+/** Escape in the reason field cancels too, and gives focus back. */
+export const FlagEscaped: Story = {
+  args: { card: CARDS.theory, onFlag: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Show answer' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'This answer is wrong' }))
+    await userEvent.keyboard('Not sure.{Escape}')
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'This answer is wrong' })).toHaveFocus(),
+    )
+    await expect(args.onFlag).not.toHaveBeenCalled()
   },
 }

@@ -1,4 +1,10 @@
-import { RATINGS, type BankQuestion, type PracticeCard, type Rating } from '@docs-rag-lab/contracts'
+import {
+  MAX_FLAG_REASON,
+  RATINGS,
+  type BankQuestion,
+  type PracticeCard,
+  type Rating,
+} from '@docs-rag-lab/contracts'
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react'
 
 import common from '../lib/common.module.css'
@@ -115,6 +121,7 @@ function FlagForm({
         <textarea
           ref={field}
           value={reason}
+          maxLength={MAX_FLAG_REASON}
           aria-invalid={missing}
           aria-describedby={missing ? `${id}-flag-missing ${id}-flag-hint` : `${id}-flag-hint`}
           onChange={(event) => {
@@ -123,6 +130,10 @@ function FlagForm({
           }}
           onKeyDown={(event) => {
             if (isSubmitKey(event)) submit(event)
+            else if (event.key === 'Escape') {
+              event.preventDefault()
+              onCancel()
+            }
           }}
         />
       </label>
@@ -134,7 +145,8 @@ function FlagForm({
       <p id={`${id}-flag-hint`} className={styles.muted}>
         The card is hidden for you, and the reason stays on this computer, where{' '}
         <code>drl questions flagged</code> lists it. <kbd className={styles.kbd}>Ctrl</kbd>+
-        <kbd className={styles.kbd}>Enter</kbd> in the field hides it.
+        <kbd className={styles.kbd}>Enter</kbd> in the field hides it, and{' '}
+        <kbd className={styles.kbd}>Escape</kbd> cancels.
       </p>
       <div className={styles.actions}>
         <button type="submit" className={styles.primary} disabled={busy}>
