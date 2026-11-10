@@ -304,6 +304,7 @@ describe('runAgentLoop', () => {
     const { call, requests } = scripted([searchFor({ query: 'more' }), answer])
     const controller = new AbortController()
     const started: string[] = []
+    const searched: string[] = []
 
     const running = runAgentLoop({
       first,
@@ -313,6 +314,7 @@ describe('runAgentLoop', () => {
       call,
       signal: controller.signal,
       onSearchStart: (query) => started.push(query),
+      onSearch: (search) => searched.push(search.query),
       search: () => {
         controller.abort(new Error('stopped'))
         return Promise.resolve([hit('b')])
@@ -321,6 +323,8 @@ describe('runAgentLoop', () => {
 
     await expect(running).rejects.toThrow('stopped')
     expect(started).toEqual(['more'])
+    // What the stopped search brought is not reported as found.
+    expect(searched).toEqual([])
     expect(requests).toHaveLength(1)
   })
 

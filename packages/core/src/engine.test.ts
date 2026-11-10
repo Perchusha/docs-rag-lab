@@ -394,6 +394,86 @@ describe('createEngine', () => {
     expect(text).toBe('Classes.')
   })
 
+  /** An engine whose embedding limit allows one request a minute, as a slow free tier does. */
+  function slowEngine(provider: RecordingProvider, client: ReturnType<typeof fakeAnswerClient>) {
+    return createEngine({
+      settings: {
+        ...settings,
+        embeddings: { ...settings.embeddings, rateLimit: { rpm: 1, tpm: 1_000_000 } },
+      },
+      sources: [source],
+      root,
+      createProvider: () => provider,
+      createClient: () => client,
+    })
+  }
+
+  it("tells of a wait for the question's search, and Stop ends it before any Claude call", async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const client = fakeAnswerClient()
+    const host = slowEngine(provider, client)
+    // The minute's one request.
+    await host.search({ question: 'a first question' }, new UsageMeter())
+    const controller = new AbortController()
+    const events: AnswerEvent[] = []
+
+    const asking = host.ask(
+      { question: 'a second question' },
+      {
+        meter: new UsageMeter(),
+        signal: controller.signal,
+        onEvent: (event) => {
+          events.push(event)
+          // The person stops as soon as the chat says it waits.
+          if (event.type === 'wait') controller.abort(new Error('stopped'))
+        },
+      },
+    )
+
+    await expect(asking).rejects.toThrow('stopped')
+    expect(events).toHaveLength(1)
+    expect(events[0]?.type).toBe('wait')
+    expect(events[0]?.type === 'wait' ? events[0].ms : 0).toBeGreaterThan(50_000)
+    expect(provider.calls).toHaveLength(1)
+    expect(client.requests).toHaveLength(0)
+  })
+
+  it('tells of a wait for a search of its own, and Stop ends it with no further Claude request', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const searching = {
+      ...ANSWER_MESSAGE,
+      usage: { input_tokens: 10, output_tokens: 5 },
+      stop_reason: 'tool_use',
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'classes' } },
+      ],
+    } as Anthropic.Message
+    const client = fakeAnswerClient({ messages: [searching, ANSWER_MESSAGE] })
+    const host = slowEngine(provider, client)
+    const controller = new AbortController()
+    const events: AnswerEvent[] = []
+
+    const asking = host.askAgentic(
+      { question: QUESTION },
+      {
+        meter: new UsageMeter(),
+        signal: controller.signal,
+        onEvent: (event) => {
+          events.push(event)
+          if (event.type === 'wait') controller.abort(new Error('stopped'))
+        },
+      },
+    )
+
+    await expect(asking).rejects.toThrow('stopped')
+    expect(events.map((event) => event.type)).toEqual(['trace', 'search', 'wait'])
+    // The question's embedding, and none for the search that was stopped.
+    expect(provider.calls).toHaveLength(1)
+    expect(client.requests).toHaveLength(1)
+  })
+
   it('creates the Claude client before retrieving, so a missing key costs no embedding', async () => {
     const provider = new RecordingProvider()
     seed(provider)

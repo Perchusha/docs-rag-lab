@@ -49,7 +49,8 @@ export function usageSummary(meter: UsageMeter, pricing: PricingSettings): Usage
 
 /**
  * Answers a question from the docs. Events arrive in order: one `trace`, then
- * `text` and `citations` while the answer streams, then `done`. Failures are
+ * `text` and `citations` while the answer streams, then `done`. A `wait` for the
+ * embedding rate limit may come before the trace (ADR-0019). Failures are
  * thrown, not sent as events: the caller owns the transport and decides how to
  * report them. Usage goes to the caller's meter as it happens, also on failure.
  */

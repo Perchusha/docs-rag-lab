@@ -63,13 +63,16 @@ export interface UsageSummary {
 export const NO_CONTEXT = 'no_context'
 
 export type AnswerEvent =
-  /** First: how the context was chosen. */
+  /** How the context was chosen, before any text. Only `wait` events can come before it. */
   | { type: 'trace'; trace: RetrievalTrace }
   /** A piece of the answer text, as it streams. */
   | { type: 'text'; text: string }
   /** Agentic mode (ADR-0019): Claude asked for a search of its own, which begins. */
   | { type: 'search'; query: string; docTypes: string[] }
-  /** A search waits about `ms` for the embedding rate limit: Voyage's free tier allows 3 a minute. */
+  /**
+   * A search waits about `ms` for the embedding rate limit: Voyage's free tier allows 3 a minute.
+   * In any answer, before the trace for the question's search, or after a `search` for its own.
+   */
   | { type: 'wait'; ms: number }
   /**
    * A search of Claude's own has ended: how many chunks it added, how many of its results the

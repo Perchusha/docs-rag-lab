@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { RateLimiter, type Clock } from './rate-limit.ts'
+import { RateLimiter, systemClock, type Clock } from './rate-limit.ts'
 
 /** A clock whose sleep advances time instantly. */
 function fakeClock(): Clock & { slept: number[] } {
@@ -107,6 +107,20 @@ describe('RateLimiter', () => {
 
     await expect(waiting).rejects.toThrow('stopped')
     await expect(limiter.acquire(10, { signal: controller.signal })).rejects.toThrow('stopped')
+  })
+
+  it("ends the system clock's timer when the signal aborts, so none outlives a Stop", async () => {
+    vi.useFakeTimers()
+    try {
+      const controller = new AbortController()
+      const sleeping = systemClock.sleep(60_000, controller.signal)
+      expect(vi.getTimerCount()).toBe(1)
+      controller.abort()
+      await sleeping
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('rejects non-positive limits', () => {

@@ -90,8 +90,9 @@ export async function handleSearch(engine: EngineFactory, request: Request): Pro
  * (bad field, unknown source, no index, no key) still gets a status code.
  * After that, a failure is sent as an `error` event, and logged. When the
  * browser goes away, the Claude stream stops: on the request's abort signal,
- * or when the response body is cancelled, whichever comes first. In agentic mode
- * (ADR-0019) that also ends a wait for the rate limit, and no step starts after it.
+ * or when the response body is cancelled, whichever comes first. That also ends a
+ * wait for the embedding rate limit, and in agentic mode (ADR-0019) no step starts
+ * after it.
  */
 export async function handleAsk(engine: EngineFactory, request: Request): Promise<Response> {
   const parsed = await requestOf<AskRequest>(request, parseAskRequest)

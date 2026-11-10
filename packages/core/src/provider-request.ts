@@ -76,7 +76,9 @@ export async function requestWithRetries<T extends { tokens: number }>(
       )
       // However short a Retry-After, a second 429 only says something after a full idle window.
       const wait = idledAfterRateLimit ? Math.max(RATE_LIMITED_BACKOFF_MS, backoff) : backoff
-      if (limiter !== undefined) await limiter.wait(wait, waits)
+      // Only a wait for the rate limit is told: a backoff after a server error is not one.
+      if (limiter !== undefined)
+        await limiter.wait(wait, rateLimited ? waits : { signal: waits.signal })
       else await new Promise((resolve) => setTimeout(resolve, wait))
     }
   }

@@ -5,14 +5,21 @@
 
 export interface Clock {
   now(): number
-  sleep(ms: number): Promise<void>
+  /** Resolves after `ms`, or as soon as `signal` aborts, so a timer does not outlive a Stop. */
+  sleep(ms: number, signal?: AbortSignal): Promise<void>
 }
 
 export const systemClock: Clock = {
   now: () => Date.now(),
-  sleep: (ms) =>
+  sleep: (ms, signal) =>
     new Promise((resolve) => {
-      setTimeout(resolve, ms)
+      const done = (): void => {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', done)
+        resolve()
+      }
+      const timer = setTimeout(done, ms)
+      signal?.addEventListener('abort', done, { once: true })
     }),
 }
 
@@ -75,7 +82,8 @@ export class RateLimiter {
         reject(signal.reason as Error)
       }
       signal.addEventListener('abort', onAbort, { once: true })
-      void this.#clock.sleep(ms).then(() => {
+      // Added after onAbort, so an abort rejects first, and the sleep then only ends its timer.
+      void this.#clock.sleep(ms, signal).then(() => {
         signal.removeEventListener('abort', onAbort)
         resolve()
       })
