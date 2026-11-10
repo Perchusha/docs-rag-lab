@@ -12,7 +12,8 @@ export interface DocTypeSelectProps {
   onChange: (selected: string[]) => void
 }
 
-function labelOf(docType: string, labels: DocTypeSelectProps['labels']): string {
+/** A doc type in plain language: its label, or its ID written out. */
+export function labelOf(docType: string, labels: DocTypeSelectProps['labels']): string {
   const label = labels?.[docType]
   if (label !== undefined) return label
   const words = docType.replaceAll('-', ' ')

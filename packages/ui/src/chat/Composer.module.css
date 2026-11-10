@@ -45,6 +45,43 @@
   gap: var(--space-2);
 }
 
+/* The filter and the agentic toggle, which wrap rather than push the button out. */
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* As tall as the select beside it, and as quiet. A button is border-box already. */
+.agentic {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.agentic:hover,
+.agentic:has(input:checked) {
+  color: var(--color-text);
+}
+
+.agentic:hover {
+  background: var(--color-surface-strong);
+}
+
+.agentic input {
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
 .send,
 .stop {
   display: grid;

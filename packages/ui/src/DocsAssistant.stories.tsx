@@ -3,7 +3,13 @@ import { useState, type ComponentProps } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 
 import { DocsAssistant } from './DocsAssistant.tsx'
-import { answerFixture, documentFixture, tableAnswerFixture, traces } from './fixtures.ts'
+import {
+  agenticFixture,
+  answerFixture,
+  documentFixture,
+  tableAnswerFixture,
+  traces,
+} from './fixtures.ts'
 import { replayGate, replayTransport } from './lib/replay.ts'
 
 const question = 'In which version did `satisfies` appear?'
@@ -1396,7 +1402,8 @@ export const Failure: Story = {
 
 /**
  * The link to the eval results comes last: the input, the filter, Send and the four examples are
- * the 7 stops before a first question (journal, M3 follow-up), and it adds none to them.
+ * the 7 stops before a first question (journal, M3 follow-up), and it adds none to them. Search
+ * again (ADR-0019) is the eighth, after the filter.
  */
 export const EvalLink: Story = {
   args: {
@@ -1409,7 +1416,7 @@ export const EvalLink: Story = {
     await expect(link).toHaveAttribute('href', '/eval')
     await userEvent.tab()
     await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveFocus()
-    for (let stop = 2; stop <= 7; stop++) {
+    for (let stop = 2; stop <= 8; stop++) {
       await userEvent.tab()
       await expect(link).not.toHaveFocus()
       await expect(canvasElement.contains(document.activeElement)).toBe(true)
@@ -1418,5 +1425,175 @@ export const EvalLink: Story = {
     await expect(link).toHaveFocus()
     // It stays under the input after the first question, when the examples have gone.
     await expect(canvas.getByRole('textbox', { name: 'Question' })).toBeVisible()
+  },
+}
+
+const searchedFor = 'checkJs errors in JavaScript files'
+const agenticGate = replayGate()
+const onAgenticRequest = fn()
+
+/**
+ * Agentic mode (ADR-0019), step by step: Search again sends `agentic`, and each search of Claude's
+ * own shows as it starts, while it waits for the rate limit, and with what it found when it ends.
+ * Stop stays all along. A citation of what that search found opens the inspector on it.
+ */
+export const AgenticStepsLive: Story = {
+  args: {
+    docTypeLabels: { option: 'Compiler options' },
+    transport: replayTransport({
+      events: agenticFixture.events,
+      documents: [documentFixture],
+      gate: agenticGate,
+      onRequest: onAgenticRequest,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    agenticGate.reset()
+    onAgenticRequest.mockClear()
+    const canvas = within(canvasElement)
+    const status = canvas.getByRole('status')
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Search again' }))
+    await expect(canvas.getByRole('checkbox', { name: 'Search again' })).toBeChecked()
+    await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
+    await userEvent.keyboard(`${question}{Enter}`)
+    await expect(onAgenticRequest).toHaveBeenLastCalledWith('ask', {
+      question,
+      strategy: 'hybrid',
+      docTypes: [],
+      agentic: true,
+    })
+    await waitFor(() => expect(status).toHaveTextContent('Searching the docs'))
+
+    // The question's search: Claude reads it, and nothing streams until it has read enough.
+    agenticGate.release(1)
+    await waitFor(() => expect(status).toHaveTextContent('Reading the results'))
+    const answer = canvas.getByRole('article')
+    await expect(answer).toHaveAttribute('aria-busy', 'true')
+
+    // A search of its own starts.
+    agenticGate.release(1)
+    await waitFor(() => expect(status).toHaveTextContent(`Searching again for "${searchedFor}"`))
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(`Searching again for ${searchedFor} in Compiler options`)
+    await expect(canvas.getByRole('button', { name: 'Stop' })).toBeVisible()
+
+    // It waits for Voyage's rate limit, and says so in the answer and in the status.
+    agenticGate.release(1)
+    const waiting = "Waiting about 42 seconds for Voyage's rate limit"
+    await waitFor(() =>
+      expect(status).toHaveTextContent(`Searching again for "${searchedFor}". ${waiting}`),
+    )
+    await expect(steps).toHaveTextContent(waiting)
+    await expect(canvas.getByRole('button', { name: 'Stop' })).toBeVisible()
+
+    // Its results.
+    agenticGate.release(1)
+    await waitFor(() =>
+      expect(steps).toHaveTextContent(
+        `Searched again for ${searchedFor} in Compiler options: 3 new results, 5 already shown`,
+      ),
+    )
+    await expect(status).toHaveTextContent('Reading the results')
+
+    agenticGate.open()
+    await waitFor(() => expect(status).toHaveTextContent('Answer ready, with 2 sources'))
+    await expect(steps).toBeVisible()
+
+    // The citation of what Claude's own search found opens the panel on that search.
+    const [citation] = canvas.getAllByRole('button', { name: /^Source 2: / })
+    await userEvent.click(citation ?? canvasElement)
+    const panel = panelOf(canvasElement)
+    const searches = within(panel).getByRole('group', { name: "The answer's searches" })
+    await expect(within(searches).getByRole('radio', { name: `2. "${searchedFor}"` })).toBeChecked()
+    await expect(within(panel).getByRole('tab', { name: 'Context (8)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(
+      within(panel).getByRole('heading', { name: 'TSConfig Option: checkJs' }),
+    ).toHaveFocus()
+    const field = within(panel).getByRole('textbox', { name: 'Search for' })
+    await expect(field).toHaveValue(searchedFor)
+
+    // The question's own search is one choice away, and the question comes back with it.
+    await userEvent.click(within(searches).getByText('1. The question'))
+    await expect(within(searches).getByRole('radio', { name: '1. The question' })).toBeChecked()
+    await expect(field).toHaveValue(question)
+    await expect(
+      within(panel).queryByRole('heading', { name: 'TSConfig Option: checkJs' }),
+    ).toBeNull()
+  },
+}
+
+const agenticStopGate = replayGate()
+const onAgenticStopEnd = fn()
+
+/** Stop while a search of Claude's own waits for the rate limit: the abort reaches the transport. */
+export const AgenticStopWhileWaiting: Story = {
+  args: {
+    transport: replayTransport({
+      events: agenticFixture.events,
+      gate: agenticStopGate,
+      onAskEnd: onAgenticStopEnd,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    agenticStopGate.reset()
+    onAgenticStopEnd.mockClear()
+    const canvas = within(canvasElement)
+    const status = canvas.getByRole('status')
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Search again' }))
+    await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
+    await userEvent.keyboard(`${question}{Enter}`)
+    agenticStopGate.release(3)
+    await waitFor(() => expect(status).toHaveTextContent(/Waiting about 42 seconds/))
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Stop' }))
+    await waitFor(() => expect(status).toHaveTextContent('Stopped'))
+    await waitFor(() => expect(onAgenticStopEnd).toHaveBeenCalledWith('aborted'))
+    await expect(onAgenticStopEnd).toHaveBeenCalledOnce()
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(`Searching again for ${searchedFor} in Option: stopped`)
+    await expect(canvas.getByRole('article')).not.toHaveTextContent('Waiting')
+    await expect(canvas.getByRole('button', { name: 'Send' })).toBeVisible()
+  },
+}
+
+/**
+ * Reflow at 320 CSS px with agentic mode: the toggle wraps under the filter, a long query wraps in
+ * its step, and the panel's choice of searches wraps too, so nothing scrolls sideways.
+ */
+export const AgenticReflow320: Story = {
+  parameters: Reflow320.parameters,
+  globals: Reflow320.globals,
+  args: {
+    docTypeLabels: { option: 'Compiler options' },
+    transport: replayTransport({
+      events: agenticFixture.events.map((event) =>
+        event.type === 'search'
+          ? { ...event, query: `${searchedFor} with checkJs, allowJs and JSDoc annotations` }
+          : event,
+      ),
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(window.innerWidth).toBe(320)
+    await expect(reflowProblems(canvasElement)).toEqual([])
+
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Search again' }))
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), question)
+    await userEvent.click(canvas.getByRole('button', { name: 'Send' }))
+    await waitFor(() =>
+      expect(canvas.getByRole('status')).toHaveTextContent('Answer ready, with 2 sources'),
+    )
+    await expect(reflowProblems(canvasElement)).toEqual([])
+
+    const [citation] = canvas.getAllByRole('button', { name: /^Source 2: / })
+    await userEvent.click(citation ?? canvasElement)
+    await expect(
+      within(panelOf(canvasElement)).getByRole('group', { name: "The answer's searches" }),
+    ).toBeVisible()
+    await expect(reflowProblems(canvasElement)).toEqual([])
   },
 }
