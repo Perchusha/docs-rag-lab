@@ -13,7 +13,7 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M8 (the interview-prep app) is done:** the owner's hands-on review passed, and its last PR merged on 2026-11-09. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9. M9, agentic mode, is measured, below: a second search fixes the misses Claude notices, and the answers are not more correct. Its last PR adds the agentic chat to the docs apps as an option. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). TypeScript's results come first and React's follow. They are different questions on different docs, and their numbers are never compared.
+**M8 (the interview-prep app) is done:** the owner's hands-on review passed, and its last PR merged on 2026-11-09. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9. M9, agentic mode, is measured, below: a second search reaches what the first missed when Claude notices the gap, and the answers are not more correct. Its last PR adds the agentic chat to the docs apps as an option. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). The test over both sets comes first, then TypeScript's results and React's. They are different questions on different docs, and their numbers are never compared.
 
 The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
@@ -32,22 +32,22 @@ Every claim about retrieval quality is backed by a measured row in the tables be
 | All citations hold, of 64 | 54 | 51 |
 | Wrongly refused, of 64, fewer is better | 4 | 1 |
 | A primary anchor in the chunks it read, of 64 | 58 | 61 |
-| Cost per answer, TypeScript and React | $0.022, $0.020 | $0.032, $0.028 |
+| Cost per answer, over all 53 and 20 questions | $0.022, $0.019 | $0.032, $0.028 |
 
 **What M9 found:**
 - **H does not hold.** Row 3 is ahead on 3 questions and row 6 on 2, which is noise. Row 6 also differs from itself on 4 of the 64 between two runs. So one search stays the docs apps' default.
-- **A second search fixes the misses Claude notices.** Of the 6 questions where hybrid's top 8 lacked a needed anchor, Claude searched again on 3, and each search reached the anchor:
+- **A second search reaches what the first missed, when Claude notices.** Of the 6 questions where hybrid's top 8 lacked an anchor the answer needs (ADR-0019, section 4), Claude searched again on 3, and each search reached the anchor. 2 became fully correct:
   - ts-0024, whether a declaration file should use `String` or `string`, went from a refusal to fully correct;
   - react-0011, asked in Russian, went the same way;
   - ts-0038, in Russian too, went from 0 to 1.
 - **It does not notice the other 3,** and answers them from the first search, as row 3 does.
 - **Claude's own queries are in English,** all 42 of them, even for questions asked in Russian. On both Russian misses, its English query found what the Russian question's keyword search pushed down.
-- **It searched again on every question the docs do not answer,** and refused all 9 in its first answers. In its second answers it made one hallucination: on ts-0044 it named TypeScript versions from memory.
+- **In its first answers, it searched again on every question the docs do not answer,** and refused all 9. In its second answers, the judge counted one hallucination, on ts-0044. It said that TypeScript 4.3 and 5.4 tightened enum checks, which passages its own search had returned do say, but it cited neither of them, and the judge reads only cited passages.
 - **Caching came out even.**
   - Each step reads the conversation the step before wrote, and the report counts cache writes and reads apart.
   - 23% of the answers searched again, below the break-even of about one in three.
   - The answers cost $4.434 with caching, against $4.423 for the same tokens without it.
-- **It is slower on the free tier.** A first answer took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s, mostly waiting for Voyage's 3 requests a minute.
+- **A search of its own is slow on the free tier.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute. Over all the first answers, row 6 took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s.
 
 The numbers come from [TypeScript's report](eval/reports/typescript/2026-11-09-0e629627-m9.md), [React's](eval/reports/react/2026-11-09-bb8cc039-m9.md) and [the test over both](eval/pooled/m9.md).
 - `drl eval verify` reproduced both reports' retrieval byte for byte.

@@ -465,7 +465,7 @@ Every milestone ends with:
 
 **M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
 
-**M9's comparison against single-shot is measured:** ADR-0019's hypothesis does not hold, so one search stays the docs apps' default, and agentic mode is an option in their chat.
+**M9's comparison against single-shot is measured:** ADR-0019's hypothesis does not hold, so one search stays the docs apps' default, and M9's last PR adds agentic mode as an option in their chat.
 
 **Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD). Also the mock interview's agent with `search_docs`, `get_progress` and `record_score` (section 11), which the owner moved out of M9: it would be judged by use, not on the frozen sets, and M8's fixed loop had just shipped (ADR-0019).
 

@@ -2,7 +2,7 @@
 
 Short notes per milestone, with before/after numbers where they exist. Newest first.
 
-## M9 - Agentic mode: it fixes the misses it notices, and it is not more correct (2026-11-10)
+## M9 - Agentic mode: a second search reaches what the first missed, and the answers are not more correct (2026-11-10)
 
 Before M9, every answer read one hybrid search. Row 6 starts from that search and lets Claude search twice more, through a `search_docs` tool, with prompt caching on every step. The test was fixed first in ADR-0019:
 - row 3 against row 6;
@@ -17,23 +17,23 @@ Its ceiling was written down first: only 10 of the 64 could move up. This entry 
 | All citations hold, of 64 | 54 | 51 |
 | Wrongly refused, of 64 | 4 | 1 |
 | A primary anchor in the chunks it read, of 64 | 58 | 61 |
-| Cost per answer, TypeScript and React | $0.022, $0.020 | $0.032, $0.028 |
-| Time per first answer, TypeScript and React | 4.4 s, 3.9 s | 17.8 s, 15.6 s |
+| Cost per answer, over all 53 and 20 questions | $0.022, $0.019 | $0.032, $0.028 |
+| Time per first answer, over all 53 and 20 questions | 4.4 s, 3.9 s | 17.8 s, 15.6 s |
 
 **What it showed:**
 - **H does not hold.** On fully correct, row 3 is ahead on 3 questions and row 6 on 2: that is noise. Row 6 also differs from itself on 4 of the 64, so the bar was 8.
-- **It fixes the misses it notices.** Of the 6 questions where hybrid's top 8 lacked a needed anchor, Claude searched again on 3, and each search reached the anchor:
+- **Its search reaches what the first one missed, when Claude notices.** Of the 6 questions where hybrid's top 8 lacked a needed anchor (ADR-0019, section 4), Claude searched again on 3, and each search reached the anchor. 2 became fully correct:
   - ts-0024, `String` or `string`, went from a refusal to fully correct. That is M4's candidate, closed.
   - react-0011, asked in Russian, went from a refusal to fully correct.
   - ts-0038, also in Russian, went from 0 to 1.
 - **It does not notice the rest.** On ts-0022, ts-0027 and ts-0039 it answered from the first search, as row 3 does.
-- **It searches where nothing is to be found.** It searched again on every question the docs do not answer, and refused all 9 in its first answers. Its second answers made the only hallucination: version numbers from memory on ts-0044.
+- **It searches where nothing is to be found.** In its first answers it searched again on every question the docs do not answer, and refused all 9. In its second answers the judge counted one hallucination, on ts-0044. The answer said that TypeScript 4.3 and 5.4 tightened enum checks, and passages its own search returned do say so, but it cited neither, and the judge reads only cited passages.
 - **Its English queries do what keyword search could not.** None of its 42 queries was in Cyrillic, and on both Russian misses its own query reached the anchor. That bears on M6's candidate of skipping keyword search across languages, and on M8's open item, the interview grader's search on a Russian answer.
 
 **What only real runs showed:**
 - **The API refused the first search of the pilot.** A tool result with `search_result` blocks may hold nothing else, and the note on how many searches were left was in it. The pilot is what found this, for $0.22.
 - **Caching came out even.** 23% of the answers searched again. Below about one in three, a cache write that no later step reads costs as much as the reads save. Row 6 paid $4.434 where the same tokens uncached would have been $4.423.
-- **The free tier sets the pace.** A search of Claude's own waits for Voyage's 3 requests a minute, which is most of row 6's extra time.
+- **The free tier sets the pace.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute.
 
 **Spend:** $7.19 of Claude at list prices against a limit of $10: $0.25 for the pilot, $5.18 for TypeScript and $1.76 for React. Rows 0, 2 and 3 and their verdicts came from the cache.
 
@@ -41,8 +41,9 @@ Its ceiling was written down first: only 10 of the 64 could move up. This entry 
 
 ### Open items
 
-- **Most misses go unnoticed.** Claude searched again on 3 of the 6. A prompt or a signal that says what the first results lack might change that, and it would need a test of its own.
-- **On error codes, the agent searches for the message from memory.** The plain chunks do not hold it, and the compiled index does (M7).
+- **Half the misses go unnoticed.** Claude searched again on 3 of the 6. A prompt or a signal that says what the first results lack might change that, and it would need a test of its own.
+- **An uncited claim reads to the judge as a hallucination,** even when a passage in the conversation says it, since the judge reads only what is cited. That is ts-0044's second answer.
+- **On error codes, the agent searches for the message from memory.** The plain chunks hold no message next to its code, and the compiled index does (M7).
 
 ## M8 - The interview-prep app: a bank that passed a blind test, and a mock interview (2026-11-09)
 
