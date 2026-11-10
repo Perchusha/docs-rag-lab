@@ -11,6 +11,44 @@ Docs RAG Lab is a local RAG engine over the TypeScript and React documentation. 
 
 Everything runs locally. There is no deployment. The full design is in [SPEC.md](SPEC.md).
 
+## The story in 30 seconds
+
+**What it is.** A RAG engine over the official TypeScript and React docs, built to measure each technique before using it. Every answer cites the exact doc section, and an inspector shows how it was found. It was built in milestones M0 to M9, and v1.0 is M5 to M9.
+
+**What the measurements found.** Each main comparison ran on a frozen question set, under criteria written down before any paid run; what is only reported or exploratory says so. Read every number with three caveats:
+- the sets are small: 40 to 48 TypeScript questions and 16 React ones;
+- an LLM judge grades the answers, so correctness may run high, though a human checked it blind;
+- a difference counts only when an exact sign test over the questions shows it, beyond run-to-run noise.
+
+The findings:
+- **Claude's memory is hard to beat on well-known docs, and RAG wins on the newest pages.** These are two different sets, so this is a pattern, and no test compares them.
+  - On TypeScript, Claude without the docs is fully correct on 44 of 48 and hybrid RAG on 41, which is no significant difference. This was reported and decided nothing. Before the grading notes of 8 questions changed, after the answers were seen, Claude alone was ahead, p = 0.012 (M7). What RAG adds there is citations that hold.
+  - On React's 10 fresh questions, hybrid is fully correct on 9, and Claude alone on 2, p = 0.016. Over all 16 it is 13 against 7, p = 0.07, which is not significant (M6). Fresh means newest in these docs, not past the model's training cutoff.
+- **Rerank moves retrieval, not the answers.**
+  - On TypeScript, the right chunk comes first on 31 of 40 instead of 19, and MRR goes from 0.657 to 0.867.
+  - On React, MRR goes from 0.726 to 0.969, p = 0.03. Right chunk first went from 10 to 15 of 16, p = 0.06, so by the rule written first the gain was not repeated.
+  - Fully correct moves within noise: 36 against 34 of 40, and 14 against 13 of 16. So the chat stays on hybrid, and the inspector shows rerank on demand (M5, M6).
+- **Contextual retrieval added nothing significant** on chunks that already start with their headings. MRR went from 0.657 to 0.693 alone, p = 0.21, and from 0.867 to 0.886 on top of rerank (M5).
+- **Compiling the docs' examples** (654 of 712) did not make the answers more correct: 42 against 41 of 48 (M7).
+  - It does let an answer quote a compiler error's message and cite it. On the 8 error-code questions, answers were correct and grounded on 8 against 5. That is not significant, and the metric is exploratory.
+  - Caveat: those questions' grading notes changed after the answers were seen. The change moved the result toward no effect.
+- **Agentic mode,** where Claude may search twice more, is not more correct: 53 against 54 of 64, over both sets (M9).
+  - Claude searched again on 3 of the 6 questions whose first search missed a needed passage. Each of those searches found it, and 2 of the 3 answers became fully correct.
+  - It costs about 44% more per answer over all questions, since it searched again on every question the docs do not answer. On the answerable ones alone it costs 29% to 36% more.
+  - On Voyage's free tier, answers that searched again averaged 25 s to 93 s, by source and number of searches. The chat offers it as an option.
+- **The interview bank** holds 2,990 questions: 327 answered by the compiler's own output, and 2,663 generated and checked against their chunk (M8).
+  - In the owner's blind sample of 20 generated ones, all could be answered from their passage. 2 answers were not right and complete: 10%, with an interval of 3% to 30%.
+
+**How to run it.** You need Node 26.13.0, pnpm 12.16.1, and an Anthropic key and a Voyage key ([Requirements](#requirements)).
+
+```sh
+pnpm install
+pnpm drl sync typescript   # index the docs: about an hour on Voyage's free tier
+pnpm dev                   # the TypeScript docs assistant on http://127.0.0.1:3000
+```
+
+`pnpm dev:react` serves React's docs assistant, after `drl sync react`. `pnpm dev:interview` serves the interview-prep app, after `drl questions <source>`. The docs apps serve the measured reports at `/eval`. The sections below have every number with its interval, and the report it comes from.
+
 ## Status
 
 **v1.0 is done.** It is M5 through M9.
@@ -52,14 +90,14 @@ Every claim about retrieval quality is backed by a measured row in the tables be
   - Each step reads the conversation the step before wrote, and the report counts cache writes and reads apart.
   - 23% of the answers searched again, below the break-even of about one in three.
   - The answers cost $4.434 with caching, against $4.423 for the same tokens without it.
-- **A search of its own is slow on the free tier.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute. Over all the first answers, row 6 took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s.
+- **A search of its own is slow on the free tier.** An answer that did not search again took about 4 s, as row 3's do. Those that searched averaged 25 s to 93 s in the first answers, by source and number of searches, mostly waiting for Voyage's 3 requests a minute. Over all the first answers, row 6 took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s.
 
 **In the docs apps, it is an option.** The chat's Search again checkbox, off by default, asks in agentic mode.
 - **Each search of Claude's own shows as it happens:** its query, then how long it waits for Voyage's rate limit, then how many results came back. The answer arrives with the last step.
 - **Stop works throughout,** a wait for the rate limit included.
 - **The inspector shows each search's trace,** and a citation opens the search that brought its chunk.
 - **An Ask costs about 44% more this way,** and the inspector says what each Ask cost.
-- **It is slower when Claude searches again.** In M9's runs such an answer took 25 s to 93 s, mostly waiting for Voyage's free tier. The checkbox says so once it is checked.
+- **It is slower when Claude searches again.** In M9's runs such answers averaged 25 s to 93 s, mostly waiting for Voyage's free tier. The checkbox says so once it is checked.
 
 **A candidate for after v1.0:** one translation step before retrieval, for a question not in the docs' language. It might fix the two Russian misses without an agent, and it needs a test of its own first.
 
@@ -240,7 +278,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl questions <source>` | The interview bank of a source, under `interview/bank/` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)): writes its compiler questions, which cost nothing, and prints the estimate of the generated ones. No call to Claude without `--yes` |
 | `pnpm drl questions flagged` | The cards flagged as wrong in the interview-prep app, each with the reason and what the bank says of it. `drl questions unflag <id>` takes a flag back. No API call |
 | `pnpm drl questions reject <id> [reason]` | Mark a shown question rejected in its bank, with the reason, or the reason of its flag in the app. The app no longer shows it, and reruns keep the rejection. No API call |
-| `pnpm drl ask "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--top-k <n>] [--verbose]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first |
+| `pnpm drl ask "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--top-k <n>] [--verbose] [--agentic]` | Answer from the docs with numbered citations; `--verbose` prints the retrieval trace first. `--agentic` lets Claude search twice more ([ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md)), and prints each of its searches and any wait for Voyage's rate limit as they happen |
 | `pnpm drl search "<question>" [--strategy vector\|hybrid\|rerank] [--doc-type <type>] [--json]` | Retrieval only, no Claude call: print the retrieval trace, or with `--json` the whole trace as JSON |
 | `pnpm drl limits` | Show what the Voyage endpoint says about rate limits (one tiny request per model) |
 | `pnpm drl eval [--name <name>] [--strategy vector\|hybrid\|rerank] [--contextual] [--control] [--yes]` | Retrieval metrics over the golden set, written as a report under `eval/reports/`. No Claude call. A named run is committed; without a name it goes to `dev/`, which git ignores. A named run measures rerank too, in one paced call per question: without `--yes` it prints the estimate for the calls that are not cached, and stops. On a cold cache the queries are embedded first, in one free request, and it says so. `--contextual` and `--control` measure those indexes, the control under `vector` and `hybrid` only. A run that survived 429s says so in its output and its report |
