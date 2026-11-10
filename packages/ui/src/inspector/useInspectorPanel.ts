@@ -105,7 +105,13 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
     setReveal(undefined)
     setTab((current) => (current === 'fusion' ? undefined : current))
     compare.reset()
-    fresh.search(requestFor(question, method))
+    const request = requestFor(question, method)
+    // A search of Claude's own kept to the doc types it chose, whatever the page's filter says.
+    fresh.search(
+      searchIndex > 0 && answerTrace !== undefined
+        ? { ...request, docTypes: answerTrace.filters.docTypes }
+        : request,
+    )
   }
 
   const shownTrace = fresh.trace ?? answerTrace

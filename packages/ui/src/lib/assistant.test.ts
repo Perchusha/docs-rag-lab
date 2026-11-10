@@ -105,7 +105,9 @@ describe('agentic mode (ADR-0019)', () => {
     expect(found.steps).toMatchObject([
       { status: 'done', waitMs: undefined, found: 3, alreadyShown: 5, trace: traces.ts2345 },
     ])
-    expect(statusText(found)).toBe('Reading the results')
+    expect(statusText(found)).toBe(
+      'Searched again for "satisfies operator": 3 new results, 5 already shown. Reading the results',
+    )
     expect(isRunning(found)).toBe(true)
   })
 

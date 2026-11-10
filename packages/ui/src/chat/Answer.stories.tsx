@@ -176,7 +176,7 @@ export const AgenticDone: Story = {
     const canvas = within(canvasElement)
     const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
     await expect(steps).toHaveTextContent(
-      `Searched again for ${searchedFor} in Compiler options: 3 new results, 5 already shown`,
+      `Searched again for ${searchedFor} in Compiler options: 8 new results`,
     )
     await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'false')
 
@@ -201,5 +201,26 @@ export const AgenticSearchStopped: Story = {
     )
     await expect(canvas.getByRole('article')).not.toHaveTextContent('Waiting')
     await expect(canvas.getByRole('article')).toHaveTextContent('Stopped.')
+  },
+}
+
+/** The answer failed during that search: the search says it did not finish. */
+export const AgenticSearchFailed: Story = {
+  args: {
+    state: stateAfter(
+      agenticFixture.events.slice(0, 2),
+      [{ type: 'failed', message: 'Voyage refused the request (500)' }],
+      true,
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(
+      `Searching again for ${searchedFor} in Option: did not finish`,
+    )
+    await expect(canvas.getByRole('article')).toHaveTextContent(
+      'Error: Voyage refused the request (500)',
+    )
   },
 }

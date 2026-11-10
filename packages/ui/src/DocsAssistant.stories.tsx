@@ -1454,6 +1454,8 @@ export const AgenticStepsLive: Story = {
     const status = canvas.getByRole('status')
     await userEvent.click(canvas.getByRole('checkbox', { name: 'Search again' }))
     await expect(canvas.getByRole('checkbox', { name: 'Search again' })).toBeChecked()
+    // What it costs shows once it is checked, before anything is sent.
+    await expect(canvas.getByText(/a search can wait a minute or more/)).toBeVisible()
     await userEvent.click(canvas.getByRole('textbox', { name: 'Question' }))
     await userEvent.keyboard(`${question}{Enter}`)
     await expect(onAgenticRequest).toHaveBeenLastCalledWith('ask', {
@@ -1490,10 +1492,12 @@ export const AgenticStepsLive: Story = {
     agenticGate.release(1)
     await waitFor(() =>
       expect(steps).toHaveTextContent(
-        `Searched again for ${searchedFor} in Compiler options: 3 new results, 5 already shown`,
+        `Searched again for ${searchedFor} in Compiler options: 8 new results`,
       ),
     )
-    await expect(status).toHaveTextContent('Reading the results')
+    await expect(status).toHaveTextContent(
+      `Searched again for "${searchedFor}": 8 new results. Reading the results`,
+    )
 
     agenticGate.open()
     await waitFor(() => expect(status).toHaveTextContent('Answer ready, with 2 sources'))
@@ -1514,6 +1518,14 @@ export const AgenticStepsLive: Story = {
     ).toHaveFocus()
     const field = within(panel).getByRole('textbox', { name: 'Search for' })
     await expect(field).toHaveValue(searchedFor)
+
+    // Another method for that search keeps the doc types Claude chose, not the page's filter.
+    await userEvent.click(within(panel).getByRole('radio', { name: 'Vector' }))
+    await expect(onAgenticRequest).toHaveBeenLastCalledWith('search', {
+      question: searchedFor,
+      strategy: 'vector',
+      docTypes: ['option'],
+    })
 
     // The question's own search is one choice away, and the question comes back with it.
     await userEvent.click(within(searches).getByText('1. The question'))

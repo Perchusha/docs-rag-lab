@@ -141,12 +141,6 @@ export function Composer({
               Search again
             </label>
           )}
-          {onAgenticChange !== undefined && (
-            <p id={`${id}-agentic`} className={common.srOnly}>
-              When the first results fall short, Claude may search twice more. Slower: on the free
-              tier each extra search can wait up to a minute.
-            </p>
-          )}
         </div>
         {/* One button that changes role, so it keeps focus when a run starts or ends. */}
         <button
@@ -168,6 +162,13 @@ export function Composer({
           {running ? <Square fill="currentColor" strokeWidth={0} /> : <ArrowUp />}
         </button>
       </div>
+      {/* What Search again costs: seen once it is checked, and read with it either way. */}
+      {onAgenticChange !== undefined && (
+        <p id={`${id}-agentic`} className={agentic ? styles.hint : common.srOnly}>
+          When the first results fall short, Claude may search twice more. Slower: on the free tier,
+          a search can wait a minute or more for Voyage.
+        </p>
+      )}
     </form>
   )
 }

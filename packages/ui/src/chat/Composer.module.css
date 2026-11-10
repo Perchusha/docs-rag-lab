@@ -77,6 +77,14 @@
   background: var(--color-surface-strong);
 }
 
+/* Under the row, where the input's text starts. */
+.hint {
+  margin: 0;
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 .agentic input {
   margin: 0;
   accent-color: var(--color-accent);

@@ -218,7 +218,11 @@ export function statusText(state: AssistantState | undefined): string {
         return step.waitMs === undefined ? searching : `${searching}. ${waitingText(step.waitMs)}`
       }
       // In agentic mode the answer arrives whole once Claude has read enough.
-      return state.agentic ? 'Reading the results' : 'Writing the answer'
+      if (!state.agentic) return 'Writing the answer'
+      // What the last search brought back is said too, not only shown.
+      return step === undefined
+        ? 'Reading the results'
+        : `Searched again for "${step.query}": ${foundText(step)}. Reading the results`
     }
     case 'stopped':
       return 'Stopped'

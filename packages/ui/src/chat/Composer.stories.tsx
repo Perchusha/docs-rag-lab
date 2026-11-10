@@ -291,8 +291,11 @@ export const SearchAgain: Story = {
     const canvas = within(canvasElement)
     const toggle = canvas.getByRole('checkbox', { name: 'Search again' })
     await expect(toggle).not.toBeChecked()
+    // Off, it is read with the checkbox and not shown.
+    const hint = canvas.getByText(/a search can wait a minute/).getBoundingClientRect()
+    await expect(hint.width * hint.height).toBeLessThanOrEqual(1)
     await expect(toggle).toHaveAccessibleDescription(
-      'When the first results fall short, Claude may search twice more. Slower: on the free tier each extra search can wait up to a minute.',
+      'When the first results fall short, Claude may search twice more. Slower: on the free tier, a search can wait a minute or more for Voyage.',
     )
     const select = canvas.getByRole('button', { name: /^Search in/ }).getBoundingClientRect()
     const label = (toggle.closest('label') ?? toggle).getBoundingClientRect()
@@ -314,13 +317,14 @@ export const SearchAgain: Story = {
   },
 }
 
-/** On: checked, and in the text's color rather than the muted one. */
+/** On: checked, in the text's color rather than the muted one, and what it costs is shown. */
 export const SearchAgainOn: Story = {
   args: { agentic: true, onAgenticChange: fn() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const toggle = canvas.getByRole('checkbox', { name: 'Search again' })
     await expect(toggle).toBeChecked()
+    await expect(canvas.getByText(/a search can wait a minute or more/)).toBeVisible()
     const on = getComputedStyle(toggle.closest('label') ?? toggle).color
     const muted = getComputedStyle(canvas.getByRole('button', { name: /^Search in/ })).color
     await expect(on).not.toBe(muted)

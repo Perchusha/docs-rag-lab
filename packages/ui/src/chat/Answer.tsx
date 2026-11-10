@@ -86,7 +86,8 @@ export function Answer({ state, onCitation, actions, docTypeLabels }: AnswerProp
         <p className={styles.note}>{waitingText(state.waitMs)}</p>
       )}
       {state.steps.length > 0 && (
-        <ol className={styles.steps} aria-label="Searches of Claude's own">
+        // list-style: none drops the list from Safari's accessibility tree without the role.
+        <ol role="list" className={styles.steps} aria-label="Searches of Claude's own">
           {state.steps.map((step, i) => (
             <Step key={i} step={step} phase={state.phase} labels={docTypeLabels} />
           ))}
