@@ -33,12 +33,12 @@ Its ceiling was written down first: only 10 of the 64 could move up. This entry 
 **What only real runs showed:**
 - **The API refused the first search of the pilot.** A tool result with `search_result` blocks may hold nothing else, and the note on how many searches were left was in it. The pilot is what found this, for $0.22.
 - **Caching came out even.** 23% of the answers searched again. Below about one in three, a cache write that no later step reads costs as much as the reads save. Row 6 paid $4.434 where the same tokens uncached would have been $4.423.
-- **The free tier sets the pace.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute.
+- **The free tier sets the pace.** An answer that did not search again took about 4 s, as row 3's do. Those that searched averaged 25 s to 93 s in the first answers, by source and number of searches, mostly waiting for Voyage's 3 requests a minute.
 
 **Spend:** $7.19 of Claude at list prices against a limit of $10: $0.25 for the pilot, $5.18 for TypeScript and $1.76 for React. Rows 0, 2 and 3 and their verdicts came from the cache.
 
 **The agentic chat (PR 4).** The docs apps' chat has a Search again checkbox, off by default, since H does not hold.
-- **Why it shows each step.** An answer that searches again waits 25 s to 93 s on the free tier, and a minute of silence reads as a hang. So the chat shows each search of Claude's own as it happens: its query, how long it waits for Voyage's rate limit, and how many results came back.
+- **Why it shows each step.** Answers that searched again averaged 25 s to 93 s on the free tier, and a minute of silence reads as a hang. So the chat shows each search of Claude's own as it happens: its query, how long it waits for Voyage's rate limit, and how many results came back.
 - **Where the wait comes from.** The limiter announces it as it starts. So the single-shot chat now says when its one search waits too.
 - **Stop works throughout.** It ends a wait for the rate limit at once, and no step starts after it.
 - **The inspector** holds each search's trace, and a citation opens the search that brought its chunk.

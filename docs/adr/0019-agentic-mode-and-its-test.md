@@ -340,7 +340,7 @@ Section 7's chat, in the ts-docs and react-docs apps, with no paid call.
 - **The checkbox.** Search again sits after the chat's filter, off by default. Its description says that Claude may search twice more, and that on the free tier a search can wait a minute or more for Voyage. It is shown once the box is checked, and read with the box either way.
 - **The request.** It adds `agentic: true`. `docs-server` answers 400 to any other value, and the chat still does not rerank (ADR-0014).
 
-**Each step shows as it happens,** since an answer that searched again took 25 s to 93 s in the runs. The answer stream (ADR-0006) gained three events:
+**Each step shows as it happens,** since answers that searched again averaged 25 s to 93 s in the runs, by source and number of searches. The answer stream (ADR-0006) gained three events:
 - `search`: the query and doc types of a search of Claude's own, as it starts;
 - `wait`: about how long the next embedding request waits for Voyage's rate limit. The limiter tells it as the wait starts. It comes in a single-shot answer too, whose chat now says when its one search waits;
 - `searched`: how many new chunks that search added, how many of its results were already shown, and its trace.
@@ -362,7 +362,7 @@ Only an agentic answer has `search` and `searched`.
 - **A citation opens the first search that brought its chunk,** with that search's query in the panel's field.
 - **Another method for one of Claude's searches keeps the doc types it chose,** not the page's filter.
 
-**What an Ask costs in this mode** is what row 6 measured: about 44% more than one search. The inspector says what each Ask cost, as before. An answer that searched again took 25 s to 93 s in the runs, under 4 answers at once. A chat alone may wait less, but a 429 with no Retry-After waits a full minute before its retry.
+**What an Ask costs in this mode** is what row 6 measured: about 44% more than one search. The inspector says what each Ask cost, as before. Answers that searched again averaged 25 s to 93 s in the runs, under 4 answers at once. A chat alone may wait less, but a 429 with no Retry-After waits a full minute before its retry.
 
 **Tests, on fixtures:**
 - the limiter's announced and abandoned waits;

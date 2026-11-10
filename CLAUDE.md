@@ -45,7 +45,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - The sheet a human labels from, with no verdicts: `pnpm drl eval label <report>` (add `--after <earlier report>` for a fresh round on other questions, `--rows 4,5` for 15 answers from those rows, or `--spot` for the 10 of a spot check, with `--after <earlier report>` for a fresh one that shows none of that report's spot check (ADR-0017))
 - The judge spot-checked on a source's own answers, from that sheet: `pnpm drl eval spot-check <report> <labels>` (ADR-0016; it decides no calibration; add `--after <earlier report>` for the labels of a fresh one, ADR-0017)
 - How often those labels agree with the judge, which also writes what named reports' markdown says of it: `pnpm drl eval calibrate <report> <labels>` (add `--after <earlier report>` for a fresh round, `--sample-of <earlier report>` for earlier labels against new verdicts, which is not blind, or `--rows 4,5` for that round)
-- Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace)
+- Ask: `pnpm drl ask "<question>"` (add `--verbose` to see the retrieval trace, or `--agentic` to let Claude search twice more (ADR-0019): each search of its own prints as it starts and ends, and so does a wait for Voyage's rate limit. ts-0024 that way searched once and cost $0.04)
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Rate limits of embeddings and rerank: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
