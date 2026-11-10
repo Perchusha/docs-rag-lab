@@ -337,7 +337,7 @@ PR 3 looks such chunks up in the plain index, for later reports.
 Section 7's chat, in the ts-docs and react-docs apps, with no paid call.
 
 **Opt-in.**
-- **The checkbox.** Search again sits after the chat's filter, off by default. Its description says that Claude may search twice more, and that each extra search can wait up to a minute on the free tier.
+- **The checkbox.** Search again sits after the chat's filter, off by default. Its description says that Claude may search twice more, and that on the free tier a search can wait a minute or more for Voyage. It is shown once the box is checked, and read with the box either way.
 - **The request.** It adds `agentic: true`. `docs-server` answers 400 to any other value, and the chat still does not rerank (ADR-0014).
 
 **Each step shows as it happens,** since an answer that searched again took 25 s to 93 s in the runs. The answer stream (ADR-0006) gained three events:
@@ -349,7 +349,7 @@ Only an agentic answer has `search` and `searched`.
 
 **What the chat shows:**
 - **Under the question, each search in order:** "Searching again for" its query and doc types, then its wait, then "Searched again for" it, with what came back, for example "3 new results, 5 already shown".
-- **The status line, a polite live region,** says the same: the search and its wait while it runs, then "Reading the results".
+- **The status line, a polite live region,** says the same: the search and its wait while it runs, then what it brought back and "Reading the results".
 - **The answer arrives whole.** As in `drl ask --agentic`, a step that asks for a search keeps its text, so the answer comes with its last step.
 
 **Stop works throughout:**
@@ -360,8 +360,9 @@ Only an agentic answer has `search` and `searched`.
 **The inspector:**
 - **It holds each search's trace:** the question's first, then Claude's own, with a choice between them when there is more than one.
 - **A citation opens the first search that brought its chunk,** with that search's query in the panel's field.
+- **Another method for one of Claude's searches keeps the doc types it chose,** not the page's filter.
 
-**What an Ask costs in this mode** is what row 6 measured: about 44% more than one search, and up to about a minute and a half on the free tier when Claude searches twice. The inspector says what each Ask cost, as before.
+**What an Ask costs in this mode** is what row 6 measured: about 44% more than one search. The inspector says what each Ask cost, as before. An answer that searched again took 25 s to 93 s in the runs, under 4 answers at once. A chat alone may wait less, but a 429 with no Retry-After waits a full minute before its retry.
 
 **Tests, on fixtures:**
 - the limiter's announced and abandoned waits;
@@ -378,6 +379,15 @@ Only an agentic answer has `search` and `searched`.
   The agentic answer in the stories is made up from recorded parts, and says so, since no paid call ran in PR 4.
 
 **One more tab stop.** Before a first question there are now 8 stops, not M3's 7: the checkbox comes after the filter.
+
+**The code-reviewer subagent read PR 4 before it opened,** and found nothing blocking. Its findings are fixed above or here:
+- a backoff after a server error was told as a wait for the rate limit. Only a wait for the rate limit is told now;
+- the wait's timer outlived a Stop, though nothing ran after it. The clock's sleep now takes the signal and clears its timer;
+- no test covered how the engine wires the wait and Stop. Two engine tests do now, for the question's search and for one of Claude's own;
+- the inspector's other methods searched with the page's filter, not the doc types of Claude's search;
+- only a screen reader heard what Search again costs, and the status line never said what a search brought back;
+- comments and ADR-0006 still said that the trace comes first. A `wait` can come before it, which ADR-0006 now says;
+- the made-up answer's search named one query and its trace another. They match now, with the counts its chunks give.
 
 ## Alternatives considered
 

@@ -58,7 +58,8 @@ Every claim about retrieval quality is backed by a measured row in the tables be
 - **Each search of Claude's own shows as it happens:** its query, then how long it waits for Voyage's rate limit, then how many results came back. The answer arrives with the last step.
 - **Stop works throughout,** a wait for the rate limit included.
 - **The inspector shows each search's trace,** and a citation opens the search that brought its chunk.
-- **An Ask costs about 44% more this way,** and up to about a minute and a half when Claude searches twice. The inspector says what each Ask cost.
+- **An Ask costs about 44% more this way,** and the inspector says what each Ask cost.
+- **It is slower when Claude searches again.** In M9's runs such an answer took 25 s to 93 s, mostly waiting for Voyage's free tier. The checkbox says so once it is checked.
 
 **A candidate for after v1.0:** one translation step before retrieval, for a question not in the docs' language. It might fix the two Russian misses without an agent, and it needs a test of its own first.
 
