@@ -322,7 +322,11 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 - Every request of the loop uses prompt caching: each step reads the prefix the step before wrote. Cache writes and reads are counted separately, with what the same tokens would cost without caching.
 - Agentic mode is ladder row 6, compared against single-shot hybrid on the frozen sets (ADR-0019).
 - Measured in M9: no more answers are fully correct, 53 of 64 against 54, which is noise. A second search reached the anchor on the 3 retrieval misses Claude noticed, of 6. Caching came out even, since 23% of the answers searched again (ADR-0019).
-- The docs apps offer it as an opt-in in the chat. One search stays the default unless ADR-0019's hypothesis holds.
+- The docs apps offer it as an opt-in in the chat, Search again, off by default: one search stays the default unless ADR-0019's hypothesis holds, and it does not.
+  - The chat shows each search of Claude's own as it happens: its query, then any wait for Voyage's rate limit, then how many results came back. The answer arrives with the last step.
+  - Stop works throughout: it ends a wait for the rate limit at once, and no step starts after it.
+  - The inspector shows the trace of each search, and a citation opens the search that brought its chunk.
+  - The answer stream has an event for each of these, `search`, `wait` and `searched`. A single-shot answer gets `wait` too, so its chat says when its one search waits (ADR-0019).
 - A candidate from M4: on ts-0024, retrieval misses, so the grounded answer refuses while Claude without RAG answers correctly. A second, agentic search is the natural fix (ADR-0012).
 
 ## 10. Evaluation
@@ -465,9 +469,9 @@ Every milestone ends with:
 
 **M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
 
-**M9's comparison against single-shot is measured:** ADR-0019's hypothesis does not hold, so one search stays the docs apps' default, and M9's last PR adds agentic mode as an option in their chat.
+**M9's comparison against single-shot is measured:** ADR-0019's hypothesis does not hold, so one search stays the docs apps' default, and M9's last PR added agentic mode to their chat as an option. With M9, v1.0 is done.
 
-**Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD). Also the mock interview's agent with `search_docs`, `get_progress` and `record_score` (section 11), which the owner moved out of M9: it would be judged by use, not on the frozen sets, and M8's fixed loop had just shipped (ADR-0019).
+**Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD). Also the mock interview's agent with `search_docs`, `get_progress` and `record_score` (section 11), which the owner moved out of M9: it would be judged by use, not on the frozen sets, and M8's fixed loop had just shipped (ADR-0019). And one translation step before retrieval, for a question not in the docs' language: in M9, every query of the agent's own was in English, and on both Russian misses its English query found what keyword search on the Russian question had buried, so that step might fix them without an agent. It needs a test of its own first (ADR-0019).
 
 ### The process from M6 on
 
