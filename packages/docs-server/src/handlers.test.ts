@@ -51,6 +51,7 @@ function engineWith(overrides: Partial<RouteEngine>) {
     sources: [{ id: 'typescript' } as RouteEngine['sources'][number]],
     search: vi.fn(() => Promise.resolve(retrieval)),
     ask: vi.fn(() => Promise.resolve(retrieval)),
+    askAgentic: vi.fn(() => Promise.resolve(retrieval)),
     documentChunks: vi.fn(() => document),
     ...overrides,
   }
@@ -281,6 +282,44 @@ describe('handleAsk', () => {
     const response = await handleAsk(factory, post('/api/ask', { question: 'q', topK: '8' }))
     expect(response.status).toBe(400)
     expect(engine.ask).not.toHaveBeenCalled()
+  })
+
+  it('answers in agentic mode on request, streaming each step, with the same signal', async () => {
+    const browser = new AbortController()
+    let seen: AbortSignal | undefined
+    const steps: AnswerEvent[] = [
+      { type: 'trace', trace },
+      { type: 'search', query: 'more', docTypes: [] },
+      { type: 'wait', ms: 41_000 },
+      { type: 'searched', found: 2, alreadyShown: 6, trace },
+      { type: 'done', stopReason: 'end_turn', usage },
+    ]
+    const { engine, factory } = engineWith({
+      askAgentic: (request, run) => {
+        seen = run.signal
+        expect(request).toEqual({ question: 'q' })
+        for (const event of steps) run.onEvent(event)
+        return Promise.resolve(retrieval)
+      },
+    })
+
+    const response = await handleAsk(
+      factory,
+      post('/api/ask', { question: 'q', agentic: true }, browser.signal),
+    )
+
+    expect(await eventsOf(response)).toEqual(steps)
+    expect(engine.ask).not.toHaveBeenCalled()
+    browser.abort()
+    expect(seen?.aborted).toBe(true)
+  })
+
+  it('refuses agentic mode that is not true or false', async () => {
+    const { engine, factory } = engineWith({})
+    const response = await handleAsk(factory, post('/api/ask', { question: 'q', agentic: 1 }))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'agentic must be true or false' })
+    expect(engine.askAgentic).not.toHaveBeenCalled()
   })
 })
 
