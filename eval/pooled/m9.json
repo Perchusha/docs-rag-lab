@@ -1,0 +1,72 @@
+{
+  "reports": [
+    {
+      "sourceId": "typescript",
+      "name": "m9",
+      "repoSha": "0e62962711c8960cc6e7f33199dd6b68ef0ceb83",
+      "createdAt": "2026-11-09T23:34:05.484Z",
+      "goldenSet": {
+        "version": 3,
+        "hash": "8d6262de99f5165d9138f82f4719b30ea2431aa07b8573d26754936b917e674f"
+      }
+    },
+    {
+      "sourceId": "react",
+      "name": "m9",
+      "repoSha": "bb8cc03963083613ceb88ea4d6ecc4f3610a8f5e",
+      "createdAt": "2026-11-09T23:50:02.812Z",
+      "goldenSet": {
+        "version": 2,
+        "hash": "099ca3b20cb0fb8e7995b5fd7e362302d91b55ea50ad46baf44e55651313ab3a"
+      }
+    }
+  ],
+  "a": 3,
+  "b": 6,
+  "metrics": [
+    {
+      "metric": "fully-correct",
+      "questions": 64,
+      "aBetter": 3,
+      "bBetter": 2,
+      "tied": 59,
+      "p": 1,
+      "runToRun": {
+        "a": 2,
+        "b": 4
+      },
+      "verdict": "noise"
+    },
+    {
+      "metric": "citations-hold",
+      "questions": 64,
+      "aBetter": 10,
+      "bBetter": 7,
+      "tied": 47,
+      "p": 0.629059,
+      "runToRun": {
+        "a": 7,
+        "b": 11
+      },
+      "verdict": "not-significant"
+    },
+    {
+      "metric": "not-wrongly-refused",
+      "questions": 64,
+      "aBetter": 0,
+      "bBetter": 3,
+      "tied": 61,
+      "p": 0.25,
+      "runToRun": {
+        "a": 2,
+        "b": 1
+      },
+      "verdict": "not-significant"
+    }
+  ],
+  "notOk": [],
+  "unjudged": [],
+  "hallucinations": [],
+  "runToRunMissing": [],
+  "holds": false
+}

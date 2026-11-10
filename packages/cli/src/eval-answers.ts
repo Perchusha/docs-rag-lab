@@ -273,6 +273,26 @@ function searchIdentityOf(ctx: CommandContext, source: Source): string {
   }
 }
 
+/**
+ * The documents of chunks that only row 6's own searches found, which no retrieval trace of the
+ * report holds, read from the plain index (ADR-0019). Others are not looked up.
+ */
+export function agentDocPaths(
+  root: string,
+  dataDir: string,
+  sourceId: string,
+  chunkIds: readonly string[],
+): Map<string, string> {
+  if (chunkIds.length === 0) return new Map()
+  const indexes = openIndexes(join(root, dataDir), sourceId, { create: false })
+  try {
+    const chunks = indexes.index.chunksById(chunkIds)
+    return new Map([...chunks].map(([id, hit]) => [id, hit.docPath]))
+  } finally {
+    indexes.close()
+  }
+}
+
 /** The rerank calls these rows and questions still need. They are free, and they take a while. */
 async function missingRerankCalls(
   ctx: CommandContext,
@@ -435,6 +455,14 @@ export async function evalAnswersCommand(
       anchorChunks: golden.anchorChunks,
       primaryChunks: golden.primaryChunks,
     }
+    const agentPaths = agentDocPaths(ctx.root, settings.dataDir, source.id, [
+      ...new Set(
+        answers
+          .filter(({ row }) => row === AGENT_ROW)
+          .flatMap(({ context }) => context)
+          .filter((id) => report.result.chunks[id] === undefined),
+      ),
+    ])
     const twice = args.noise ? args.rows.filter((row) => NOISE_ROWS.includes(row)) : []
     const rows = [
       ...args.rows.map((row) => rowResult(row, 1, options)),
@@ -474,7 +502,10 @@ export async function evalAnswersCommand(
           }
         : {}),
       judgeRetest: judgeRetest(verdicts),
-      candidates: anchorCandidates(options, (id) => report.result.chunks[id]?.docPath ?? ''),
+      candidates: anchorCandidates(
+        options,
+        (id) => report.result.chunks[id]?.docPath ?? agentPaths.get(id) ?? '',
+      ),
       ...(contextualIndex === undefined ? {} : { contextualIndex }),
       ...(compiledIndex === undefined ? {} : { compiledIndex }),
       paidUsd: ctx.meter.estimateCost(settings.pricing).total,

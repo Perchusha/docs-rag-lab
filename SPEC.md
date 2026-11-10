@@ -321,6 +321,7 @@ Every retrieval returns a **trace object**: plain JSON with a version, holding e
 - Claude may search again up to a configurable maximum, 2 searches of its own, one per step. The last search's result says that no search is left.
 - Every request of the loop uses prompt caching: each step reads the prefix the step before wrote. Cache writes and reads are counted separately, with what the same tokens would cost without caching.
 - Agentic mode is ladder row 6, compared against single-shot hybrid on the frozen sets (ADR-0019).
+- Measured in M9: no more answers are fully correct, 53 of 64 against 54, which is noise. A second search reached the anchor on the 3 retrieval misses Claude noticed, of 6. Caching came out even, since 23% of the answers searched again (ADR-0019).
 - The docs apps offer it as an opt-in in the chat. One search stays the default unless ADR-0019's hypothesis holds.
 - A candidate from M4: on ts-0024, retrieval misses, so the grounded answer refuses while Claude without RAG answers correctly. A second, agentic search is the natural fix (ADR-0012).
 
@@ -463,6 +464,8 @@ Every milestone ends with:
 **v1.0 is M5 through M9,** on top of M0 to M4, which are done (ADR-0015).
 
 **M7's acceptance is not met,** and it stays as written: its `exact-token` questions were measured and did not improve (ADR-0017).
+
+**M9's comparison against single-shot is measured:** ADR-0019's hypothesis does not hold, so one search stays the docs apps' default, and M9's last PR adds agentic mode as an option in their chat.
 
 **Later, after v1.0:** what was M10, with no date. The Docs RAG Lab MCP server, dogfooding via `.mcp.json`, done when Claude Code uses Docs RAG Lab while working on Docs RAG Lab. Optionally more sources: Rust Book (MIT/Apache), Python docs (PSF-2.0, examples also 0BSD). Also the mock interview's agent with `search_docs`, `get_progress` and `record_score` (section 11), which the owner moved out of M9: it would be judged by use, not on the frozen sets, and M8's fixed loop had just shipped (ADR-0019).
 

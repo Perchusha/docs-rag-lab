@@ -13,11 +13,46 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M8 (the interview-prep app) is done:** the owner's hands-on review passed, and its last PR merged on 2026-11-09. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9, so agentic mode comes next, and its test is fixed first in [ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md). The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). TypeScript's results come first and React's follow. They are different questions on different docs, and their numbers are never compared.
+**M8 (the interview-prep app) is done:** the owner's hands-on review passed, and its last PR merged on 2026-11-09. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9. M9, agentic mode, is measured, below: a second search reaches what the first missed when Claude notices the gap, and the answers are not more correct. Its last PR adds the agentic chat to the docs apps as an option. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). The test over both sets comes first, then TypeScript's results and React's. They are different questions on different docs, and their numbers are never compared.
 
 The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
 Every claim about retrieval quality is backed by a measured row in the tables below, and every report behind one is in [eval/reports/](eval/reports/).
+
+### Agentic mode, over both sets
+
+**M9 let Claude search again, and the answers are not more correct.**
+- **What row 6 is.** It starts from hybrid's search, as row 3 does, and gives Claude a `search_docs` tool for up to two more searches, one a step. Every step uses prompt caching.
+- **The test.** It was fixed first in [ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md): row 3 against row 6 on fully correct, over TypeScript's and React's frozen sets together, 64 answerable questions.
+- **Its ceiling, written down first.** Only 10 of the 64 could move up, so even this test could show little.
+
+| Both sets, first answers | 3, one search | 6, agentic |
+|---|---|---|
+| Fully correct, of 64, may run high | 54 (74-91%) | 53 (72-90%) |
+| All citations hold, of 64 | 54 | 51 |
+| Wrongly refused, of 64, fewer is better | 4 | 1 |
+| A primary anchor in the chunks it read, of 64 | 58 | 61 |
+| Cost per answer, over all 53 and 20 questions | $0.022, $0.019 | $0.032, $0.028 |
+
+**What M9 found:**
+- **H does not hold.** Row 3 is ahead on 3 questions and row 6 on 2, which is noise. Row 6 also differs from itself on 4 of the 64 between two runs. So one search stays the docs apps' default.
+- **A second search reaches what the first missed, when Claude notices.** Of the 6 questions where hybrid's top 8 lacked an anchor the answer needs (ADR-0019, section 4), Claude searched again on 3, and each search reached the anchor. 2 became fully correct:
+  - ts-0024, whether a declaration file should use `String` or `string`, went from a refusal to fully correct;
+  - react-0011, asked in Russian, went the same way;
+  - ts-0038, in Russian too, went from 0 to 1.
+- **It does not notice the other 3,** and answers them from the first search, as row 3 does.
+- **Claude's own queries are in English,** all 42 of them, even for questions asked in Russian. On both Russian misses, its English query found what the Russian question's keyword search pushed down.
+- **In its first answers, it searched again on every question the docs do not answer,** and refused all 9. In its second answers, the judge counted one hallucination, on ts-0044. It said that TypeScript 4.3 and 5.4 tightened enum checks, which passages its own search had returned do say, but it cited neither of them, and the judge reads only cited passages.
+- **Caching came out even.**
+  - Each step reads the conversation the step before wrote, and the report counts cache writes and reads apart.
+  - 23% of the answers searched again, below the break-even of about one in three.
+  - The answers cost $4.434 with caching, against $4.423 for the same tokens without it.
+- **A search of its own is slow on the free tier.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute. Over all the first answers, row 6 took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s.
+
+The numbers come from [TypeScript's report](eval/reports/typescript/2026-11-09-0e629627-m9.md), [React's](eval/reports/react/2026-11-09-bb8cc039-m9.md) and [the test over both](eval/pooled/m9.md).
+- `drl eval verify` reproduced both reports' retrieval byte for byte.
+- Running the same `drl eval answers` again gave the same answers and verdicts, from the cache, for nothing.
+- M9 cost $7.19 of Claude at list prices, the pilot included, against a limit of $10.
 
 ### TypeScript
 
@@ -197,8 +232,8 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl eval [--name <name>] [--strategy vector\|hybrid\|rerank] [--contextual] [--control] [--yes]` | Retrieval metrics over the golden set, written as a report under `eval/reports/`. No Claude call. A named run is committed; without a name it goes to `dev/`, which git ignores. A named run measures rerank too, in one paced call per question: without `--yes` it prints the estimate for the calls that are not cached, and stops. On a cold cache the queries are embedded first, in one free request, and it says so. `--contextual` and `--control` measure those indexes, the control under `vector` and `hybrid` only. A run that survived 429s says so in its output and its report |
 | `pnpm drl eval verify <report> [--record]` | Run a report again and say whether it reproduces. `--record` writes what it found next to the report, for the dashboard |
 | `pnpm drl eval compare <a> <b> [--strategies <x>,<y>]` | Compare two reports question by question, and mark what is noise. `--strategies hybrid,rerank` compares a's `hybrid` with b's `rerank`, instead of like with like |
-| `pnpm drl eval pool <a> <b>... [--rows <x>,<y>] [--name <name>]` | Compare row 3 with row 6, or two other rows, over several reports' questions together, one report a source, as [ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md)'s test does. No API call. `--name` writes it under `eval/pooled/` |
-| `pnpm drl eval answers [--rows <list>] [--only <ids>] [--noise] [--name <name>] [--yes]` | Answer metrics. Spends real tokens: without `--yes` it prints the estimate and stops. Reruns pay only for what is not cached. Rows 0, 2 and 3 by default. Row 4 reranks, and row 5 reranks on the contextual index, so they are asked for by name, and any rerank calls not yet cached come first, with `--yes` |
+| `pnpm drl eval pool <a> <b>... [--rows <x>,<y>] [--name <name>]` | Compare row 3 with row 6, or two other rows, over several reports' questions together, one report a source, as [ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md)'s test does. No API call. `--name` writes it under `eval/pooled/`, as [M9's](eval/pooled/m9.md) |
+| `pnpm drl eval answers [--rows <list>] [--only <ids>] [--noise] [--name <name>] [--yes]` | Answer metrics. Spends real tokens: without `--yes` it prints the estimate and stops. Reruns pay only for what is not cached. Rows 0, 2 and 3 by default. Row 4 reranks, and row 5 reranks on the contextual index, so they are asked for by name, and any rerank calls not yet cached come first, with `--yes`. Row 6 is agentic (ADR-0019): its second answers wait 6 minutes, so that none reads a cache entry of a first one |
 | `pnpm drl eval judge-check --yes` | The judge on answers whose grade is known. Spends real tokens |
 | `pnpm drl eval rerank-check` | How a rerank score depends on the rest of its call ([ADR-0014](docs/adr/0014-rerank-and-contextual-retrieval.md)). Prints its plan, and takes about 15 minutes of free tokens with `--yes` |
 | `pnpm drl eval label <report> [--after <report>] [--rows <list>] [--spot]` | The sheet a human labels from, with no verdicts. `--rows 4,5` takes 15 answers from those rows, and `--spot` the 10 of a spot check. `--spot --after <report>` takes a fresh spot check that shows none of that report's ([ADR-0017](docs/adr/0017-twoslash-compile-and-its-test.md)) |

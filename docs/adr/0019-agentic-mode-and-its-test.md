@@ -1,6 +1,6 @@
 # ADR-0019: Agentic mode, and what M9 tests
 
-- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists. PR 2 corrected how row 6 reproduces, which `drl eval verify` does not cover, and what its markdown quotes, as "What PR 2 built" says, before any answer of row 6. The test did not change.
+- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists. PR 2 corrected how row 6 reproduces, which `drl eval verify` does not cover, and what its markdown quotes, as "What PR 2 built" says, before any answer of row 6. The pilot fixed where a search's note goes, as "What the pilot found" says. The test did not change. **H does not hold:** "What came out" has the result.
 - Date: 2026-11-09
 - Milestone: M9
 
@@ -229,6 +229,101 @@ Before any answer of row 6, with no paid call:
 - **The dashboard** shows a report with row 6 as row 3 against row 6, each with its own run to run, and says that one search stays the chat's default unless this test, over both sources, holds.
 - **The code-reviewer subagent read PR 2 before it opened.** Its findings are fixed above: an unknown run to run that let the bar fall to the other row's, unjudged answers that went unnamed, no hard cap on requests, a stored run's key that missed the tool results' texts and the index, the unchecked numbering of citations, a searching step's text shown in `drl ask`, no test of a resumed run, and a failed search that did not stop the run.
 - **Integrity checks 1 and 3:** before PR 2, `drl eval verify` said byte for byte on 14 of the 19 named reports, and "not comparable" on the 5 whose retrieval code lives at tags of their own: `m4-control`, `m4-h1`, `m4-h2`, `m4-h1-h2` and `m5-h5`. What the dashboard builds for every report was snapshotted then, and is unchanged at the end of PR 2.
+
+## What the pilot found
+
+The pilot answered its 5 questions on 2026-11-09, at loop version 1.
+- **The API refused the one search.** It answered ts-0041 with a 400: "if any blocks in a tool result are of type `search_result`, all blocks must be of that type". The note on what a search left out and how many searches are left was a text block in that tool result.
+- **The fix, in `0e62962`.** The note now follows the tool results as a text block of the same message. A search with nothing new keeps its note in its tool result, which then holds only text. The loop's version went to 2, so no run stored at version 1 is read.
+- **The prompt did not change.** The pilot ran again on the same 5 questions with the fix.
+  - **Answerable questions.** The 4 that the docs answer did not search again: a primary anchor was in their first search. Each cost about $0.028, against $0.024 without caching.
+  - **ts-0041.** It searched twice, refused correctly, and cost $0.048, against $0.078 without caching. Each step read what the step before wrote, with no lapse.
+- **One answer described its search.** ts-0041's answer says, in its second sentence, "The documentation I searched is the TypeScript docs". Row 3's refusals say the same of their search results, in the same place, so the judge reads no new form, and there was no spot check (section 8). In the full runs, several of row 6's refusals describe their search the same way, and the same reading covers them.
+- **The pilot paid $0.25,** $0.22 of it in the first try.
+
+## What came out
+
+The reports are [TypeScript's](../../eval/reports/typescript/2026-11-09-0e629627-m9.md) and [React's](../../eval/reports/react/2026-11-09-bb8cc039-m9.md). The test over both is [`eval/pooled/m9`](../../eval/pooled/m9.md). No stop was hit: the forecast was $8.12, $5.81 for TypeScript and $2.06 for React with the pilot's $0.25. Voyage rejected nothing, and the judge read no new form.
+
+| Over both sets, first answers | Row 3, one search | Row 6, agentic |
+|---|---|---|
+| Fully correct, of 64, may run high | 54 (74-91%) | 53 (72-90%) |
+| Run to run on fully correct | 2 | 4 |
+| All citations hold, of 64 | 54 | 51 |
+| Wrongly refused, of 64, fewer is better | 4 | 1 |
+| Hallucinations, of 9 the docs do not answer | 0 | 0, and 1 in its second answers |
+
+**H does not hold.**
+- **Fully correct.** Row 3 is ahead on 3 questions and row 6 on 2, with 59 tied: p = 1, which is noise. Row 6 differs from itself on 4 of the 64, so even 6 to 0 would not have passed the bar of 8.
+- **The guards name neither row.** All citations hold is 10 to 7 for row 3, not significant. Not wrongly refused is 0 to 3 for row 6, not significant.
+- **Each source alone says the same.** TypeScript is 2 to 1 for row 3 and React 1 to 1, both noise.
+
+**Where the second search helped and where it did not:**
+- **Row 6 searched again on 9 of the 64 answerable questions** in its first answers, and on all 9 the docs do not answer.
+- **Of the 6 retrieval misses of section 4, it searched on 3, and a primary anchor reached each. 2 of them became fully correct:**
+  - ts-0024 went from 0, a refusal, to 2 in both answers. Its query named the page, Do's and Don'ts.
+  - react-0011, asked in Russian, went from 0, a refusal, to 2 in both answers.
+  - ts-0038, asked in Russian, went from 0 to 1.
+- **On the other 3 it answered from the first search,** and nothing changed: ts-0022 and ts-0027 scored 1, and ts-0039 scored 0. Claude did not notice what the first results lacked.
+- **What it lost is within its own noise.** On ts-0047, ts-0051 and react-0001, row 6's first answer scored 1 where row 3 scored 2, and its second answer scored 2 on all three. ts-0047 and ts-0051 ask what an error code means, and on those Claude searched for the message text, which the plain chunks do not pair with its code, as M7's compiled index does.
+- **A primary anchor was in the first search on 58 of the 64,** and reached the conversation on 61.
+
+**The one hallucination** is in row 6's second answers, which the test does not read, and the docs do say what it claims.
+- **What the answer did.** On ts-0044, an option that does not exist, it refused correctly. Then it said that TypeScript 4.3 and 5.4 tightened enum checks, and cited neither.
+- **The passages were in its conversation.** Its own search for `strictEnumChecks` had returned the 4.3 and 5.4 release notes that say so.
+- **Why the judge called it a hallucination.** The judge reads only cited passages, so it took the claim as outside knowledge.
+- **The first answer did the same, with citations.** It made the same kind of claim, on 5.0 and 5.4, cited those two passages, and was graded a correct refusal.
+- **What this shows about the judge.** An uncited claim drawn from a passage the conversation holds reads to it as a hallucination. That is an open item.
+
+**Caching came out even, as section 2 expected when fewer than about one answer in three searches again:**
+- **How often row 6 searched again:** 34 of its 146 answers (23%) searched again, and no step lapsed or read another answer's entry.
+- **What it cost, over both answers of both sets:** row 6 paid $4.434 at list prices, and the same tokens with no caching would have cost $4.423.
+  - On TypeScript, caching cost $0.031 more.
+  - On React, it saved $0.019.
+- **Where it pays:** a one-step answer pays a quarter more on its prefix, and an answer that searches twice saves about two fifths. It pays only for answers that search again.
+
+**What row 6 costs and takes:**
+- **Per first answer, over all 53 and 20 questions,** the 9 the docs do not answer included: $0.0315 on TypeScript and $0.0279 on React, against row 3's $0.0219 and $0.0195. That is 43% to 44% more. The reports' own tables, on the answerable questions alone, give $0.0303 and $0.0262, against $0.0222 and $0.0203.
+- **Time on the first answers, over all questions:** 17.8 s on average on TypeScript and 15.6 s on React, against row 3's 4.4 s and 3.9 s. It splits by searches:
+  - an answer that did not search again took about 4 s, as row 3's do;
+  - one search took 53 s on TypeScript and 25 s on React;
+  - two searches took 93 s and 90 s.
+
+  That is mostly waiting for Voyage's free tier, 3 requests a minute, under 4 answers at once.
+- **Time on the second answers:** 7.4 s and 3.8 s, with most query vectors already cached. On React's 16 answerable questions, row 6 took 3.9 s and row 3 4.3 s.
+
+**The cross-lingual note (section 6).**
+- **No query of Claude's own was in Cyrillic:** none of its 42 searches over both runs.
+- **Russian misses:** on both Russian questions where row 3's search missed, ts-0038 and react-0011, its English query reached a primary anchor.
+- **Russian questions it answered at once:** ts-0004, ts-0016, ts-0023, react-0005 and react-0012 had a primary anchor in their first search, and row 6 did not search again.
+
+So on the two Russian misses, the agent's English queries did what M6's candidate, skipping keyword search when the languages differ, would have to do.
+
+**Spend.**
+- **Claude: $7.19** at list prices, against a limit of $10:
+  - $0.25 for the pilot;
+  - $5.18 for TypeScript;
+  - $1.76 for React.
+- **Voyage:** 30 embedding requests, the pilot's included, inside the free tokens.
+
+**Integrity checks:**
+1. **`drl eval verify`** gives the same on all 19 earlier named reports as before PR 2: 14 match byte for byte, and 5 are not comparable, as before.
+2. **The indexes' sha256 are as recorded.**
+3. **What the dashboard builds for every earlier report is unchanged.** Only the lists of runs gained the two m9 reports, which build.
+4. **Row 3's answers and verdicts came from the cache,** as rows 0 and 2's did.
+5. **This ADR's commit is an ancestor of both reports' commits.**
+6. **Both reports reproduce.**
+   - `drl eval verify --record` says byte for byte on their retrieval.
+   - The same `drl eval answers` command, run again, paid nothing. It gave the same answers, verdicts, support checks, rows and comparisons; only which answers came from the cache differs.
+7. **Every cited text of rows 3 and 6 is in its chunk's text,** whitespace aside: 722 citations of row 6 and 746 of row 3.
+
+**A gap the TypeScript report shows.** Its list of cited chunks to review as anchors gives no document for two chunks that only row 6's own searches found, since a report's chunk table holds only its retrieval traces.
+- ts-0040's chunk is in `handbook-v2/Basics.md`.
+- ts-0047's chunk is in `release-notes/TypeScript 3.7.md`.
+
+PR 3 looks such chunks up in the plain index, for later reports.
+
+**What this decides.** One search stays the docs apps' default, and PR 4 adds the agentic chat as an option, as section 7 has it.
 
 ## Alternatives considered
 

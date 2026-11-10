@@ -272,6 +272,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
     )
     if (uses.length === 0) return { ...result, failure: 'it stopped for a tool and called none' }
     const results: Anthropic.ToolResultBlockParam[] = []
+    // A tool result with search results may hold nothing else, so what a search says of itself
+    // goes after the tool results, in a text block of the same message.
+    const notes: string[] = []
     for (const use of uses) {
       if (use.name !== SEARCH_DOCS) {
         results.push(errorResult(use.id, LOOP_ERRORS.unknownTool(use.name)))
@@ -303,22 +306,36 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
       }
       searches.push(record)
       options.onSearch?.(record, fresh)
-      const shown = shownNote(found.length, fresh.length)
-      results.push({
-        type: 'tool_result',
-        tool_use_id: use.id,
-        content: [
-          ...fresh.map(toSearchResult),
-          { type: 'text', text: [shown, searchesLeftNote(left)].filter(Boolean).join(' ') },
-        ],
-      })
+      const note = [shownNote(found.length, fresh.length), searchesLeftNote(left)]
+        .filter(Boolean)
+        .join(' ')
+      if (fresh.length === 0) {
+        results.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: [{ type: 'text', text: note }],
+        })
+      } else {
+        results.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: fresh.map(toSearchResult),
+        })
+        notes.push(note)
+      }
     }
     request = {
       ...request,
       messages: [
         ...request.messages,
         { role: 'assistant', content: message.content },
-        { role: 'user', content: results },
+        {
+          role: 'user',
+          content: [
+            ...results,
+            ...notes.map((text): Anthropic.TextBlockParam => ({ type: 'text', text })),
+          ],
+        },
       ],
     }
   }
