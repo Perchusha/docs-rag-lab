@@ -6,7 +6,6 @@ import type Anthropic from '@anthropic-ai/sdk'
 import {
   NO_CONTEXT,
   type AnswerEvent,
-  type EvalAgentSearch,
   type RetrievalRequest,
   type Strategy,
 } from '@docs-rag-lab/contracts'
@@ -363,24 +362,25 @@ describe('createEngine', () => {
       messages: [searching, citing(2, `https://x.dev/a#${third ?? ''}`)],
     })
     const events: AnswerEvent[] = []
-    const searches: [EvalAgentSearch, string][] = []
     const host = engine(provider, client)
 
     const { hits } = await host.askAgentic(
       { question: QUESTION },
-      {
-        meter: new UsageMeter(),
-        onEvent: (event) => events.push(event),
-        onSearch: (search, trace) => searches.push([search, trace.question]),
-      },
+      { meter: new UsageMeter(), onEvent: (event) => events.push(event) },
     )
 
     expect(host.docTypes('demo')).toEqual(['handbook'])
     expect(hits).toHaveLength(2)
     const added = ['near', 'code', 'other'].filter((id) => !hits.some((h) => h.chunkId === id))
-    expect(searches).toEqual([
-      [{ query: 'classes', docTypes: [], chunkIds: added, alreadyShown: 1 }, 'classes'],
-    ])
+    // Each search of its own as it begins, then as it ends with its trace, before the answer.
+    const steps = events.filter((event) => event.type === 'search' || event.type === 'searched')
+    expect(steps.map((event) => event.type)).toEqual(['search', 'searched'])
+    expect(steps[0]).toEqual({ type: 'search', query: 'classes', docTypes: [] })
+    expect(steps[1]).toMatchObject({ type: 'searched', found: added.length, alreadyShown: 1 })
+    expect(steps[1]?.type === 'searched' ? steps[1].trace.question : '').toBe('classes')
+    expect(events.findIndex((event) => event.type === 'searched')).toBeLessThan(
+      events.findIndex((event) => event.type === 'text'),
+    )
     expect(client.requests).toHaveLength(2)
     expect(client.requests[0]?.cache_control).toEqual({ type: 'ephemeral' })
     expect(events[0]?.type).toBe('trace')

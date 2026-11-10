@@ -74,3 +74,22 @@ describe('EventDecoder', () => {
     expect(() => decoder.end()).toThrow(StreamFormatError)
   })
 })
+
+describe('the agentic events', () => {
+  it('round-trips a search, a wait and its end', () => {
+    const decoder = new EventDecoder()
+    const lines = [
+      encodeEvent({ type: 'search', query: 'string primitives', docTypes: [] }),
+      encodeEvent({ type: 'wait', ms: 41_000 }),
+    ].join('')
+
+    expect(decoder.push(lines)).toEqual([
+      { type: 'search', query: 'string primitives', docTypes: [] },
+      { type: 'wait', ms: 41_000 },
+    ])
+    expect(parseEvent('{"type":"searched","found":2,"alreadyShown":6,"trace":{}}')).toMatchObject({
+      type: 'searched',
+      found: 2,
+    })
+  })
+})

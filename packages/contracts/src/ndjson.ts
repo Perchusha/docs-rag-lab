@@ -10,6 +10,9 @@ export const NDJSON_CONTENT_TYPE = 'application/x-ndjson; charset=utf-8'
 const EVENT_TYPES: ReadonlySet<string> = new Set<AnswerEvent['type']>([
   'trace',
   'text',
+  'search',
+  'wait',
+  'searched',
   'citations',
   'done',
   'error',

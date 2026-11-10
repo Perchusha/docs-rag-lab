@@ -2,16 +2,10 @@
 // answer with citations, reporting every step as an AnswerEvent (ADR-0006).
 // The CLI prints the events; an app route sends them to the browser.
 import type Anthropic from '@anthropic-ai/sdk'
-import {
-  NO_CONTEXT,
-  type AnswerEvent,
-  type EvalAgentSearch,
-  type UsageSummary,
-} from '@docs-rag-lab/contracts'
-import type { SearchHit } from '@docs-rag-lab/db'
+import { NO_CONTEXT, type AnswerEvent, type UsageSummary } from '@docs-rag-lab/contracts'
 import type { Effort, PricingSettings } from '@docs-rag-lab/settings'
 
-import { buildAgentRequest, checkCitations, runAgentLoop, type AgentSearchFn } from './agent.ts'
+import { buildAgentRequest, checkCitations, runAgentLoop } from './agent.ts'
 import {
   buildAnswerRequest,
   CitationNumbering,
@@ -112,14 +106,14 @@ export interface AgenticAskOptions extends AskOptions {
   /** The doc types the source's index holds, which search_docs can filter by. */
   toolDocTypes: readonly string[]
   maxSearches: number
-  /** A search of Claude's own. */
-  search: AgentSearchFn
-  onSearch?: ((search: EvalAgentSearch, hits: readonly SearchHit[]) => void) | undefined
+  /** A search of Claude's own, with its trace. */
+  search: (query: string, docTypes: readonly string[]) => Promise<Retrieval>
 }
 
 /**
  * Agentic mode (ADR-0019): the same first search as ask(), then Claude may search again. Events
- * are ask()'s, and each search of Claude's own goes to `onSearch`. Citations are numbered over
+ * are ask()'s, and each search of Claude's own sends `search` as it begins and `searched` with its
+ * trace as it ends, so a page can show each step as it happens. Citations are numbered over
  * every chunk of the conversation, as the API numbers its search results, and checked against it.
  * Only the answer's own step reaches the events, as only it is scored in eval: a step that asks
  * for a search keeps whatever text it had to itself. So the answer arrives when its step ends. A
@@ -142,13 +136,29 @@ export async function askAgentic(options: AgenticAskOptions): Promise<Retrieval>
     docTypes: options.toolDocTypes,
   })
   let numbering: CitationNumbering | undefined
+  let lastTrace = retrieval.trace
   const loop = await runAgentLoop({
     first,
     hits: retrieval.hits,
     docTypes: options.toolDocTypes,
     maxSearches: options.maxSearches,
-    search: options.search,
-    ...(options.onSearch === undefined ? {} : { onSearch: options.onSearch }),
+    signal: options.signal,
+    search: async (query, docTypes) => {
+      const found = await options.search(query, docTypes)
+      lastTrace = found.trace
+      return found.hits
+    },
+    onSearchStart: (query, docTypes) => {
+      onEvent({ type: 'search', query, docTypes: [...docTypes] })
+    },
+    onSearch: (search) => {
+      onEvent({
+        type: 'searched',
+        found: search.chunkIds.length,
+        alreadyShown: search.alreadyShown,
+        trace: lastTrace,
+      })
+    },
     call: async (request: Anthropic.MessageCreateParamsNonStreaming, _step, context) => {
       // The loop's own list, which grows with each search, so later citations find their chunk.
       numbering ??= new CitationNumbering(context)

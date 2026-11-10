@@ -63,6 +63,8 @@ export class RateLimiter {
     const { signal } = options
     signal?.throwIfAborted()
     options.onWait?.(ms)
+    // Whoever was told may have stopped already, and an abort that has fired fires no more.
+    signal?.throwIfAborted()
     this.#waitedMs += ms
     if (signal === undefined) {
       await this.#clock.sleep(ms)

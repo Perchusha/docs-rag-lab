@@ -15,6 +15,12 @@ export interface RetrievalRequest {
   topK?: number
 }
 
+/** What the chat asks: a retrieval, and whether Claude may search again (ADR-0019). */
+export interface AskRequest extends RetrievalRequest {
+  /** Agentic mode: after the first search, Claude may search again. Off when missing. */
+  agentic?: boolean
+}
+
 /** One cited source of an answer, numbered in order of first use. */
 export interface Citation {
   /** 1-based. */
@@ -61,6 +67,15 @@ export type AnswerEvent =
   | { type: 'trace'; trace: RetrievalTrace }
   /** A piece of the answer text, as it streams. */
   | { type: 'text'; text: string }
+  /** Agentic mode (ADR-0019): Claude asked for a search of its own, which begins. */
+  | { type: 'search'; query: string; docTypes: string[] }
+  /** A search waits about `ms` for the embedding rate limit: Voyage's free tier allows 3 a minute. */
+  | { type: 'wait'; ms: number }
+  /**
+   * A search of Claude's own has ended: how many chunks it added, how many of its results the
+   * conversation already held, and its trace.
+   */
+  | { type: 'searched'; found: number; alreadyShown: number; trace: RetrievalTrace }
   /**
    * A text block with citations has ended. `numbers` are its markers, in order;
    * `citations` are the sources numbered for the first time in it.

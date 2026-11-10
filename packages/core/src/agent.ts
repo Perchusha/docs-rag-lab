@@ -216,8 +216,12 @@ export interface AgentLoopOptions {
   maxSearches: number
   call: AgentCall
   search: AgentSearchFn
+  /** Before each search of Claude's own, with what it asked for. */
+  onSearchStart?: (query: string, docTypes: readonly string[]) => void
   /** After each search of Claude's own, with what it returned. */
   onSearch?: (search: EvalAgentSearch, hits: readonly SearchHit[]) => void
+  /** Stops the loop before its next request or search, as when a person presses Stop. */
+  signal?: AbortSignal | undefined
 }
 
 export interface AgentLoopResult {
@@ -257,6 +261,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
   // Set once a call past the limit got its error result: the next message has to answer.
   let refusedOnce = false
   for (;;) {
+    options.signal?.throwIfAborted()
     const message = await call(request, messages.length, context)
     messages.push(message)
     const result = { message, messages, context, searches }
@@ -292,7 +297,10 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         results.push(errorResult(use.id, LOOP_ERRORS.didNotRun(input, left)))
         continue
       }
+      options.signal?.throwIfAborted()
+      options.onSearchStart?.(input.query, input.docTypes)
       const found = await search(input.query, input.docTypes)
+      options.signal?.throwIfAborted()
       const fresh = found.filter((hit) => !seen.has(hit.chunkId))
       for (const hit of fresh) {
         seen.add(hit.chunkId)
