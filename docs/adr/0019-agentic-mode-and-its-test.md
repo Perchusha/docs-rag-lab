@@ -1,6 +1,6 @@
 # ADR-0019: Agentic mode, and what M9 tests
 
-- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists. PR 2 corrected how row 6 reproduces, which `drl eval verify` does not cover, and what its markdown quotes, as "What PR 2 built" says, before any answer of row 6. The pilot fixed where a search's note goes, as "What the pilot found" says. The test did not change. **H does not hold:** "What came out" has the result.
+- Status: accepted as the test, before any agentic code, row 6 answer or paid call exists. PR 2 corrected how row 6 reproduces, which `drl eval verify` does not cover, and what its markdown quotes, as "What PR 2 built" says, before any answer of row 6. The pilot fixed where a search's note goes, as "What the pilot found" says. The test did not change. **H does not hold:** "What came out" has the result. PR 4 built section 7's chat, as "What PR 4 built" says.
 - Date: 2026-11-09
 - Milestone: M9
 
@@ -299,6 +299,13 @@ The reports are [TypeScript's](../../eval/reports/typescript/2026-11-09-0e629627
 
 So on the two Russian misses, the agent's English queries did what M6's candidate, skipping keyword search when the languages differ, would have to do.
 
+**A candidate for after v1.0, by the owner's decision: one translation step before retrieval.**
+- **What it is.** A question not in the docs' language is translated once, and retrieval searches the translation.
+- **Why.** Claude wrote every query in English, and on both Russian misses its English query found what keyword search on the Russian question had buried.
+- **What it might do.** Fix those misses without an agent: no loop, and no second search to wait for.
+- **What it would need.** A test of its own, fixed first. The frozen sets hold 8 Russian questions, too few for a verdict, as section 6 says.
+- **Status.** Not built and not measured. SPEC section 13 lists it with the other work after v1.0.
+
 **Spend.**
 - **Claude: $7.19** at list prices, against a limit of $10:
   - $0.25 for the pilot;
@@ -324,6 +331,63 @@ So on the two Russian misses, the agent's English queries did what M6's candidat
 PR 3 looks such chunks up in the plain index, for later reports.
 
 **What this decides.** One search stays the docs apps' default, and PR 4 adds the agentic chat as an option, as section 7 has it.
+
+## What PR 4 built
+
+Section 7's chat, in the ts-docs and react-docs apps, with no paid call.
+
+**Opt-in.**
+- **The checkbox.** Search again sits after the chat's filter, off by default. Its description says that Claude may search twice more, and that on the free tier a search can wait a minute or more for Voyage. It is shown once the box is checked, and read with the box either way.
+- **The request.** It adds `agentic: true`. `docs-server` answers 400 to any other value, and the chat still does not rerank (ADR-0014).
+
+**Each step shows as it happens,** since an answer that searched again took 25 s to 93 s in the runs. The answer stream (ADR-0006) gained three events:
+- `search`: the query and doc types of a search of Claude's own, as it starts;
+- `wait`: about how long the next embedding request waits for Voyage's rate limit. The limiter tells it as the wait starts. It comes in a single-shot answer too, whose chat now says when its one search waits;
+- `searched`: how many new chunks that search added, how many of its results were already shown, and its trace.
+
+Only an agentic answer has `search` and `searched`.
+
+**What the chat shows:**
+- **Under the question, each search in order:** "Searching again for" its query and doc types, then its wait, then "Searched again for" it, with what came back, for example "3 new results, 5 already shown".
+- **The status line, a polite live region,** says the same: the search and its wait while it runs, then what it brought back and "Reading the results".
+- **The answer arrives whole.** As in `drl ask --agentic`, a step that asks for a search keeps its text, so the answer comes with its last step.
+
+**Stop works throughout:**
+- **The route's abort signal,** which the browser's Stop ends, now reaches the limiter. A wait for Voyage ends at once.
+- **The loop** checks it before each request and before and after each search, so no step starts after Stop.
+- **A search cut short** says so in the chat: "stopped".
+
+**The inspector:**
+- **It holds each search's trace:** the question's first, then Claude's own, with a choice between them when there is more than one.
+- **A citation opens the first search that brought its chunk,** with that search's query in the panel's field.
+- **Another method for one of Claude's searches keeps the doc types it chose,** not the page's filter.
+
+**What an Ask costs in this mode** is what row 6 measured: about 44% more than one search. The inspector says what each Ask cost, as before. An answer that searched again took 25 s to 93 s in the runs, under 4 answers at once. A chat alone may wait less, but a 429 with no Retry-After waits a full minute before its retry.
+
+**Tests, on fixtures:**
+- the limiter's announced and abandoned waits;
+- the loop stopped during a search;
+- the route's agentic stream, and its 400;
+- the CLI's lines for each step;
+- stories, checked by axe:
+  - the live steps and the wait;
+  - Stop during the wait;
+  - a citation from Claude's own search;
+  - Enter on the checkbox, which sends nothing;
+  - reflow at 320 px.
+
+  The agentic answer in the stories is made up from recorded parts, and says so, since no paid call ran in PR 4.
+
+**One more tab stop.** Before a first question there are now 8 stops, not M3's 7: the checkbox comes after the filter.
+
+**The code-reviewer subagent read PR 4 before it opened,** and found nothing blocking. Its findings are fixed above or here:
+- a backoff after a server error was told as a wait for the rate limit. Only a wait for the rate limit is told now;
+- the wait's timer outlived a Stop, though nothing ran after it. The clock's sleep now takes the signal and clears its timer;
+- no test covered how the engine wires the wait and Stop. Two engine tests do now, for the question's search and for one of Claude's own;
+- the inspector's other methods searched with the page's filter, not the doc types of Claude's search;
+- only a screen reader heard what Search again costs, and the status line never said what a search brought back;
+- comments and ADR-0006 still said that the trace comes first. A `wait` can come before it, which ADR-0006 now says;
+- the made-up answer's search named one query and its trace another. They match now, with the counts its chunks give.
 
 ## Alternatives considered
 

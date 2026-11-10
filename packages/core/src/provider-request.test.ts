@@ -162,4 +162,17 @@ describe('requestWithRetries', () => {
       expect(clock.slept).toEqual([])
     })
   })
+
+  it('tells of a wait for the rate limit, and not of a backoff after a server error', async () => {
+    const { clock, limiter } = setup()
+    const { request } = failing(
+      clock,
+      new ProviderRequestError('unavailable', { status: 503, retryAfterMs: 2_000 }),
+      rateLimit(30_000),
+    )
+    const told: number[] = []
+    await requestWithRetries(1, request, { limiter, onWait: (ms) => told.push(ms) })
+    expect(clock.slept).toEqual([2_000, 30_000])
+    expect(told).toEqual([30_000])
+  })
 })

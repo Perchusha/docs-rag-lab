@@ -1,7 +1,7 @@
 import { encodeEvent, type AnswerEvent } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
-import { answerFixture, documentFixture, traces } from '../fixtures.ts'
+import { agenticFixture, answerFixture, documentFixture, traces } from '../fixtures.ts'
 import { fetchTransport, readEvents } from './transport.ts'
 
 const endpoints = { ask: '/api/ask', search: '/api/search', documents: '/api/documents' }
@@ -61,6 +61,16 @@ describe('fetchTransport', () => {
     expect(calls[0]?.init?.method).toBe('POST')
     expect(calls[0]?.init?.body).toBe('{"question":"q","strategy":"vector"}')
     expect(calls[0]?.init?.signal).toBe(signal)
+  })
+
+  it('streams the steps of an agentic answer, asked for in the body', async () => {
+    const wire = agenticFixture.events.map(encodeEvent).join('')
+    const { calls, fetchFn } = fakeFetch(() => new Response(chunkedBody(wire, 64)))
+    const transport = fetchTransport(endpoints, fetchFn)
+    const request = { question: 'q', strategy: 'hybrid' as const, agentic: true }
+    const events = await collect(transport.ask(request, new AbortController().signal))
+    expect(events).toEqual(agenticFixture.events)
+    expect(calls[0]?.init?.body).toBe('{"question":"q","strategy":"hybrid","agentic":true}')
   })
 
   it('returns the trace from search and the document from documents', async () => {

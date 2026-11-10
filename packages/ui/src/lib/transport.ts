@@ -4,13 +4,14 @@
 import {
   EventDecoder,
   type AnswerEvent,
+  type AskRequest,
   type DocumentChunks,
   type RetrievalRequest,
   type RetrievalTrace,
 } from '@docs-rag-lab/contracts'
 
 export interface Endpoints {
-  /** POST a RetrievalRequest; the response is an NDJSON stream of AnswerEvents. */
+  /** POST an AskRequest; the response is an NDJSON stream of AnswerEvents. */
   ask: string
   /** POST a RetrievalRequest; the response is the RetrievalTrace. No Claude call. */
   search: string
@@ -19,7 +20,7 @@ export interface Endpoints {
 }
 
 export interface Transport {
-  ask(request: RetrievalRequest, signal: AbortSignal): AsyncIterable<AnswerEvent>
+  ask(request: AskRequest, signal: AbortSignal): AsyncIterable<AnswerEvent>
   search(request: RetrievalRequest, signal: AbortSignal): Promise<RetrievalTrace>
   document(source: string, path: string, signal: AbortSignal): Promise<DocumentChunks>
 }

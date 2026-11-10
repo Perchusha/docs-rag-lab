@@ -8,6 +8,7 @@ import {
 import type { RetrievalSettings } from '@docs-rag-lab/settings'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
+import { RateLimiter } from './embeddings/rate-limit.ts'
 import { rankingOf } from './eval/metrics.ts'
 import type { RerankProvider } from './rerank/provider.ts'
 import { retrieve, type RerankStep, type RetrieveOptions } from './retrieve.ts'
@@ -244,6 +245,35 @@ describe('retrieve', () => {
     expect(provider.calls).toEqual([{ texts: [QUESTION], inputType: 'query' }])
     expect(first.trace.embedding).toMatchObject({ provider: provider.id, from: 'api' })
     expect(second.trace.embedding.from).toBe('cache')
+  })
+
+  it("tells of a wait for the embedding's rate limit, and gives the wait up when stopped", async () => {
+    const clock = {
+      now: () => 0,
+      sleep: (ms: number) => {
+        told.push(-ms)
+        return new Promise<void>(() => undefined)
+      },
+    }
+    const told: number[] = []
+    const limiter = new RateLimiter({ rpm: 1, tpm: 1_000_000 }, clock)
+    await limiter.acquire(1)
+    const controller = new AbortController()
+
+    const searching = retrieve(
+      options(new RecordingProvider(), {
+        limiter,
+        onWait: (ms) => {
+          told.push(ms)
+          controller.abort(new Error('stopped'))
+        },
+        signal: controller.signal,
+      }),
+    )
+
+    await expect(searching).rejects.toThrow('stopped')
+    // Stopped while being told, so it never sleeps.
+    expect(told).toEqual([60_250])
   })
 
   describe('rerank', () => {

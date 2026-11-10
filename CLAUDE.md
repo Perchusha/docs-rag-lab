@@ -10,7 +10,7 @@ The full spec is in `SPEC.md`. Read the sections relevant to your task before pl
 
 ## Current milestone
 
-M9 - Agentic mode (see SPEC.md section 13). M0 to M8 are done. v1.0 is M5 through M9, and from M6 on the process is lighter (ADR-0015). Update this line when a milestone is done.
+None. M0 to M9 are done, so v1.0, which is M5 through M9, is done (ADR-0015). What comes after it is under "Later, after v1.0" in SPEC.md section 13, with no date: the owner picks the next milestone. Update this line when one starts.
 
 ## Commands
 
@@ -49,7 +49,7 @@ Requires Node 26.13.0 and pnpm 12.16.1. Never list a command here that has not b
 - Retrieval only, no Claude call: `pnpm drl search "<question>"` (add `--strategy vector` for vector search only, `--doc-type option` to filter, `--json` for the whole trace; `ask` takes the same flags)
 - Rate limits of embeddings and rerank: `pnpm drl limits`
 - Network smoke test, spends real tokens: `pnpm test:network`
-- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
+- The ts-docs app: `pnpm dev` (http://127.0.0.1:3000; an Ask with Search again checked is agentic and costs about 44% more (ADR-0019); the inspector's toggle and Search only make no Claude call, and its Reranker tab makes one free Voyage call and no Claude call; `/eval` is the dashboard, which only reads committed reports)
 - The react-docs app: `pnpm dev:react` (http://127.0.0.1:3001; the same routes and costs as ts-docs)
 - The interview-prep app: `pnpm dev:interview` (http://127.0.0.1:3002; practice calls no model, but each Check my answer on a card, like each graded answer of the mock interview, makes one hybrid search and one call to Claude, about a cent; its progress, flags and mock interviews are in `data/apps/interview-prep.sqlite`)
 - Storybook: `pnpm storybook` (http://127.0.0.1:6006)

@@ -6,7 +6,6 @@ import type Anthropic from '@anthropic-ai/sdk'
 import {
   NO_CONTEXT,
   type AnswerEvent,
-  type EvalAgentSearch,
   type RetrievalRequest,
   type Strategy,
 } from '@docs-rag-lab/contracts'
@@ -363,24 +362,25 @@ describe('createEngine', () => {
       messages: [searching, citing(2, `https://x.dev/a#${third ?? ''}`)],
     })
     const events: AnswerEvent[] = []
-    const searches: [EvalAgentSearch, string][] = []
     const host = engine(provider, client)
 
     const { hits } = await host.askAgentic(
       { question: QUESTION },
-      {
-        meter: new UsageMeter(),
-        onEvent: (event) => events.push(event),
-        onSearch: (search, trace) => searches.push([search, trace.question]),
-      },
+      { meter: new UsageMeter(), onEvent: (event) => events.push(event) },
     )
 
     expect(host.docTypes('demo')).toEqual(['handbook'])
     expect(hits).toHaveLength(2)
     const added = ['near', 'code', 'other'].filter((id) => !hits.some((h) => h.chunkId === id))
-    expect(searches).toEqual([
-      [{ query: 'classes', docTypes: [], chunkIds: added, alreadyShown: 1 }, 'classes'],
-    ])
+    // Each search of its own as it begins, then as it ends with its trace, before the answer.
+    const steps = events.filter((event) => event.type === 'search' || event.type === 'searched')
+    expect(steps.map((event) => event.type)).toEqual(['search', 'searched'])
+    expect(steps[0]).toEqual({ type: 'search', query: 'classes', docTypes: [] })
+    expect(steps[1]).toMatchObject({ type: 'searched', found: added.length, alreadyShown: 1 })
+    expect(steps[1]?.type === 'searched' ? steps[1].trace.question : '').toBe('classes')
+    expect(events.findIndex((event) => event.type === 'searched')).toBeLessThan(
+      events.findIndex((event) => event.type === 'text'),
+    )
     expect(client.requests).toHaveLength(2)
     expect(client.requests[0]?.cache_control).toEqual({ type: 'ephemeral' })
     expect(events[0]?.type).toBe('trace')
@@ -392,6 +392,86 @@ describe('createEngine', () => {
     // Only the answer's own step reaches the events, as only it is scored in eval.
     const text = events.flatMap((event) => (event.type === 'text' ? [event.text] : [])).join('')
     expect(text).toBe('Classes.')
+  })
+
+  /** An engine whose embedding limit allows one request a minute, as a slow free tier does. */
+  function slowEngine(provider: RecordingProvider, client: ReturnType<typeof fakeAnswerClient>) {
+    return createEngine({
+      settings: {
+        ...settings,
+        embeddings: { ...settings.embeddings, rateLimit: { rpm: 1, tpm: 1_000_000 } },
+      },
+      sources: [source],
+      root,
+      createProvider: () => provider,
+      createClient: () => client,
+    })
+  }
+
+  it("tells of a wait for the question's search, and Stop ends it before any Claude call", async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const client = fakeAnswerClient()
+    const host = slowEngine(provider, client)
+    // The minute's one request.
+    await host.search({ question: 'a first question' }, new UsageMeter())
+    const controller = new AbortController()
+    const events: AnswerEvent[] = []
+
+    const asking = host.ask(
+      { question: 'a second question' },
+      {
+        meter: new UsageMeter(),
+        signal: controller.signal,
+        onEvent: (event) => {
+          events.push(event)
+          // The person stops as soon as the chat says it waits.
+          if (event.type === 'wait') controller.abort(new Error('stopped'))
+        },
+      },
+    )
+
+    await expect(asking).rejects.toThrow('stopped')
+    expect(events).toHaveLength(1)
+    expect(events[0]?.type).toBe('wait')
+    expect(events[0]?.type === 'wait' ? events[0].ms : 0).toBeGreaterThan(50_000)
+    expect(provider.calls).toHaveLength(1)
+    expect(client.requests).toHaveLength(0)
+  })
+
+  it('tells of a wait for a search of its own, and Stop ends it with no further Claude request', async () => {
+    const provider = new RecordingProvider()
+    seed(provider)
+    const searching = {
+      ...ANSWER_MESSAGE,
+      usage: { input_tokens: 10, output_tokens: 5 },
+      stop_reason: 'tool_use',
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'search_docs', input: { query: 'classes' } },
+      ],
+    } as Anthropic.Message
+    const client = fakeAnswerClient({ messages: [searching, ANSWER_MESSAGE] })
+    const host = slowEngine(provider, client)
+    const controller = new AbortController()
+    const events: AnswerEvent[] = []
+
+    const asking = host.askAgentic(
+      { question: QUESTION },
+      {
+        meter: new UsageMeter(),
+        signal: controller.signal,
+        onEvent: (event) => {
+          events.push(event)
+          if (event.type === 'wait') controller.abort(new Error('stopped'))
+        },
+      },
+    )
+
+    await expect(asking).rejects.toThrow('stopped')
+    expect(events.map((event) => event.type)).toEqual(['trace', 'search', 'wait'])
+    // The question's embedding, and none for the search that was stopped.
+    expect(provider.calls).toHaveLength(1)
+    expect(client.requests).toHaveLength(1)
   })
 
   it('creates the Claude client before retrieving, so a missing key costs no embedding', async () => {

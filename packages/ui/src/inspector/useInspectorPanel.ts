@@ -1,4 +1,4 @@
-import type { Citation, RetrievalRequest, Strategy } from '@docs-rag-lab/contracts'
+import type { Citation, RetrievalRequest, RetrievalTrace, Strategy } from '@docs-rag-lab/contracts'
 import { useCallback, useRef, useState } from 'react'
 
 import type { Exchange } from '../lib/assistant.ts'
@@ -32,6 +32,21 @@ export interface InspectorPanelState {
   panel: InspectorPanelProps | undefined
 }
 
+/** The answer's searches that have a trace, the question's first, then Claude's own in order. */
+function searchesOf(exchange: Exchange): { label: string; query: string; trace: RetrievalTrace }[] {
+  const { state } = exchange
+  const first =
+    state.trace === undefined
+      ? []
+      : [{ label: '1. The question', query: state.question, trace: state.trace }]
+  const own = state.steps.flatMap((step, i) =>
+    step.trace === undefined
+      ? []
+      : [{ label: `${String(i + 2)}. "${step.query}"`, query: step.query, trace: step.trace }],
+  )
+  return [...first, ...own]
+}
+
 /** The inspector, which opens on demand: what it shows, and where focus goes. */
 export function useInspectorPanel(options: InspectorPanelOptions): InspectorPanelState {
   const { transport, exchanges, requestFor, focusFallback } = options
@@ -46,6 +61,8 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
   const [tab, setTab] = useState<InspectorTab | undefined>(undefined)
   const [reveal, setReveal] = useState<string | undefined>(undefined)
   const [focusHeading, setFocusHeading] = useState(false)
+  // Which of the answer's searches is shown: the question's, or one of Claude's own (ADR-0019).
+  const [searchIndex, setSearchIndex] = useState(0)
   const revealed = useCallback(() => {
     setReveal(undefined)
   }, [])
@@ -54,6 +71,8 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
   }, [])
 
   const shown = target === 'latest' ? exchanges.at(-1) : exchanges.find((e) => e.id === target)
+  const searches = shown === undefined ? [] : searchesOf(shown)
+  const answerTrace = searches[searchIndex]?.trace ?? shown?.state.trace
 
   /** Points the panel at an exchange, from a clean start. */
   const showExchange = (next: number | 'latest', question: string) => {
@@ -64,6 +83,7 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
     setSelected(undefined)
     setTab(undefined)
     setReveal(undefined)
+    setSearchIndex(0)
   }
 
   const close = () => {
@@ -85,10 +105,16 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
     setReveal(undefined)
     setTab((current) => (current === 'fusion' ? undefined : current))
     compare.reset()
-    fresh.search(requestFor(question, method))
+    const request = requestFor(question, method)
+    // A search of Claude's own kept to the doc types it chose, whatever the page's filter says.
+    fresh.search(
+      searchIndex > 0 && answerTrace !== undefined
+        ? { ...request, docTypes: answerTrace.filters.docTypes }
+        : request,
+    )
   }
 
-  const shownTrace = fresh.trace ?? shown?.state.trace
+  const shownTrace = fresh.trace ?? answerTrace
 
   return {
     shown,
@@ -110,8 +136,17 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
     },
     showCitation: (exchange, citation, button) => {
       trigger.current = button
-      // A citation points into the answer's own trace, not into a fresh search.
-      showExchange(exchange.id, exchange.state.question)
+      // A citation points into the answer's own trace, not into a fresh search: in agentic mode,
+      // into the first of its searches that brought the chunk, whose query the field then shows.
+      const all = searchesOf(exchange)
+      const from = Math.max(
+        0,
+        all.findIndex(({ trace }) =>
+          trace.context.some(({ chunkId }) => chunkId === citation.chunkId),
+        ),
+      )
+      showExchange(exchange.id, all[from]?.query ?? exchange.state.question)
+      setSearchIndex(from)
       setFocusHeading(false)
       setSelected(citation.chunkId)
       setTab('context')
@@ -122,7 +157,17 @@ export function useInspectorPanel(options: InspectorPanelOptions): InspectorPane
         ? undefined
         : {
             trace: shownTrace,
-            answerTrace: shown.state.trace,
+            answerTrace,
+            searches: searches.map(({ label }) => label),
+            searchIndex,
+            onSearchIndexChange: (index) => {
+              fresh.reset()
+              compare.reset()
+              setSearchIndex(index)
+              setQuery(searches[index]?.query ?? shown.state.question)
+              setSelected(undefined)
+              setReveal(undefined)
+            },
             usage: shown.state.usage,
             citations: shown.state.citations,
             searching: fresh.searching,

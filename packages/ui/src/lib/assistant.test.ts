@@ -1,9 +1,10 @@
-import { NO_CONTEXT } from '@docs-rag-lab/contracts'
+import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
 import { describe, expect, it } from 'vitest'
 
-import { answerFixture } from '../fixtures.ts'
+import { answerFixture, traces } from '../fixtures.ts'
 import {
   assistantReducer,
+  foundText,
   isRunning,
   startState,
   statusText,
@@ -68,6 +69,58 @@ describe('assistantReducer', () => {
 
   it('announces nothing before the first question', () => {
     expect(statusText(undefined)).toBe('')
+  })
+})
+
+describe('agentic mode (ADR-0019)', () => {
+  const event = (value: AnswerEvent): AssistantAction => ({ type: 'event', event: value })
+
+  it('shows each search of its own as it begins, waits and ends, in what it announces', () => {
+    const asked = startState('q', true)
+    const waiting = run([event({ type: 'wait', ms: 40_200 })], asked)
+    expect(statusText(waiting)).toBe("Waiting about 41 seconds for Voyage's rate limit")
+
+    const read = run([event({ type: 'trace', trace: traces.satisfies })], waiting)
+    expect(read.waitMs).toBeUndefined()
+    expect(statusText(read)).toBe('Reading the results')
+
+    const searching = run(
+      [event({ type: 'search', query: 'satisfies operator', docTypes: ['release-notes'] })],
+      read,
+    )
+    expect(searching.steps).toMatchObject([
+      { query: 'satisfies operator', docTypes: ['release-notes'], status: 'searching' },
+    ])
+    expect(statusText(searching)).toBe('Searching again for "satisfies operator"')
+
+    const held = run([event({ type: 'wait', ms: 53_000 })], searching)
+    expect(statusText(held)).toBe(
+      'Searching again for "satisfies operator". Waiting about 53 seconds for Voyage\'s rate limit',
+    )
+
+    const found = run(
+      [event({ type: 'searched', found: 3, alreadyShown: 5, trace: traces.ts2345 })],
+      held,
+    )
+    expect(found.steps).toMatchObject([
+      { status: 'done', waitMs: undefined, found: 3, alreadyShown: 5, trace: traces.ts2345 },
+    ])
+    expect(statusText(found)).toBe(
+      'Searched again for "satisfies operator": 3 new results, 5 already shown. Reading the results',
+    )
+    expect(isRunning(found)).toBe(true)
+  })
+
+  it('says what a search brought back, in the singular too', () => {
+    expect(foundText({ found: 3, alreadyShown: 5 })).toBe('3 new results, 5 already shown')
+    expect(foundText({ found: 1, alreadyShown: 0 })).toBe('1 new result')
+    expect(foundText({ found: 0, alreadyShown: 1 })).toBe('nothing new: 1 result already shown')
+    expect(foundText({ found: 0, alreadyShown: 0 })).toBe('no results')
+  })
+
+  it('marks an exchange asked in agentic mode', () => {
+    const [exchange] = transcriptReducer([], { type: 'ask', id: 1, question: 'q', agentic: true })
+    expect(exchange?.state.agentic).toBe(true)
   })
 })
 

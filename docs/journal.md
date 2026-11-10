@@ -9,7 +9,7 @@ Before M9, every answer read one hybrid search. Row 6 starts from that search an
 - on fully correct;
 - over both frozen sets together: TypeScript's version 3 and React's version 2, 64 answerable questions.
 
-Its ceiling was written down first: only 10 of the 64 could move up. This entry covers PRs 1 to 3, #42, #43 and this one. PR 4 adds the agentic chat to the docs apps.
+Its ceiling was written down first: only 10 of the 64 could move up. This entry covers all four PRs: #42, #43, #44, and the agentic chat in the docs apps, which closes M9 and v1.0.
 
 | Over both sets, first answers | 3, one search | 6, agentic |
 |---|---|---|
@@ -37,13 +37,22 @@ Its ceiling was written down first: only 10 of the 64 could move up. This entry 
 
 **Spend:** $7.19 of Claude at list prices against a limit of $10: $0.25 for the pilot, $5.18 for TypeScript and $1.76 for React. Rows 0, 2 and 3 and their verdicts came from the cache.
 
-**Next:** PR 4, the agentic chat in the docs apps as an option. One search stays the default, since H does not hold.
+**The agentic chat (PR 4).** The docs apps' chat has a Search again checkbox, off by default, since H does not hold.
+- **Why it shows each step.** An answer that searches again waits 25 s to 93 s on the free tier, and a minute of silence reads as a hang. So the chat shows each search of Claude's own as it happens: its query, how long it waits for Voyage's rate limit, and how many results came back.
+- **Where the wait comes from.** The limiter announces it as it starts. So the single-shot chat now says when its one search waits too.
+- **Stop works throughout.** It ends a wait for the rate limit at once, and no step starts after it.
+- **The inspector** holds each search's trace, and a citation opens the search that brought its chunk.
+- **Cost of PR 4.** No paid call: the stories replay an agentic answer made up from recorded parts.
+
+**Next:** v1.0 is done. What comes after it is in SPEC section 13, with no date.
 
 ### Open items
 
 - **Half the misses go unnoticed.** Claude searched again on 3 of the 6. A prompt or a signal that says what the first results lack might change that, and it would need a test of its own.
 - **An uncited claim reads to the judge as a hallucination,** even when a passage in the conversation says it, since the judge reads only what is cited. That is ts-0044's second answer.
 - **On error codes, the agent searches for the message from memory.** The plain chunks hold no message next to its code, and the compiled index does (M7).
+- **A translation step before retrieval, a candidate for after v1.0.** Every query of the agent's own was in English, and on both Russian misses its English query found what keyword search on the Russian question had buried. One translation of a question not in the docs' language might fix that without an agent. It needs a test of its own, and 8 Russian questions are too few for one.
+- **The agentic chat has not been tried live.** Its first real Ask is the owner's.
 
 ## M8 - The interview-prep app: a bank that passed a blind test, and a mock interview (2026-11-09)
 

@@ -27,6 +27,7 @@ export {
   type AnswerEvent,
   type Citation,
   type ModelUsageSummary,
+  type AskRequest,
   type RetrievalRequest,
   type UsageSummary,
 } from './answer.ts'
@@ -141,7 +142,12 @@ export {
   parseEvent,
   StreamFormatError,
 } from './ndjson.ts'
-export { MAX_QUESTION_LENGTH, parseRetrievalRequest, type Parsed } from './requests.ts'
+export {
+  MAX_QUESTION_LENGTH,
+  parseAskRequest,
+  parseRetrievalRequest,
+  type Parsed,
+} from './requests.ts'
 export {
   COMPARED_METRICS,
   EVAL_REPORT_VERSION,

@@ -2,7 +2,13 @@ import { NO_CONTEXT, type AnswerEvent } from '@docs-rag-lab/contracts'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
-import { answerFixture, citationAfterCodeFixture, tableAnswerFixture, traces } from '../fixtures.ts'
+import {
+  agenticFixture,
+  answerFixture,
+  citationAfterCodeFixture,
+  tableAnswerFixture,
+  traces,
+} from '../fixtures.ts'
 import {
   assistantReducer,
   startState,
@@ -13,12 +19,16 @@ import { Answer } from './Answer.tsx'
 
 const question = 'In which version did `satisfies` appear?'
 
-function stateAfter(events: readonly AnswerEvent[], extra: AssistantAction[] = []): AssistantState {
+function stateAfter(
+  events: readonly AnswerEvent[],
+  extra: AssistantAction[] = [],
+  agentic = false,
+): AssistantState {
   const actions: AssistantAction[] = [
     ...events.map((event) => ({ type: 'event', event }) as const),
     ...extra,
   ]
-  return actions.reduce(assistantReducer, startState(question))
+  return actions.reduce(assistantReducer, startState(question, agentic))
 }
 
 const meta = {
@@ -119,5 +129,98 @@ export const Failed: Story = {
     state: stateAfter(answerFixture.events.slice(0, 3), [
       { type: 'failed', message: 'Overloaded: the API is busy, try again shortly' },
     ]),
+  },
+}
+
+/** The first search waits for Voyage's free tier, which allows 3 embedding requests a minute. */
+export const WaitingForTheRateLimit: Story = {
+  args: { state: stateAfter([{ type: 'wait', ms: 58_300 }]) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.getByRole('article')).toHaveTextContent(
+      "Waiting about 59 seconds for Voyage's rate limit",
+    )
+    await expect(canvas.queryByRole('list', { name: "Searches of Claude's own" })).toBeNull()
+  },
+}
+
+const searchedFor = 'checkJs errors in JavaScript files'
+
+/** Agentic mode (ADR-0019): a search of Claude's own, waiting for the rate limit as it runs. */
+export const AgenticSearchWaiting: Story = {
+  args: {
+    state: stateAfter(agenticFixture.events.slice(0, 3), [], true),
+    docTypeLabels: { option: 'Compiler options' },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    const [step, ...more] = within(steps).getAllByRole('listitem')
+    await expect(more).toHaveLength(0)
+    await expect(step).toHaveTextContent(
+      `Searching again for ${searchedFor} in Compiler options: Waiting about 42 seconds for Voyage's rate limit`,
+    )
+    // The query is quoted, by the browser, so a screen reader reads where it starts and ends.
+    await expect(step?.querySelector('q')).toHaveTextContent(searchedFor)
+    await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'true')
+  },
+}
+
+/** The search done: what it brought back stays above the answer, which cites what it found. */
+export const AgenticDone: Story = {
+  args: {
+    state: stateAfter(agenticFixture.events, [], true),
+    docTypeLabels: { option: 'Compiler options' },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(
+      `Searched again for ${searchedFor} in Compiler options: 8 new results`,
+    )
+    await expect(canvas.getByRole('article')).toHaveAttribute('aria-busy', 'false')
+
+    const own = agenticFixture.citations.at(-1)
+    const [citation] = canvas.getAllByRole('button', { name: /^Source 2: / })
+    await userEvent.click(citation ?? canvasElement)
+    await expect(args.onCitation).toHaveBeenCalledWith(own, citation)
+  },
+}
+
+/** Stopped during that wait: the search says it was stopped, and waits no more. */
+export const AgenticSearchStopped: Story = {
+  args: {
+    state: stateAfter(agenticFixture.events.slice(0, 3), [{ type: 'stopped' }], true),
+    docTypeLabels: { option: 'Compiler options' },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(
+      `Searching again for ${searchedFor} in Compiler options: stopped`,
+    )
+    await expect(canvas.getByRole('article')).not.toHaveTextContent('Waiting')
+    await expect(canvas.getByRole('article')).toHaveTextContent('Stopped.')
+  },
+}
+
+/** The answer failed during that search: the search says it did not finish. */
+export const AgenticSearchFailed: Story = {
+  args: {
+    state: stateAfter(
+      agenticFixture.events.slice(0, 2),
+      [{ type: 'failed', message: 'Voyage refused the request (500)' }],
+      true,
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const steps = canvas.getByRole('list', { name: "Searches of Claude's own" })
+    await expect(steps).toHaveTextContent(
+      `Searching again for ${searchedFor} in Option: did not finish`,
+    )
+    await expect(canvas.getByRole('article')).toHaveTextContent(
+      'Error: Voyage refused the request (500)',
+    )
   },
 }

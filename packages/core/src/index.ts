@@ -209,7 +209,6 @@ export {
   InvalidRequestError,
   MAX_TOP_K,
   UnknownSourceError,
-  type AgenticAskRun,
   type AskRun,
   type Engine,
   type EngineOptions,

@@ -65,3 +65,31 @@
     opacity: 1;
   }
 }
+
+/* Agentic mode (ADR-0019): each search of Claude's own, as it happens. */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.step,
+.stepRunning {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--color-border-strong);
+  overflow-wrap: anywhere;
+}
+
+.stepRunning {
+  border-inline-start-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.query {
+  font-style: italic;
+}

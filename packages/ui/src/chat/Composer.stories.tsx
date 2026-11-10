@@ -280,3 +280,53 @@ export const SearchInSummaries: Story = {
     await expect(canvas.getByRole('button', { name: /^Search in: Compiler options/ })).toBeVisible()
   },
 }
+
+/**
+ * Agentic mode (ADR-0019): a checkbox after the filter, off by default, which says what it costs.
+ * It is as tall as the select and on its line, and Enter on it toggles it and sends nothing.
+ */
+export const SearchAgain: Story = {
+  args: { onAgenticChange: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole('checkbox', { name: 'Search again' })
+    await expect(toggle).not.toBeChecked()
+    // Off, it is read with the checkbox and not shown.
+    const hint = canvas.getByText(/a search can wait a minute/).getBoundingClientRect()
+    await expect(hint.width * hint.height).toBeLessThanOrEqual(1)
+    await expect(toggle).toHaveAccessibleDescription(
+      'When the first results fall short, Claude may search twice more. Slower: on the free tier, a search can wait a minute or more for Voyage.',
+    )
+    const select = canvas.getByRole('button', { name: /^Search in/ }).getBoundingClientRect()
+    const label = (toggle.closest('label') ?? toggle).getBoundingClientRect()
+    await expect(label.height).toBe(select.height)
+    await expect(label.top).toBe(select.top)
+    await expect(label.left).toBeGreaterThan(select.right)
+
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Question' }), 'Still writing')
+    await userEvent.tab()
+    await userEvent.tab()
+    await expect(toggle).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    await expect(args.onAgenticChange).toHaveBeenLastCalledWith(true)
+    await expect(args.onSend).not.toHaveBeenCalled()
+    await expect(canvas.getByRole('textbox', { name: 'Question' })).toHaveValue('Still writing')
+
+    await userEvent.click(canvas.getByText('Search again'))
+    await expect(args.onAgenticChange).toHaveBeenCalledTimes(2)
+  },
+}
+
+/** On: checked, in the text's color rather than the muted one, and what it costs is shown. */
+export const SearchAgainOn: Story = {
+  args: { agentic: true, onAgenticChange: fn() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = canvas.getByRole('checkbox', { name: 'Search again' })
+    await expect(toggle).toBeChecked()
+    await expect(canvas.getByText(/a search can wait a minute or more/)).toBeVisible()
+    const on = getComputedStyle(toggle.closest('label') ?? toggle).color
+    const muted = getComputedStyle(canvas.getByRole('button', { name: /^Search in/ })).color
+    await expect(on).not.toBe(muted)
+  },
+}

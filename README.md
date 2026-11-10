@@ -13,7 +13,12 @@ Everything runs locally. There is no deployment. The full design is in [SPEC.md]
 
 ## Status
 
-**M8 (the interview-prep app) is done:** the owner's hands-on review passed, and its last PR merged on 2026-11-09. Its question bank passed the owner's blind test, below. M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve: they were measured, and they did not (below). v1.0 is M5 through M9. M9, agentic mode, is measured, below: a second search reaches what the first missed when Claude notices the gap, and the answers are not more correct. Its last PR adds the agentic chat to the docs apps as an option. The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). The test over both sets comes first, then TypeScript's results and React's. They are different questions on different docs, and their numbers are never compared.
+**v1.0 is done.** It is M5 through M9.
+- **M9, agentic mode, is measured,** below: a second search reaches what the first missed when Claude notices the gap, and the answers are not more correct. The docs apps' chat offers it as an option, Search again, off by default.
+- **M8 (the interview-prep app) passed the owner's hands-on review,** and its question bank passed the owner's blind test, below.
+- **M7 (the compiler's output in the chunks) asked that the `exact-token` questions improve:** they were measured, and they did not (below).
+
+The MCP server and more sources moved to later ([ADR-0015](docs/adr/0015-v1-scope-and-a-lighter-process.md)). The test over both sets comes first, then TypeScript's results and React's. They are different questions on different docs, and their numbers are never compared.
 
 The milestones are in [SPEC.md section 13](SPEC.md#13-milestones). Notes and metrics per milestone, including the first full index, are in [docs/journal.md](docs/journal.md).
 
@@ -48,6 +53,15 @@ Every claim about retrieval quality is backed by a measured row in the tables be
   - 23% of the answers searched again, below the break-even of about one in three.
   - The answers cost $4.434 with caching, against $4.423 for the same tokens without it.
 - **A search of its own is slow on the free tier.** An answer that did not search again took about 4 s, as row 3's do. One that searched took 25 s to 93 s in the first answers, mostly waiting for Voyage's 3 requests a minute. Over all the first answers, row 6 took 17.8 s on TypeScript and 15.6 s on React, against 4.4 s and 3.9 s.
+
+**In the docs apps, it is an option.** The chat's Search again checkbox, off by default, asks in agentic mode.
+- **Each search of Claude's own shows as it happens:** its query, then how long it waits for Voyage's rate limit, then how many results came back. The answer arrives with the last step.
+- **Stop works throughout,** a wait for the rate limit included.
+- **The inspector shows each search's trace,** and a citation opens the search that brought its chunk.
+- **An Ask costs about 44% more this way,** and the inspector says what each Ask cost.
+- **It is slower when Claude searches again.** In M9's runs such an answer took 25 s to 93 s, mostly waiting for Voyage's free tier. The checkbox says so once it is checked.
+
+**A candidate for after v1.0:** one translation step before retrieval, for a question not in the docs' language. It might fix the two Russian misses without an agent, and it needs a test of its own first.
 
 The numbers come from [TypeScript's report](eval/reports/typescript/2026-11-09-0e629627-m9.md), [React's](eval/reports/react/2026-11-09-bb8cc039-m9.md) and [the test over both](eval/pooled/m9.md).
 - `drl eval verify` reproduced both reports' retrieval byte for byte.
@@ -243,7 +257,7 @@ pnpm dev                          # the docs assistant on http://127.0.0.1:3000
 | `pnpm drl eval check --draft` | The same for `eval/questions.draft.jsonl`: which anchors do not resolve and what each question copies from the pages it is anchored to, and it fails above 2 fresh questions on a page ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)) |
 | `pnpm drl eval walk [--top <n>]` | Every indexed page and heading, newest first by git history at the index's commit, to pick fresh questions from ([ADR-0016](docs/adr/0016-react-source-and-its-test.md)). It clones the docs' history once, under the cache, and looks at no question or ranking |
 | `pnpm test:network` | Opt-in network smoke test: one tiny embedding and one tiny Claude call. Never runs in CI |
-| `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens; the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
+| `pnpm dev` | The ts-docs app on http://127.0.0.1:3000, after `drl sync typescript`. Asking spends tokens, and with Search again checked about 44% more, as Claude may search twice more ([ADR-0019](docs/adr/0019-agentic-mode-and-its-test.md)); the inspector's toggle and Search only make no Claude call, its Reranker tab makes one free Voyage call and no Claude call, and `/eval` only reads committed reports |
 | `pnpm dev:react` | The react-docs app on http://127.0.0.1:3001, after `drl sync react`. It has the same routes and costs as `pnpm dev` |
 | `pnpm dev:interview` | The interview-prep app on http://127.0.0.1:3002, after `drl questions <source>` ([ADR-0018](docs/adr/0018-interview-prep-and-its-bank.md)). Practice calls no model, but for Check my answer. Each check, and each graded answer of the mock interview, makes one hybrid search and one call to Claude, about a cent; a skipped answer calls nothing. Progress is spaced repetition by FSRS, in `data/apps/interview-prep.sqlite`, with the flags and the mock interviews |
 | `pnpm storybook` | Storybook for the ui package on http://127.0.0.1:6006, with the accessibility panel |

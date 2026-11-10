@@ -101,6 +101,56 @@ function answer(ndjson: string) {
 /** The recorded answer to the `satisfies` question: its events, and what they add up to. */
 export const answerFixture = answer(answerNdjson)
 
+/**
+ * An agentic answer (ADR-0019), made up from recorded parts and not recorded itself: the
+ * `satisfies` answer, with one search of Claude's own between its trace and its text. That search
+ * waited for Voyage's rate limit and came back with the TS2345 trace, given the search's query
+ * and doc types. Its chunks are that trace's, of every doc type, and none of them was in the first
+ * search, so all 8 are new. A last sentence cites the first of them, so a citation can open the
+ * inspector on the search it came from.
+ */
+export const agenticFixture = (() => {
+  const [first, ...rest] = answerFixture.events
+  const done = rest.at(-1)
+  const own = traces.ts2345.context[0]
+  const query = 'checkJs errors in JavaScript files'
+  const docTypes = ['option']
+  if (first?.type !== 'trace' || done?.type !== 'done' || own === undefined) {
+    throw new Error('the agentic fixture needs a trace first, done last and a chunk to cite')
+  }
+  const number = answerFixture.citations.length + 1
+  const events: AnswerEvent[] = [
+    first,
+    { type: 'search', query, docTypes },
+    { type: 'wait', ms: 41_200 },
+    {
+      type: 'searched',
+      found: traces.ts2345.context.length,
+      alreadyShown: 0,
+      trace: { ...traces.ts2345, question: query, filters: { docTypes } },
+    },
+    ...rest.slice(0, -1),
+    { type: 'text', text: ' The option `checkJs` reports errors in JavaScript files.' },
+    {
+      type: 'citations',
+      numbers: [number],
+      citations: [
+        {
+          number,
+          source: own.source,
+          title: own.title,
+          citedText: 'Enable error reporting in type-checked JavaScript files.',
+          chunkId: own.chunkId,
+          // After the first search's chunks: the conversation numbers its chunks in order.
+          contextRank: first.trace.context.length + 1,
+        },
+      ],
+    },
+    done,
+  ]
+  return { events, ...summarize(events) }
+})()
+
 /** A recorded answer with a GFM table with cited cells, then two code blocks. */
 export const tableAnswerFixture = answer(tableAnswerNdjson)
 

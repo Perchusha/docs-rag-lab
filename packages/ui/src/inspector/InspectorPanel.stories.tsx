@@ -273,3 +273,31 @@ export const FocusHeading: Story = {
     await expect(args.onHeadingFocused).toHaveBeenCalledOnce()
   },
 }
+
+const ownSearch = '2. "checkJs errors in JavaScript files"'
+
+/** Agentic mode (ADR-0019): the answer's searches, the question's first, and which one shows. */
+export const AnswerSearches: Story = {
+  args: {
+    searches: ['1. The question', ownSearch],
+    searchIndex: 0,
+    onSearchIndexChange: fn(),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement)
+    const group = canvas.getByRole('group', { name: "The answer's searches" })
+    await expect(within(group).getByRole('radio', { name: '1. The question' })).toBeChecked()
+    await expect(within(group).getByRole('radio', { name: ownSearch })).not.toBeChecked()
+    await userEvent.click(within(group).getByText(ownSearch))
+    await expect(args.onSearchIndexChange).toHaveBeenCalledWith(1)
+  },
+}
+
+/** One search, as with agentic mode off: there is nothing to choose, so no choice shows. */
+export const OneSearch: Story = {
+  args: { searches: ['1. The question'], searchIndex: 0 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await expect(canvas.queryByRole('group', { name: "The answer's searches" })).toBeNull()
+  },
+}

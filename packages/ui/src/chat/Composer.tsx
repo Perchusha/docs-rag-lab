@@ -27,6 +27,9 @@ export interface ComposerProps {
   /** The doc types to search in; empty means all of them. */
   filter: readonly string[]
   onFilterChange: (filter: string[]) => void
+  /** Agentic mode (ADR-0019): Claude may search again. With no onAgenticChange, no toggle. */
+  agentic?: boolean | undefined
+  onAgenticChange?: ((agentic: boolean) => void) | undefined
   running: boolean
   onSend: (question: string) => void
   onStop: () => void
@@ -52,6 +55,8 @@ export function Composer({
   docTypeLabels,
   filter,
   onFilterChange,
+  agentic = false,
+  onAgenticChange,
   running,
   onSend,
   onStop,
@@ -108,16 +113,35 @@ export function Composer({
         Enter sends. Shift+Enter adds a new line.
       </p>
       <div className={styles.row}>
-        {docTypes.length > 0 ? (
-          <DocTypeSelect
-            docTypes={docTypes}
-            labels={docTypeLabels}
-            selected={filter}
-            onChange={onFilterChange}
-          />
-        ) : (
-          <span />
-        )}
+        <div className={styles.options}>
+          {docTypes.length > 0 && (
+            <DocTypeSelect
+              docTypes={docTypes}
+              labels={docTypeLabels}
+              selected={filter}
+              onChange={onFilterChange}
+            />
+          )}
+          {onAgenticChange !== undefined && (
+            <label className={styles.agentic}>
+              <input
+                type="checkbox"
+                checked={agentic}
+                onKeyDown={(event) => {
+                  // Enter in a form submits it, which here would send a half-written question.
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  event.currentTarget.click()
+                }}
+                onChange={(event) => {
+                  onAgenticChange(event.target.checked)
+                }}
+                aria-describedby={`${id}-agentic`}
+              />
+              Search again
+            </label>
+          )}
+        </div>
         {/* One button that changes role, so it keeps focus when a run starts or ends. */}
         <button
           type={running ? 'button' : 'submit'}
@@ -138,6 +162,13 @@ export function Composer({
           {running ? <Square fill="currentColor" strokeWidth={0} /> : <ArrowUp />}
         </button>
       </div>
+      {/* What Search again costs: seen once it is checked, and read with it either way. */}
+      {onAgenticChange !== undefined && (
+        <p id={`${id}-agentic`} className={agentic ? styles.hint : common.srOnly}>
+          When the first results fall short, Claude may search twice more. Slower: on the free tier,
+          a search can wait a minute or more for Voyage.
+        </p>
+      )}
     </form>
   )
 }

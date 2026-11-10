@@ -4,8 +4,11 @@
 import {
   encodeEvent,
   NDJSON_CONTENT_TYPE,
+  parseAskRequest,
   parseRetrievalRequest,
   type AnswerEvent,
+  type AskRequest,
+  type Parsed,
   type RetrievalRequest,
 } from '@docs-rag-lab/contracts'
 import {
@@ -19,7 +22,10 @@ import {
 } from '@docs-rag-lab/core'
 
 /** The part of the engine the routes use. */
-export type RouteEngine = Pick<Engine, 'sources' | 'search' | 'ask' | 'documentChunks'>
+export type RouteEngine = Pick<
+  Engine,
+  'sources' | 'search' | 'ask' | 'askAgentic' | 'documentChunks'
+>
 
 /** Builds the engine on first use; a failure there becomes a 500, not a crash. */
 export type EngineFactory = () => RouteEngine
@@ -52,20 +58,23 @@ export function errorResponse(error: unknown): Response {
   return Response.json({ error: messageOf(error) }, { status })
 }
 
-async function requestOf(request: Request): Promise<RetrievalRequest | Response> {
+async function requestOf<T>(
+  request: Request,
+  parse: (body: unknown) => Parsed<T>,
+): Promise<T | Response> {
   let body: unknown
   try {
     body = await request.json()
   } catch {
     return Response.json({ error: 'the body must be JSON' }, { status: 400 })
   }
-  const parsed = parseRetrievalRequest(body)
+  const parsed = parse(body)
   return parsed.ok ? parsed.value : Response.json({ error: parsed.error }, { status: 400 })
 }
 
 /** POST /api/search: the retrieval trace, no Claude call. */
 export async function handleSearch(engine: EngineFactory, request: Request): Promise<Response> {
-  const parsed = await requestOf(request)
+  const parsed = await requestOf<RetrievalRequest>(request, parseRetrievalRequest)
   if (parsed instanceof Response) return parsed
   try {
     const { trace } = await engine().search(parsed, new UsageMeter())
@@ -81,10 +90,12 @@ export async function handleSearch(engine: EngineFactory, request: Request): Pro
  * (bad field, unknown source, no index, no key) still gets a status code.
  * After that, a failure is sent as an `error` event, and logged. When the
  * browser goes away, the Claude stream stops: on the request's abort signal,
- * or when the response body is cancelled, whichever comes first.
+ * or when the response body is cancelled, whichever comes first. That also ends a
+ * wait for the embedding rate limit, and in agentic mode (ADR-0019) no step starts
+ * after it.
  */
 export async function handleAsk(engine: EngineFactory, request: Request): Promise<Response> {
-  const parsed = await requestOf(request)
+  const parsed = await requestOf<AskRequest>(request, parseAskRequest)
   if (parsed instanceof Response) return parsed
   // A rate-limited dependency stays out of the chat (ADR-0014). Search can still ask for it.
   if (parsed.strategy === 'rerank') {
@@ -126,7 +137,9 @@ export async function handleAsk(engine: EngineFactory, request: Request): Promis
 
   let ask: Promise<unknown>
   try {
-    ask = engine().ask(parsed, { meter: new UsageMeter(), onEvent: send, signal })
+    const { agentic, ...retrieval } = parsed
+    const run = { meter: new UsageMeter(), onEvent: send, signal }
+    ask = agentic === true ? engine().askAgentic(retrieval, run) : engine().ask(retrieval, run)
   } catch (error) {
     return errorResponse(error)
   }

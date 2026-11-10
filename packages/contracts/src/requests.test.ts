@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_QUESTION_LENGTH, parseRetrievalRequest } from './requests.ts'
+import { MAX_QUESTION_LENGTH, parseAskRequest, parseRetrievalRequest } from './requests.ts'
 
 describe('parseRetrievalRequest', () => {
   it('accepts a question alone, and every optional field', () => {
@@ -46,5 +46,23 @@ describe('parseRetrievalRequest', () => {
 
   it('leaves value checks to the engine: an unknown doc type or a large top K pass', () => {
     expect(parseRetrievalRequest({ question: 'q', docTypes: ['nope'], topK: 5000 }).ok).toBe(true)
+  })
+})
+
+describe('parseAskRequest', () => {
+  it('takes agentic mode, which a search does not', () => {
+    expect(parseAskRequest({ question: 'q', agentic: true })).toEqual({
+      ok: true,
+      value: { question: 'q', agentic: true },
+    })
+    expect(parseAskRequest({ question: 'q' })).toEqual({ ok: true, value: { question: 'q' } })
+    expect(parseAskRequest({ question: 'q', agentic: 'yes' })).toEqual({
+      ok: false,
+      error: 'agentic must be true or false',
+    })
+    expect(parseRetrievalRequest({ question: 'q', agentic: true })).toEqual({
+      ok: false,
+      error: 'unknown field "agentic"',
+    })
   })
 })

@@ -10,9 +10,7 @@ import {
   STRATEGIES,
   type AnswerEvent,
   type DocumentChunks,
-  type EvalAgentSearch,
   type RetrievalRequest,
-  type RetrievalTrace,
   type Strategy,
 } from '@docs-rag-lab/contracts'
 import type { Settings } from '@docs-rag-lab/settings'
@@ -62,11 +60,6 @@ export interface AskRun {
   signal?: AbortSignal | undefined
 }
 
-export interface AgenticAskRun extends AskRun {
-  /** After each search of Claude's own, with what it returned and its trace (ADR-0019). */
-  onSearch?: ((search: EvalAgentSearch, trace: RetrievalTrace) => void) | undefined
-}
-
 export interface Engine {
   readonly sources: readonly Source[]
   /** Retrieval only, no Claude call. */
@@ -85,7 +78,7 @@ export interface Engine {
    * Agentic mode (ADR-0019): ask's search, then Claude may search again with the same strategy,
    * up to settings.agentic.maxSearches times. Returns the first retrieval. Throws on failure.
    */
-  askAgentic(request: RetrievalRequest, run: AgenticAskRun): Promise<Retrieval>
+  askAgentic(request: RetrievalRequest, run: AskRun): Promise<Retrieval>
   /** The doc types a source's index holds, sorted, which search_docs can filter by. */
   docTypes(sourceId?: string): string[]
   /** A document and its chunks in order, or undefined when the path is not indexed. */
@@ -196,8 +189,18 @@ export function createEngine(options: EngineOptions): Engine {
     request: CheckedRequest,
     meter: UsageMeter,
     indexes: OpenIndexes,
+    run?: AskRun,
   ) => ({
     question: request.question,
+    // A chat says when its search waits on the embedding rate limit, and Stop ends the wait.
+    ...(run === undefined
+      ? {}
+      : {
+          onWait: (ms: number) => {
+            run.onEvent({ type: 'wait', ms })
+          },
+          signal: run.signal,
+        }),
     source,
     settings: {
       ...settings.retrieval,
@@ -254,7 +257,7 @@ export function createEngine(options: EngineOptions): Engine {
       const answerClient = clientOf()
       return await withIndexes(source, (indexes) =>
         ask({
-          ...retrieveOptions(source, checked, run.meter, indexes),
+          ...retrieveOptions(source, checked, run.meter, indexes, run),
           client: answerClient,
           model: settings.models.answer,
           effort: settings.answer.effort,
@@ -272,9 +275,8 @@ export function createEngine(options: EngineOptions): Engine {
       const answerClient = clientOf()
       return await withIndexes(source, (indexes) => {
         const toolDocTypes = indexes.index.stats().byDocType.map(({ docType }) => docType)
-        let lastTrace: RetrievalTrace | undefined
         return askAgentic({
-          ...retrieveOptions(source, checked, run.meter, indexes),
+          ...retrieveOptions(source, checked, run.meter, indexes, run),
           client: answerClient,
           model: settings.models.answer,
           effort: settings.answer.effort,
@@ -286,21 +288,16 @@ export function createEngine(options: EngineOptions): Engine {
           maxSearches: settings.agentic.maxSearches,
           // A search of Claude's own takes the request's strategy and top K, and its own doc
           // types: the request's filter is for the first search, and the tool says which to use.
-          search: async (query, docTypes) => {
-            const retrieval = await retrieve(
+          search: (query, docTypes) =>
+            retrieve(
               retrieveOptions(
                 source,
                 { ...checked, question: query, docTypes: docTypesOf(docTypes) },
                 run.meter,
                 indexes,
+                run,
               ),
-            )
-            lastTrace = retrieval.trace
-            return retrieval.hits
-          },
-          onSearch: (search) => {
-            if (lastTrace !== undefined) run.onSearch?.(search, lastTrace)
-          },
+            ),
         })
       })
     },

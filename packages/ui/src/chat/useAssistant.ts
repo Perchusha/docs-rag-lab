@@ -1,4 +1,4 @@
-import type { RetrievalRequest } from '@docs-rag-lab/contracts'
+import type { AskRequest } from '@docs-rag-lab/contracts'
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 import { transcriptReducer, type Exchange } from '../lib/assistant.ts'
@@ -8,7 +8,7 @@ import type { Transport } from '../lib/transport.ts'
 export interface Assistant {
   exchanges: readonly Exchange[]
   /** Asks a new question, which adds an exchange. Stops one still running. */
-  ask: (request: RetrievalRequest) => Promise<void>
+  ask: (request: AskRequest) => Promise<void>
   /** Stops the running question; the app route then stops the Claude stream. */
   stop: () => void
 }
@@ -23,13 +23,13 @@ export function useAssistant(transport: Transport): Assistant {
   useEffect(() => () => running.current?.controller.abort(), [])
 
   const ask = useCallback(
-    async (request: RetrievalRequest) => {
+    async (request: AskRequest) => {
       running.current?.controller.abort()
       const controller = new AbortController()
       const id = nextId.current
       nextId.current += 1
       running.current = { id, controller }
-      dispatch({ type: 'ask', id, question: request.question })
+      dispatch({ type: 'ask', id, question: request.question, agentic: request.agentic === true })
       try {
         // A response still hands over the events of a chunk it has already read, and
         // an abort ends in an error: the reducer ignores both, the exchange is stopped.

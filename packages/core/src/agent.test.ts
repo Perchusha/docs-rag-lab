@@ -300,6 +300,34 @@ describe('runAgentLoop', () => {
     expect(sent).toEqual(['text of a', 'text of b', 'text of c'])
   })
 
+  it('stops when its signal aborts during a search, and makes no further request', async () => {
+    const { call, requests } = scripted([searchFor({ query: 'more' }), answer])
+    const controller = new AbortController()
+    const started: string[] = []
+    const searched: string[] = []
+
+    const running = runAgentLoop({
+      first,
+      hits: [hit('a')],
+      docTypes: DOC_TYPES,
+      maxSearches: 2,
+      call,
+      signal: controller.signal,
+      onSearchStart: (query) => started.push(query),
+      onSearch: (search) => searched.push(search.query),
+      search: () => {
+        controller.abort(new Error('stopped'))
+        return Promise.resolve([hit('b')])
+      },
+    })
+
+    await expect(running).rejects.toThrow('stopped')
+    expect(started).toEqual(['more'])
+    // What the stopped search brought is not reported as found.
+    expect(searched).toEqual([])
+    expect(requests).toHaveLength(1)
+  })
+
   it('never makes more requests than the first, one per search and one after the error', async () => {
     const other = reply(
       [{ type: 'tool_use', id: 't', name: 'other_tool', input: {} } as Anthropic.ToolUseBlock],

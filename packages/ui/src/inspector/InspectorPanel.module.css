@@ -53,6 +53,29 @@
   font-size: var(--text-sm);
 }
 
+/* Agentic mode: which of the answer's searches the panel shows, one a line when they wrap. */
+.searches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-hairline);
+  margin: 0;
+  padding: var(--space-hairline);
+  border: none;
+  border-radius: var(--radius-2);
+  background: var(--color-surface-strong);
+  font-size: var(--text-sm);
+}
+
+.searches legend {
+  float: left;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.searches label {
+  overflow-wrap: anywhere;
+}
+
 .on,
 .off {
   position: relative;

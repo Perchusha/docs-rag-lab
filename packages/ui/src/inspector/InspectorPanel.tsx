@@ -40,6 +40,13 @@ export interface InspectorPanelProps {
   onClose: () => void
   /** What the reranker would change on the trace shown. It is no method, so it is not above. */
   rerank?: RerankComparison | undefined
+  /**
+   * Agentic mode (ADR-0019): a label for each search of the answer, the question's first. With
+   * more than one, the panel lets a person choose the one it shows.
+   */
+  searches?: readonly string[] | undefined
+  searchIndex?: number | undefined
+  onSearchIndexChange?: ((index: number) => void) | undefined
   transport: Transport
 }
 
@@ -106,6 +113,25 @@ export function InspectorPanel(props: InspectorPanelProps) {
           <span aria-hidden="true">×</span>
         </button>
       </div>
+      {props.searches !== undefined && props.searches.length > 1 && (
+        <fieldset className={styles.searches}>
+          <legend>The answer&apos;s searches</legend>
+          {props.searches.map((label, i) => (
+            <label key={i} className={i === props.searchIndex ? styles.on : styles.off}>
+              <input
+                type="radio"
+                className={common.srOnly}
+                name={`${id}-search`}
+                checked={i === props.searchIndex}
+                onChange={() => {
+                  props.onSearchIndexChange?.(i)
+                }}
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className={styles.controls}>
         <fieldset className={styles.toggle}>
           <legend className={common.srOnly}>Search method</legend>

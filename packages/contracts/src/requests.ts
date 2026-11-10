@@ -2,7 +2,7 @@
 // these before anything reaches the engine. They check the shape only; the
 // engine still checks the values it alone knows, such as doc types and the
 // top K range. Written by hand, because contracts imports no library.
-import type { RetrievalRequest } from './answer.ts'
+import type { AskRequest, RetrievalRequest } from './answer.ts'
 import { STRATEGIES, type Strategy } from './trace.ts'
 
 /** The longest question a route accepts, in characters. */
@@ -11,6 +11,7 @@ export const MAX_QUESTION_LENGTH = 2000
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string }
 
 const FIELDS: ReadonlySet<string> = new Set(['question', 'source', 'strategy', 'docTypes', 'topK'])
+const ASK_FIELDS: ReadonlySet<string> = new Set([...FIELDS, 'agentic'])
 
 function fail(error: string): { ok: false; error: string } {
   return { ok: false, error }
@@ -18,11 +19,25 @@ function fail(error: string): { ok: false; error: string } {
 
 /** A JSON body as a RetrievalRequest, or why it is not one. Unknown fields are refused. */
 export function parseRetrievalRequest(body: unknown): Parsed<RetrievalRequest> {
+  return parseFields(body, FIELDS)
+}
+
+/** A JSON body as what the chat asks, agentic mode included (ADR-0019). */
+export function parseAskRequest(body: unknown): Parsed<AskRequest> {
+  const parsed = parseFields(body, ASK_FIELDS)
+  if (!parsed.ok) return parsed
+  const { agentic } = body as Record<string, unknown>
+  if (agentic === undefined) return parsed
+  if (typeof agentic !== 'boolean') return fail('agentic must be true or false')
+  return { ok: true, value: { ...parsed.value, agentic } }
+}
+
+function parseFields(body: unknown, allowed: ReadonlySet<string>): Parsed<RetrievalRequest> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     return fail('the body must be a JSON object')
   }
   const fields: Record<string, unknown> = { ...body }
-  const unknown = Object.keys(fields).filter((key) => !FIELDS.has(key))
+  const unknown = Object.keys(fields).filter((key) => !allowed.has(key))
   if (unknown.length > 0) return fail(`unknown field "${unknown.join('", "')}"`)
 
   const { question, source, strategy, docTypes, topK } = fields

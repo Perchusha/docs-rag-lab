@@ -1,6 +1,6 @@
 # ADR-0006: Shared data shapes live in a contracts package
 
-- Status: accepted
+- Status: accepted. ADR-0019 adds three events to section 4's order.
 - Date: 2026-11-01
 - Milestone: M3
 
@@ -54,6 +54,8 @@ Each new rule has a violating fixture in `packages/config/__fixtures__/boundarie
 3. `citations`: at the end of each text block that cites something, its markers in order, plus the sources numbered for the first time in it;
 4. `done`, with Claude's stop reason (or `no_context` when retrieval found nothing, and then no Claude call is made) and the usage so far: tokens per model and the estimated cost;
 5. or `error`, which only a transport writes: `ask()` throws, and the caller decides how to report it.
+
+ADR-0019 adds three events. A `wait`, while a search waits for the embedding rate limit, can come before `trace`. In agentic mode, `search` and `searched` frame each search of Claude's own, with its own `wait`, between `trace` and the text.
 
 Each `Citation` carries the chunk ID and context rank of the search result it cites, so a click on `[2]` can select that chunk in the inspector. `CitationNumbering` maps search result i to context chunk i, the order `buildAnswerRequest` sends them in, and refuses an index outside the context.
 

@@ -55,6 +55,8 @@ export function DocsAssistant(props: DocsAssistantProps) {
   const latestAnswer = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
   const [filter, setFilter] = useState<string[]>([])
+  // Agentic mode (ADR-0019) is opt-in: one search stays the default.
+  const [agentic, setAgentic] = useState(false)
   useFocusRing()
 
   const requestFor = (question: string, strategy: Strategy): RetrievalRequest => ({
@@ -77,7 +79,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
 
   const send = (question: string) => {
     inspector.followQuestion(question)
-    void ask(requestFor(question, inspector.strategy))
+    void ask({ ...requestFor(question, inspector.strategy), ...(agentic ? { agentic } : {}) })
   }
 
   // An example disappears as it sends, so focus moves on to the input.
@@ -138,6 +140,7 @@ export function DocsAssistant(props: DocsAssistantProps) {
                 <div key={exchange.id} ref={exchange.id === latest.id ? latestAnswer : undefined}>
                   <Answer
                     state={exchange.state}
+                    docTypeLabels={props.docTypeLabels}
                     onCitation={(citation, trigger) => {
                       inspector.showCitation(exchange, citation, trigger)
                     }}
@@ -172,6 +175,8 @@ export function DocsAssistant(props: DocsAssistantProps) {
               docTypeLabels={props.docTypeLabels}
               filter={filter}
               onFilterChange={setFilter}
+              agentic={agentic}
+              onAgenticChange={setAgentic}
               running={running}
               onSend={send}
               onStop={stop}
