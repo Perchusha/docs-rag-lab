@@ -281,6 +281,23 @@ describe('runAgentLoop', () => {
     expect(resultOf(3)?.content).toBe('No search is left. Answer from the results you have.')
     expect(requests).toHaveLength(4)
     expect(result.failure).toBe('it asked for a search after it was told none was left')
+
+    // A search with nothing new keeps its note in its tool result, with nothing after it.
+    expect(requests[2]?.messages.at(-1)?.content).toHaveLength(1)
+    // The search results of the last request, in order, are the loop's list: citations count on it.
+    const sent = (requests.at(-1)?.messages ?? []).flatMap((message) =>
+      typeof message.content === 'string'
+        ? []
+        : message.content.flatMap((block) => {
+            if (block.type === 'search_result') return [block.content[0]?.text]
+            if (block.type !== 'tool_result' || typeof block.content === 'string') return []
+            return (block.content ?? []).flatMap((inner) =>
+              inner.type === 'search_result' ? [inner.content[0]?.text] : [],
+            )
+          }),
+    )
+    expect(sent).toEqual(result.context.map((chunk) => chunk.text))
+    expect(sent).toEqual(['text of a', 'text of b', 'text of c'])
   })
 
   it('never makes more requests than the first, one per search and one after the error', async () => {

@@ -37,6 +37,7 @@ import {
 import { settings } from '@docs-rag-lab/settings'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { agentDocPaths } from './eval-answers.ts'
 import { reportsDir } from './eval-commands.ts'
 import { archivedSetPath, goldenLockPath, goldenSetPath, goldenTargetsPath } from './golden.ts'
 import { run } from './run.ts'
@@ -969,6 +970,13 @@ describe('drl eval answers', () => {
       2,
     ])
     expect(written.runToRunMissing).toEqual([])
+  })
+
+  it("finds the document of a chunk only row 6's own search found, for an anchor candidate", () => {
+    expect(agentDocPaths(root, settings.dataDir, 'typescript', ['two', 'missing'])).toEqual(
+      new Map([['two', 'docs/a.md']]),
+    )
+    expect(agentDocPaths(root, settings.dataDir, 'typescript', [])).toEqual(new Map())
   })
 
   it('a noise run answers row 3 twice and asks the judge twice', async () => {
