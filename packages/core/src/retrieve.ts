@@ -63,6 +63,10 @@ export interface RetrieveOptions {
   cache: EmbeddingCache
   meter: UsageMeter
   limiter?: RateLimiter | undefined
+  /** Told when the query's embedding waits for the rate limit, with about how long. */
+  onWait?: ((ms: number) => void) | undefined
+  /** Gives up a wait for the rate limit. */
+  signal?: AbortSignal | undefined
   /** Required by the rerank strategy, and not read by the others. */
   rerank?: RerankStep | undefined
   /** Milliseconds, for timings; defaults to performance.now. */
@@ -135,6 +139,8 @@ export async function retrieve(options: RetrieveOptions): Promise<Retrieval> {
     inputType: 'query',
     meter: options.meter,
     limiter: options.limiter,
+    onWait: options.onWait,
+    signal: options.signal,
     onProgress: () => {
       embedFrom = 'api'
     },

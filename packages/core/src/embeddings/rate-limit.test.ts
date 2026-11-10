@@ -83,6 +83,32 @@ describe('RateLimiter', () => {
     expect(clock.slept).toEqual([5_000])
   })
 
+  it('says how long it is about to wait, before it waits', async () => {
+    const clock = fakeClock()
+    const limiter = new RateLimiter({ rpm: 1, tpm: 1_000_000 }, clock)
+    const told: number[] = []
+    await limiter.acquire(10)
+
+    await limiter.acquire(10, { onWait: (ms) => told.push(ms) })
+
+    expect(told).toEqual([60_250])
+    expect(clock.slept).toEqual([60_250])
+  })
+
+  it('gives up a wait when its signal aborts, and waits for nothing after an abort', async () => {
+    // A clock that never wakes, as a long wait looks to a person who stops it.
+    const clock: Clock = { now: () => 1_000_000, sleep: () => new Promise(() => undefined) }
+    const limiter = new RateLimiter({ rpm: 1, tpm: 1_000_000 }, clock)
+    await limiter.acquire(10)
+    const controller = new AbortController()
+
+    const waiting = limiter.acquire(10, { signal: controller.signal })
+    controller.abort(new Error('stopped'))
+
+    await expect(waiting).rejects.toThrow('stopped')
+    await expect(limiter.acquire(10, { signal: controller.signal })).rejects.toThrow('stopped')
+  })
+
   it('rejects non-positive limits', () => {
     expect(() => new RateLimiter({ rpm: 0, tpm: 1 })).toThrow('rate limits must be positive')
   })

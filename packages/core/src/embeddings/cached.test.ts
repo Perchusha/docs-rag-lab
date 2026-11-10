@@ -118,6 +118,27 @@ describe('embedWithCache', () => {
     expect(limiter.waitedMs).toBe(3_000)
   })
 
+  it('tells of each wait, for the window and for a backoff alike', async () => {
+    const provider = new FlakyProvider(
+      1,
+      () => new ProviderRequestError('busy', { status: 429, retryAfterMs: 1_500 }),
+    )
+    const limiter = new RateLimiter({ rpm: 1, tpm: 1_000_000 }, instantClock())
+    const told: number[] = []
+
+    await embedWithCache(['x'], {
+      provider,
+      cache,
+      inputType: 'query',
+      meter: new UsageMeter(),
+      limiter,
+      onWait: (ms) => told.push(ms),
+    })
+
+    // The 429's backoff, then the window that its failed request still holds.
+    expect(told).toEqual([1_500, 58_750])
+  })
+
   it('does not retry a client error', async () => {
     const provider = new FlakyProvider(
       1,

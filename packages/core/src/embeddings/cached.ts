@@ -7,7 +7,7 @@ import { estimateTokens } from '@docs-rag-lab/source-kit'
 import { requestWithRetries } from '../provider-request.ts'
 import type { UsageMeter } from '../usage.ts'
 import { embeddingCacheKey, type EmbeddingProvider, type InputType } from './provider.ts'
-import type { RateLimiter } from './rate-limit.ts'
+import type { RateLimiter, WaitOptions } from './rate-limit.ts'
 
 export interface EmbedProgress {
   /** Inputs embedded through the API so far, and how many need it in total. */
@@ -20,7 +20,7 @@ export interface EmbedProgress {
   waitedMs: number
 }
 
-export interface EmbedWithCacheOptions {
+export interface EmbedWithCacheOptions extends WaitOptions {
   provider: EmbeddingProvider
   cache: EmbeddingCache
   inputType: InputType
@@ -59,11 +59,13 @@ async function embedBatch(
   batch: readonly string[],
   options: EmbedWithCacheOptions,
 ): Promise<Float32Array[]> {
-  const { provider, inputType, limiter, meter, maxRetries } = options
+  const { provider, inputType, limiter, meter, maxRetries, onWait, signal } = options
   const estimate = batch.reduce((sum, text) => sum + estimateTokens(text), 0)
   const result = await requestWithRetries(estimate, () => provider.embed(batch, inputType), {
     limiter,
     maxRetries,
+    onWait,
+    signal,
   })
   meter.recordEmbedding(provider.model, result.tokens)
   return result.vectors

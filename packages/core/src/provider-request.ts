@@ -1,7 +1,7 @@
 // One request to a provider that bills tokens: a failure that says whether it is worth
 // retrying, and the loop that waits for a slot, retries and settles the slot with what
 // was billed. Embeddings and rerank share both.
-import type { RateLimiter } from './embeddings/rate-limit.ts'
+import type { RateLimiter, WaitOptions } from './embeddings/rate-limit.ts'
 
 /** A failed provider request. `status` is undefined for network errors and timeouts. */
 export class ProviderRequestError extends Error {
@@ -24,7 +24,7 @@ export class ProviderRequestError extends Error {
   }
 }
 
-export interface ProviderRequestOptions {
+export interface ProviderRequestOptions extends WaitOptions {
   limiter?: RateLimiter | undefined
   maxRetries?: number | undefined
   /**
@@ -49,11 +49,12 @@ export async function requestWithRetries<T extends { tokens: number }>(
   options: ProviderRequestOptions,
 ): Promise<T> {
   const { limiter } = options
+  const waits: WaitOptions = { onWait: options.onWait, signal: options.signal }
   const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES
   // The last attempt got a 429, and nothing has been sent since, for a full window.
   let idledAfterRateLimit = false
   for (let attempt = 0; ; attempt++) {
-    const slot = await limiter?.acquire(estimate)
+    const slot = await limiter?.acquire(estimate, waits)
     try {
       const result = await request()
       slot?.settle(result.tokens)
@@ -75,7 +76,7 @@ export async function requestWithRetries<T extends { tokens: number }>(
       )
       // However short a Retry-After, a second 429 only says something after a full idle window.
       const wait = idledAfterRateLimit ? Math.max(RATE_LIMITED_BACKOFF_MS, backoff) : backoff
-      if (limiter !== undefined) await limiter.wait(wait)
+      if (limiter !== undefined) await limiter.wait(wait, waits)
       else await new Promise((resolve) => setTimeout(resolve, wait))
     }
   }

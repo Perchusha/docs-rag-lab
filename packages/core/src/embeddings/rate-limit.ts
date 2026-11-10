@@ -25,6 +25,14 @@ interface Entry {
   tokens: number
 }
 
+/** What a caller can learn of a wait, and how it can give one up. */
+export interface WaitOptions {
+  /** Told before each wait, with how long it will be. */
+  onWait?: ((ms: number) => void) | undefined
+  /** Gives up the wait: the promise rejects with the signal's reason. */
+  signal?: AbortSignal | undefined
+}
+
 export interface Slot {
   /** Replace the request's estimated tokens with the billed count. */
   settle(tokens: number): void
@@ -50,10 +58,26 @@ export class RateLimiter {
   }
 
   /** Sleeps for `ms` and counts it as rate-limit waiting (used for retry backoff). */
-  async wait(ms: number): Promise<void> {
+  async wait(ms: number, options: WaitOptions = {}): Promise<void> {
     if (ms <= 0) return
+    const { signal } = options
+    signal?.throwIfAborted()
+    options.onWait?.(ms)
     this.#waitedMs += ms
-    await this.#clock.sleep(ms)
+    if (signal === undefined) {
+      await this.#clock.sleep(ms)
+      return
+    }
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = (): void => {
+        reject(signal.reason as Error)
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+      void this.#clock.sleep(ms).then(() => {
+        signal.removeEventListener('abort', onAbort)
+        resolve()
+      })
+    })
   }
 
   #leavesAt(entry: Entry): number {
@@ -65,8 +89,9 @@ export class RateLimiter {
    * window. A request larger than the whole TPM budget goes through once the
    * window is empty.
    */
-  async acquire(estimatedTokens: number): Promise<Slot> {
+  async acquire(estimatedTokens: number, options: WaitOptions = {}): Promise<Slot> {
     for (;;) {
+      options.signal?.throwIfAborted()
       const now = this.#clock.now()
       this.#entries = this.#entries.filter((entry) => this.#leavesAt(entry) > now)
       const used = this.#entries.reduce((sum, entry) => sum + entry.tokens, 0)
@@ -83,7 +108,7 @@ export class RateLimiter {
         }
       }
       const next = Math.min(...this.#entries.map((entry) => this.#leavesAt(entry)))
-      await this.wait(Math.max(1, next - now + MARGIN_MS))
+      await this.wait(Math.max(1, next - now + MARGIN_MS), options)
     }
   }
 }
