@@ -1,5 +1,9 @@
 # Docs RAG Lab
 
+[![ci](https://img.shields.io/github/actions/workflow/status/Perchusha/docs-rag-lab/ci.yml?branch=main&label=ci&logo=github)](https://github.com/Perchusha/docs-rag-lab/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/Perchusha/docs-rag-lab?label=release)](https://github.com/Perchusha/docs-rag-lab/releases/latest)
+[![license](https://img.shields.io/github/license/Perchusha/docs-rag-lab)](LICENSE)
+
 Interview preparation and docs Q&A grounded in official technical documentation.
 
 Docs RAG Lab is a local RAG engine over the TypeScript and React documentation. It comes with:
